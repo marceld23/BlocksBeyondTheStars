@@ -860,6 +860,11 @@ public sealed partial class GameServer
     /// a town must not reach into the town's own timber).</summary>
     private void StampSettlementBlocks(PlacedSettlement p, string surface, bool crownRing = true)
     {
+        if (p.Ruined && AbandonedBeds.Applies(_generator.TerrainGeneration))
+        {
+            p.Structure = AbandonedBeds.Apply(p.Structure, _content); // generation 45: nobody lives in a ruin — its beds are no beds
+        }
+
         if (p.Structure.HasColumnMap && p.Seat is "flat" or "slope" or "shelf")
         {
             StampPlannedBlocks(p, surface, crownRing); // #3588: a planned settlement claims its columns, not its box

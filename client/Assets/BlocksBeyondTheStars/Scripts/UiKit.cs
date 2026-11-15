@@ -342,7 +342,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 _group = group;
                 _rt = GetComponent<Canvas>() == null ? transform as RectTransform : null; // canvas roots fade only
-                if (_rt != null && !_homed)
+                // The home is where the element rests NOW — unless a run is still under way (or was cut off by a hide), when
+                // the element still stands displaced. Recording it only once sent an element placed elsewhere since its
+                // first opening sliding back to that first place (#3668: the right column's context cards move).
+                if (_rt != null && (!_homed || !enabled))
                 {
                     _home = _rt.anchoredPosition;
                     _homed = true;
@@ -372,7 +375,7 @@ namespace BlocksBeyondTheStars.Client
                     _group.alpha = k;
                 }
 
-                if (_rt != null)
+                if (_rt != null && _slide != 0f)
                 {
                     _rt.anchoredPosition = _home + Vector2.down * (_slide * (1f - k));
                 }
@@ -484,20 +487,13 @@ namespace BlocksBeyondTheStars.Client
         // same layout ~1.25× bigger (more readable on high-res monitors) while Expand keeps it fitting any aspect.
         public const float HudRefW = 1536f, HudRefH = 864f;
 
-        /// <summary>#2953: the shell screens' left line (1920×1080 reference units) — the main menu's column, the System
-        /// Check box above it and the loading screen's panels all start here, so they read as one edge.</summary>
+        /// <summary>#2953: the shell screens' left line (1920×1080 reference units) — the main menu's column, the titles
+        /// (#3663: on this line now, the System Check box that sat above the menu is gone) and the loading screen's panels all
+        /// start here, so they read as one edge.</summary>
         public const float ShellColumnX = 90f;
 
-        /// <summary>#3435: the main menu column's width — the name panel and the menu buttons.</summary>
+        /// <summary>#3435: the browser menu column's width — the name panel and the menu buttons.</summary>
         public const float ShellColumnW = 440f;
-
-        /// <summary>#2953: the System Check box's width — since #3435 the menu column's, so the box above the menu closes on
-        /// the same right edge — and where the shell title starts: right of that box with a 40-unit gap. The main menu, the
-        /// loading screen and the save/host screen share it, so the title never jumps.</summary>
-        public const float SystemCheckWidth = ShellColumnW, ShellTitleX = ShellColumnX + SystemCheckWidth + 40f;
-
-        /// <summary>#3435: the System Check rows inside the box — the label from 32, the "OK" column 70 in from the right edge.</summary>
-        public const float SystemCheckOkX = SystemCheckWidth - 70f, SystemCheckLabelW = SystemCheckOkX - 42f;
 
         /// <summary>Bounds of the player's UI-scale setting (#483).</summary>
         public const float UserScaleMin = 0.8f, UserScaleMax = 1.6f;
@@ -704,11 +700,13 @@ namespace BlocksBeyondTheStars.Client
         /// foreground panel reads clearly, and swallows clicks meant for the panel (raycast target on). Add it to
         /// the canvas root right before the dialog panel so the panel draws on top; parent the panel under the
         /// returned scrim's transform. Returns the scrim <see cref="Image"/> (use <c>.gameObject</c> to show/hide
-        /// the whole overlay).</summary>
+        /// the whole overlay). The scrim is a <see cref="UiModalScope"/>: with controls under it, it is a dialog the pad
+        /// focus moves into and stays in until it closes (<see cref="UiNavFocus"/>).</summary>
         public static Image AddModalDim(Transform parent, float alpha = ScrimDialog)
         {
             var dim = AddImage(parent, 0f, 0f, 1920f, 1080f, SolidSprite, new Color(0f, 0f, 0f, alpha));
             dim.raycastTarget = true; // swallow clicks behind the dialog
+            dim.gameObject.AddComponent<UiModalScope>();
             return dim;
         }
 
@@ -1356,51 +1354,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Same, with an explicit fill — <see cref="DialogSprite"/> needs an opaque one, and the
         /// fill alpha is BAKED into the texture (tinting can only make an Image more transparent).</summary>
-        private static Sprite RoundedSprite(int radius, int border, Color fill)
-        {
-            int size = radius * 2 + 8;
-            var edge = Cyan;
-
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-            };
-            var px = new Color[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    // Distance into a rounded corner (0 along the straight edges).
-                    float dx = Mathf.Max(radius - x, x - (size - 1 - radius), 0f);
-                    float dy = Mathf.Max(radius - y, y - (size - 1 - radius), 0f);
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-
-                    Color c;
-                    if (dist > radius)
-                    {
-                        c = new Color(0f, 0f, 0f, 0f);
-                    }
-                    else if (dist > radius - border)
-                    {
-                        c = edge;
-                    }
-                    else
-                    {
-                        c = fill;
-                    }
-
-                    px[y * size + x] = c;
-                }
-            }
-
-            tex.SetPixels(px);
-            tex.Apply();
-
-            int b = radius + 2;
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
-                SpriteMeshType.FullRect, new Vector4(b, b, b, b));
-        }
+        private static Sprite RoundedSprite(int radius, int border, Color fill) => RoundedSprite(radius, border, fill, Cyan);
 
         /// <summary>A cyan ring with an alpha gradient around its circumference (a fading tail) — rotated
         /// by <see cref="SpinnerRotate"/> it reads as a smooth loading spinner.</summary>

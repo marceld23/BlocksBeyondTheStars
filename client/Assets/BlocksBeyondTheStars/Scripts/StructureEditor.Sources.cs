@@ -113,7 +113,7 @@ namespace BlocksBeyondTheStars.Client
                 y += 28f;
             }
 
-            UiKit.AddFitButton(p, 16f, y, 348f, 34f, L("ui.struct.generate"), GenerateFromSource);
+            UiKit.AddFitButton(p, 16f, y, 348f, 34f, L("ui.struct.generate"), () => _shell.ConfirmDiscard(GenerateFromSource)); // replaces the build
             y += 40f;
             return BuildSurfaceRow(p, y) + 6f;
         }
@@ -225,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
             _sourceValues[param.Key] = value;
             if (_entryMode && _previewOn)
             {
-                SetStatus(L("ui.ed.entry.stale"));
+                SetStatus(L("ui.ed.entry.stale"), EditorStatusSeverity.Warning);
             }
 
             RebuildUi();
@@ -307,7 +307,7 @@ namespace BlocksBeyondTheStars.Client
             if (!fits)
             {
                 SetStatus(L(_entryMode ? "ui.ed.entry.wrong_pool"
-                    : source.Kind == StructureSourceKind.Space ? "ui.struct.source_needs_station" : "ui.struct.source_needs_town"));
+                    : source.Kind == StructureSourceKind.Space ? "ui.struct.source_needs_station" : "ui.struct.source_needs_town"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -369,7 +369,7 @@ namespace BlocksBeyondTheStars.Client
             var built = BuildSource(source, _asInWorld || !source.SupportsIntact);
             if (built == null)
             {
-                SetStatus(L("ui.ed.load_failed_hint")); // a friendly line; the exception went to the log (#3263)
+                SetStatus(L("ui.ed.load_failed_hint"), EditorStatusSeverity.Error); // a friendly line; the exception went to the log (#3263)
                 return;
             }
 
@@ -387,7 +387,8 @@ namespace BlocksBeyondTheStars.Client
             ApplyTemplate($"{source.Key}_{_seed}", $"{name} #{_seed}", tier, "default", 1, null, BuiltCells(built), copy: false,
                 underground: source.Kind == StructureSourceKind.Underground);
             _groundRow = built.GroundRow; // a landmark made from it keeps the row that sat on the ground
-            SetStatus(string.Format(L("ui.ed.generated"), name, _design.Count, _seed) + "\n" + _status);
+            _loadedFrom = "generated:" + source.Key; // the draft names what the work was made from
+            SetStatus(string.Format(L("ui.ed.generated"), name, _design.Count, _seed) + "\n" + _status, EditorStatusSeverity.Success);
         }
 
         /// <summary>A built structure as cells: markers first (a block on a marker cell is the one skipped), devices onto their

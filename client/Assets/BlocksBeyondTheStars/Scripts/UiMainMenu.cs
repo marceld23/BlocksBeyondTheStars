@@ -9,20 +9,22 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The uGUI main menu (M27 UI rework): the sci-fi mockup look built in code via <see cref="UiKit"/>
-    /// — a SYSTEM CHECK panel, the BLOCKS BEYOND THE STARS title, framed cyan menu buttons wired to the shell, a
-    /// tagline and the version. Shown over the animated <see cref="MenuBackground"/>. AppShell spawns
-    /// it on the MainMenu phase and destroys it on leaving. Decorative panels (world/server info,
-    /// community bar) + editable host/port land in a follow-up.
+    /// The uGUI main menu, on the menu template (#3663): the title top left over the button column, ONE filled primary
+    /// action on top — Continue with the last world when there is one, else Singleplayer — then Singleplayer, Multiplayer
+    /// (one entry for official worlds, joining and hosting) and Editors, with Settings / Credits / Quit as a smaller row.
+    /// The player name is a profile chip top right that every play mode uses. The right column carries real content —
+    /// the newest "What's new?" release and the festival card — where a decorative SYSTEM CHECK and a static
+    /// "world / server info" panel (which always claimed a "Survival" mode the game does not offer) used to be.
+    /// Shown over the animated <see cref="MenuBackground"/>; AppShell spawns it on the MainMenu phase.
     /// <para>
     /// The screen is assembled by the nested <see cref="Builder"/> — one method per visual sub-block, called by
     /// <see cref="Build"/> in draw order. That order is behaviour: <see cref="UiKit.BootScreen"/> staggers the canvas's
     /// direct children by sibling index, and draw, raycast and gamepad-focus order follow the hierarchy (pinned by the
-    /// EditMode golden <c>MainMenuHierarchyEditModeTests</c>). The native Official-worlds overlay lives in
-    /// <c>UiOfficialWorlds</c>.
+    /// EditMode golden <c>MainMenuHierarchyEditModeTests</c>). Official worlds and joining a server live on their own
+    /// screen now (<c>UiMultiplayer</c>, #3665).
     /// </para>
     /// </summary>
-    public static class UiMainMenu
+    public static partial class UiMainMenu
     {
         public static GameObject Build(AppShell shell)
         {
@@ -30,23 +32,22 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(canvas.gameObject); // let a gamepad drive the menu (inert on keyboard/mouse)
 
             var b = new Builder(shell, canvas.transform);
-            b.BuildSystemCheck();
             b.BuildTitle();
             b.BuildNotice();
 #if UNITY_WEBGL && !UNITY_EDITOR
             b.BuildBrowserMenu();
 #else
+            b.BuildProfileChip();
             b.BuildNativeMenu();
 #endif
-            b.BuildWorldInfoPanel();
+            b.BuildWhatsNewCard();
             UiFestivalCard.Build(shell, canvas.transform); // #3003: today's or the next festival (nothing without content or a festival near)
             b.BuildBottomBar();
             // #3021: the card's "More festivals" opens "My festivals" at the END of the canvas when pressed, so neither the
             // card's button nor the bottom bar draws over the open list or stays clickable through its scrim (#3017).
 
-            b.BuildConnectDialog();
-#if !UNITY_WEBGL || UNITY_EDITOR
-            b.BuildOfficialWorlds();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            b.BuildConnectDialog(); // the browser keeps its manual connect dialog; the desktop joins from UiMultiplayer
 #endif
             b.BuildParticipateOverlay();
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -66,17 +67,25 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private sealed class Builder
         {
-            // --- Menu buttons --- the column's x, width, button height and row pitch, and the name panel's top.
+            // --- Menu buttons --- the column's x, width, button height and row pitch, and the name panel's top (browser menu).
             private const float bx = UiKit.ShellColumnX, bw = UiKit.ShellColumnW, bh = 54f, gap = 62f;
             private const float by = 322f;
+
+            // --- The native column (#3663): left edge, width, the big Continue row and the entries under it.
+            private const float ColX = UiKit.MenuLeft, ColW = 560f, ContinueH = 108f, EntryH = 78f, EntryPitch = 90f;
+
+            // --- The right column: the What's-new card on top, the festival card (UiFestivalCard) under it.
+            private const float CardX = 1300f, CardW = 530f;
 
             private readonly AppShell _shell;
             private readonly Transform _root;
 
-            // Connect-to-server dialog (built by BuildConnectDialog; the JOIN button reveals it). Read by the button.
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Connect-to-server dialog (browser only; built by BuildConnectDialog). Read by the button that reveals it.
             // _dlgName mirrors the dialog's name input so openers can carry the menu's name field over.
             private GameObject _connect;
             private InputField _dlgName;
+#endif
 
             // The participate / "Join in" overlay (built by BuildParticipateOverlay); the bottom-right button reveals it.
             private GameObject _participate;
@@ -87,29 +96,11 @@ namespace BlocksBeyondTheStars.Client
                 _root = root;
             }
 
-            // --- SYSTEM CHECK panel (decorative flavour) --- its left edge on the menu column's line (#2953), as wide as the
-            // column below it (#3435).
-            public void BuildSystemCheck()
-            {
-                const float sx = bx;
-                UiHolo.AddPanel(_root, sx, 40f, UiKit.SystemCheckWidth, 220f, UiKit.Panel, 18f, 1.5f, 1f); // holo frame — wipes on with the screen boot (#1796)
-                UiKit.AddText(_root, sx + 20f, 54f, UiKit.SystemCheckWidth - 40f, 22f, _shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                string[] sysKeys = { "ui.sys.engines", "ui.sys.shields", "ui.sys.life_support", "ui.sys.comms", "ui.sys.navigation" };
-                string[] sysIcons = { "sys_engines", "sys_shields", "sys_life", "sys_comms", "sys_nav" };
-                for (int i = 0; i < sysKeys.Length; i++)
-                {
-                    float yy = 92f + i * 30f;
-                    UiKit.AddIcon(_root, sx + 6f, yy, 18f, sysIcons[i]);
-                    UiKit.AddText(_root, sx + 32f, yy, UiKit.SystemCheckLabelW, 22f, _shell.L(sysKeys[i]), 16, UiKit.TextCol);
-                    UiKit.AddText(_root, sx + UiKit.SystemCheckOkX, yy, 50f, 22f, _shell.L("ui.sys.ok"), 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
-                }
-            }
-
-            // --- Title ---
+            // --- Title (top left, over the button column — one axis for the whole screen, #3663) + the tagline under it ---
             public void BuildTitle()
             {
-                UiKit.AddLogo(_root, UiKit.ShellTitleX, 70f, 1200f, 96f, "BLOCKS BEYOND THE STARS", 64);
-                UiKit.AddText(_root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
+                UiKit.AddLogo(_root, ColX, 40f, 1180f, 96f, "BLOCKS BEYOND THE STARS", 64);
+                UiKit.AddText(_root, ColX + 4f, 136f, 1100f, 30f, _shell.L("ui.splash.tagline"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             }
 
             // --- One-shot notice (e.g. why the last join was refused) ---
@@ -125,39 +116,44 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!string.IsNullOrEmpty(_shell.MenuNotice))
                 {
-                    UiKit.AddText(_root, 90f, 286f, 1200f, 28f, _shell.MenuNotice, 17,
+                    UiKit.AddText(_root, ColX, 186f, 1180f, 28f, _shell.MenuNotice, 17,
                         new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
                 }
             }
 
-            // --- World / server info panel (bottom-right, decorative) ---
-            public void BuildWorldInfoPanel()
+            // --- "What's new?" card (top of the right column, #3663) — the newest release's title and a teaser ---
+            public void BuildWhatsNewCard()
             {
-                // Its bottom edge (672+250=922) lines up with the menu column's last entry ("Quit" ends
-                // at 434+62*7+54=922), so the two columns close on one shared baseline.
-                UiHolo.AddPanel(_root, 1290f, 672f, 590f, 250f, UiKit.Panel, 18f, 1.5f, 1f);
-                UiKit.AddText(_root, 1314f, 688f, 540f, 24f, _shell.L("ui.menu.world_info"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                AddInfo(_root, 728f, "info_mode", _shell.L("ui.info.mode_title"), _shell.L("ui.info.mode_desc"));
-                AddInfo(_root, 792f, "info_multiplayer", _shell.L("ui.info.mp_title"), _shell.L("ui.info.mp_desc"));
-                AddInfo(_root, 856f, "info_procedural", _shell.L("ui.info.proc_title"), _shell.L("ui.info.proc_desc"));
+                const float y = UiKit.MenuContentTop, h = 300f;
+                var card = UiKit.AddCard(_root, CardX, y, CardW, h);
+                var kicker = UiKit.AddKicker(card, 24f, 18f, CardW - 48f, _shell.L("ui.menu.whatsnew"));
+                var title = UiKit.AddText(card, 24f, 50f, CardW - 48f, 64f, "", 23, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                title.horizontalOverflow = HorizontalWrapMode.Wrap;
+                var teaser = UiKit.AddText(card, 24f, 120f, CardW - 48f, 112f, _shell.L("ui.portal.working"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                teaser.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddLinkButton(card, 24f, 246f, 300f, 36f, _shell.L("ui.menu.whatsnew_more"), _shell.OpenWhatsNew);
+                card.gameObject.AddComponent<WhatsNewTeaser>().Init(_shell, kicker, title, teaser, CardW - 48f);
             }
 
-            // --- Bottom bar ---
+            // --- Bottom bar: the community links as real buttons (#3663) ---
             public void BuildBottomBar()
             {
-                UiKit.AddText(_root, 90f, 1030f, 500f, 26f, _shell.L("ui.menu.community"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddText(_root, 660f, 1030f, 600f, 26f, _shell.L("ui.splash.tagline"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                // "What's new?" (#543, the devblog release notes in-game — also auto-opens once after an
-                // update) + "Mach mit" (opens the open-source participate panel; replaced the old "Wishlist
-                // on Steam" line). The pair spans exactly the world-info panel above (1290..1880), so the
-                // right column closes flush.
-                UiKit.AddButton(_root, 1290f, 1018f, 285f, 48f, _shell.L("ui.menu.whatsnew"),
-                    _shell.OpenWhatsNew, "btn_credits");
-                UiKit.AddButton(_root, 1595f, 1018f, 285f, 48f, _shell.L("ui.menu.contribute"),
-                    () => { if (_participate != null) _participate.SetActive(true); }, "btn_credits");
+                const float y = 1000f, h = 50f;
+                UiKit.AddKicker(_root, ColX, y + 13f, 190f, _shell.L("ui.menu.community"));
+                UiKit.AddTierButton(_root, ColX + 200f, y, 230f, h, _shell.L("ui.menu.contribute"),
+                    () => { if (_participate != null) _participate.SetActive(true); }, ButtonTier.Quiet, "btn_multiplayer");
+                UiKit.AddTierButton(_root, ColX + 444f, y, 230f, h, _shell.L("ui.contribute.website"), OpenWebsite, ButtonTier.Quiet, "btn_singleplayer");
+                UiKit.AddText(_root, CardX, y, CardW, h, "VER. " + AppShell.Version, 15, UiKit.CyanDim, TextAnchor.MiddleRight);
             }
 
-            // --- Connect-to-server dialog (added last so it draws on top; hidden until JOIN is pressed) ---
+            // The game website follows the UI language (the German site is the root, English lives under /en).
+            private void OpenWebsite()
+                => Application.OpenURL(_shell.Settings.Language == "de"
+                    ? "https://www.blocksbeyondthestars.com/"
+                    : "https://www.blocksbeyondthestars.com/en");
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // --- Connect-to-server dialog (browser only; added last so it draws on top; hidden until opened) ---
             public void BuildConnectDialog()
             {
                 string[] name = { _shell.PlayerName };
@@ -214,9 +210,10 @@ namespace BlocksBeyondTheStars.Client
                     _shell.ArcadeNameToken = "";
                     _shell.StartJoin();
                 }, "btn_join");
-                UiKit.AddButton(dlg, 310f, 432f, 260f, 54f, _shell.L("ui.menu.back"), () => _connect.SetActive(false), "btn_exit");
+                UiKit.AddTierButton(dlg, 310f, 432f, 260f, 54f, _shell.L("ui.menu.back"), () => _connect.SetActive(false), ButtonTier.Quiet, "btn_back");
                 _connect.SetActive(false);
             }
+#endif
 
             // --- Participate / "Join in" overlay (added last so it draws on top; hidden until "Mach mit") ---
             public void BuildParticipateOverlay()
@@ -242,13 +239,10 @@ namespace BlocksBeyondTheStars.Client
                 // Real buttons, not link-styled text (#544): the GitHub line used to be a dead AddText that
                 // merely LOOKED clickable. GitHub + the game website open in the system browser; the website
                 // follows the UI language (the German site is the root, English lives under /en).
-                UiKit.AddButton(pdlg, 60f, 414f, 380f, 46f, _shell.L("ui.contribute.github"),
-                    () => Application.OpenURL("https://github.com/marceld23/BlocksBeyondTheStars"), "btn_credits");
-                UiKit.AddButton(pdlg, 460f, 414f, 280f, 46f, _shell.L("ui.contribute.website"),
-                    () => Application.OpenURL(_shell.Settings.Language == "de"
-                        ? "https://www.blocksbeyondthestars.com/"
-                        : "https://www.blocksbeyondthestars.com/en"), "btn_credits");
-                UiKit.AddButton(pdlg, 270f, 500f, 260f, 52f, _shell.L("ui.menu.back"), () => _participate.SetActive(false), "btn_exit");
+                UiKit.AddTierButton(pdlg, 60f, 414f, 380f, 46f, _shell.L("ui.contribute.github"),
+                    () => Application.OpenURL("https://github.com/marceld23/BlocksBeyondTheStars"), ButtonTier.Secondary, "btn_editors");
+                UiKit.AddTierButton(pdlg, 460f, 414f, 280f, 46f, _shell.L("ui.contribute.website"), OpenWebsite, ButtonTier.Secondary, "btn_singleplayer");
+                UiKit.AddTierButton(pdlg, 270f, 500f, 260f, 52f, _shell.L("ui.menu.back"), () => _participate.SetActive(false), ButtonTier.Quiet, "btn_back");
                 _participate.SetActive(false);
             }
 
@@ -366,7 +360,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         _newWorldDlg.SetActive(true);
                     }
-                }, "btn_settings");
+                }, "btn_new");
 
                 if (onGlitch)
                 {
@@ -374,7 +368,8 @@ namespace BlocksBeyondTheStars.Client
                     // deployment starts that storage empty (#1177) — logging in on Glitch is the one thing
                     // that carries the world across updates and devices (Cloud Save), so say so right next
                     // to the buttons that start it (#1178). The rest of the row is free; wrap to two lines.
-                    var hint = UiKit.AddText(_root, bx + bw + 252f, spY, 560f, bh, _shell.L("ui.webgl.glitch_save_hint"), 14,
+                    // 490 wide: it ends left of the What's-new card (x 1300, #3663); three lines at 14 still fit the row.
+                    var hint = UiKit.AddText(_root, bx + bw + 252f, spY, 490f, bh, _shell.L("ui.webgl.glitch_save_hint"), 14,
                         UiKit.CyanDim, TextAnchor.MiddleLeft);
                     hint.horizontalOverflow = HorizontalWrapMode.Wrap;
                 }
@@ -415,8 +410,24 @@ namespace BlocksBeyondTheStars.Client
                             : PortalClient.DefaultPortalUrl; // local file test builds → the official portal
                     Application.OpenURL(portalUrl + "/worlds");
                 }, "btn_credits");
-                UiKit.AddButton(_root, bx, nextY + gap, bw, bh, _shell.L("ui.menu.settings"), _shell.OpenSettings, "btn_settings");
-                UiKit.AddButton(_root, bx, nextY + gap * 2f, bw, bh, _shell.L("ui.menu.credits"), () => _shell.GoTo(ShellPhase.Credits), "btn_credits");
+                UiKit.AddTierButton(_root, bx, nextY + gap, bw, bh, _shell.L("ui.menu.settings"), _shell.OpenSettings, ButtonTier.Quiet, "btn_settings");
+                UiKit.AddTierButton(_root, bx, nextY + gap * 2f, bw, bh, _shell.L("ui.menu.credits"), () => _shell.GoTo(ShellPhase.Credits), ButtonTier.Quiet, "btn_credits");
+                StyleBrowserLead(onGlitch || bareMenu ? _shell.L(onGlitch ? "ui.menu.singleplayer_glitch" : "ui.menu.singleplayer") : _shell.L("ui.menu.play"));
+            }
+
+            // The browser menu's one primary action (#3662): the button on top — Play for a portal deep-link, Singleplayer
+            // on glitch.fun and on a bare /play page.
+            private void StyleBrowserLead(string label)
+            {
+                foreach (var button in _root.GetComponentsInChildren<Button>(true))
+                {
+                    var text = button.GetComponentInChildren<Text>();
+                    if (text != null && text.text == label)
+                    {
+                        UiKit.StyleTier(button, ButtonTier.Primary);
+                        return;
+                    }
+                }
             }
 
             // --- "New world?" confirmation (#1181) — added last so it draws on top; hidden until opened ---
@@ -429,12 +440,13 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(newWorldPanel, 30f, 24f, 540f, 36f, _shell.L("ui.webgl.new_world_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
                 var newWorldBody = UiKit.AddText(newWorldPanel, 30f, 78f, 540f, 140f, _shell.L("ui.webgl.new_world_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
                 newWorldBody.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddButton(newWorldPanel, 30f, 240f, 260f, 56f, _shell.L("ui.webgl.new_world_confirm"), () =>
+                // Danger tier (#3662): it deletes the browser's world — and a pad's first focus in the dialog skips it.
+                UiKit.AddTierButton(newWorldPanel, 30f, 240f, 260f, 56f, _shell.L("ui.webgl.new_world_confirm"), () =>
                 {
                     newWorldOverlay.SetActive(false);
                     _shell.StartNewBrowserWorld();
-                }, "btn_exit");
-                UiKit.AddButton(newWorldPanel, 310f, 240f, 260f, 56f, _shell.L("ui.action.cancel"), () => newWorldOverlay.SetActive(false), "btn_settings");
+                }, ButtonTier.Danger, "btn_delete");
+                UiKit.AddTierButton(newWorldPanel, 310f, 240f, 260f, 56f, _shell.L("ui.action.cancel"), () => newWorldOverlay.SetActive(false), ButtonTier.Quiet, "btn_back");
                 newWorldOverlay.SetActive(false);
             }
 
@@ -478,64 +490,90 @@ namespace BlocksBeyondTheStars.Client
                         _shell.BrowserNamePromptShowing = false;
                         nameOverlay.SetActive(false);
                         _shell.StartBrowserSingleplayer();
-                    }, "btn_singleplayer");
-                    UiKit.AddButton(namePanel, 310f, 270f, 260f, 56f, _shell.L("ui.action.cancel"), () =>
+                    }, "btn_continue");
+                    UiKit.AddTierButton(namePanel, 310f, 270f, 260f, 56f, _shell.L("ui.action.cancel"), () =>
                     {
                         _shell.BrowserNamePromptShowing = false;
                         nameOverlay.SetActive(false);
-                    }, "btn_settings");
+                    }, ButtonTier.Quiet, "btn_back");
                     nameInput.ActivateInputField();
                 }
             }
 #else
             // The menu's pilot name (#221) and the warning line under it — both read by CommitName — and the name's
-            // input field, which SetMenuName keeps showing the value.
+            // input field in the profile chip.
             private string _natName;
             private Text _natWarn;
-            private InputField _natNameInput;
 
-            // Official-worlds overlay (native only; built by BuildOfficialWorlds). Read by its menu button.
-            private GameObject _official;
+            // --- Profile chip (top right, #3663): the player name every play mode uses, edited in place ---
+            public void BuildProfileChip()
+            {
+                // The name is the gate for every play action (#221): the chip sits where players look for "who am I",
+                // the warning under it says what is missing when a play button is pressed without a name.
+                _natName = _shell.PlayerName;
+                const float x = 1430f, y = 34f, w = 400f, h = 98f;
+                var chip = UiKit.AddCard(_root, x, y, w, h);
+                UiKit.AddIcon(chip, 18f, 25f, 48f, "cat_suit");
+                UiKit.AddText(chip, 80f, 10f, w - 100f, 24f, _shell.L("ui.menu.connect_name"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddInput(chip, 80f, 38f, w - 100f, 46f, _natName, v => _natName = v,
+                    maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
+                _natWarn = UiKit.AddText(_root, x, y + h + 6f, w, 24f, "", 15,
+                    new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleRight, FontStyle.Bold);
+            }
 
             public void BuildNativeMenu()
             {
-                // Pilot name on the menu itself (#221): play actions require a chosen name — the old silent
-                // "Pilot" default meant nobody ever picked one and multiplayer names collided. The value is
-                // persisted on use; the connect dialog's own name field stays as a per-join override.
-                _natName = _shell.PlayerName;
-                // The name is the gate for every play action (#221) — make the field read as step one, not
-                // as a side note: an accented backdrop + bold cyan label instead of the plain grey line.
-                // The panel's outer edges sit exactly on the button column (bx..bx+bw); content insets instead.
-                UiHolo.AddPanel(_root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f), 14f, 1.2f, 0.8f);
-                UiKit.AddText(_root, bx + 16f, by, bw - 32f, 24f, _shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                _natNameInput = UiKit.AddInput(_root, bx + 16f, by + 30f, bw - 32f, 46f, _natName, v => _natName = v, maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
-                _natWarn = UiKit.AddText(_root, bx, by + 80f, bw, 22f, "", 14,
-                    new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
-                float nby = by + 112f;
+                float y = UiKit.MenuContentTop;
+                var last = LastWorld.Find(_shell.Settings.LastWorld);
+                if (last != null)
+                {
+                    // Continue (#3663): the most common way into the game in one click — the world, its mode, how long ago.
+                    AddEntry(ColX, y, ColW, ContinueH, _shell.L("ui.menu.continue"), last.Line(_shell.L), "btn_continue",
+                        ButtonTier.Primary, () => { if (CommitName()) { _shell.StartSingleplayerWorld(last.Name); } });
+                    y += ContinueH + 14f;
+                }
 
-                UiKit.AddButton(_root, bx, nby, bw, bh, _shell.L("ui.menu.singleplayer"),
-                    () => { if (CommitName()) { _shell.StartSingleplayer(); } }, "btn_singleplayer");
-                UiKit.AddButton(_root, bx, nby + gap, bw, bh, _shell.L("ui.menu.host"),
-                    () => { if (CommitName()) { _shell.StartHost(); } }, "btn_join");
-                UiKit.AddButton(_root, bx, nby + gap * 2f, bw, bh, _shell.L("ui.menu.join"), () =>
+                AddEntry(ColX, y, ColW, EntryH, _shell.L("ui.menu.singleplayer"), _shell.L("ui.menu.singleplayer_sub"), "btn_singleplayer",
+                    last == null ? ButtonTier.Primary : ButtonTier.Secondary, () => { if (CommitName()) { _shell.StartSingleplayer(); } });
+                y += EntryPitch;
+                AddEntry(ColX, y, ColW, EntryH, _shell.L("ui.menu.multiplayer"), _shell.L("ui.menu.multiplayer_sub"), "btn_multiplayer",
+                    ButtonTier.Secondary, () => { if (CommitName()) { _shell.OpenMultiplayer(0); } });
+                y += EntryPitch;
+                AddEntry(ColX, y, ColW, EntryH, _shell.L("ui.menu.editors"), _shell.L("ui.menu.editors_sub"), "btn_editors",
+                    ButtonTier.Secondary, () => _shell.GoTo(ShellPhase.Editors));
+                y += EntryPitch + 6f;
+
+                // Settings / Credits / Quit: side actions, smaller and quieter — the power icon belongs to Quit alone.
+                UiKit.AddImage(_root, ColX, y, ColW, 1.5f, UiKit.SolidSprite, new Color(UiKit.CyanDim.r, UiKit.CyanDim.g, UiKit.CyanDim.b, 0.6f));
+                y += 16f;
+                float sw = (ColW - 24f) / 3f;
+                UiKit.AddTierButton(_root, ColX, y, sw, 56f, _shell.L("ui.menu.settings"), _shell.OpenSettings, ButtonTier.Quiet, "btn_settings");
+                UiKit.AddTierButton(_root, ColX + sw + 12f, y, sw, 56f, _shell.L("ui.menu.credits"), () => _shell.GoTo(ShellPhase.Credits), ButtonTier.Quiet, "btn_credits");
+                UiKit.AddTierButton(_root, ColX + 2f * (sw + 12f), y, sw, 56f, _shell.L("ui.menu.quit"), _shell.Quit, ButtonTier.Quiet, "btn_exit");
+            }
+
+            // A two-line menu entry: the action in big letters, what it leads to under it; a larger icon on the left.
+            private void AddEntry(float x, float y, float w, float h, string title, string sub, string icon, ButtonTier tier, System.Action onClick)
+            {
+                var button = UiKit.AddTierButton(_root, x, y, w, h, title, onClick, tier, icon);
+                float iconSize = h >= ContinueH ? 52f : 40f;
+                foreach (var image in button.GetComponentsInChildren<Image>(true))
                 {
-                    if (CommitName() && _connect != null)
+                    if (image != button.targetGraphic)
                     {
-                        _dlgName.text = _shell.PlayerName; // carry the menu's name over (fires the input's onChange)
-                        _connect.SetActive(true);
+                        UiKit.Place(image.gameObject, 20f, (h - iconSize) / 2f, iconSize, iconSize);
                     }
-                }, "btn_join");
-                UiKit.AddButton(_root, bx, nby + gap * 3f, bw, bh, _shell.L("ui.menu.official"), () =>
-                {
-                    if (CommitName() && _official != null)
-                    {
-                        _official.SetActive(true);
-                    }
-                }, "btn_join");
-                UiKit.AddButton(_root, bx, nby + gap * 4f, bw, bh, _shell.L("ui.menu.editors"), () => _shell.GoTo(ShellPhase.Editors), "btn_singleplayer");
-                UiKit.AddButton(_root, bx, nby + gap * 5f, bw, bh, _shell.L("ui.menu.settings"), _shell.OpenSettings, "btn_settings");
-                UiKit.AddButton(_root, bx, nby + gap * 6f, bw, bh, _shell.L("ui.menu.credits"), () => _shell.GoTo(ShellPhase.Credits), "btn_credits");
-                UiKit.AddButton(_root, bx, nby + gap * 7f, bw, bh, _shell.L("ui.menu.quit"), _shell.Quit, "btn_exit");
+                }
+
+                var label = button.GetComponentInChildren<Text>();
+                float textX = iconSize + 40f;
+                UiKit.Place(label.gameObject, textX, h * 0.12f, w - textX - 16f, h * 0.46f);
+                label.fontSize = h >= ContinueH ? 30 : 24;
+                label.resizeTextForBestFit = false;
+                UiKit.FitLabelSingleLine(label, w - textX - 16f, 14, label.fontSize);
+                var line = UiKit.AddText(button.transform, textX, h * 0.56f, w - textX - 16f, h * 0.32f, sub, h >= ContinueH ? 17 : 15,
+                    tier == ButtonTier.Primary ? new Color(0.05f, 0.22f, 0.33f) : UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.FitLabelSingleLine(line, w - textX - 16f, 11, line.fontSize);
             }
 
             // True when a name is present (warns + blocks otherwise); commits it to the shell + settings.
@@ -557,28 +595,7 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
-            // Writes a replacement name into the menu: the value CommitName reads AND the field that shows it — the
-            // field used to keep showing the refused name (#2926). Without notify: the value is set right here.
-            private void SetMenuName(string name)
-            {
-                _natName = name;
-                _natNameInput.SetTextWithoutNotify(name);
-            }
-
-            // --- Official-worlds overlay (native only; HOSTED_WORLDS.md: the browser NEVER picks servers) ---
-            // Its name gate is CommitName, and a replacement name from its "name reserved" retry goes through SetMenuName.
-            public void BuildOfficialWorlds()
-            {
-                _official = new UiOfficialWorlds(_shell, _root, CommitName, SetMenuName).Overlay;
-            }
 #endif
-        }
-
-        private static void AddInfo(Transform root, float y, string icon, string title, string desc)
-        {
-            UiKit.AddIcon(root, 1314f, y + 4f, 32f, icon);
-            UiKit.AddText(root, 1356f, y, 500f, 22f, title, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddText(root, 1356f, y + 24f, 500f, 22f, desc, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
         }
     }
 }

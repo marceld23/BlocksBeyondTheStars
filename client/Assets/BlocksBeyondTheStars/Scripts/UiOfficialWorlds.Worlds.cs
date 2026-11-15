@@ -11,9 +11,13 @@ using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
-    // The Official-worlds overlay's world dialogs: creating a world and managing one (password, lifecycle, saves, bans).
+    // The Official-worlds tab's world dialogs: creating a world and managing one (password, lifecycle, saves, bans).
     internal sealed partial class UiOfficialWorlds
     {
+        // The ban list's row pitch: its 34-high buttons get a 44-high touch area (UiKit.AddHitArea) that must not reach
+        // into the next row's.
+        private const float BanRowPitch = 48f;
+
         private async void DoCreateWorld(string worldName, string password, Text warn)
         {
             warn.color = WarnCol;
@@ -21,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.CreateWorld(session, worldName, string.IsNullOrEmpty(password) ? null : password));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 if (r.Code == "terms_outdated") { CloseModal(); PromptReaccept(); return; }
@@ -57,13 +61,13 @@ namespace BlocksBeyondTheStars.Client
             friends.horizontalOverflow = HorizontalWrapMode.Wrap;
             var cWarn = UiKit.AddText(cDlg, 40f, 310f, 720f, 44f, "", 14, WarnCol, TextAnchor.UpperLeft, FontStyle.Bold);
             cWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(cDlg, 40f, 366f, 340f, 54f, _shell.L("ui.portal.create"), () =>
+            UiKit.AddTierButton(cDlg, 40f, 366f, 340f, 54f, _shell.L("ui.portal.create"), () =>
             {
                 if (string.IsNullOrWhiteSpace(worldName[0])) { cWarn.text = _shell.L("ui.portal.err_world_name_invalid"); return; }
                 if (pw1[0] != pw2[0]) { cWarn.text = _shell.L("ui.portal.err_password_mismatch"); return; }
                 DoCreateWorld(worldName[0].Trim(), pw1[0], cWarn);
-            }, "btn_join");
-            UiKit.AddButton(cDlg, 420f, 366f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }, ButtonTier.Primary, "btn_new");
+            UiKit.AddTierButton(cDlg, 420f, 366f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, ButtonTier.Quiet, "btn_back");
         }
 
         private async void DoSetWorldPassword(string worldId, string password, Text warn)
@@ -73,7 +77,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.SetWorldPassword(session, worldId, password));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -92,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.SetWorldVisibility(session, worldId, makePublic));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -111,7 +115,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.StopWorld(session, worldId));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -138,7 +142,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.DeleteWorld(session, world.Id));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -175,7 +179,7 @@ namespace BlocksBeyondTheStars.Client
 
                 return dl;
             });
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -209,7 +213,7 @@ namespace BlocksBeyondTheStars.Client
                     return new PortalSimpleResult { Error = ex.Message };
                 }
             });
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 if (r.Code == "terms_outdated") { CloseModal(); PromptReaccept(); return; }
@@ -245,16 +249,18 @@ namespace BlocksBeyondTheStars.Client
             mpi1.contentType = InputField.ContentType.Password;
             var mpi2 = UiKit.AddInput(mDlg, 352f, 126f, 300f, 38f, mp2[0], v => mp2[0] = v);
             mpi2.contentType = InputField.ContentType.Password;
-            UiKit.AddButton(mDlg, 664f, 122f, 155f, 44f, _shell.L("ui.portal.pw_set"), () =>
+            UiKit.AddTierButton(mDlg, 664f, 122f, 155f, 44f, _shell.L("ui.portal.pw_set"), () =>
             {
                 if (mp1[0] != mp2[0]) { mWarn.color = WarnCol; mWarn.text = _shell.L("ui.portal.err_password_mismatch"); return; }
                 if (string.IsNullOrEmpty(mp1[0])) { mWarn.color = WarnCol; mWarn.text = _shell.L("ui.portal.err_world_password_invalid"); return; }
                 DoSetWorldPassword(world.Id, mp1[0], mWarn);
-            }, "btn_join");
-            UiKit.AddButton(mDlg, 827f, 122f, 133f, 44f, _shell.L("ui.portal.pw_remove"), () => DoSetWorldPassword(world.Id, "", mWarn), "btn_exit");
+            }, ButtonTier.Secondary, "btn_settings");
+            UiKit.AddTierButton(mDlg, 827f, 122f, 133f, 44f, _shell.L("ui.portal.pw_remove"), () => DoSetWorldPassword(world.Id, "", mWarn),
+                ButtonTier.Quiet, "btn_delete");
 
             // Lifecycle: stopping is also the precondition for save download/upload.
-            UiKit.AddButton(mDlg, 40f, 192f, 300f, 50f, _shell.L("ui.portal.stop"), () => DoStopWorld(world.Id, mWarn, mStatus), "btn_settings");
+            UiKit.AddTierButton(mDlg, 40f, 192f, 300f, 50f, _shell.L("ui.portal.stop"), () => DoStopWorld(world.Id, mWarn, mStatus),
+                ButtonTier.Secondary, "btn_host");
             var stopHint = UiKit.AddText(mDlg, 360f, 200f, 600f, 40f, _shell.L("ui.portal.stop_hint"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
             stopHint.horizontalOverflow = HorizontalWrapMode.Wrap;
 
@@ -262,9 +268,11 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(mDlg, 40f, 262f, 920f, 22f, _shell.L("ui.portal.save_title"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             var saveHint = UiKit.AddText(mDlg, 40f, 288f, 920f, 40f, _shell.L("ui.portal.save_hint"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
             saveHint.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(mDlg, 40f, 338f, 300f, 50f, _shell.L("ui.portal.save_download"), () => DoDownloadSave(world.Id, mWarn), "btn_join");
-            UiKit.AddButton(mDlg, 352f, 338f, 300f, 50f, _shell.L("ui.portal.save_upload"), () => DoUploadSave(world.Id, mWarn), "btn_join");
-            UiKit.AddButton(mDlg, 664f, 338f, 296f, 50f, _shell.L("ui.portal.save_folder"), OpenSaveFolder, "btn_credits");
+            UiKit.AddTierButton(mDlg, 40f, 338f, 300f, 50f, _shell.L("ui.portal.save_download"), () => DoDownloadSave(world.Id, mWarn),
+                ButtonTier.Secondary, "cat_cargo");
+            UiKit.AddTierButton(mDlg, 352f, 338f, 300f, 50f, _shell.L("ui.portal.save_upload"), () => DoUploadSave(world.Id, mWarn),
+                ButtonTier.Secondary, "cat_cargo");
+            UiKit.AddTierButton(mDlg, 664f, 338f, 296f, 50f, _shell.L("ui.portal.save_folder"), OpenSaveFolder, ButtonTier.Quiet, "cat_cargo");
 
             // Danger zone: deletion needs the world's name typed back — a click can't do it by accident.
             UiKit.AddText(mDlg, 40f, 412f, 920f, 22f, _shell.L("ui.portal.delete_world"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -272,7 +280,8 @@ namespace BlocksBeyondTheStars.Client
             delHint.horizontalOverflow = HorizontalWrapMode.Wrap;
             string[] typed = { "" };
             UiKit.AddInput(mDlg, 40f, 468f, 480f, 38f, typed[0], v => typed[0] = v, world.Name);
-            UiKit.AddButton(mDlg, 552f, 464f, 408f, 46f, _shell.L("ui.portal.delete_world"), () => DoDeleteWorld(world, typed[0], mWarn), "btn_exit");
+            UiKit.AddTierButton(mDlg, 552f, 464f, 408f, 46f, _shell.L("ui.portal.delete_world"), () => DoDeleteWorld(world, typed[0], mWarn),
+                ButtonTier.Danger, "btn_delete");
 
             // Public listing (opt-in). Requires a join password — public worlds stay password-gated, so
             // strangers who find the world in the browser still need the owner-shared password to join.
@@ -282,15 +291,16 @@ namespace BlocksBeyondTheStars.Client
             pubHint.horizontalOverflow = HorizontalWrapMode.Wrap;
             if (world.HasPassword)
             {
-                UiKit.AddButton(mDlg, 664f, 540f, 296f, 46f,
+                UiKit.AddTierButton(mDlg, 664f, 540f, 296f, 46f,
                     _shell.L(world.IsPublic ? "ui.portal.make_private" : "ui.portal.make_public"),
-                    () => DoSetVisibility(world.Id, !world.IsPublic, mWarn), world.IsPublic ? "btn_exit" : "btn_join");
+                    () => DoSetVisibility(world.Id, !world.IsPublic, mWarn), ButtonTier.Secondary, "btn_singleplayer");
             }
 
             // Owner moderation (#497): the world owner's own ban list, the counterpart to the operator's
             // fleet ban. Its own dialog — this one is full, and blocking someone deserves room to read.
-            UiKit.AddButton(mDlg, 150f, 700f, 340f, 54f, _shell.L("ui.portal.moderation"), () => OpenWorldBans(world), "btn_settings");
-            UiKit.AddButton(mDlg, 510f, 700f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            UiKit.AddTierButton(mDlg, 150f, 700f, 340f, 54f, _shell.L("ui.portal.moderation"), () => OpenWorldBans(world),
+                ButtonTier.Secondary, "btn_multiplayer");
+            UiKit.AddTierButton(mDlg, 510f, 700f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, ButtonTier.Quiet, "btn_back");
         }
 
         // The owner's ban list for one world: who is blocked (with unblock), and who has played here
@@ -306,7 +316,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddSpinner(bDlg, 42f, 110f, 26f, bWarn);
             string[] reason = { "" };
             var listRoot = UiKit.AddPanel(bDlg, 30f, 148f, 940f, 560f, new Color(0f, 0f, 0f, 0f)).transform;
-            UiKit.AddButton(bDlg, 330f, 716f, 340f, 54f, _shell.L("ui.menu.back"), () => OpenManage(world), "btn_exit");
+            UiKit.AddTierButton(bDlg, 330f, 716f, 340f, 54f, _shell.L("ui.menu.back"), () => OpenManage(world), ButtonTier.Quiet, "btn_back");
 
             async void Load()
             {
@@ -315,7 +325,7 @@ namespace BlocksBeyondTheStars.Client
                 var portal = new PortalClient(PortalBase());
                 string session = _shell.Settings.PortalSessionToken;
                 var r = await Task.Run(() => portal.ListWorldBans(session, world.Id));
-                if (_overlay == null || listRoot == null) { return; }
+                if (_pane == null || listRoot == null) { return; }
                 if (!r.Ok)
                 {
                     bWarn.text = PortalErr(r.Code, r.Error);
@@ -342,8 +352,9 @@ namespace BlocksBeyondTheStars.Client
                     long banId = ban.Id;
                     string label = ban.PlayerName + (ban.Reason.Length > 0 ? "  —  " + ban.Reason : string.Empty);
                     UiKit.AddText(listRoot, 10f, y, 700f, 34f, label, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    UiKit.AddButton(listRoot, 730f, y, 190f, 34f, _shell.L("ui.portal.unblock"), () => DoWorldUnban(world, banId, bWarn, Load), "btn_join");
-                    y += 40f;
+                    UiKit.AddHitArea(UiKit.AddTierButton(listRoot, 730f, y, 190f, 34f, _shell.L("ui.portal.unblock"),
+                        () => DoWorldUnban(world, banId, bWarn, Load), ButtonTier.Secondary, "map_player"));
+                    y += BanRowPitch;
                 }
 
                 y += 16f;
@@ -358,7 +369,7 @@ namespace BlocksBeyondTheStars.Client
                 int shown = 0;
                 foreach (var v in r.Visitors)
                 {
-                    if (blocked.Contains(v.PlayerName.ToLowerInvariant()) || y > 470f)
+                    if (blocked.Contains(v.PlayerName.ToLowerInvariant()) || y > 462f)
                     {
                         continue; // already blocked, or the dialog is full — the list is newest-first
                     }
@@ -366,11 +377,11 @@ namespace BlocksBeyondTheStars.Client
                     string playerName = v.PlayerName;
                     string accountId = v.AccountId;
                     UiKit.AddText(listRoot, 10f, y, 520f, 34f, playerName, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    UiKit.AddButton(listRoot, 540f, y, 180f, 34f, _shell.L("ui.portal.kick"),
-                        () => DoWorldKick(world, playerName, bWarn), "btn_settings");
-                    UiKit.AddButton(listRoot, 730f, y, 190f, 34f, _shell.L("ui.portal.block"),
-                        () => DoWorldBan(world, playerName, accountId, reason[0], bWarn, Load), "btn_exit");
-                    y += 40f;
+                    UiKit.AddHitArea(UiKit.AddTierButton(listRoot, 540f, y, 180f, 34f, _shell.L("ui.portal.kick"),
+                        () => DoWorldKick(world, playerName, bWarn), ButtonTier.Quiet, "map_mark_danger"));
+                    UiKit.AddHitArea(UiKit.AddTierButton(listRoot, 730f, y, 190f, 34f, _shell.L("ui.portal.block"),
+                        () => DoWorldBan(world, playerName, accountId, reason[0], bWarn, Load), ButtonTier.Danger, "map_mark_danger"));
+                    y += BanRowPitch;
                     shown++;
                 }
 
@@ -394,7 +405,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.AddWorldBan(session, world.Id, playerName, accountId, reason ?? ""));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -417,7 +428,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.RemoveWorldBan(session, world.Id, banId));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -435,7 +446,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.KickFromWorld(session, world.Id, playerName));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);

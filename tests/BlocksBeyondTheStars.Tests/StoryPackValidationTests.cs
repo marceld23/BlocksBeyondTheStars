@@ -247,6 +247,15 @@ public sealed class StoryPackValidationTests
     public void AConditionThatDoesNotParse_IsAnError(string condition)
         => AssertError(Side(d => Step(d).Requires.Add(condition)), "Story condition");
 
+    [Fact]
+    public void AStepsWaitWhile_IsACheckedCondition_AndNeverOnAReactStep()
+    {
+        // #3673: the walk and jump lessons wait while the player flies the ship.
+        Assert.Empty(Errors(StoryPackValidator.Validate(Side(d => Step(d).WaitWhile.Add("not:world:on_foot")), Context())));
+        AssertError(Side(d => Step(d).WaitWhile.Add("world:no_such_predicate")), "Story condition");
+        AssertError(Side(d => { Step(d).Kind = StoryStepKinds.React; Step(d).WaitWhile.Add("not:world:on_foot"); }), "a react step never waits");
+    }
+
     [Theory]
     [InlineData("step:probe:nope", "has no step")]
     [InlineData("chapter:probe:nope", "has no chapter")]

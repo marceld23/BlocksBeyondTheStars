@@ -47,21 +47,24 @@ namespace BlocksBeyondTheStars.Client
         // language changes.
         private WikiArticleText _articleText;
 
-        private static readonly (string Id, string LabelKey)[] Chapters =
+        // The template header (#3672): Back top left, the title beside it, Close top right.
+        private const float HeaderY = 22f, HeaderH = 52f, BackW = 210f, CloseW = 190f;
+
+        private static readonly (string Id, string LabelKey, string Icon)[] Chapters =
         {
-            ("guide", "ui.wiki.guide"),
-            ("blocks", "ui.wiki.blocks"),
-            ("items", "ui.wiki.items"),
-            ("tech", "ui.wiki.tech"),
-            ("ships", "ui.wiki.ships"),
-            ("modules", "ui.wiki.modules"),
-            ("planets", "ui.wiki.planets"),
-            ("discoveries", "ui.wiki.discoveries"), // what THIS player has scanned (#484)
-            ("enemies", "ui.wiki.enemies"),         // every hostile, the ones THIS player has met marked (#2971, #3031)
-            ("substances", "ui.wiki.substances"),   // the bio lab's research book (#2203): species analysed…
-            ("compounds", "ui.wiki.compounds"),     // …mixes tried…
-            ("materials", "ui.wiki.materials"),     // …deposits analysed and tools and gear changed
-            ("lore", "ui.wiki.lore"),               // found story texts: fragments, memories, field records (#1111)
+            ("guide", "ui.wiki.guide", "cat_mission"),
+            ("blocks", "ui.wiki.blocks", "cat_blocks"),
+            ("items", "ui.wiki.items", "cat_inventory"),
+            ("tech", "ui.wiki.tech", "cat_tech"),
+            ("ships", "ui.wiki.ships", "map_ship"),
+            ("modules", "ui.wiki.modules", "cat_modules"),
+            ("planets", "ui.wiki.planets", "cat_planet"),
+            ("discoveries", "ui.wiki.discoveries", "cat_target"), // what THIS player has scanned (#484)
+            ("enemies", "ui.wiki.enemies", "map_mark_danger"),    // every hostile, the ones THIS player has met marked (#2971, #3031)
+            ("substances", "ui.wiki.substances", "ov_plants"),    // the bio lab's research book (#2203): species analysed…
+            ("compounds", "ui.wiki.compounds", "cat_medicine"),   // …mixes tried…
+            ("materials", "ui.wiki.materials", "map_mark_ore"),   // …deposits analysed and tools and gear changed
+            ("lore", "ui.wiki.lore", "map_ruin"),                 // found story texts: fragments, memories, field records (#1111)
         };
 
         /// <summary>Opens the Codex. <paramref name="chapter"/> is a deep link (#1843: the Progress block's
@@ -127,30 +130,49 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddImage(_root, 0, 0, W, H, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.97f));
-            UiKit.AddLogo(_root, 40, 18, 520, 44, L("ui.wiki.title"), 26);
-            UiKit.AddButton(_root, W - 360, 26, 180, 46, L("ui.action.back_menu"), () => Menu?.CloseBrowser());
-            UiKit.AddButton(_root, W - 170, 26, 130, 46, L("ui.action.close"), () => Menu?.CloseFromUi());
+            var (back, close) = AddHeader();
 
-            // Sidebar: one button per chapter; the active one is tinted.
+            // The chapter list as the left navigation: the open chapter drawn primary, the others quiet.
             float sy = RegionY;
-            foreach (var (id, labelKey) in Chapters)
+            Button open = null;
+            foreach (var (id, labelKey, icon) in Chapters)
             {
                 string cid = id;
-                var b = UiKit.AddButton(_root, RegionX, sy, SidebarW - 12f, 48f, L(labelKey), () => SelectChapter(cid));
-                if (_chapter == id)
-                {
-                    b.GetComponent<Image>().color = UiKit.Cyan;
-                }
-
+                var chapter = UiKit.AddTierButton(_root, RegionX, sy, SidebarW - 12f, 48f, L(labelKey), () => SelectChapter(cid),
+                    _chapter == id ? ButtonTier.Primary : ButtonTier.Quiet, icon);
+                open = _chapter == id ? chapter : open;
                 sy += 56f;
             }
 
-            // Content: a framed scroll pane to the right of the sidebar.
+            // Content: a scroll pane on an opaque card to the right of the chapters — the game must not show through the text.
             float cx = RegionX + SidebarW, cw = RegionW - SidebarW;
-            UiKit.AddPanel(_root, cx, RegionY, cw, RegionH, new Color(0.03f, 0.06f, 0.11f, 0.96f));
+            UiKit.AddCard(_root, cx, RegionY, cw, RegionH);
             var content = BuildContentScroll(cx, RegionY, cw, RegionH);
             RenderChapter(content, cw - 2f * Pad);
+
+            // Back and Close after the chapters and the content: a pad's first focus is the first control in hierarchy order,
+            // and A on arrival must not leave the Codex (as on the menu screens) — it lands on the open chapter.
+            back.transform.SetAsLastSibling();
+            close.transform.SetAsLastSibling();
+            UiNav.Prefer(_canvas.gameObject, open);
         }
+
+        /// <summary>The menu template's header (#3672): Back to the in-game menu top left (the arrow icon — the label's own
+        /// "‹" goes), the title beside it, Close top right. Returns the two buttons.</summary>
+        private (Button Back, Button Close) AddHeader()
+        {
+            string back = L("ui.action.back_menu").TrimStart('‹', ' ');
+            var backButton = UiKit.AddTierButton(_root, RegionX, HeaderY, BackW, HeaderH, back, () => Menu?.CloseBrowser(),
+                ButtonTier.Quiet, "btn_back");
+            UiKit.AddLogo(_root, RegionX + BackW + 28f, HeaderY - 2f, 760f, HeaderH + 4f, L("ui.wiki.title"), 32);
+            var closeButton = UiKit.AddTierButton(_root, W - RegionX - CloseW, HeaderY, CloseW, HeaderH, L("ui.action.close"),
+                () => Menu?.CloseFromUi(), ButtonTier.Quiet, "btn_close");
+            return (backButton, closeButton);
+        }
+
+        /// <summary>Test seam (as <c>UiPanel.CanvasForTest</c>): the Codex's canvas once shown, so an EditMode test can check
+        /// its pad focus and clean it up.</summary>
+        public Canvas CanvasForTest => _canvas;
 
         private void SelectChapter(string id)
         {

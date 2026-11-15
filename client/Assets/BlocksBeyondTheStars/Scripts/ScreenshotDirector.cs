@@ -27,8 +27,12 @@ namespace BlocksBeyondTheStars.Client
     /// (<see cref="ScreenCapture.CaptureScreenshotAsTexture"/>, which includes the ScreenSpaceOverlay HUD,
     /// like the /bump screenshot). The timings and the three flight framings are the parts most likely to
     /// need tuning on a real run — adjust the constants below.
+    /// <para>
+    /// <c>-captureEditors</c> (#3687, <c>ScreenshotDirector.Editors.cs</c>) instead opens every creative editor in turn
+    /// from the editors menu, writes <c>editors/NN-&lt;editor&gt;[-&lt;view&gt;].png</c> and quits — no world is started.
+    /// </para>
     /// </summary>
-    public sealed class ScreenshotDirector : MonoBehaviour
+    public sealed partial class ScreenshotDirector : MonoBehaviour
     {
         // --- tunables ---
         private const string WorldName = "MarketingShots";
@@ -49,13 +53,15 @@ namespace BlocksBeyondTheStars.Client
         private bool _headless; // true = launched via the -captureShots command line (exit the process when done)
         private string _planet; // when set (-planet <key>), capture ONLY that planet's surface (surface_<key>.png)
         private bool _credits;  // when true (-captureCredits), capture ONLY the credits screen (credits.png) and quit
+        private bool _editors;  // when true (-captureEditors, #3687), capture ONLY the editors (editors/*.png) and quit
 
         /// <summary>Self-install at startup when capture is requested. Reload-safe: reads config fresh from the
         /// command line (player/headless) or EditorPrefs (editor menu) rather than relying on static state.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInstall()
         {
-            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits))
+            bool editors = EditorCaptureRequested(); // ScreenshotDirector.Editors.cs
+            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits) && !editors)
             {
                 return;
             }
@@ -66,9 +72,10 @@ namespace BlocksBeyondTheStars.Client
             d._lang = lang;
             d._outDir = outDir;
             d._seed = seed;
-            d._headless = headless;
+            d._headless = headless || editors;
             d._planet = planet;
             d._credits = credits;
+            d._editors = editors;
         }
 
         private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits)
@@ -137,6 +144,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Debug.LogError("[Capture] No AppShell in the scene.");
                 Quit(1);
+                yield break;
+            }
+
+            // Editors-only mode (-captureEditors, #3687): it sets the language itself, on its way out of the main menu, and quits.
+            if (_editors)
+            {
+                yield return CaptureEditors(shell);
                 yield break;
             }
 

@@ -76,6 +76,21 @@ public static class FurnitureShapes
         return true;
     }
 
+    /// <summary>The working bed's block key: the home spawn, the rest heal, a settler's home and an NPC's sleeping place all go
+    /// by this block id.</summary>
+    public const string BedKey = "bed";
+
+    /// <summary>
+    /// The bed of a ruin or a wreck (terrain generation 44, <see cref="WorldDescription.AbandonedBedsGeneration"/>): the
+    /// working bed's look (its faces show the <see cref="BedKey"/> tile, in the same two-cell forms) but a block of its own,
+    /// so no bed rule ever sees it — nobody can make a home there, rest there, and no settler or sleeper is drawn to it.
+    /// Never crafted or placed by a player; mined, it yields a plain bed.
+    /// </summary>
+    public const string AbandonedBedKey = "bed_abandoned";
+
+    /// <summary>Whether the block is a bed of either kind — the forms, the pair that falls as one piece, the stripped drop.</summary>
+    public static bool IsBedBlockKey(string? blockKey) => blockKey is BedKey or AbandonedBedKey;
+
     /// <summary>True when the form is one half of the two-cell bed.</summary>
     public static bool IsBedHalf(int shapeIndex)
         => shapeIndex == (int)BlockShape.BedHead || shapeIndex == (int)BlockShape.BedFoot;
@@ -157,6 +172,7 @@ public static class PropShapes
     public static int DefaultPlaceShape(string blockKey) => blockKey switch
     {
         "bed" => (int)BlockShape.BedHead,     // the head half; the server stamps the foot on the next cell (#1846)
+        FurnitureShapes.AbandonedBedKey => (int)BlockShape.BedHead, // a ruin's bed: head + foot like the working bed
         "campfire" => (int)BlockShape.Slab,
         "campfire_off" => (int)BlockShape.Slab, // #2261: the unlit twin keeps the campfire's form
         "rug" => (int)BlockShape.Sheet,
@@ -219,8 +235,8 @@ public static class PropShapes
         => shape != 0
            && (shape == DefaultPlaceShape(blockKey)
                || (shape == LadderFreeStanding && blockKey == "ladder")
-               // A bed's foot half and the legacy one-cell bed both drop as a plain "bed" (#1846).
-               || (blockKey == "bed" && (shape == (int)BlockShape.BedFoot || shape == BedSingleCell))
+               // A bed's foot half and the legacy one-cell bed both drop as a plain "bed" (#1846) — a ruin's bed too.
+               || (FurnitureShapes.IsBedBlockKey(blockKey) && (shape == (int)BlockShape.BedFoot || shape == BedSingleCell))
                // A torch or lantern on a wall, standing or hanging drops as the plain light (#2683).
                || (shape == LightMountShape && IsLightMountKey(blockKey)));
 

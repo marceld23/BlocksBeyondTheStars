@@ -712,6 +712,7 @@ public sealed partial class GameServer
                 var pool = new MaterialPool(_content, session.State, _ship);
                 pool.Add(parts[1], count);
                 SendInventory(session);
+                SpillPoolOverflow(session, pool, session.State.Position.ToBlock()); // a full pack used to destroy a once-only present
                 break;
 
             case "radio" when parts.Length >= 2:

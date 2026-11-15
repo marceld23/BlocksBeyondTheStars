@@ -238,8 +238,9 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   Client.Core. `UiMainMenu.Build` is a short orchestrator over a private `Builder` with one
   `Build*` method per block of the menu, called in draw order — the order is behaviour (the boot
   stagger, raycasts and gamepad focus follow the hierarchy), pinned by
-  `MainMenuHierarchyEditModeTests`; the menu's native-only Official-worlds overlay is the partial
-  class `UiOfficialWorlds` (`UiOfficialWorlds.cs` + `.Rules`, `.Account`, `.Worlds`). New screens
+  `MainMenuHierarchyEditModeTests`; the native Official-worlds tab of the Multiplayer screen (`UiMultiplayer`,
+  `ShellPhase.Multiplayer`, #3665) is the partial class `UiOfficialWorlds` (`UiOfficialWorlds.cs` + `.Rules`, `.Account`,
+  `.Worlds`, `.Views`). Every menu screen follows the menu template of [UI_LAYOUT.md](UI_LAYOUT.md). New screens
   use the shared builders instead of copying them: `UiKit`
   (`AddScrollViewport`, `MeasureHeight`, `AddCenteredPanel`, `AddStretchChild`, `Tr`), and for the
   free-fly editor scenes the static `EditorSceneKit` / `EditorPaletteKit` (camera, floor, cell picking,

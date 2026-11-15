@@ -58,7 +58,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (_category == "suit")
             {
-                return BuildSuitPage(); // #2288: the paper doll
+                float suitH = BuildSuitPage(); // #2288: the paper doll
+                CenterListColumn(ListW);       // #3671: its column centred in the wide inventory list
+                return suitH;
             }
 
             if (_category == "samples")
@@ -132,7 +134,7 @@ namespace BlocksBeyondTheStars.Client
                 }, contentKey: stack.Item, trimRight: perStack ? TakeButtonW + 8f : 0f);
                 if (perStack)
                 {
-                    UiKit.AddButton(_listContent, 780f - TakeButtonW, y, TakeButtonW, 78f, L("ui.cargo.take_stack"),
+                    UiKit.AddButton(_listContent, CardW - TakeButtonW, y, TakeButtonW, 78f, L("ui.cargo.take_stack"),
                         () => MoveCargoStack(false, stack.Slot, stack.Item, ShiftHeld()));
                 }
 
@@ -185,34 +187,32 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------- #2110: the inventory grid (Justus: "wie in Minecraft") ----------------
 
+        // GridCell / GridPitch: the suit figure's slots (#2288). The backpack grid scales its slots to the list's width.
         private const float GridCell = 76f, GridPitch = 84f, GridX0 = 8f;
+
+        /// <summary>#3671: the backpack grid's pitch — nine columns filling the wide inventory list (the sidebar's width
+        /// went to it), at most 120 px, never below the old 84.</summary>
+        private float InvPitch => Mathf.Clamp(Mathf.Floor((ListViewW - 2f * GridX0 - 12f) / QuickSlots), GridPitch, 120f);
 
         /// <summary>The personal inventory as slots: the backpack rows and, under a line, the quick-bar — nine wide.
         /// Click-to-pick / click-to-place (the hotbar swap's model): identical on mouse, touch and gamepad (the buttons
         /// navigate by geometry). Two clicks move or swap. What is worn lives on the Suit tab's figure (#2288); a piece
-        /// picked here still gets Wear in the detail pane.</summary>
+        /// picked here still gets Wear in the detail pane. "Stow all materials" sits in the toolbar above (#3671).</summary>
         private float BuildInventoryGrid()
         {
-            float y = 0f;
-            if (AboardShipNow())
-            {
-                UiKit.AddButton(_listContent, 8, y, 752, 44, L("ui.cargo.stow_all"),
-                    () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true));
-                y += 56f;
-            }
+            float y = 0f, pitch = InvPitch, cell = pitch - 8f;
+            float gridW = (QuickSlots - 1) * pitch + cell;
 
             // The backpack rows (slots 9..N-1).
-            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.inventory.backpack"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            UiKit.AddText(_listContent, 8, y, gridW, 26, L("ui.inventory.backpack"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 30f;
-            int total = PersonalSlotTotal;
-            int packSlots = Mathf.Max(0, total - QuickSlots);
+            int packSlots = Mathf.Max(0, PersonalSlotTotal - QuickSlots);
             int rows = (packSlots + QuickSlots - 1) / QuickSlots;
             for (int i = 0; i < packSlots; i++)
             {
                 int index = QuickSlots + i;
-                float x = GridX0 + (i % QuickSlots) * GridPitch;
-                float yy = y + (i / QuickSlots) * GridPitch;
-                var b = AddGridSlot(x, yy, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index));
+                var b = AddGridSlot(GridX0 + (i % QuickSlots) * pitch, y + (i / QuickSlots) * pitch, Game.ItemInSlot(index),
+                    Game.CountInSlot(index), () => OnInventorySlotClicked(index), cell);
                 DimUnlessMatch(b, Game.ItemInSlot(index)); // #3111: the filter dims, nothing moves
                 if (_pickKind == "inv" && _pickIndex == index)
                 {
@@ -220,24 +220,24 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            y += rows * GridPitch + 6f;
+            y += rows * pitch + 6f;
 
             // A clean line, then the quick-bar row (slots 0..8, numbered).
             var line = new GameObject("Separator", typeof(RectTransform), typeof(Image));
             line.transform.SetParent(_listContent, false);
-            UiKit.Place(line, 8f, y, 752f, 2f);
+            UiKit.Place(line, 8f, y, gridW, 2f);
             line.GetComponent<Image>().color = UiKit.CyanDim;
             line.GetComponent<Image>().raycastTarget = false;
             y += 10f;
-            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.inventory.hotbar"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            UiKit.AddText(_listContent, 8, y, gridW, 26, L("ui.inventory.hotbar"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 30f;
+            int numSize = cell >= 100f ? 16 : 12;
             for (int k = 0; k < QuickSlots; k++)
             {
                 int index = k;
-                float x = GridX0 + k * GridPitch;
-                var b = AddGridSlot(x, y, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index));
+                var b = AddGridSlot(GridX0 + k * pitch, y, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index), cell);
                 DimUnlessMatch(b, Game.ItemInSlot(index));
-                var num = UiKit.AddText(b.transform, 5f, 3f, 24f, 18f, (k + 1).ToString(), 12, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
+                var num = UiKit.AddText(b.transform, 6f, 4f, 30f, numSize + 6f, (k + 1).ToString(), numSize, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
                 UiKit.AddOutline(num);
                 if (_pickKind == "inv" && _pickIndex == index)
                 {
@@ -245,8 +245,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            y += GridCell + 12f;
-            var hint = UiKit.AddText(_listContent, 8, y, 752, 44, L("ui.inventory.pick_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += cell + 12f;
+            var hint = UiKit.AddText(_listContent, 8, y, gridW, 44, L("ui.inventory.pick_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
             hint.horizontalOverflow = HorizontalWrapMode.Wrap;
             return y + 50f;
         }
@@ -261,10 +261,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>One slot button: the item's icon (shape silhouette → painted design → atlas tile → generated icon,
-        /// the hotbar's resolution) and its count; empty slots are plain frames.</summary>
-        private Button AddGridSlot(float x, float y, string item, int count, System.Action onClick)
+        /// the hotbar's resolution) and its count; empty slots are plain frames. <paramref name="cell"/>: the slot's size (the
+        /// backpack grid scales it to the list's width, #3671; the suit figure keeps <see cref="GridCell"/>).</summary>
+        private Button AddGridSlot(float x, float y, string item, int count, System.Action onClick, float cell = GridCell)
         {
-            var b = UiKit.AddButton(_listContent, x, y, GridCell, GridCell, string.Empty, onClick);
+            var b = UiKit.AddButton(_listContent, x, y, cell, cell, string.Empty, onClick);
             if (string.IsNullOrEmpty(item))
             {
                 return b;
@@ -272,7 +273,7 @@ namespace BlocksBeyondTheStars.Client
 
             var go = new GameObject("ItemIcon", typeof(RectTransform));
             go.transform.SetParent(b.transform, false);
-            UiKit.Place(go, 8f, 8f, GridCell - 16f, GridCell - 16f);
+            UiKit.Place(go, 8f, 8f, cell - 16f, cell - 16f);
             var raw = go.AddComponent<RawImage>();
             raw.raycastTarget = false;
 
@@ -310,7 +311,8 @@ namespace BlocksBeyondTheStars.Client
             raw.color = IconResolver.Tint(item, Game);
             if (count > 1)
             {
-                var cnt = UiKit.AddText(b.transform, 4f, 2f, GridCell - 8f, 18f, count.ToString(), 13, UiKit.TextCol, TextAnchor.UpperRight, FontStyle.Bold);
+                int countSize = cell >= 100f ? 17 : 13;
+                var cnt = UiKit.AddText(b.transform, 4f, 2f, cell - 8f, countSize + 5f, count.ToString(), countSize, UiKit.TextCol, TextAnchor.UpperRight, FontStyle.Bold);
                 UiKit.AddOutline(cnt);
             }
 
@@ -338,7 +340,11 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                RebuildList(); // the same slot again: just put it down
+                // The same slot again: put it down — and back to the overview in the detail column (#3671), the way the
+                // first click opened the item there.
+                _selected = string.Empty;
+                RebuildList();
+                RebuildDetail();
                 return;
             }
 

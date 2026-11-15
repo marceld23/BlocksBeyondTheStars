@@ -5393,7 +5393,7 @@ public sealed partial class GameServer
         // #1481: an interior edit is part of the station's build from now on. A harvested plant leaves Air in the grid
         // as in the world (the grid mirrors what stands there); its regrowth writes it back (#1857, StepFlora).
         WriteBackStationCell(pos, BlockId.Air);
-        if (def.Key == BedBlock)
+        if (FurnitureShapes.IsBedBlockKey(def.Key))
         {
             if (session is not null) { ClearBedPartner(session, pos, current, dropDescriptor); } // #1846: a two-cell bed falls as one piece
         }

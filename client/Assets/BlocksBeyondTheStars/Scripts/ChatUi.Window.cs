@@ -96,6 +96,20 @@ namespace BlocksBeyondTheStars.Client
             PrefillReply(); // #3507: "/r " ready after an admin's line (ChatUi.Direct.cs)
         }
 
+        /// <summary>The touch layer's CHAT button: opens the window — and on a tablet with its own keyboard closes it again, the
+        /// way ≡ opens and closes the menu (it did nothing while the window was open). With the browser's prompt (a touch
+        /// browser) a press while the window is open asks for the next line, as before.</summary>
+        public void TouchChatPressed()
+        {
+            if (_mode == ChatWindowMode.Keyboard)
+            {
+                CloseWindow();
+                return;
+            }
+
+            OpenInput();
+        }
+
         private void OpenWindow(ChatWindowMode mode)
         {
             _mode = mode;

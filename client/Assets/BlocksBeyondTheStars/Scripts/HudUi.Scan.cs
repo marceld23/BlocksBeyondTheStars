@@ -15,10 +15,9 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class HudUi
     {
-        // Scan panel (bottom-left), in HUD reference units. Width is CAPPED at 390: the hotbar backplate
-        // starts at x 400, so a wider panel clips it. The left column above is VEGA's (speech 396…586,
-        // objective chip 594…642 — see VegaPanel), so this panel starts at 650 (#482).
-        private const float ScanPanelY = 650f, ScanPanelW = 390f, ScanPanelH = 182f;
+        // Scan panel, in HUD reference units: a context card in the right column (#3668, HudZones E), under the objectives —
+        // it used to sit bottom-left in VEGA's lane. Stacked per frame under the objectives (StackContextCard).
+        private const float ScanPanelY = 300f, ScanPanelW = HudZones.RightW, ScanPanelH = 182f;
 
         /// <summary>How long a scan readout lingers once the scanner is put away. Was 12 s — long enough to
         /// read the old one-liner, not the fuller readout (#482). While the scanner is still the held item
@@ -31,11 +30,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildScan(Transform root)
         {
-            // Scan result panel (bottom-left): the scanner's detail readout — subject, description,
-            // threat, knowledge, and a highlighted "new discovery" line on a first-time scan. Enlarged in
-            // #482 (it carried the densest text in the game at the smallest size). WIDTH IS CAPPED: the
-            // hotbar backplate owns x 400…1136, so this panel must not reach x 400.
-            _scanPanel = Panel(root, 10, ScanPanelY, ScanPanelW, ScanPanelH).gameObject;
+            // Scan result panel (right column, #3668): the scanner's detail readout — subject, description, threat,
+            // knowledge, and a highlighted "new discovery" line on a first-time scan. Enlarged in #482 (it carried the
+            // densest text in the game at the smallest size).
+            _scanPanel = Panel(root, HudZones.RightX, ScanPanelY, ScanPanelW, ScanPanelH).gameObject;
             var scanIcon = UiKit.Icon("item_advanced_scanner") ?? UiKit.Icon("cat_target");
             float scanTextX = 12f;
             if (scanIcon != null)
@@ -59,6 +57,59 @@ namespace BlocksBeyondTheStars.Client
             UiText.Style(_scanKnow, UiText.Look.Outline);
         }
 
+        private float _contextY; // where the next context card of this frame goes in the first column (#3668)
+        private readonly ContextCardStack _cardStack = new ContextCardStack();
+        private readonly System.Collections.Generic.List<GameObject> _stackedCards = new(3);
+        private int _cardStackFrame = -1;
+
+        /// <summary>Puts a showing context card (#3668, HudZones E) in the next free place of the right column's stack —
+        /// under the objectives and the cards before it — and fades it in when it has just appeared. Placed BEFORE the
+        /// fade, which does not slide: a card's place changes with what else shows. On a touch device the column stops above
+        /// the action buttons (<see cref="HudZones.StackLimit"/>); a card that would run under them goes into a second column
+        /// left of the first (<see cref="ContextCardStack"/>).</summary>
+        private void StackContextCard(GameObject card, bool appeared)
+        {
+            if (_cardStackFrame != Time.frameCount)
+            {
+                // The first card of this refresh: Refresh set _contextY to HudZones.ContextTop just before it.
+                _cardStackFrame = Time.frameCount;
+                _stackedCards.Clear();
+                _cardStack.Begin(_contextY, HudZones.RightEdge, TouchHudLayout.SecondColumnRight(Game.SpaceViewActive),
+                    HudZones.MapTop, HudZones.Touch, Game.SpaceViewActive && HudZones.PlanetCardUp);
+            }
+
+            var rt = (RectTransform)card.transform;
+            _stackedCards.Add(card);
+            _cardStack.Add(rt.sizeDelta.x, rt.sizeDelta.y);
+            for (int i = 0; i < _stackedCards.Count; i++)
+            {
+                PlaceStackedCard((RectTransform)_stackedCards[i].transform, _cardStack[i], _cardStack.Shown(i)); // a second-column add moves the earlier ones
+            }
+
+            _contextY = _cardStack.FirstColumnBottom;
+            if (appeared)
+            {
+                UiKit.TransitionIn(card, 0f);
+            }
+        }
+
+        /// <summary>Moves a card to its stack place — only when it moved, so a card's open transition is not fought. A card the
+        /// stack holds back (no room in either column on a touch device) is scaled to nothing rather than deactivated: its
+        /// refresh would wake it again, and its open transition owns its CanvasGroup.</summary>
+        private static void PlaceStackedCard(RectTransform rt, HudRect at, bool shown)
+        {
+            if (Mathf.Abs(rt.anchoredPosition.y + at.Y) > 0.5f || Mathf.Abs(rt.anchoredPosition.x - at.X) > 0.5f)
+            {
+                rt.anchoredPosition = new Vector2(at.X, -at.Y);
+            }
+
+            var scale = shown ? Vector3.one : Vector3.zero;
+            if (rt.localScale != scale)
+            {
+                rt.localScale = scale;
+            }
+        }
+
         private void RefreshScan(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             var scan = Game.LastScan;
@@ -69,10 +120,10 @@ namespace BlocksBeyondTheStars.Client
             // readouts open the card on the right (PlanetOverviewCard), so a ship readout never lands here.
             bool show = scan != null && !Game.SpaceViewActive && !Game.LastScanFromShip
                         && (HoldingScanner() || Time.time - Game.LastScanAt <= ScanHoldSeconds);
+            bool appeared = show && !_scanPanel.activeSelf;
             if (_scanPanel.activeSelf != show)
             {
                 _scanPanel.SetActive(show);
-                if (show) { UiKit.TransitionIn(_scanPanel); }
             }
 
             if (!show) return;
@@ -96,6 +147,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ReflowScanPanel();
+            StackContextCard(_scanPanel, appeared);
         }
 
         /// <summary>
@@ -106,9 +158,8 @@ namespace BlocksBeyondTheStars.Client
         /// in #1686 makes the sentry's block four lines, so the fourth was simply clipped and a player read
         /// "Schießt 14 Blöcke weit · braucht einen Grundstein in" with the rest of the sentence gone.
         /// </para>
-        /// The panel grows UPWARD — its bottom edge is what must stay put, because it sits just above the
-        /// screen edge and beside the hotbar backplate. A hidden threat row now closes its gap too, which is
-        /// the dead space visible in that same report.
+        /// A hidden threat row closes its gap too, which is the dead space visible in that same report. Only the size is
+        /// set here — the card grows DOWN from its place in the right column's stack (#3668, <see cref="StackContextCard"/>).
         /// </summary>
         private void ReflowScanPanel()
         {
@@ -134,9 +185,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.Place(_scanKnow.gameObject, 12f, y, textW, knowH);
             y += knowH + padBottom;
 
-            // Keep the bottom edge where the design put it: grow up, never down into the hotbar.
-            float panelH = Mathf.Max(ScanPanelH, y);
-            UiKit.Place(_scanPanel, 10f, ScanPanelY + ScanPanelH - panelH, ScanPanelW, panelH);
+            ((RectTransform)_scanPanel.transform).sizeDelta = new Vector2(ScanPanelW, Mathf.Max(ScanPanelH, y));
         }
 
         /// <summary>

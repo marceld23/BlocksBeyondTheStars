@@ -106,6 +106,24 @@ public sealed class PixelCanvasModelTests
     }
 
     [Fact]
+    public void UndoingBackToTheSavedState_IsNotUnsaved_AndRedoIsAgain()
+    {
+        // #3695: the shared undo history answers "unsaved?" across undo — the editor shell's draft and "Not saved yet".
+        var model = new PixelCanvasModel(TextureAlphaMode.Opaque, new[] { Flat(10, 10, 10) });
+        model.Fill(0, 0, Red);
+        model.MarkSaved();
+        model.Fill(0, 0, Blue);
+        Assert.True(model.Dirty);
+
+        Assert.True(model.Undo());
+        Assert.False(model.Dirty);
+        Assert.True(model.CanUndo); // the step before the save is still there
+
+        Assert.True(model.Redo());
+        Assert.True(model.Dirty);
+    }
+
+    [Fact]
     public void AClickThatChangesNothing_IsNotAStep()
     {
         var model = new PixelCanvasModel(TextureAlphaMode.Opaque, new[] { Flat(255, 0, 0) });

@@ -14,7 +14,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
     /// </summary>
     public sealed class ChatLaneEditModeTests
     {
-        private const float LaneTop = 280f, LaneBottom = 590f, InputH = 44f, Gap = 6f;
+        private const float LaneTop = 272f, InputH = 44f, Gap = 6f;
+        private const float InputRowY = VegaPanel.ChipY - Gap - InputH, LaneBottom = InputRowY - Gap; // #3668: the comms zone
 
         private static float Bottom(ChatUi.ChatLane lane) => lane.LogY + lane.LogH;
 
@@ -24,11 +25,11 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var lane = ChatUi.ResolveLane(typing: false, speechVisible: false, chipVisible: false);
             Assert.That(lane.LogY, Is.EqualTo(LaneTop));
             Assert.That(Bottom(lane), Is.EqualTo(LaneBottom));
-            Assert.That(lane.InputY, Is.EqualTo(596f));
+            Assert.That(lane.InputY, Is.EqualTo(InputRowY));
 
             var typing = ChatUi.ResolveLane(typing: true, speechVisible: false, chipVisible: false);
             Assert.That(typing.LogH, Is.EqualTo(lane.LogH), "typing alone never shortens the scrollback");
-            Assert.That(typing.InputY, Is.EqualTo(596f));
+            Assert.That(typing.InputY, Is.EqualTo(InputRowY));
         }
 
         [Test]
@@ -44,7 +45,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         [Test]
         public void ChipOnly_NotTyping_ScrollbackUnchanged()
         {
-            // The chip (y 594+) never overlapped the scrollback — only the input row — so the log keeps its lane.
+            // The folded tab's row (VegaPanel.ChipY) never overlaps the scrollback — only the input row — so the log keeps its lane.
             var lane = ChatUi.ResolveLane(typing: false, speechVisible: false, chipVisible: true);
             Assert.That(Bottom(lane), Is.EqualTo(LaneBottom));
             Assert.That(Bottom(lane), Is.LessThan(VegaPanel.ChipY));
@@ -82,7 +83,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                         Assert.That(lane.LogY, Is.EqualTo(LaneTop), $"top fixed ({typing},{speech},{chip})");
                         Assert.That(lane.LogH, Is.GreaterThanOrEqualTo(0f));
                         Assert.That(Bottom(lane), Is.LessThanOrEqualTo(LaneBottom));
-                        Assert.That(lane.InputY, Is.LessThanOrEqualTo(596f));
+                        Assert.That(lane.InputY, Is.LessThanOrEqualTo(InputRowY));
                         if (speech)
                         {
                             Assert.That(Bottom(lane), Is.LessThan(VegaPanel.SpeechY), $"log clear of speech ({typing},{chip})");

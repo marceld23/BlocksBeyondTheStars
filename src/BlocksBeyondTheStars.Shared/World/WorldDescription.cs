@@ -253,8 +253,9 @@ public sealed class WorldDescription
     /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge,
     /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines,
     /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes,
-    /// #3680 the fallen guardian giants).</summary>
-    public const int CurrentTerrainGeneration = GuardianGiantsGeneration;
+    /// #3680 the fallen guardian giants, the abandoned beds: a ruin's and a wreck's beds look like today's bed and
+    /// work as none).</summary>
+    public const int CurrentTerrainGeneration = AbandonedBedsGeneration;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
     /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a
@@ -290,6 +291,14 @@ public sealed class WorldDescription
     /// about one in four of them can still wake. A server-side stamp of ordinary block edits on reserved ground: every chunk of
     /// every older generation stays bit-identical.</summary>
     public const int GuardianGiantsGeneration = 44;
+
+    /// <summary>The generation of the abandoned beds: in a world of this generation or later a ruin's or a wreck's beds are the
+    /// abandoned twin (<see cref="FurnitureShapes.AbandonedBedKey"/>) — the look of today's two-cell bed, but no bed to any rule
+    /// (no home spawn, no rest heal, no settler, no sleeper). Applied where such a structure is built (the giant wrecks on a
+    /// planet and in space, every ruined structure the settlement stamp writes, the buried G.D.S. ruins): a one-cell bed becomes
+    /// a head half, joined with the bed cell beside it or — in a giant wreck — given a foot on a free floor cell beside it.
+    /// Every older generation builds its ruins and wrecks exactly as before (their beds still work).</summary>
+    public const int AbandonedBedsGeneration = 45;
 
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,

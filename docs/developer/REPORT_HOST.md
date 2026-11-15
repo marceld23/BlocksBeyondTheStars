@@ -117,7 +117,7 @@ as a PNG and the texture in the game's raw tile format.
 
 ## Creation submissions — ships, stations/towns, avatar skins (#3262)
 
-The Ship Designer, the Station/Town editor and the Avatar Designer send the same kind of report (built by the client's
+The Ship Designer, the Station/Village editor and the Avatar Designer send the same kind of report (built by the client's
 `CreationSubmission`, see [PLAYER_FEEDBACK.md](PLAYER_FEEDBACK.md)):
 
 ```json

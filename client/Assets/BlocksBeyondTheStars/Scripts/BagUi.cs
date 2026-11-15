@@ -197,11 +197,11 @@ namespace BlocksBeyondTheStars.Client
             y += 56f;
 
             y = BuildBackpack(panel, y);
-            UiKit.AddButton(panel, PanelW - X0 - 180f, Mathf.Max(y, PanelH - 70f), 180f, 48f, L("ui.crate.close"), () =>
+            UiKit.AddTierButton(panel, PanelW - X0 - 200f, Mathf.Max(y, PanelH - 70f), 200f, 48f, L("ui.crate.close"), () =>
             {
                 Game?.MarkMenuInputHandled();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_close"); // #3662: Close = the cross, built last (never the pad's first stop)
         }
 
         /// <summary>The bag's half: its stacks in the nine-wide grid; returns the y below it.</summary>

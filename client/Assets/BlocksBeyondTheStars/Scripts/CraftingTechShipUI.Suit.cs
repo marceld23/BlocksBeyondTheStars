@@ -546,6 +546,14 @@ namespace BlocksBeyondTheStars.Client
         /// (#1270, #2110): the line on top of the Suit tab's figure (#2288).</summary>
         private float AddSuitStatus(float y)
         {
+            UiKit.AddText(_listContent, 8, y, 752, 32, SuitStatusLine(), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+            return y + 38f;
+        }
+
+        /// <summary>The suit status line (armour · max. oxygen · insulation) — the Suit page's top line and the Inventory
+        /// overview's suit row (#3671).</summary>
+        private string SuitStatusLine()
+        {
             var defs = Game.Content.Items.Values;
             bool Carried(string key) => Game.Wears(key); // #2110: worn, not carried
 
@@ -563,8 +571,7 @@ namespace BlocksBeyondTheStars.Client
             string line = L("ui.suit.status_armor").Replace("{value}", armor.ToString())
                 + "   ·   " + L("ui.suit.status_oxygen").Replace("{value}", oxygen.ToString())
                 + "   ·   " + L("ui.suit.status_insulation").Replace("{value}", insulation.ToString());
-            UiKit.AddText(_listContent, 8, y, 752, 32, line, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
-            return y + 38f;
+            return line;
         }
     }
 }

@@ -53,7 +53,9 @@ namespace BlocksBeyondTheStars.Client
             UiKit.OpenModal(_overlay); // #2302: the scrim fades in place, the question rises (TryOffer refuses while shown)
             _shown = true;
             _openedAt = Time.unscaledTime;
-            Game.SetCursorOwner(this, true); // the buttons need a free cursor (#413 arbiter)
+            // The buttons need a free cursor (#413 arbiter). #3662: as a menu owner — the touch layer hides while a menu is
+            // open; as a mere cursor owner its full-screen look pad (order 100, over this 84) swallowed the taps on a tablet.
+            Game.SetMenuOwner(this, true);
             return true;
         }
 
@@ -67,6 +69,13 @@ namespace BlocksBeyondTheStars.Client
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || InputMap.Down(InputAction.Interact))
             {
                 Confirm();
+            }
+            else if (InputMap.Down(InputAction.UiCancel))
+            {
+                // #3662: Esc / pad B put the question away (the hint strip says "back") — no launch, no map, and the same
+                // press must not also open the pause menu.
+                Game?.MarkMenuInputHandled();
+                Close();
             }
         }
 
@@ -86,7 +95,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _overlay?.SetActive(false);
             _shown = false;
-            Game?.SetCursorOwner(this, false);
+            Game?.SetMenuOwner(this, false);
         }
 
         private void EnsureUi()
@@ -98,14 +107,15 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("LaunchPrompt");
             _canvas.sortingOrder = 84; // above the HUD (60), below the death prompt (85)
-            UiNav.Enable(_canvas.gameObject); // gamepad: A/B pick a button
+            UiNav.Enable(_canvas.gameObject); // gamepad: the stick picks a button, A presses it, B puts the question away
 
             const float w = 640f, h = 250f;
             var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - w) / 2f, (1080f - h) / 2f, w, h);
             _overlay = overlay;
             UiKit.AddText(panel, 0, 34, w, 60, Tr("ui.launch.title"), 34, new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            _yesLabel = UiKit.AddButton(panel, 60, 140, 240, 64, string.Empty, Confirm, "btn_join").GetComponentInChildren<UnityEngine.UI.Text>();
-            UiKit.AddButton(panel, 340, 140, 240, 64, Tr("ui.launch.no"), Decline, "btn_exit");
+            // #3662: Launch is the question's primary answer; "Not yet — map" the secondary one.
+            _yesLabel = UiKit.AddTierButton(panel, 60, 140, 240, 64, string.Empty, Confirm, ButtonTier.Primary, "btn_join").GetComponentInChildren<UnityEngine.UI.Text>();
+            UiKit.AddTierButton(panel, 340, 140, 240, 64, Tr("ui.launch.no"), Decline, ButtonTier.Secondary, "btn_close");
             _overlay.SetActive(false);
         }
 

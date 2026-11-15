@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
@@ -22,24 +23,18 @@ namespace BlocksBeyondTheStars.Client
     /// working) from a fixed palette of fifteen colours, each of which can glow. The canvas looks down on the tool:
     /// the bottom edge is at the hand, the tool points up the canvas.
     ///
-    /// The model (<see cref="ToolLookCanvasModel"/>) is Unity-free and unit-tested; this class is its screen. The frame
-    /// loop, keys, undo/redo, preview stage and screen shell it shares with the form editor live in
-    /// <see cref="LayerCanvasEditor"/>.
+    /// The model (<see cref="ToolLookCanvasModel"/>) is Unity-free and unit-tested; this class is its screen on the editor
+    /// shell (#3693, <see cref="LayerCanvasEditor"/>): Save uses the look for the tool, "back to the standard look" asks
+    /// first, picking another tool over unsaved work asks too, and unsaved work is kept as a draft. The cards are built in
+    /// <c>ToolLookEditor.Ui.cs</c>.
     /// </summary>
-    public sealed class ToolLookEditor : LayerCanvasEditor
+    public sealed partial class ToolLookEditor : LayerCanvasEditor
     {
-        private const float CellPx = 40f;
-
         private readonly ToolLookCanvasModel _model = new ToolLookCanvasModel();
         private readonly List<ItemDefinition> _tools = new List<ItemDefinition>();
         private GameContent _content;
         private ItemDefinition _tool;
         private int _color = 3;
-
-        private RectTransform _toolList;
-        private Text _title, _layerLabel, _budgetLabel, _glowLabel;
-        private readonly List<Image> _swatchFrames = new List<Image>();
-
         private GameObject _previewModel;
 
         protected override ILayerCanvas Layers => _model;
@@ -47,6 +42,8 @@ namespace BlocksBeyondTheStars.Client
         protected override int CellsX => ToolLook.SizeX;
 
         protected override int CellsZ => ToolLook.SizeZ;
+
+        protected override int LayerCount => ToolLook.SizeY;
 
         protected override float SpinDegreesPerSecond => 26f;
 
@@ -56,8 +53,12 @@ namespace BlocksBeyondTheStars.Client
 
         protected override string HintKeyPadPanel => "ui.form.hint_pad_panel";
 
-        /// <summary>Left button / A paints the chosen colour, right button / X alone erases.</summary>
-        protected override bool PaintCell(int x, int z, bool primary, bool secondary) => _model.Paint(x, z, secondary && !primary ? 0 : _color);
+        protected override string DraftKind => "tool_looks";
+
+        public override string DocumentName => _tool != null ? ToolName(_tool) : string.Empty;
+
+        /// <summary>Place paints the chosen colour, Remove (or the right button / X) erases.</summary>
+        protected override bool PaintCell(int x, int z, bool primary, bool secondary) => _model.Paint(x, z, secondary ? 0 : _color);
 
         /// <summary>Y on the canvas picks the colour under the cursor.</summary>
         protected override void OnPadCanvasFrame()
@@ -100,30 +101,13 @@ namespace BlocksBeyondTheStars.Client
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Point,
             };
-            BuildUi();
+            var firstFocus = BuildUi();
             BuildStage();
             Open(_tools.Count > 0 ? _tools[0] : null);
+            FinishFrame(firstFocus, _tools.Count > 0 ? "ui.form.tip_remove" : "ui.toollook.no_tools");
         }
 
-        /// <summary>The base teardown in this editor's own order: the preview target is released before the stage
-        /// goes.</summary>
-        protected override void OnDestroy()
-        {
-            Pad?.Release();
-            if (Ui != null)
-            {
-                Destroy(Ui.gameObject);
-            }
-
-            ReleasePreviewTarget();
-            if (Stage != null)
-            {
-                Destroy(Stage);
-            }
-
-            Destroy(Tex);
-        }
-
+        /// <summary>Opens a tool's look on the canvas (its stored look, else an empty canvas) with a fresh history.</summary>
         private void Open(ItemDefinition tool)
         {
             _tool = tool;
@@ -136,41 +120,62 @@ namespace BlocksBeyondTheStars.Client
             Stroking = false;
             RefreshAll();
             RebuildToolList();
-            SetStatus(string.Empty, UiKit.Ok);
         }
+
+        /// <summary>A tool of the list over unsaved work: the shell asks first.</summary>
+        private void PickTool(ItemDefinition tool) => Frame?.ConfirmDiscard(() =>
+        {
+            Open(tool);
+            Frame?.ClearStatus();
+        });
 
         // ---------------------------------------------------------------- commands
 
         private void SetColor(int color)
         {
             _color = Mathf.Clamp(color, 1, ToolLook.Palette.Count - 1);
+            SetRemoving(false); // a colour is chosen to paint with
             RefreshLabels();
         }
 
-        private void Save()
+        /// <summary>Save (the shell's primary button): this look for this tool, stored in the settings.</summary>
+        private bool Save()
+        {
+            if (_tool == null || Shell?.Settings == null)
+            {
+                SetStatus(L("ui.toollook.no_tools"), EditorStatusSeverity.Warning);
+                return false;
+            }
+
+            string look = _model.Encode();
+            if (look.Length == 0)
+            {
+                SetStatus(L(_model.IsEmpty ? "ui.toollook.problem_empty" : "ui.toollook.problem_parts"), EditorStatusSeverity.Warning);
+                return false;
+            }
+
+            if (!Shell.Settings.SetToolLook(_tool.Key, look))
+            {
+                SetStatus(string.Format(L("ui.toollook.limit"), ToolLook.MaxLooksPerPlayer), EditorStatusSeverity.Warning);
+                return false;
+            }
+
+            Shell.Settings.Save();
+            _model.MarkSaved();
+            RebuildToolList();
+            SetStatus(L("ui.toollook.saved"), EditorStatusSeverity.Success);
+            return true;
+        }
+
+        /// <summary>"Back to the standard look" removes the stored look for good — so it asks first (#3690).</summary>
+        private void AskUseStandard()
         {
             if (_tool == null || Shell?.Settings == null)
             {
                 return;
             }
 
-            string look = _model.Encode();
-            if (look.Length == 0)
-            {
-                SetStatus(L(_model.IsEmpty ? "ui.toollook.problem_empty" : "ui.toollook.problem_parts"), UiKit.Warn);
-                return;
-            }
-
-            if (!Shell.Settings.SetToolLook(_tool.Key, look))
-            {
-                SetStatus(string.Format(L("ui.toollook.limit"), ToolLook.MaxLooksPerPlayer), UiKit.Warn);
-                return;
-            }
-
-            Shell.Settings.Save();
-            _model.MarkSaved();
-            RebuildToolList();
-            SetStatus(L("ui.toollook.saved"), UiKit.Ok);
+            Frame?.Confirm(L("ui.toollook.confirm_standard"), L("ui.toollook.use_standard"), UseStandard);
         }
 
         private void UseStandard()
@@ -185,7 +190,7 @@ namespace BlocksBeyondTheStars.Client
             _model.New();
             RefreshAll();
             RebuildToolList();
-            SetStatus(L("ui.toollook.standard_again"), UiKit.Ok);
+            SetStatus(L("ui.toollook.standard_again"), EditorStatusSeverity.Info);
         }
 
         private void CopyCode()
@@ -193,24 +198,27 @@ namespace BlocksBeyondTheStars.Client
             string look = _model.Encode();
             if (look.Length == 0 || _tool == null)
             {
-                SetStatus(L(_model.IsEmpty ? "ui.toollook.problem_empty" : "ui.toollook.problem_parts"), UiKit.Warn);
+                SetStatus(L(_model.IsEmpty ? "ui.toollook.problem_empty" : "ui.toollook.problem_parts"), EditorStatusSeverity.Warning);
                 return;
             }
 
             GUIUtility.systemCopyBuffer = ShareCode.EncodeToolLook(look, _tool.Key);
-            SetStatus(L("ui.tex.code_copied"), UiKit.Ok);
+            SetStatus(L("ui.tex.code_copied"), EditorStatusSeverity.Success);
         }
 
+        /// <summary>A pasted code lands on the canvas as ONE undoable step; Save makes it this tool's look.</summary>
         private void PasteCode()
         {
-            if (ShareCode.TryDecodeToolLook(GUIUtility.systemCopyBuffer, out string look, out _) && _model.Load(look))
+            if (ShareCode.TryDecodeToolLook(GUIUtility.systemCopyBuffer, out string look, out _) && ToolLook.IsValid(look)
+                && _model.ReplaceRaw(look))
             {
                 RefreshAll();
-                SetStatus(L("ui.toollook.pasted"), UiKit.Ok); // on the canvas — "Save" makes it this tool's look
+                Changed();
+                SetStatus(L("ui.toollook.pasted"), EditorStatusSeverity.Info);
             }
             else
             {
-                SetStatus(L("ui.shape.custom.import_failed"), UiKit.Warn);
+                SetStatus(L("ui.shape.custom.import_failed"), EditorStatusSeverity.Warning);
             }
         }
 
@@ -220,6 +228,39 @@ namespace BlocksBeyondTheStars.Client
             {
                 Shell.CloseToolLookEditor();
             }
+        }
+
+        // ---------------------------------------------------------------- drafts (#3689)
+
+        [Serializable]
+        private sealed class LookDraft
+        {
+            public string tool;
+            public string raw;
+        }
+
+        /// <summary>The tool and its canvas as it stands (also empty or over budget — an emptied canvas is work too when
+        /// the tool had a look).</summary>
+        protected override string WriteDraftPayload()
+            => _tool == null ? null : JsonUtility.ToJson(new LookDraft { tool = _tool.Key, raw = _model.Raw() });
+
+        protected override bool ReadDraftPayload(string payload)
+        {
+            var draft = JsonUtility.FromJson<LookDraft>(payload);
+            var tool = draft == null ? null : _tools.Find(t => t.Key == draft.tool);
+            if (tool == null)
+            {
+                return false; // a tool this game no longer has
+            }
+
+            Open(tool);
+            if (!_model.ReplaceRaw(draft.raw))
+            {
+                return false;
+            }
+
+            RefreshAll();
+            return true;
         }
 
         // ---------------------------------------------------------------- rendering
@@ -306,155 +347,10 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        // ---------------------------------------------------------------- labels
-
-        protected override void RefreshLabels()
-        {
-            if (_title != null)
-            {
-                _title.text = _tool == null ? L("ui.toollook.no_tools")
-                    : ToolName(_tool) + (_model.Dirty ? "  *" : string.Empty);
-            }
-
-            if (_layerLabel != null)
-            {
-                _layerLabel.text = string.Format(L("ui.shape.custom.layer"), _model.Layer + 1, ToolLook.SizeY);
-            }
-
-            if (_budgetLabel != null)
-            {
-                int parts = _model.PartsUsed();
-                _budgetLabel.text = string.Format(L("ui.toollook.budget"), parts, ToolLook.MaxParts);
-                _budgetLabel.color = parts > ToolLook.MaxParts ? new Color(1f, 0.45f, 0.35f) : UiKit.CyanDim;
-            }
-
-            for (int i = 0; i < _swatchFrames.Count; i++)
-            {
-                _swatchFrames[i].color = i + 1 == _color ? Color.white : new Color(0f, 0f, 0f, 0.55f);
-            }
-
-            if (_glowLabel != null)
-            {
-                _glowLabel.text = L(_model.Glows(_color) ? "ui.toollook.glow_on" : "ui.toollook.glow_off");
-            }
-        }
-
         private string ToolName(ItemDefinition tool)
         {
             string name = Shell != null && !string.IsNullOrEmpty(tool.NameKey) ? Shell.L(tool.NameKey) : tool.Key;
             return string.IsNullOrEmpty(name) || name == tool.NameKey ? tool.Key : name;
-        }
-
-        // ---------------------------------------------------------------- UI
-
-        private void BuildUi()
-        {
-            var root = BeginShell("Tool Look Editor UI", "ui.toollook.title");
-
-            // Tools.
-            var left = AddColumn(root, 16f, 360f);
-            UiKit.AddText(left, 14f, 10f, 330f, 24f, L("ui.toollook.my_tools"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            // An instruction: normal colour, as many lines as the language needs — the list starts below it (#3263).
-            UiKit.AddMeasuredText(left, 14f, 38f, 332f, L("ui.toollook.note"), 13, UiKit.TextCol, out float noteH);
-            float listY = Mathf.Max(106f, 38f + noteH + 6f);
-            _toolList = UiKit.ScrollList(left, 14f, listY, 332f, 996f - listY, 4f);
-
-            // Canvas.
-            var mid = AddColumn(root, 392f, 700f);
-            _title = UiKit.AddText(mid, 30f, 10f, 640f, 28f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _layerLabel = UiKit.AddText(mid, 30f, 44f, 300f, 28f, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddFitButton(mid, 360f, 40f, 70f, 36f, "▲", () => StepLayer(1));
-            UiKit.AddFitButton(mid, 438f, 40f, 70f, 36f, "▼", () => StepLayer(-1));
-
-            var canvasGo = new GameObject("LookCanvas", typeof(RectTransform));
-            canvasGo.transform.SetParent(mid, false);
-            CanvasRt = UiKit.Place(canvasGo, 30f, 86f, ToolLook.SizeX * CellPx, ToolLook.SizeZ * CellPx);
-            canvasGo.AddComponent<RawImage>().texture = Tex;
-            UiKit.AddText(mid, 30f, 86f + (ToolLook.SizeZ * CellPx) + 4f, 320f, 20f, L("ui.toollook.hand_here"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
-
-            // Palette: fifteen colours, each can glow.
-            float px = 380f, py = 86f;
-            UiKit.AddText(mid, px, py, 290f, 22f, L("ui.toollook.colours"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            py += 28f;
-            for (int i = 1; i < ToolLook.Palette.Count; i++)
-            {
-                int index = i;
-                float sx = px + (((i - 1) % 5) * 58f), sy = py + (((i - 1) / 5) * 58f);
-                var frame = UiKit.AddImage(mid, sx, sy, 52f, 52f, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.55f));
-                var swatch = UiKit.AddImage(frame.transform, 4f, 4f, 44f, 44f, UiKit.SolidSprite, PaletteColor(i));
-                var button = frame.gameObject.AddComponent<Button>();
-                button.targetGraphic = swatch;
-                button.onClick.AddListener(() => SetColor(index));
-                _swatchFrames.Add(frame);
-            }
-
-            py += (3 * 58f) + 8f;
-            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.toollook.glow_toggle"), () => Do(() => _model.ToggleGlow(_color)));
-            py += 44f;
-            _glowLabel = UiKit.AddText(mid, px, py, 290f, 22f, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            py += 40f;
-            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.copy_below"), () => Do(_model.CopyLayerBelow));
-            py += 46f;
-            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.mirror_x"), () => Do(_model.MirrorX));
-            py += 46f;
-            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.clear_layer"), () => Do(_model.ClearLayer));
-            py += 46f;
-            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.clear_all"), () => Do(_model.ClearAll));
-            py += 46f;
-            UiKit.AddFitButton(mid, px, py, 141f, 40f, L("ui.tex.undo"), DoUndo);
-            UiKit.AddFitButton(mid, px + 149f, py, 141f, 40f, L("ui.tex.redo"), DoRedo);
-            py += 50f;
-            _budgetLabel = UiKit.AddText(mid, px, py, 290f, 24f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
-            // Preview + save.
-            var right = AddColumn(root, 1108f, 796f);
-            UiKit.AddText(right, 16f, 10f, 400f, 24f, L("ui.shape.custom.preview"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var view = new GameObject("ToolLookPreviewView", typeof(RectTransform));
-            view.transform.SetParent(right, false);
-            UiKit.Place(view, 16f, 40f, 600f, 600f);
-            PreviewView = view.AddComponent<RawImage>();
-
-            float by = 660f;
-            UiKit.AddFitButton(right, 16f, by, 380f, 52f, L("ui.toollook.save"), Save, "btn_singleplayer");
-            UiKit.AddFitButton(right, 404f, by, 376f, 52f, L("ui.toollook.use_standard"), UseStandard);
-            by += 60f;
-            UiKit.AddFitButton(right, 16f, by, 186f, 40f, L("ui.tex.copy_code"), CopyCode);
-            UiKit.AddFitButton(right, 210f, by, 186f, 40f, L("ui.tex.paste_code"), PasteCode);
-            by += 50f;
-            StatusLabel = UiKit.AddText(right, 16f, by, 764f, 60f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
-            StatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            var rules = UiKit.AddText(right, 16f, by + 70f, 764f, 80f, L("ui.toollook.rules"), 13, UiKit.TextCol, TextAnchor.UpperLeft); // an instruction (#3263)
-            rules.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddFitButton(right, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
-
-            EndShell(root, "ui.toollook.hint");
-        }
-
-        private void RebuildToolList()
-        {
-            if (_toolList == null)
-            {
-                return;
-            }
-
-            for (int i = _toolList.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_toolList.GetChild(i).gameObject);
-            }
-
-            foreach (var tool in _tools)
-            {
-                var row = AddListRow(_toolList);
-
-                var item = tool;
-                bool own = Shell?.Settings != null && Shell.Settings.GetToolLook(tool.Key).Length > 0;
-                string label = (own ? "★ " : string.Empty) + ToolName(tool);
-                var button = UiKit.AddFitButton(row, 0f, 0f, 314f, 42f, label, () => Open(item), "item_" + tool.Key);
-                if (tool == _tool)
-                {
-                    UiKit.AddOutline(button.targetGraphic);
-                }
-            }
         }
     }
 }

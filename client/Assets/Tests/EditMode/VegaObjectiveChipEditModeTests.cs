@@ -60,7 +60,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         {
             Assert.That(VegaObjectiveChip.FontLarge, Is.EqualTo(20f));
             Assert.That(VegaObjectiveChip.FontSmall, Is.EqualTo(17f));
-            Assert.That(VegaObjectiveChip.TextWidth, Is.EqualTo(614f), "the 640 chip minus its 14 px inset on the left and 12 on the right");
+            Assert.That(VegaObjectiveChip.TextWidth, Is.EqualTo(HudZones.RightW - 24f), "the right-column chip (#3668) minus its 14 px inset on the left and 10 on the right");
         }
     }
 }

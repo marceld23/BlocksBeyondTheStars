@@ -115,6 +115,7 @@ Every field is optional and defaults to today's behaviour.
 | `feasibleIf` | condition[] — false at activation ⇒ skipped silently, the `alternative` stands in (no dead ends); an alternative that is infeasible too is skipped as well |
 | `alternative` | another step of the same chapter that runs only standing in for this one (a `do` or a `read` step) |
 | `alreadyDoneIf` | condition[] — completes the step silently at activation (not during a replay) |
+| `waitWhile` | #3673: condition[] — the step waits while it holds, for a moment the player cannot do it in (b1.1/b1.2: `not:world:on_foot`, flying the ship). A step not active yet does not activate (the chapter waits there: no line, no card); an active do step leaves the chip — VEGA stays quiet, the help clock stands still. When the wait ends the step goes on, and an active step back on the chip gets its start line again and a fresh help clock. Re-checked on every walk (each event, the 1 Hz tick). Not for `react` steps (their `requires` arms them) |
 | `variants` | `[{ when, startKey, chipKey, hintKey, doneKey, midKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
 | `explain` | `{ startKey, chipKey, hintKey, doneKey, midKey, moreGuide }` — start line, chip text, escalation hint, completion line, half-way line, Codex article. `midKey` (#2550) is spoken once per activation at the objective's half-way moment, before it completes — today only the walk-back objective `ship:returned`: the moment the player is far enough from the ship (it also restarts the help clock, like progress); other objectives never speak it |
 | `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (for this player only, never `RevealPoi`; on the map and the compass until the step is done or skipped, #2570), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed), or `unique_site:<observatory\|shrine\|derelict>` (#2476: the site's spot while the player is on its world) |
@@ -183,7 +184,9 @@ manual-steering tip too), `herd_begging` (an animal came to beg the player withi
 seed in the backpack — an item whose block is a plant), `hostile_near` (a machine, a hostile animal or a hostile robber
 within 40 blocks on the player's world), `bandit_hail` (a robber's demand waits for an answer), `climbing` (the climbing
 pose now), `train_here` (a train the player may board runs on their world), `multiplayer` (the world is hosted for more
-than one player), `radio_worn`, `planet_wrecks` (the world option is not off). `ui:` is never a condition.
+than one player), `radio_worn`, `planet_wrecks` (the world option is not off). Since #3673: `on_foot` (the player moves on
+foot where the walk and jump lessons count — on a surface or inside the ship; not at the helm in space or on a spacewalk,
+not aboard a station, not in a vehicle or on a train) — b1.1 and b1.2 `waitWhile` its negation. `ui:` is never a condition.
 
 ## Per-player state
 
@@ -271,8 +274,8 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 | Step | Teaches | Event (arg × required) | Tier · kind | World rules / feasibility | Legacy |
 |---|---|---|---|---|---|
 | **B1 First steps** | | | | | |
-| b1.1 | walk `{key:Move}`, look `{key:Look}` | `move:walked` × 8 | M · do | — | — |
-| b1.2 | jump, crouch at edges | `move:jump` | C · do | `creative_flight` → "press twice to fly" | — |
+| b1.1 | walk `{key:Move}`, look `{key:Look}` | `move:walked` × 8 | M · do | `waitWhile not:world:on_foot` (#3673: waits while the player flies the ship) | — |
+| b1.2 | jump, crouch at edges | `move:jump` | C · do | `creative_flight` → "press twice to fly"; `waitWhile not:world:on_foot` (#3673) | — |
 | b1.3 | "I'm VEGA; right below my text you always see your goal" (the objective chip sits directly under VEGA's panel — #2548: never "the bar at the top") | `ui:vega_continue` | M · read | VEGA story → premise variant | — |
 | b1.4 | quick bar: slot 2 then slot 1 | `hotbar:select` × 2 | M · do | — | — |
 | b1.5 | the menu `{key:UiMenu}` | `ui:menu_open` | M · do | — | — |

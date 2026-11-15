@@ -22,6 +22,7 @@ the surface is the chunk world around the player. Before #3140 every switch was 
 | Piece | Where | Role |
 |---|---|---|
 | `TransitionGate` | `Client.Core` (tested in `Client.Tests/TransitionGateTests`) | The pure rule for when an arrival cover may open: the arrival signal for its kind came in **after** the cover began (a landing: the touchdown snap `RespawnNotice "@srv.land.touchdown"`; a docking: the station's world reset), and the player is settled (`WorldReady`, no snap pending, `PlayerController.IsSettling` false). A minimum against flicker, a 25 s give-up. |
+| `DockHandoff` | `Client.Core` (tested in `Client.Tests/DockHandoffTests`) | The end of a docking, from the helm or from a spacewalk: close the doors, send the board intent once they are shut (or after 3 s whatever the doors do), give up when the server has not answered in 8 s (2.5 s without the doors). `SpaceView.BeginDocking` starts every docking with `Begin()`, so nothing of an earlier docking carries over. |
 | `TransitionCover` | client | The seam: a full-screen uGUI cover that belongs to the scene — **Clouds** (drifting puffs over a sky-tinted wash, the destination's colours), **Glare** (an airless body's retro burn; honours Reduce flashes) or **Doors** (hangar doors with hazard stripes). Code-drawn textures, the `cloud_rush` wind loop and the door sounds. Sorting order 74 (above the HUD, under the loading veil). |
 | `TransitionDirector` | client, `[DefaultExecutionOrder(212)]` | Orchestrates: closes and opens the cover, runs the gate, flies the **touchdown** and the **lift-off** cinematics on the surface (taking the player camera like the cutscene rig: `CinematicCameraActive` + the cutscene-gate reason `transition`, Esc / pad cancel skips), and hands the flight view its **emergence**. |
 | `ShipCinematicFx` | client | Shared pieces: a render-only stand-in of a parked hull, engine fire out of the hull's real exhausts, dust in the ground's colour (`Atlas.AverageColor` of the block under the pad), the touchdown burst, steam, the vapour cone. `ShipTransitView` (other players' and traders' landings and launches, #3177) uses them too. |
@@ -76,7 +77,12 @@ opens the cover. A transit reports its take-off stage only after all of it, so `
 is 15 s.
 
 **Stations.** The dock approach (#1917) ends with `CoverDocking()` — the doors close, and only once they are shut is
-the board intent sent; the gate opens them on the station's settled world. Undocking: `ClaimDeparture()` sees the world
+the board intent sent; the gate opens them on the station's settled world. E at a station's hull on a spacewalk takes the
+same hand-over without the fly-in; the parked ship stays where it floats, and a refused docking (no answer within the
+`DockHandoff` wait) opens the doors on the suit where it floated — still on the spacewalk, as the server keeps it. Until
+2026-11-15 "the doors are closing" was a flight-view field only the helm's approach cleared: after one docking from the
+helm a spacewalk's docking never sent its intent and never gave up, and the flight view's fade stayed black for good
+(Justus: E at a giant wreck after falling out of it). Undocking: `ClaimDeparture()` sees the world
 before the last reset was a station and closes the doors; the ascent waits (doors shut) until the station's hull design
 and hangar mouth are known, places the ship inside the mouth and opens the doors on it sliding out (`_yaw` faces away
 from the station when the pilot takes over).
@@ -156,4 +162,6 @@ thousand cell reads (about 12 000 in a courtyard where all 48 spots are sampled)
   renderers meanwhile.
 - A new camera move in a transition cinematic: put its path into `TransitionFlightPath` / the plan's camera functions so
   `TransitionShotPlan` samples it — never a spot or a glide the voxel scan has not seen (#3258).
-- Anything that holds the screen must give up on its own (the gate's 25 s, the undock's 1.5 s wait for the hull).
+- Anything that holds the screen must give up on its own (the gate's 25 s, the undock's 1.5 s wait for the hull, the
+  docking's 3 s for the doors and 8 s for the server's answer) — and state that steers one transition is reset when the
+  next one begins, never only on one of the paths that start it.

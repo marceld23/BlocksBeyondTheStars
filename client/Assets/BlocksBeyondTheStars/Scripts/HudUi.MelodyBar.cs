@@ -30,6 +30,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3677: the glow ring's colour — the warm chip yellow of the spelling line's mark.</summary>
         private static readonly Color MelodyGlowColor = new Color(1f, 0.82f, 0.48f, 1f);
 
+        /// <summary>The melody bar's top edge in HUD units: above the hotbar's backplate (its cells start at H − 112).</summary>
+        public const float MelodyBarTop = H - 72f - 40f - 12f - MelodyBarH - 10f;
+
         /// <summary>#3426: how the spelling line marks the letter the player is at (TMP rich text — the warm chip yellow).</summary>
         private const string MelodySpellMarkOpen = "<color=#ffd27a><b>", MelodySpellMarkClose = "</b></color>";
 
@@ -52,8 +55,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildMelodyBar(Transform root)
         {
             // Above the hotbar's backplate (its cells start at H − 112), centred like it.
-            float y = H - 72f - 40f - 12f - MelodyBarH - 10f;
-            _melodyPanel = Panel(root, (W - MelodyBarW) / 2f, y, MelodyBarW, MelodyBarH).gameObject;
+            _melodyPanel = Panel(root, (W - MelodyBarW) / 2f, MelodyBarTop, MelodyBarW, MelodyBarH).gameObject;
             var t = _melodyPanel.transform;
             _melodyTitle = UiText.Add(t, 14, 4, 360, 24, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Glow);
             _melodyProgress = UiText.Add(t, 300, 4, 200, 24, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Normal, UiText.Look.Outline);

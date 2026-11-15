@@ -7,19 +7,26 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The singleplayer world picker (uGUI): lists existing save worlds to resume and lets the player
-    /// start a brand-new world by name (a new name = a new, differently-seeded world), so different
-    /// worlds can be tested without overwriting. Shown on <see cref="ShellPhase.SaveSelect"/> over the
-    /// menu backdrop; AppShell spawns/destroys it per phase. The world list itself (left panel) is
-    /// <see cref="WorldListView"/> (UiSaveSelect.WorldList.cs): read in the background, built in slices (#3259).
+    /// "My worlds" (#3664): ONE master-detail screen for playing and hosting local worlds, on the menu template. The list
+    /// of saves sits on the left (<see cref="WorldListView"/>, UiSaveSelect.WorldList.cs: name, mode, last played, playtime,
+    /// read in the background and built in slices, #3259); the right pane shows the selected world with Play as the screen's
+    /// one primary action and Delete set apart — or, after "+ New world", the creation form (UiSaveSelect.Create.cs). Under
+    /// both, the switch "Open to friends" with the player cap, the join password and the LAN address replaces the separate
+    /// "Host a world" screen that used to repeat this whole picker for one extra panel; the main menu's Multiplayer screen
+    /// opens this screen with the switch already on (<see cref="AppShell.HostMode"/>).
     /// </summary>
     public static partial class UiSaveSelect
     {
-        // The world list (left panel): a clipped viewport under the header, rows at a fixed pitch.
-        private const float ListY = 56f;
-        private const float ListH = 566f;
-        private const float RowPitch = 62f;
-        private const float RowH = 54f;
+        // The world list (left card): a clipped viewport under the toolbar, rows at a fixed pitch.
+        private const float ListX = 90f, ListW = 700f, PaneY = UiKit.MenuContentTop, PaneH = 730f;
+        private const float ListY = 76f;
+        private const float ListH = 630f;
+        private const float RowPitch = 84f;
+        private const float RowH = 76f;
+
+        // The right pane: the selected world or the creation form above, the hosting row and the footer below.
+        private const float PaneX = 820f, PaneW = 1010f;
+        private const float LanY = 520f, FooterY = 664f;
 
         /// <summary>
         /// The list's scroll offset (content y, px from the top) carried across the rebuild a delete triggers.
@@ -94,13 +101,13 @@ namespace BlocksBeyondTheStars.Client
             return trimEnd ? sb.ToString().TrimEnd(' ', '.') : sb.ToString();
         }
 
-        /// <summary>The world list's clipped, vertically scrolling viewport inside the left panel
+        /// <summary>The world list's clipped, vertically scrolling viewport inside the left card
         /// (<see cref="ListY"/>..+<see cref="ListH"/>); <paramref name="content"/> takes the rows, placed absolutely
         /// (top-left) at <see cref="RowPitch"/>. The caller sizes the content's height from the world count.</summary>
         private static ScrollRect BuildWorldListViewport(Transform panel, out RectTransform content)
         {
             // The viewport's near-transparent hit graphic gives the wheel/drag something to hit between the rows.
-            content = UiKit.AddScrollViewport(panel, "WorldListScroll", 20f, ListY, 680f, ListH, out var scroll);
+            content = UiKit.AddScrollViewport(panel, "WorldListScroll", 20f, ListY, ListW - 40f, ListH, out var scroll);
             content.sizeDelta = Vector2.zero;
             return scroll;
         }
@@ -108,279 +115,226 @@ namespace BlocksBeyondTheStars.Client
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("SaveSelectUI");
-            var root = canvas.transform;
             UiNav.Enable(canvas.gameObject); // gamepad can pick a world (inert on KB/mouse)
+            s_screen = new WorldsScreen(shell, canvas);
+            s_screen.Build();
+            return canvas.gameObject;
+        }
 
-            // Host mode ("Host Game" on the main menu): the same picker — any singleplayer save can be
-            // hosted, "open to LAN" style — plus a host bar (max players + optional join password).
-            bool host = shell.HostMode;
-            int[] maxPlayers = { 12 };
-            string[] hostPass = { "" };
+        /// <summary>The screen on show (its canvas is gone once the shell left "My worlds").</summary>
+        private static WorldsScreen s_screen;
+
+        /// <summary>
+        /// Esc / pad B on "My worlds": closes the topmost layer — the delete question, then the world options (a sub-page
+        /// back to their main page first), then the New-world form (back to the selected world) — and says whether there
+        /// was one. False means nothing is open and the shell may leave the screen.
+        /// </summary>
+        internal static bool CloseTopLayer()
+        {
+            var screen = s_screen;
+            return screen != null && screen.IsShown && screen.CloseTopLayer();
+        }
+
+        /// <summary>The screen's parts and the state they share: the selected world, the open view, the hosting row.</summary>
+        private sealed partial class WorldsScreen
+        {
+            private readonly AppShell _shell;
+            private readonly Canvas _canvas;
+            private readonly Transform _root;
+
+            // Hosting ("Open to friends", #3664): on when the Multiplayer screen sent the player here to host.
+            private bool _lan;
+            private int _maxPlayers = 12;
+            private string _hostPass = "";
+            private GameObject _lanOptions;
+
+            private WorldListView _list;
+            private string _selected;
+            private GameObject _detail, _empty, _create, _deleteButton;
+            private Button _play, _emptyNew; // the pad's first focus once the list is there (with a world / without one)
+            private Text _detailName, _detailMeta, _factsValues;
+
+            // Delete confirmation (built last so it draws on top).
+            private GameObject _confirm;
+            private Text _confirmText;
+
+            public WorldsScreen(AppShell shell, Canvas canvas)
+            {
+                _shell = shell;
+                _canvas = canvas;
+                _root = canvas.transform;
+                _lan = shell.HostMode;
+            }
+
+            public void Build()
+            {
+                var back = UiKit.AddScreenHeader(_root, _shell.L("ui.save.title"), _shell.L("ui.save.subtitle"),
+                    () => _shell.GoTo(ShellPhase.MainMenu), _shell.L("ui.menu.back"));
+                BuildList();
+                var pane = UiKit.AddCard(_root, PaneX, PaneY, PaneW, PaneH);
+                BuildDetail(pane);
+                BuildCreate(pane);
+                BuildLan(pane);
+                // Back after the cards: a pad's first focus is the first control in hierarchy order, and A on arrival must
+                // not leave the screen. The delete confirmation stays last, on top of everything.
+                back?.transform.SetAsLastSibling();
+                BuildConfirm();
+                ShowDetail(null);
+            }
+
+            // ── Left: the saved worlds ─────────────────────────────────────────────────────────
+            private void BuildList()
+            {
+                var left = UiKit.AddCard(_root, ListX, PaneY, ListW, PaneH);
+                UiKit.AddKicker(left, 24f, 24f, ListW - 300f, _shell.L("ui.save.existing"));
+                UiKit.AddTierButton(left, ListW - 264f, 14f, 240f, 48f, _shell.L("ui.save.new_world"), ShowCreate, ButtonTier.Secondary, "btn_new");
+
+                // #3259: the rows come from the world list read in the background and arrive a slice per frame — the
+                // screen opens at once whatever the number of worlds.
+                float restoreScrollY = _restoreScrollY;
+                _restoreScrollY = 0f;
+                _list = WorldListView.Attach(_canvas.gameObject, _shell, left, restoreScrollY, Select, Arrived);
+            }
+
+            /// <summary>The list is there: preselect the last-played world — unless the player opened the New-world form while
+            /// the list was loading, which must not vanish under their typing. A pad then lands on Play (or, without a world,
+            /// on "New world") instead of the "+ New world" button it found first while the list was still loading — unless
+            /// the player has moved the focus meanwhile.</summary>
+            private void Arrived(SavedWorld world)
+            {
+                if (!_create.activeSelf)
+                {
+                    Select(world);
+                    UiNav.Prefer(_canvas.gameObject, world != null ? _play : _emptyNew, takeOver: true);
+                }
+            }
+
+            /// <summary>True while the screen's canvas is up.</summary>
+            public bool IsShown => _canvas != null && _canvas.gameObject.activeInHierarchy && _canvas.enabled;
+
+            /// <summary>See <see cref="UiSaveSelect.CloseTopLayer"/>.</summary>
+            public bool CloseTopLayer()
+            {
+                if (_confirm != null && _confirm.activeSelf)
+                {
+                    _confirm.SetActive(false);
+                    return true;
+                }
+
+                if (_optionsOverlay != null && _optionsOverlay.activeSelf)
+                {
+                    UiWorldOptions.Back(_optionsOverlay);
+                    return true;
+                }
+
+                if (_create != null && _create.activeSelf)
+                {
+                    CancelCreate();
+                    return true;
+                }
+
+                return false;
+            }
+
+            /// <summary>A row was picked (or the list arrived and picked the last-played world): show it on the right.</summary>
+            private void Select(SavedWorld world)
+            {
+                _list.MarkSelected(world?.Name);
+                ShowDetail(world);
+            }
+
+            // ── Right: the selected world ──────────────────────────────────────────────────────
+            private void BuildDetail(Transform pane)
+            {
+                _detail = UiKit.AddStretchChild(pane, "WorldDetail");
+                _detailName = UiKit.AddText(_detail.transform, 32f, 26f, PaneW - 64f, 50f, "", 36, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                _detailMeta = UiKit.AddText(_detail.transform, 34f, 80f, PaneW - 64f, 28f, "", 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                _play = UiKit.AddTierButton(_detail.transform, 32f, 128f, 460f, 76f, _shell.L("ui.save.play"),
+                    () => { if (_selected != null) { Launch(_selected); } }, ButtonTier.Primary, "btn_continue");
+                _play.GetComponentInChildren<Text>().fontSize = 28;
+
+                // A small facts grid: what the list row says, larger and labelled.
+                UiKit.AddText(_detail.transform, 32f, 240f, 220f, 96f,
+                    _shell.L("ui.save.mode") + "\n" + _shell.L("ui.save.last_played") + "\n" + _shell.L("ui.save.playtime"),
+                    17, UiKit.CyanDim, TextAnchor.UpperLeft).lineSpacing = 1.25f;
+                _factsValues = UiKit.AddText(_detail.transform, 260f, 240f, 600f, 96f, "", 17, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                _factsValues.lineSpacing = 1.25f;
+
+                _deleteButton = UiKit.AddTierButton(pane, PaneW - 32f - 240f, FooterY, 240f, 50f, _shell.L("ui.save.delete_yes"),
+                    () => { if (_selected != null) { AskDelete(_selected); } }, ButtonTier.Danger, "btn_delete").gameObject;
+
+                _empty = UiKit.AddStretchChild(pane, "NoWorldSelected");
+                var hint = UiKit.AddText(_empty.transform, 32f, 40f, PaneW - 64f, 60f, _shell.L("ui.save.pick_or_new"), 20, UiKit.TextCol, TextAnchor.UpperLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                _emptyNew = UiKit.AddTierButton(_empty.transform, 32f, 120f, 420f, 70f, _shell.L("ui.save.new_world"), ShowCreate,
+                    ButtonTier.Primary, "btn_new");
+            }
+
+            private void ShowDetail(SavedWorld world)
+            {
+                _selected = world?.Name;
+                _create.SetActive(false);
+                _detail.SetActive(world != null);
+                _deleteButton.SetActive(world != null);
+                _empty.SetActive(world == null);
+                if (world == null)
+                {
+                    return;
+                }
+
+                string mode = world.ModeKey.Length > 0 ? _shell.L(world.ModeKey) : "—";
+                string ago = UiKit.TimeAgo(_shell.L, world.LastWriteUtc);
+                string played = world.PlaytimeSeconds >= 0 ? FormatPlaytime(world.PlaytimeSeconds) : "—";
+                _detailName.text = world.Name;
+                UiKit.FitLabelSingleLine(_detailName, PaneW - 64f, 20, 36);
+                _detailMeta.text = mode + "  ·  " + ago;
+                _factsValues.text = mode + "\n" + ago + "\n" + played;
+            }
+
             // seed 0 = the server derives it from the name; "Random world" under a typed name passes its own (#2522).
-            void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, bool sandbox = false,
+            private void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, bool sandbox = false,
                 WorldCreationOptions options = null, bool flight = false, long seed = 0)
             {
-                if (host)
+                if (_lan)
                 {
                     // #3708: friends dial in, so Windows Firewall has to allow the server — checked (and explained) first.
-                    HostThroughFirewall(shell, root, () => shell.StartHostWorld(world, maxPlayers[0], hostPass[0], seed, unlockAll, allShips, kit, sandbox, options, flight));
+                    HostThroughFirewall(_shell, _root,
+                        () => _shell.StartHostWorld(world, _maxPlayers, _hostPass, seed, unlockAll, allShips, kit, sandbox, options, flight));
                 }
                 else
                 {
-                    shell.StartSingleplayerWorld(world, seed, unlockAll, allShips, kit, sandbox, options, flight);
+                    _shell.StartSingleplayerWorld(world, seed, unlockAll, allShips, kit, sandbox, options, flight);
                 }
             }
 
-            UiKit.AddLogo(root, UiKit.ShellTitleX, 70f, 900f, 96f, shell.L(host ? "ui.host.title" : "ui.save.title"), 56);
-            UiKit.AddText(root, UiKit.ShellTitleX + 4f, 180f, 1000f, 26f, shell.L(host ? "ui.host.subtitle" : "ui.save.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
-            // ── Existing worlds (left) ────────────────────────────────────────────────────────
-            var left = UiHolo.AddPanel(root, 90f, 250f, 720f, 640f, UiKit.Panel, 18f, 1.5f, 1f).transform; // holo frames — wipe on with the screen boot (#1796)
-            UiKit.AddText(left, 20f, 16f, 680f, 26f, shell.L("ui.save.existing"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            // Delete-confirmation dialog (built below, shown on demand) — captured by the row buttons.
-            GameObject confirm = null;
-            Text confirmText = null;
-            string[] target = { null };
-
-            // #3259: the rows come from the world list read in the background and arrive a slice per frame — the
-            // screen opens at once whatever the number of worlds (WorldListView, UiSaveSelect.WorldList.cs).
-            float restoreScrollY = _restoreScrollY;
-            _restoreScrollY = 0f;
-            var worldList = WorldListView.Attach(canvas.gameObject, shell, left, restoreScrollY, w => Launch(w), w =>
+            // ── Delete (confirmation on top) ───────────────────────────────────────────────────
+            private void AskDelete(string world)
             {
-                target[0] = w;
-                if (confirmText != null) confirmText.text = shell.L("ui.save.delete_confirm").Replace("{world}", w);
-                if (confirm != null) confirm.SetActive(true);
-            });
-
-            // ── New world (right) ─────────────────────────────────────────────────────────────
-            var right = UiHolo.AddPanel(root, 850f, 250f, 700f, 540f, UiKit.Panel, 18f, 1.5f, 1f).transform;
-            UiKit.AddText(right, 20f, 16f, 660f, 26f, shell.L("ui.save.new"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var nameLabel = UiKit.AddText(right, 20f, 54f, 660f, 24f, shell.L("ui.save.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-
-            // The name is sanitized AS IT IS TYPED, so the box always shows exactly what the save will be
-            // called — no silent mangling three layers down, and a "?" simply never appears rather than
-            // turning into an underscore behind the player's back. A one-line note says when something was
-            // dropped, and Create refuses an empty or duplicate name out loud instead of half-working.
-            // The label doubles as the message line — the panel has no spare row, and a warning right above
-            // the box is where the eye already is.
-            string[] name = { RandomWorldName.DefaultName };
-            InputField nameInput = null;
-            void SayName(string key, bool warn)
-            {
-                if (nameLabel == null)
-                {
-                    return;
-                }
-
-                nameLabel.text = shell.L(key);
-                nameLabel.color = warn ? UiKit.Warn : UiKit.TextCol;
+                _confirmText.text = _shell.L("ui.save.delete_confirm").Replace("{world}", world);
+                _confirm.SetActive(true);
+                UiKit.OpenModal(_confirm);
             }
 
-            nameInput = UiKit.AddInput(right, 20f, 82f, 660f, 34f, name[0], v =>
+            private void BuildConfirm()
             {
-                string clean = SanitizeWorldName(v, trimEnd: false); // still typing — keep a trailing space
-                name[0] = clean;
-                if (clean != v && nameInput != null)
+                var (overlay, panel) = UiKit.AddModalOverlay(_root, 610f, 420f, 700f, 250f);
+                _confirm = overlay;
+                _confirmText = UiKit.AddText(panel, 30f, 30f, 640f, 80f, string.Empty, 20, UiKit.TextCol, TextAnchor.MiddleCenter);
+                _confirmText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddTierButton(panel, 40f, 160f, 290f, 58f, _shell.L("ui.save.delete_yes"), () =>
                 {
-                    // Re-entrant by design: the setter fires onChange again with `clean`, and SanitizeWorldName
-                    // is idempotent, so the second pass changes nothing and the recursion stops there.
-                    nameInput.text = clean;
-                    SayName("ui.save.name_stripped", true);
-                }
-                else
-                {
-                    SayName("ui.save.name", false);
-                }
-            }, maxLength: 24);
-
-            // Mode: Explorer (normal) vs Creative (everything unlocked + a starter set; survival mechanics
-            // stay on) vs Sandbox (#662: free crafting, no oxygen/hunger, peaceful, everything unlocked).
-            int[] mode = { 0 }; // 0 Explorer · 1 Creative · 2 Sandbox
-            bool[] optBlueprints = { true };
-            bool[] optShips = { true };
-            bool[] optKit = { true };
-
-            UiKit.AddText(right, 20f, 124f, 660f, 24f, shell.L("ui.save.mode"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            Button explorerBtn = null, creativeBtn = null, sandboxBtn = null;
-            GameObject creativePanel = null;
-            GameObject sandboxHint = null;
-            void RefreshMode()
-            {
-                if (explorerBtn != null) explorerBtn.image.color = mode[0] == 0 ? UiKit.Cyan : UiKit.PanelFill;
-                if (creativeBtn != null) creativeBtn.image.color = mode[0] == 1 ? UiKit.Cyan : UiKit.PanelFill;
-                if (sandboxBtn != null) sandboxBtn.image.color = mode[0] == 2 ? UiKit.Cyan : UiKit.PanelFill;
-                if (creativePanel != null) creativePanel.SetActive(mode[0] == 1);
-                if (sandboxHint != null) sandboxHint.SetActive(mode[0] == 2);
-            }
-
-            explorerBtn = UiKit.AddButton(right, 20f, 152f, 210f, 46f, shell.L("ui.save.mode_explorer"), () => { mode[0] = 0; RefreshMode(); });
-            creativeBtn = UiKit.AddButton(right, 245f, 152f, 210f, 46f, shell.L("ui.save.mode_creative"), () => { mode[0] = 1; RefreshMode(); });
-            sandboxBtn = UiKit.AddButton(right, 470f, 152f, 210f, 46f, shell.L("ui.save.mode_sandbox"), () => { mode[0] = 2; RefreshMode(); });
-
-            // Creative sub-options (a checklist; shown only when Creative is selected).
-            // 166 tall, not 150: the three toggles end at y=134 and the flight line sits under them.
-            var cp = UiKit.AddPanel(right, 20f, 206f, 660f, 166f, new Color(0.05f, 0.10f, 0.16f, 0.55f));
-            creativePanel = cp.gameObject;
-            void Toggle(float y, string label, bool[] state)
-            {
-                Button b = null;
-                string Fmt() => (state[0] ? "[X]  " : "[  ]  ") + label;
-                b = UiKit.AddButton(cp.transform, 12f, y, 636f, 38f, Fmt(), () =>
-                {
-                    state[0] = !state[0];
-                    var t = b.GetComponentInChildren<Text>();
-                    if (t != null) t.text = Fmt();
-                });
-            }
-
-            Toggle(8f, shell.L("ui.save.opt_blueprints"), optBlueprints);
-            Toggle(52f, shell.L("ui.save.opt_ships"), optShips);
-            Toggle(96f, shell.L("ui.save.opt_kit"), optKit);
-
-            // Flight is not a checkbox — it comes with both non-Explorer modes — but it has to be SAID, or it
-            // stays as invisible as the /fly command it replaces. This is the line the player was missing.
-            // #2502: "double-tap {key:Jump}" — the jump control of the device in hand, not a fixed "Space".
-            string flightHint = HudUi.ExpandKeyTokens(shell.Localizer, shell.L("ui.save.creative_flight"));
-            UiKit.AddText(cp.transform, 12f, 136f, 636f, 24f, flightHint, 14,
-                UiKit.Cyan, TextAnchor.MiddleLeft);
-
-            // Sandbox: no checklist — everything is on by design; a short hint says what the mode does.
-            var sh = UiKit.AddText(right, 20f, 210f, 660f, 140f,
-                shell.L("ui.save.sandbox_hint") + "\n" + flightHint, 15,
-                UiKit.CyanDim, TextAnchor.UpperLeft);
-            sh.horizontalOverflow = HorizontalWrapMode.Wrap;
-            sandboxHint = sh.gameObject;
-            RefreshMode(); // start on Explorer (sub-options hidden)
-
-            // World options (sliders + presets): collected here, baked into the save at creation.
-            var worldOptions = new WorldCreationOptions();
-            GameObject optionsOverlay = null;
-            UiKit.AddButton(right, 20f, 372f, 660f, 46f, shell.L("ui.worldopt.open"), () =>
-            {
-                optionsOverlay ??= UiWorldOptions.Build(shell, root, worldOptions);
-                optionsOverlay.SetActive(true);
-            });
-
-            // Creative honours the checklist; Sandbox forces every grant on (free crafting makes blueprints
-            // moot, but owning all ships + the kit keeps testing friction-free).
-            bool UnlockAll() => mode[0] == 2 || (mode[0] == 1 && optBlueprints[0]);
-            bool AllShips() => mode[0] == 2 || (mode[0] == 1 && optShips[0]);
-            bool Kit() => mode[0] == 2 || (mode[0] == 1 && optKit[0]);
-
-            // Both non-Explorer modes fly. Sandbox would get it from --game-mode anyway; Creative is the mode
-            // a Minecraft player picks *in order to* fly, so it has to grant it explicitly.
-            bool Flight() => mode[0] != 0;
-
-            // Create validates instead of half-working: an empty name and a name that already exists both
-            // say so, right above the box, and nothing is launched.
-            void CreateNamed()
-            {
-                string world = SanitizeWorldName(name[0]);
-                if (string.IsNullOrEmpty(world))
-                {
-                    SayName("ui.save.name_empty", true);
-                    return;
-                }
-
-                if (!worldList.Loaded)
-                {
-                    return; // the button waits for the list (#3259) — its duplicate check needs it
-                }
-
-                if (worldList.Has(world))
-                {
-                    SayName("ui.save.name_taken", true);
-                    return;
-                }
-
-                Launch(world, UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions, Flight());
-            }
-
-            // "Random world" honours a name the player actually typed (#2522): it used to create world_<n> every
-            // time while the typed name stayed in the box as if it had been used. An edited, free name now gets a
-            // random seed under that name; an empty, untouched or taken one keeps world_<n> (RandomWorldName).
-            void CreateRandom()
-            {
-                if (!worldList.Loaded)
-                {
-                    return; // waits for the list (#3259): a taken name must not be reused
-                }
-
-                var pick = RandomWorldName.Resolve(SanitizeWorldName(name[0]), RandomWorldName.DefaultName,
-                    worldList.Names(), new System.Random());
-                Launch(pick.Name, UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions, Flight(), pick.Seed);
-            }
-
-            worldList.GateUntilLoaded( // disabled while the list is still being read (#3259)
-                UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"), CreateNamed, "btn_singleplayer"),
-                UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"), CreateRandom, "btn_join"));
-            UiKit.AddText(right, 20f, 486f, 660f, 54f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            // ── Host options (host mode only): player cap + optional join password ───────────────
-            if (host)
-            {
-                var bar = UiHolo.AddPanel(root, 850f, 800f, 700f, 186f, UiKit.Panel, 18f, 1.5f, 1f).transform;
-                UiKit.AddText(bar, 20f, 8f, 300f, 24f, shell.L("ui.host.max_players"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                Text count = null;
-                UiKit.AddButton(bar, 20f, 38f, 46f, 46f, "-", () =>
-                {
-                    maxPlayers[0] = Mathf.Max(2, maxPlayers[0] - 1);
-                    if (count != null) count.text = maxPlayers[0].ToString();
-                });
-                count = UiKit.AddText(bar, 74f, 38f, 60f, 46f, maxPlayers[0].ToString(), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.AddButton(bar, 142f, 38f, 46f, 46f, "+", () =>
-                {
-                    maxPlayers[0] = Mathf.Min(16, maxPlayers[0] + 1);
-                    if (count != null) count.text = maxPlayers[0].ToString();
-                });
-                UiKit.AddText(bar, 240f, 8f, 440f, 24f, shell.L("ui.host.password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                UiKit.AddInput(bar, 240f, 38f, 440f, 46f, hostPass[0], v => hostPass[0] = v);
-
-                // The join address, HERE and not only in the chat once the world is up (#984): the host
-                // reads it out (or copies it) while worldgen runs, so the friends can be typing already.
-                // Resolved on build — the picker re-reads the live interface list, so unplugging the cable
-                // and reopening this screen shows the Wi-Fi address instead of a stale one.
-                string joinAddress = AppShell.LanJoinAddress();
-                UiKit.AddText(bar, 20f, 92f, 400f, 24f, shell.L("ui.host.your_address"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                UiKit.AddText(bar, 20f, 116f, 520f, 32f, joinAddress, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                Text addressHint = null;
-                UiKit.AddButton(bar, 552f, 112f, 128f, 40f, shell.L("ui.host.copy"), () =>
-                {
-                    GUIUtility.systemCopyBuffer = joinAddress;
-                    if (addressHint != null)
+                    if (!string.IsNullOrEmpty(_selected))
                     {
-                        // The hint line doubles as the confirmation — a clipboard copy is otherwise
-                        // completely invisible, and the bar has no room for a toast.
-                        addressHint.text = shell.L("ui.host.copied");
-                        addressHint.color = UiKit.Cyan;
+                        LocalServerLauncher.DeleteWorld(_selected);
                     }
-                });
-                addressHint = UiKit.AddText(bar, 20f, 152f, 660f, 28f, shell.L("ui.host.address_hint"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+
+                    _restoreScrollY = _list.ScrollY; // the rebuild keeps the list where it was
+                    _shell.RefreshSaveSelect(); // force a rebuild so the deleted world drops off the list (B59)
+                }, ButtonTier.Danger, "btn_delete");
+                UiKit.AddTierButton(panel, 370f, 160f, 290f, 58f, _shell.L("ui.save.delete_no"), () => _confirm.SetActive(false),
+                    ButtonTier.Quiet, "btn_back");
+                _confirm.SetActive(false);
             }
-
-            UiKit.AddButton(root, 90f, 920f, 240f, 50f, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
-
-            // ── Delete confirmation (added last so it draws on top; hidden until a ✕ is pressed) ──────
-            var (confirmOverlay, panel) = UiKit.AddModalOverlay(root, 610f, 420f, 700f, 250f);
-            confirm = confirmOverlay;
-            confirmText = UiKit.AddText(panel.transform, 30f, 30f, 640f, 80f, string.Empty, 20, UiKit.TextCol, TextAnchor.MiddleCenter);
-            confirmText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(panel.transform, 40f, 160f, 290f, 58f, shell.L("ui.save.delete_yes"), () =>
-            {
-                if (!string.IsNullOrEmpty(target[0]))
-                {
-                    LocalServerLauncher.DeleteWorld(target[0]);
-                }
-
-                _restoreScrollY = worldList.ScrollY; // the rebuild keeps the list where it was
-                shell.RefreshSaveSelect(); // force a rebuild so the deleted world drops off the list (B59)
-            }, "btn_exit");
-            UiKit.AddButton(panel.transform, 370f, 160f, 290f, 58f, shell.L("ui.save.delete_no"), () => confirm.SetActive(false), "btn_singleplayer");
-            confirm.SetActive(false);
-
-            return canvas.gameObject;
         }
     }
 }

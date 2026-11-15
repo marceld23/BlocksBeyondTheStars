@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// rays, the room bounds test, the form-icon brush tile, the right-hand panel and bottom hint line,
     /// and the hex-colour / key-slug text helpers.
     /// </summary>
-    internal static class EditorSceneKit
+    internal static partial class EditorSceneKit
     {
         /// <summary>Cells per grid-texture tile: a brighter MAJOR line every this many cells.</summary>
         private const int MajorEvery = 8;

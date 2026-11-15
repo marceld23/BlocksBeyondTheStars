@@ -109,34 +109,49 @@ namespace BlocksBeyondTheStars.Client
             var panel = AddModal((1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
             var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, L("ui.train.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
-            if (t == null)
+            if (t != null)
             {
-                return;
+                UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, StateText(t), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                if (string.IsNullOrEmpty(t.OwnerId))
+                {
+                    // #2125: the intercity line's public train (no owner) runs its own timetable — no controls, only the way out.
+                    head.text = L("ui.train.public_title");
+                    var note = UiKit.AddText(panel, 32f, 110f, W - 64f, 150f, L("ui.train.public"), 18, Color.white, TextAnchor.UpperLeft);
+                    note.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    UiKit.AddButton(panel, 32f, 300f, 260f, 44f, L("ui.train.leave"), () => { Game?.Network?.SendExitTrain(); Close(); });
+                }
+                else
+                {
+                    BuildControls(panel, t);
+                }
             }
 
-            UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, StateText(t), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
-            // #2125: the intercity line's public train (no owner) runs its own timetable — no controls, only the way out.
-            if (string.IsNullOrEmpty(t.OwnerId))
+            // #3662: a Close of its own — B / Esc did close the panel, but a tablet (its touch layer hides under a menu) had
+            // only "Leave the train" to get it off the screen. The cross, quiet, last: never the pad's first stop.
+            UiKit.AddTierButton(panel, W - 32f - 200f, H - 66f, 200f, 44f, L("ui.action.close"), () =>
             {
-                head.text = L("ui.train.public_title");
-                var note = UiKit.AddText(panel, 32f, 110f, W - 64f, 150f, L("ui.train.public"), 18, Color.white, TextAnchor.UpperLeft);
-                note.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddButton(panel, 32f, 300f, 260f, 44f, L("ui.train.leave"), () => { Game?.Network?.SendExitTrain(); Close(); });
-                return;
-            }
+                ConsumeMenuInput();
+                Close();
+            }, ButtonTier.Quiet, "btn_close");
+        }
 
+        /// <summary>The owner's controls: the top speed, halt / go, the autopilot, passengers, leave and pack up.</summary>
+        private void BuildControls(Transform panel, NetTrain t)
+        {
             // #3444: the three settings are top speeds (8 / 16 / 24 blocks/s): the train eases in, cruises by the distance to
-            // its next stop and brakes into it, never faster than the chosen one.
+            // its next stop and brakes into it, never faster than the chosen one. #3662: one segmented control — the chosen
+            // speed drawn as the template's selected segment (it was a "●" in front of the number).
             float y = 104f;
             UiKit.AddText(panel, 32f, y, W - 64f, 26f, L("ui.train.top_speed"), 18, Color.white, TextAnchor.MiddleLeft);
             y += 32f;
+            var speeds = new string[3];
             for (int s = 1; s <= 3; s++)
             {
-                int speed = s;
-                string label = (t.Speed == s ? "● " : string.Empty) + Mathf.RoundToInt(RailMotion.TopSpeed(s));
-                UiKit.AddButton(panel, 32f + (s - 1) * 196f, y, 180f, 40f, label, () => Game?.Network?.SendSetTrain(_trainId, speed: speed));
+                speeds[s - 1] = Mathf.RoundToInt(RailMotion.TopSpeed(s)).ToString();
             }
+
+            UiKit.AddSegmented(panel, 32f, y, W - 64f, 44f, speeds, Mathf.Clamp(t.Speed - 1, 0, 2),
+                i => Game?.Network?.SendSetTrain(_trainId, speed: i + 1), gap: 16f);
 
             y += 60f;
             UiKit.AddButton(panel, 32f, y, 260f, 44f, t.Halted ? L("ui.train.go") : L("ui.train.halt"),

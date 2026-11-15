@@ -56,11 +56,15 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="InputMap.PadGlyph"/>, so it follows the player's glyph set and pad rebinds.</item>
     /// </list>
     ///
+    /// A dialog opened on the screen (<see cref="UiKit.AddModalDim"/> marks every scrim with <see cref="UiModalScope"/>)
+    /// takes the pad focus while it is open, keeps it in and hands it back to the control that opened it — see
+    /// <c>UiNav.Modal.cs</c>.
+    ///
     /// Full coverage across every panel is tracked as follow-up (issue #195) and wants on-device validation —
     /// CI can't test a pad.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class UiNavFocus : MonoBehaviour
+    public sealed partial class UiNavFocus : MonoBehaviour
     {
         /// <summary>While true this menu neither claims nor restores the selection. Screens that hand the
         /// sticks to a 3D viewport (the ship editor's fly-cam, the face editor's paint canvas) suspend their
@@ -112,11 +116,18 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The control this menu would focus right now, or null if it has none to offer. Split out of
         /// <see cref="Update"/> so the rule can be checked without a pad, an EventSystem or a running
-        /// player loop — none of which CI has.</summary>
-        public Selectable FocusTarget() => PreferredSelectable(Interactables());
+        /// player loop — none of which CI has. While a dialog is open it is a control of the dialog.</summary>
+        public Selectable FocusTarget()
+        {
+            var all = AllInteractables();
+            int start = DialogStart(all, out var dialog);
+            return PreferredSelectable(all, start, dialog);
+        }
 
         /// <summary>Records where <paramref name="current"/> sits among this menu's controls, so the same
-        /// position can be restored after a rebuild. Ignores controls that belong to another menu.</summary>
+        /// position can be restored after a rebuild. Ignores controls that belong to another menu. A control of an
+        /// open dialog is remembered apart from the screen's own position, which the dialog must not overwrite —
+        /// the focus goes back there when the dialog closes.</summary>
         public void NoteSelection(GameObject current)
         {
             if (current == null)
@@ -124,26 +135,65 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var all = Interactables();
-            for (int i = 0; i < all.Length; i++)
+            var all = AllInteractables();
+            int index = IndexOf(all, current);
+            if (index < 0)
             {
-                if (all[i].gameObject == current)
-                {
-                    _lastIndex = i;
-                    return;
-                }
+                return;
             }
+
+            int start = DialogStart(all, out var dialog);
+            if (start < 0)
+            {
+                _lastIndex = index;
+                _modalIndex = -1;
+                _modalScope = null;
+            }
+            else if (index >= start)
+            {
+                _modalIndex = index - start;
+                _modalScope = dialog;
+            }
+
+            // else: a control under the open dialog's scrim — never a place to come back to.
         }
 
         /// <summary>Adds a screen-specific line to the hint strip: the named buttons (joined with "/") and
-        /// the verb behind <paramref name="verbKey"/> — e.g. LB/RB "switch tab" on the in-game menu.</summary>
+        /// the verb behind <paramref name="verbKey"/> — e.g. LB/RB "switch tab" on the in-game menu. A line the strip
+        /// already has is not added twice (a screen that rebuilds itself may ask again).</summary>
         public void AddHint(string verbKey, params PadButton[] buttons)
         {
+            foreach (var (have, haveKey) in _extraHints)
+            {
+                if (haveKey == verbKey && SameButtons(have, buttons))
+                {
+                    return;
+                }
+            }
+
             _extraHints.Add((buttons, verbKey));
             if (_hintText != null)
             {
                 _hintText.text = string.Empty; // force a recompose on the next refresh
             }
+        }
+
+        private static bool SameButtons(PadButton[] a, PadButton[] b)
+        {
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void Update()
@@ -152,13 +202,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Keyboard/mouse in hand, or this screen is hidden — leave the selection alone, and take
                 // the pad-only chrome down with us so a mouse user never sees a frame or a hint strip.
-                ClearSelectionFrame();
-                _lastSelected = null;
-                if (_hintGo != null && _hintGo.activeSelf)
-                {
-                    _hintGo.SetActive(false);
-                }
-
+                LetGo();
                 return;
             }
 
@@ -168,30 +212,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var current = es.currentSelectedGameObject;
-            if (current != null && current.activeInHierarchy && !StaleForeignSelection(current))
+            if (_seenModalGeneration != UiModalScope.Generation)
             {
-                var sel = current.GetComponent<Selectable>();
-                if (sel != null && sel.IsInteractable())
-                {
-                    // Only walk the subtree when the selection actually MOVED. GetComponentsInChildren
-                    // allocates, and a pad resting on one control must not cost an array per frame — the
-                    // crafting pane alone holds hundreds of Selectables (WebGL / Raspberry-Pi budgets).
-                    if (current != _lastSelected)
-                    {
-                        bool moved = _lastSelected != null; // null = first claim / after a rebuild: no blip
-                        _lastSelected = current;
-                        NoteSelection(current);
-                        if (current.transform.IsChildOf(transform))
-                        {
-                            OnSelectionMoved(sel, moved);
-                        }
-                    }
+                _seenModalGeneration = UiModalScope.Generation;
+                _recheck = true; // a dialog opened or closed: is the selection still reachable?
+            }
 
-                    StickScroll(current);
-                    RefreshHint(current);
-                    return; // a valid control is focused — nothing to do.
-                }
+            if (KeepSelection(es.currentSelectedGameObject))
+            {
+                return; // a valid control is focused — nothing to do.
             }
 
             StickScroll(null);
@@ -199,13 +228,75 @@ namespace BlocksBeyondTheStars.Client
             _lastSelected = null;
             ClearSelectionFrame();
 
-            var restore = FocusTarget();
+            var restore = RestoreTarget();
             if (restore != null)
             {
                 es.SetSelectedGameObject(restore.gameObject);
+                _autoClaimed = restore.gameObject;
             }
 
             RefreshHint(null);
+        }
+
+        private void LetGo()
+        {
+            ClearSelectionFrame();
+            _lastSelected = null;
+            _openers.Clear(); // the pad history ends with the pad: a mouse user closes dialogs where they like
+            if (_hintGo != null && _hintGo.activeSelf)
+            {
+                _hintGo.SetActive(false);
+            }
+        }
+
+        /// <summary>True when <paramref name="current"/> stays the selection: a live, interactable control of this
+        /// menu (or of a screen above it) that no dialog covers. Keeps the frame, the scroll and the hint up to date.</summary>
+        private bool KeepSelection(GameObject current)
+        {
+            if (current == null || !current.activeInHierarchy || StaleForeignSelection(current))
+            {
+                return false;
+            }
+
+            var sel = current.GetComponent<Selectable>();
+            if (sel == null || !sel.IsInteractable())
+            {
+                return false;
+            }
+
+            // Only walk the subtree when the selection actually MOVED (or a dialog came or went). GetComponentsInChildren
+            // allocates, and a pad resting on one control must not cost an array per frame — the crafting pane alone
+            // holds hundreds of Selectables (WebGL / Raspberry-Pi budgets).
+            bool moved = current != _lastSelected;
+            if (moved || _recheck)
+            {
+                _recheck = false;
+                bool ours = current.transform.IsChildOf(transform);
+                if (ours && CoveredByDialog(current))
+                {
+                    if (!moved)
+                    {
+                        _openers.Add(current); // a dialog opened over it: the focus comes back here when it closes
+                    }
+
+                    return false; // the stick walked under the scrim, or a dialog just opened: into the dialog
+                }
+
+                if (moved)
+                {
+                    bool blip = _lastSelected != null; // null = first claim / after a rebuild: no blip
+                    _lastSelected = current;
+                    NoteSelection(current);
+                    if (ours)
+                    {
+                        OnSelectionMoved(sel, blip);
+                    }
+                }
+            }
+
+            StickScroll(current);
+            RefreshHint(current);
+            return true;
         }
 
         /// <summary>True when the EventSystem's selection is a control that belongs to NO live pad screen — a
@@ -524,13 +615,20 @@ namespace BlocksBeyondTheStars.Client
         // ---- focus rule ------------------------------------------------------------------------------------
 
         /// <summary>The control to focus: the one sitting where the selection was before the panel was
-        /// rebuilt (clamped — a filtered list can get shorter), else the first control that is not a text
-        /// field, and only failing that a field (see the class summary).</summary>
-        private Selectable PreferredSelectable(Selectable[] all)
+        /// rebuilt (clamped — a filtered list can get shorter), else the control the screen asked for
+        /// (<see cref="UiNav.Prefer"/>), else the first control that is not a text field (and not a destructive one
+        /// when there is another), and only failing that a field (see the class summary). With a dialog open
+        /// (<paramref name="start"/> ≥ 0) only the dialog's controls count, with their own remembered position.</summary>
+        private Selectable PreferredSelectable(Selectable[] all, int start, UiModalScope dialog)
         {
             if (all.Length == 0)
             {
                 return null;
+            }
+
+            if (start >= 0)
+            {
+                return DialogSelectable(all, start, dialog);
             }
 
             if (_lastIndex >= 0)
@@ -542,7 +640,28 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            for (int i = 0; i < all.Length; i++)
+            if (_preferred != null && IndexOf(all, _preferred.gameObject) >= 0)
+            {
+                return _preferred;
+            }
+
+            return FirstChoice(all, 0);
+        }
+
+        /// <summary>The first control from <paramref name="from"/> on that is neither a text field nor a destructive
+        /// (<see cref="ButtonTier.Danger"/>) button; failing that the first that is not a field; failing that the first —
+        /// with the on-screen keyboard a field is usable. A delete confirmation opens on Cancel, so A-A cannot delete.</summary>
+        private static Selectable FirstChoice(Selectable[] all, int from)
+        {
+            for (int i = from; i < all.Length; i++)
+            {
+                if (!IsTextField(all[i]) && !UiKit.IsDangerButton(all[i]))
+                {
+                    return all[i];
+                }
+            }
+
+            for (int i = from; i < all.Length; i++)
             {
                 if (!IsTextField(all[i]))
                 {
@@ -550,12 +669,26 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return all[0]; // nothing but fields: focus one anyway — with the on-screen keyboard it is usable
+            return all[from]; // nothing but fields: focus one anyway — with the on-screen keyboard it is usable
+        }
+
+        private static int IndexOf(Selectable[] all, GameObject go)
+        {
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].gameObject == go)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         /// <summary>This menu's currently interactable controls, in hierarchy order. Controls that opted out
-        /// of navigation (the scrollbars, #1411) are not offered either — the stick could never reach them.</summary>
-        private Selectable[] Interactables()
+        /// of navigation (the scrollbars, #1411) are not offered either — the stick could never reach them. Includes
+        /// the controls an open dialog covers; <see cref="DialogStart"/> says where the reachable ones begin.</summary>
+        private Selectable[] AllInteractables()
         {
             var found = GetComponentsInChildren<Selectable>(includeInactive: false);
             int n = 0;
@@ -629,6 +762,25 @@ namespace BlocksBeyondTheStars.Client
             {
                 EventSystem.current.SetSelectedGameObject(null);
             }
+        }
+
+        /// <summary>
+        /// Names the control a pad should land on when <paramref name="menuRoot"/> claims the focus for the first time —
+        /// the category the settings reopened on, the open Codex chapter — instead of the first control in hierarchy
+        /// order. A position remembered from a rebuild still wins. With <paramref name="takeOver"/> the control is also
+        /// selected right away while a pad is in hand, unless the player has already moved the focus themselves (My
+        /// worlds: the world list arrives a few frames after the screen opened). No-op without a
+        /// <see cref="UiNavFocus"/>.
+        /// </summary>
+        public static void Prefer(GameObject menuRoot, Selectable target, bool takeOver = false)
+        {
+            var nav = menuRoot != null ? menuRoot.GetComponent<UiNavFocus>() : null;
+            if (nav == null || target == null)
+            {
+                return;
+            }
+
+            nav.SetPreferred(target, takeOver);
         }
     }
 }

@@ -116,6 +116,20 @@ public sealed class SettlementStructure
     public bool InBounds(int x, int y, int z)
         => x >= 0 && y >= 0 && z >= 0 && x < Width && y < Height && z < Length;
 
+    /// <summary>Whether any cell holds <paramref name="block"/>.</summary>
+    internal bool Holds(ushort block) => System.Array.IndexOf(_blocks, block) >= 0;
+
+    /// <summary>The cells on a grid of their own (a copy: this structure stays as it is).</summary>
+    internal VoxelGrid ToGrid() => VoxelGrid.CopyOf(Width, Height, Length, _blocks, _mods, _shapes);
+
+    /// <summary>This structure with the cells of <paramref name="grid"/> (<see cref="ToGrid"/> after a change): the same
+    /// size, tier, markers and column map.</summary>
+    internal SettlementStructure WithCells(VoxelGrid grid)
+        => new(Width, Height, Length, Tier, Ruined, Inhabitant, grid.Blocks, Markers, BuildingCount, grid.Mods, grid.Shapes)
+        {
+            ColumnFloors = ColumnFloors,
+        };
+
     /// <summary>#3588: the column map of a settlement built from a plan — per column (<c>x * Length + z</c>) the floor row of
     /// that column (its foundation, structure-local), or −1 for a column the settlement does not claim. Null for every other
     /// structure: there the whole box stands on row 0.</summary>

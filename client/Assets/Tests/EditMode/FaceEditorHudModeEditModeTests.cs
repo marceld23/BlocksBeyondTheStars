@@ -15,10 +15,10 @@ using UnityEngine.TestTools;
 namespace BlocksBeyondTheStars.Client.Tests.EditMode
 {
     /// <summary>
-    /// The character editor's HUD mode (#3318): the "Character | HUD frame" switch commits the canvas being left, brings the
-    /// other mode back as it was left (its own subjects and its own undo history), paints the frame as four 32 × 32 tiles
-    /// on one canvas, and writes the frame into the player's settings — never into the body paint. Edit mode runs no Start,
-    /// so the editor is started and driven by reflection, as the text-fit test does.
+    /// The character editor's HUD mode (#3318): the "HUD frame" tab (#3693; a switch before) commits the canvas being left,
+    /// brings the other mode back as it was left (its own subjects and its own undo history), paints the frame as four
+    /// 32 × 32 tiles on one canvas, and writes the frame into the player's settings — never into the body paint. Edit mode
+    /// runs no Start, so the editor is started and driven by reflection, as the text-fit test does.
     /// </summary>
     public sealed class FaceEditorHudModeEditModeTests
     {
@@ -81,6 +81,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var go = new GameObject("FaceEditorUnderTest");
             _spawned.Add(go);
             var editor = go.AddComponent<FaceEditor>();
+            editor.DraftRoot = Path.Combine(_dir, "drafts"); // the shell's drafts (#3689) never touch the real folder
             var colors = new[] { Color.white, Color.gray, Color.gray, Color.gray };
             editor.Subjects = AppearanceSubjects.Build(
                 () => _face, f => _face = f ?? string.Empty,
@@ -153,6 +154,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var go = new GameObject("PaintEditorUnderTest");
             _spawned.Add(go);
             var editor = go.AddComponent<FaceEditor>();
+            editor.DraftRoot = Path.Combine(_dir, "drafts"); // the shell's drafts (#3689) never touch the real folder
             Call(editor, "Start");
 
             Call(editor, "EnterHudMode");

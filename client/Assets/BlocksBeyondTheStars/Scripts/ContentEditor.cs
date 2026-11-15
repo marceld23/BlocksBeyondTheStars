@@ -11,15 +11,34 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Item + recipe designer (menu tool, sibling of the ship/avatar/structure editors). A data form to
-    /// define a new item (key/name/category/stats), its crafting recipe (station, inputs, output count)
-    /// and optional blueprint gating (knowledge + unlock cost). <b>Save</b> writes a content bundle
-    /// (content.json) a developer folds into the game with tools/merge_recipe.py (→ data/items.json,
-    /// recipes.json, blueprints.json + locale placeholders). Self-contained on the client; modern uGUI.
+    /// Item + recipe designer — a developer tool of the Editors menu. A data form to define a new item (key / name /
+    /// category / stats), its crafting recipe (station, ingredients, output count) and optional blueprint gating (knowledge
+    /// + unlock cost). <b>Save</b> writes a content bundle (<c>content_exports/&lt;key&gt;/content.json</c>) a developer folds
+    /// into the game with <c>tools/merge_recipe.py</c> (→ data/items.json, recipes.json, blueprints.json + locale
+    /// placeholders). Client-only; nothing reaches the current game.
+    /// <para>
+    /// On the <see cref="EditorShell"/> since #3694 (epic #3696), as the approved mock draws it: Back, the title with a
+    /// "DEVELOPER" badge, Undo / Redo, New and the primary Save ("export for the game") in the header; the item, the recipe and
+    /// a check card in the work area; messages in the status bar by severity and without file paths. The whole definition is
+    /// one <see cref="ContentBundle"/> — the undo snapshots and the draft are its JSON, so every field, row and switch is
+    /// undoable and survives in the draft.
+    /// </para>
     /// </summary>
-    public sealed class ContentEditor : MonoBehaviour
+    public sealed partial class ContentEditor : MonoBehaviour, IEditorDocument
     {
         public AppShell Shell;
+
+        /// <summary>Tests: the drafts folder (null = the player's, or the capture run's throwaway one).</summary>
+        public string DraftRoot;
+
+        /// <summary>Tests: where <c>content_exports</c> goes (null = <see cref="AppPaths.Root"/>).</summary>
+        public string ExportRoot;
+
+        /// <summary>The draft slot and the draft header's kind.</summary>
+        public const string EditorKey = "content";
+
+        /// <summary>The draft layout this build writes and reads (<see cref="CanvasDraftFormat"/>).</summary>
+        public const int DraftVersion = 1;
 
         // The pickers are derived from the real enums (in their JSON camelCase spelling), so the editor can
         // never again offer a value the game refuses to load — it used to list "lab"/"machineRoom", which do
@@ -27,6 +46,16 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] Categories = EnumOptions<ItemCategory>();
         private static readonly string[] ToolKinds = EnumOptions<ToolKind>();
         private static readonly string[] Stations = EnumOptions<CraftingStation>();
+
+        private readonly UndoHistory<string> _history = new UndoHistory<string>();
+        private readonly HashSet<string> _exportedKeys = new HashSet<string>(StringComparer.Ordinal);
+        private ContentBundle _b;
+        private Canvas _canvas;
+        private EditorShell _shell;
+        private DevEditorForm _form;
+        private InputField _keyField;
+        private bool _overwriteConfirmed;
+        private bool? _hintForPad;
 
         /// <summary>An enum's members in declaration order, spelled the way
         /// <c>ContentLoader.JsonOptions</c>' camelCase <c>JsonStringEnumConverter</c> reads and writes them.</summary>
@@ -41,179 +70,311 @@ namespace BlocksBeyondTheStars.Client
             return names;
         }
 
-        // --- item ---
-        private string _key = "my_item", _name = string.Empty, _desc = string.Empty, _placesBlock = string.Empty; // localized defaults: Start (#3263)
-        private int _category, _maxStack = BlocksBeyondTheStars.Shared.Definitions.ItemDefinition.DefaultMaxStack;
-        private int _toolKind;
-        private float _tier = 1, _miningPower = 1, _damage, _range, _energy, _miningRadius, _cooldown;
-        private float _consumeHealth, _consumeHunger, _armor, _oxygen, _scan = 1f;
-        // --- recipe ---
-        private int _station = Array.IndexOf(Stations, "workshop");
-        private int _outputCount = 1;
-        private string _marketTheme = string.Empty;
-        private readonly List<Amount> _inputs = new() { new Amount() };
-        // --- blueprint ---
-        private bool _hasBlueprint;
-        private int _knowledgeCost;
-        private readonly List<Amount> _unlock = new();
+        /// <summary>The shell this editor is built on — for tests.</summary>
+        public EditorShell EditorShellForTests => _shell;
 
-        private sealed class Amount { public string Item = "iron_plate"; public int Count = 1; }
-
-        private Canvas _canvas;
-        private Text _status;
-        private RectTransform _inputList, _unlockList;
-        private readonly List<RowUi> _inputRows = new();
-        private readonly List<RowUi> _unlockRows = new();
-        private Text _bpToggleLabel;
-
-        private sealed class RowUi { public GameObject Go; public InputField ItemF, CountF; public Amount Bound; }
+        /// <summary>The key field (the pad's first focus) — for tests.</summary>
+        public InputField KeyFieldForTests => _keyField;
 
         private void Start()
         {
-            _name = L("ui.ed.default.item");
-            _desc = L("ui.ed.default.item_desc");
+            _b = Defaults();
+            _history.Reset();
             BuildUi();
         }
 
         private void OnDestroy()
         {
-            if (_canvas != null) Destroy(_canvas.gameObject);
+            if (_canvas != null)
+            {
+                DevEditorForm.Discard(_canvas.gameObject); // the shell on it keeps unsaved work as a draft
+            }
+        }
+
+        private void Update()
+        {
+            if (_shell == null)
+            {
+                return;
+            }
+
+            if (!_shell.IsDialogOpen)
+            {
+                _form.TickTab();
+            }
+
+            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
+            if (_hintForPad != pad)
+            {
+                _hintForPad = pad;
+                _shell.SetHint(L(pad ? "ui.ed.hint_pad_form" : "ui.content.keys_hint"));
+            }
         }
 
         private void BuildUi()
         {
             _canvas = UiKit.CreateCanvas("Content Editor UI");
             _canvas.sortingOrder = 5;
-            var root = _canvas.transform;
-
-            // Developer-tool banner: its output needs a merge + rebuild and does not affect the current game.
-            // Sits ABOVE the panels' top edge — the panels are later siblings, so any overlap would cut the
-            // bottom off this very warning (#513).
-            UiKit.AddText(root, 16f, 0f, 1400f, 26f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            // ── Left panel: item + stats ──────────────────────────────────────────────────────
-            var left = UiKit.AddPanel(root, 16f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
-            UiKit.AddText(left, 16f, 12f, 440f, 26f, L("ui.content.item"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            float y = 50f;
-            InputRow(left, ref y, L("ui.content.key"), _key, v => _key = v, KeyLimit);
-            InputRow(left, ref y, L("ui.content.name"), _name, v => _name = v, NameLimit);
-            TextAreaRow(left, ref y, L("ui.content.desc"), _desc, v => _desc = v);
-            CycleRow(left, ref y, L("ui.content.category"), Display("category", Categories), () => _category, i => _category = i);
-            Stepper(left, ref y, L("ui.content.max_stack"), () => _maxStack, v => _maxStack = (int)v, 1, 4096, 1, "0");
-            InputRow(left, ref y, L("ui.content.places_block"), _placesBlock, v => _placesBlock = v, KeyLimit);
-
-            Header(left, ref y, L("ui.content.tool_stats"));
-            CycleRow(left, ref y, L("ui.content.tool_kind"), Display("tool", ToolKinds), () => _toolKind, i => _toolKind = i);
-            Stepper(left, ref y, L("ui.content.tier"), () => _tier, v => _tier = v, 1, 5, 1, "0");
-            Stepper(left, ref y, L("ui.content.mining_power"), () => _miningPower, v => _miningPower = v, 0, 8, 0.5f, "0.0");
-            Stepper(left, ref y, L("ui.content.mining_radius"), () => _miningRadius, v => _miningRadius = v, 0, 1, 1, "0");
-            Stepper(left, ref y, L("ui.content.damage"), () => _damage, v => _damage = v, 0, 200, 5, "0");
-            Stepper(left, ref y, L("ui.content.range"), () => _range, v => _range = v, 0, 80, 1, "0");
-            Stepper(left, ref y, L("ui.content.cooldown"), () => _cooldown, v => _cooldown = v, 0, 5, 0.1f, "0.0");
-            Stepper(left, ref y, L("ui.content.energy"), () => _energy, v => _energy = v, 0, 20, 1, "0");
-
-            Header(left, ref y, L("ui.content.effects"));
-            Stepper(left, ref y, L("ui.content.consume_health"), () => _consumeHealth, v => _consumeHealth = v, -50, 100, 5, "0");
-            Stepper(left, ref y, L("ui.content.consume_hunger"), () => _consumeHunger, v => _consumeHunger = v, 0, 100, 5, "0");
-            Stepper(left, ref y, L("ui.content.armor"), () => _armor, v => _armor = v, 0, 0.75f, 0.05f, "0.00");
-            Stepper(left, ref y, L("ui.content.oxygen"), () => _oxygen, v => _oxygen = v, 0, 100, 5, "0");
-            Stepper(left, ref y, L("ui.content.scan"), () => _scan, v => _scan = v, 1, 4, 0.25f, "0.00");
-
-            // ── Right panel: recipe + blueprint + footer ──────────────────────────────────────
-            var right = UiKit.AddPanel(root, 502f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
-            UiKit.AddText(right, 16f, 12f, 440f, 26f, L("ui.content.recipe"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            float ry = 50f;
-            CycleRow(right, ref ry, L("ui.content.station"), Display("station", Stations), () => _station, i => _station = i);
-            Stepper(right, ref ry, L("ui.content.output_count"), () => _outputCount, v => _outputCount = (int)v, 1, 64, 1, "0");
-            // Market barters are posted by a vendor THEME (miners/traders/researchers/settlers); empty = every
-            // vendor offers it. Ignored for the other stations.
-            InputRow(right, ref ry, L("ui.content.market_theme"), _marketTheme, v => _marketTheme = v, KeyLimit);
-
-            // Recipe inputs (dynamic list).
-            UiKit.AddText(right, 16f, ry, 300f, 24f, L("ui.content.inputs"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddFitButton(right, 330f, ry - 4f, 124f, 30f, L("ui.content.add"), () => { _inputs.Add(new Amount()); RefreshRows(_inputs, _inputRows, _inputList); });
-            ry += 30f;
-            _inputList = UiKit.ScrollList(right, 12f, ry, 446f, 190f);
-            ry += 200f;
-
-            // Blueprint gating.
-            UiKit.AddText(right, 16f, ry, 300f, 26f, L("ui.content.blueprint"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var tgl = UiKit.AddFitButton(right, 300f, ry - 2f, 154f, 30f, OffOn(_hasBlueprint), ToggleBlueprint);
-            _bpToggleLabel = tgl.GetComponentInChildren<Text>();
-            ry += 34f;
-            Stepper(right, ref ry, L("ui.content.knowledge"), () => _knowledgeCost, v => _knowledgeCost = (int)v, 0, 50, 1, "0");
-            UiKit.AddText(right, 16f, ry, 300f, 24f, L("ui.content.unlock_cost"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddFitButton(right, 330f, ry - 4f, 124f, 30f, L("ui.content.add"), () => { _unlock.Add(new Amount()); RefreshRows(_unlock, _unlockRows, _unlockList); });
-            ry += 30f;
-            _unlockList = UiKit.ScrollList(right, 12f, ry, 446f, 150f);
-
-            // Footer.
-            _status = UiKit.AddText(right, 16f, 1010f - 150f, 446f, 70f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddFitButton(right, 16f, 1010f - 70f, 260f, 40f, L("ui.content.save"), Export);
-            UiKit.AddFitButton(right, 286f, 1010f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseContentEditor());
-
-            RefreshRows(_inputs, _inputRows, _inputList);
-            RefreshRows(_unlock, _unlockRows, _unlockList);
-
-            // Controls hint: an instruction — normal colour, and two lines at 13 px rather than running off the screen (#3263).
-            var hint = UiKit.AddText(root, 16f, 1043f, HintW, EditorSceneKit.BottomHintHeight, L("ui.content.hint"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelLines(hint, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-        }
-
-        private void ToggleBlueprint()
-        {
-            _hasBlueprint = !_hasBlueprint;
-            _bpToggleLabel.text = OffOn(_hasBlueprint);
-        }
-
-        private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");
-
-        // ── dynamic cost rows ──────────────────────────────────────────────────────────────────
-
-        private void RefreshRows(List<Amount> model, List<RowUi> pool, RectTransform list)
-        {
-            int i = 0;
-            foreach (var a in model)
+            _shell = EditorShell.Build(_canvas, this, new EditorShellOptions
             {
-                var ui = i < pool.Count ? pool[i] : MakeRow(pool, list);
-                ui.Bound = null;
-                ui.ItemF.SetTextWithoutNotify(a.Item);
-                ui.CountF.SetTextWithoutNotify(a.Count.ToString());
-                ui.Bound = a;
-                ui.Go.SetActive(true);
-                i++;
+                EditorKey = EditorKey,
+                TitleKey = "ui.menu.content_editor",
+                SaveSublineKey = "ui.editor.save_sub.content",
+                OnBack = () => Shell?.CloseContentEditor(),
+                OnSave = Save,
+                OnNew = StartNew,
+                HasUndo = true,
+                DraftRoot = DraftRoot ?? CanvasEditorDrafts.DraftRoot,
+                Localize = L,
+            });
+            DevEditorForm.AddBadge(_shell, L("ui.editor.badge_dev"));
+            _form = new DevEditorForm(_history.EndMerge);
+            BuildItemCard();
+            BuildRecipeCard();
+            BuildCheckCard();
+            _shell.PreferFocus(_keyField);
+            RunChecks();
+            CanvasEditorDrafts.Offer(_shell);
+        }
+
+        private string L(string key) => Shell?.L(key) ?? key;
+
+        // ---- the edited definition ---------------------------------------------------------------------------------------
+
+        /// <summary>A fresh item: the defaults the editor always opened with.</summary>
+        private ContentBundle Defaults() => new ContentBundle
+        {
+            key = "my_item",
+            name = L("ui.ed.default.item"),
+            desc = L("ui.ed.default.item_desc"),
+            category = Categories[0],
+            toolKind = ToolKinds[0],
+            station = Array.IndexOf(Stations, "workshop") >= 0 ? "workshop" : Stations[0],
+            placesBlock = string.Empty,
+            marketTheme = string.Empty,
+            maxStack = ItemDefinition.DefaultMaxStack,
+            tier = 1,
+            outputCount = 1,
+            miningPower = 1f,
+            scan = 1f,
+            inputs = new List<AmountJson> { new AmountJson { item = "iron_plate", count = 1 } },
+            unlockCost = new List<AmountJson>(),
+        };
+
+        /// <summary>The definition as JSON — one undo step's state, and the draft's payload.</summary>
+        private string Snapshot() => JsonUtility.ToJson(_b);
+
+        /// <summary>Reads a snapshot back; null when it is not one (a broken draft).</summary>
+        private static ContentBundle Parse(string json)
+        {
+            ContentBundle b;
+            try
+            {
+                b = string.IsNullOrWhiteSpace(json) ? null : JsonUtility.FromJson<ContentBundle>(json);
+            }
+            catch (Exception)
+            {
+                return null; // not JSON: a broken draft, never thrown at the shell
             }
 
-            for (; i < pool.Count; i++) pool[i].Go.SetActive(false);
-        }
-
-        private RowUi MakeRow(List<RowUi> pool, RectTransform list)
-        {
-            var go = new GameObject("Row", typeof(RectTransform));
-            go.transform.SetParent(list, false);
-            go.AddComponent<LayoutElement>().minHeight = 30f;
-            var ui = new RowUi { Go = go };
-            ui.ItemF = UiKit.AddInput(go.transform, 4f, 2f, 280f, 26f, string.Empty, null, L("ui.content.item_key"), KeyLimit, FieldFont);
-            ui.CountF = UiKit.AddInput(go.transform, 290f, 2f, 80f, 26f, string.Empty, null, string.Empty, 4, FieldFont);
-            ui.CountF.contentType = InputField.ContentType.IntegerNumber;
-            UiKit.AddFitButton(go.transform, 376f, 2f, 30f, 26f, "×", () =>
+            if (b == null)
             {
-                if (ui.Bound != null)
-                {
-                    if (pool == _inputRows) { _inputs.Remove(ui.Bound); RefreshRows(_inputs, _inputRows, _inputList); }
-                    else { _unlock.Remove(ui.Bound); RefreshRows(_unlock, _unlockRows, _unlockList); }
-                }
-            });
-            ui.ItemF.onValueChanged.AddListener(v => { if (ui.Bound != null) ui.Bound.Item = v; });
-            ui.CountF.onValueChanged.AddListener(v => { if (ui.Bound != null && int.TryParse(v, out var c)) ui.Bound.Count = Mathf.Max(0, c); });
-            pool.Add(ui);
-            return ui;
+                return null;
+            }
+
+            b.key ??= string.Empty;
+            b.name ??= string.Empty;
+            b.desc ??= string.Empty;
+            b.placesBlock ??= string.Empty;
+            b.marketTheme ??= string.Empty;
+            b.inputs ??= new List<AmountJson>();
+            b.unlockCost ??= new List<AmountJson>();
+            return b;
         }
 
-        // ── export ─────────────────────────────────────────────────────────────────────────────
+        /// <summary>One change of the definition as ONE undo step: the state before and after <paramref name="apply"/>.
+        /// With a <paramref name="mergeKey"/> a run of changes (the letters typed into one field) is one step until the field
+        /// lets go of the keyboard.</summary>
+        private void Change(Action apply, string mergeKey = null)
+        {
+            string before = Snapshot();
+            apply();
+            string after = Snapshot();
+            bool step = mergeKey == null ? _history.Record(before, after) : _history.Merge(before, after, mergeKey);
+            if (step)
+            {
+                _shell.NotifyChanged();
+                RunChecks();
+            }
+        }
 
-        [Serializable] private sealed class AmountJson { public string item; public int count; }
+        /// <summary>Shows <paramref name="b"/> everywhere (undo, redo, a draft, New).</summary>
+        private void Show(ContentBundle b)
+        {
+            _b = b;
+            _form.Refresh();
+            RefreshRows();
+            RunChecks();
+        }
+
+        // ---- IEditorDocument ---------------------------------------------------------------------------------------------
+
+        public string DocumentName => ContentKeyRules.Clean(_b?.key);
+
+        public bool IsDirty => _history.IsDirty;
+
+        public bool CanUndo => _history.CanUndo;
+
+        public bool CanRedo => _history.CanRedo;
+
+        public void Undo()
+        {
+            if (_history.TryUndo(Snapshot(), out string state))
+            {
+                Show(Parse(state) ?? _b);
+            }
+        }
+
+        public void Redo()
+        {
+            if (_history.TryRedo(Snapshot(), out string state))
+            {
+                Show(Parse(state) ?? _b);
+            }
+        }
+
+        public string SaveDraft() => CanvasDraftFormat.Wrap(EditorKey, DraftVersion, Snapshot());
+
+        public bool LoadDraft(string draft)
+        {
+            if (!CanvasDraftFormat.TryUnwrap(draft, EditorKey, DraftVersion, out _, out string payload))
+            {
+                return false;
+            }
+
+            var restored = Parse(payload);
+            if (restored == null)
+            {
+                return false;
+            }
+
+            string before = Snapshot();
+            _history.Reset();
+            _history.Record(before); // a restored draft is unsaved work; Undo goes back to the fresh item
+            Show(restored);
+            return true;
+        }
+
+        /// <summary>Nothing of this editor's own sits over the form: Esc / pad B close the shell's dialogs, never the
+        /// editor.</summary>
+        public bool CloseTopLayer() => false;
+
+        // ---- header actions ----------------------------------------------------------------------------------------------
+
+        /// <summary>New: a fresh item (the shell asks first over unsaved work).</summary>
+        private void StartNew()
+        {
+            _history.Reset();
+            Show(Defaults());
+            _shell.ClearStatus();
+        }
+
+        private string ExportDir(string key) => Path.Combine(ExportRoot ?? AppPaths.Root, "content_exports", key);
+
+        /// <summary>Save: checks, then writes the bundle. An export of the same key from an earlier session is replaced only
+        /// after a question (it may be someone's finished work).</summary>
+        private bool Save()
+        {
+            string error = FirstError();
+            if (error != null)
+            {
+                _shell.SetStatus(error, EditorStatusSeverity.Error);
+                return false;
+            }
+
+            string key = ContentKeyRules.Clean(_b.key);
+            string dir = ExportDir(key);
+            if (!_overwriteConfirmed && !_exportedKeys.Contains(key) && Directory.Exists(dir))
+            {
+                string question = L("ui.ed.confirm_overwrite_export").Replace("{key}", key);
+                _shell.Confirm(question, L("ui.editor.confirm_replace_yes"), SaveOverExport, "btn_save");
+                _shell.SetStatus(question, EditorStatusSeverity.Warning);
+                return false;
+            }
+
+            return Export(key, dir);
+        }
+
+        private void SaveOverExport()
+        {
+            _overwriteConfirmed = true;
+            try
+            {
+                _shell.Save(); // through the shell, so a written export also removes the draft
+            }
+            finally
+            {
+                _overwriteConfirmed = false;
+            }
+        }
+
+        private bool Export(string key, string dir)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "content.json"), JsonUtility.ToJson(ExportBundle(key), true));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ContentEditor] Export failed: {e}");
+                _shell.SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error); // the exception goes to the log
+                return false;
+            }
+
+            _exportedKeys.Add(key);
+            _history.MarkSaved();
+            _shell.SetStatus(L("ui.content.exported").Replace("{key}", key), EditorStatusSeverity.Success);
+            return true;
+        }
+
+        /// <summary>The bundle as merge_recipe.py reads it: the key cleaned, blank optional texts dropped, ingredient rows
+        /// without an item or count left out.</summary>
+        private ContentBundle ExportBundle(string key)
+        {
+            var b = Parse(Snapshot());
+            b.key = key;
+            b.placesBlock = string.IsNullOrWhiteSpace(_b.placesBlock) ? null : _b.placesBlock.Trim();
+            b.marketTheme = string.IsNullOrWhiteSpace(_b.marketTheme) ? null : _b.marketTheme.Trim();
+            b.inputs = CleanAmounts(_b.inputs);
+            b.unlockCost = CleanAmounts(_b.unlockCost);
+            return b;
+        }
+
+        private static List<AmountJson> CleanAmounts(List<AmountJson> rows)
+        {
+            var clean = new List<AmountJson>();
+            foreach (var a in rows)
+            {
+                if (a != null && !string.IsNullOrWhiteSpace(a.item) && a.count > 0)
+                {
+                    clean.Add(new AmountJson { item = a.item.Trim(), count = a.count });
+                }
+            }
+
+            return clean;
+        }
+
+        // ---- the bundle ----------------------------------------------------------------------------------------------------
+
+        [Serializable]
+        private sealed class AmountJson
+        {
+            public string item;
+            public int count;
+        }
+
+        /// <summary>The whole definition — the editor's state, the undo snapshot, the draft and (cleaned) the export.</summary>
         [Serializable]
         private sealed class ContentBundle
         {
@@ -225,200 +386,5 @@ namespace BlocksBeyondTheStars.Client
             public List<AmountJson> inputs = new();
             public List<AmountJson> unlockCost = new();
         }
-
-        private void Export()
-        {
-            string key = Slug(_key);
-            if (string.IsNullOrEmpty(key))
-            {
-                SetStatus(L("ui.content.need_key"));
-                return;
-            }
-
-            // Item/block keys are typed by hand. An unknown one only surfaces AFTER the merge, as a content
-            // validation failure that stops the game from starting — so check them against the live registry
-            // here, while the author can still fix the typo (#517).
-            var unknown = UnknownKeys();
-            if (unknown.Count > 0)
-            {
-                SetStatus($"{L("ui.content.unknown_keys")} {string.Join(", ", unknown)}");
-                return;
-            }
-
-            var b = new ContentBundle
-            {
-                key = key, name = _name, desc = _desc, category = Categories[_category],
-                placesBlock = string.IsNullOrWhiteSpace(_placesBlock) ? null : _placesBlock.Trim(),
-                toolKind = ToolKinds[_toolKind], station = Stations[_station],
-                marketTheme = string.IsNullOrWhiteSpace(_marketTheme) ? null : _marketTheme.Trim(),
-                maxStack = _maxStack, tier = (int)_tier, outputCount = _outputCount, knowledgeCost = _knowledgeCost,
-                miningPower = _miningPower, miningRadius = (int)_miningRadius, damage = _damage, range = _range,
-                energy = _energy, cooldownSeconds = _cooldown,
-                consumeHealth = _consumeHealth, consumeHunger = _consumeHunger, armor = _armor, oxygen = _oxygen, scan = _scan,
-                hasBlueprint = _hasBlueprint,
-            };
-            foreach (var a in _inputs)
-                if (!string.IsNullOrWhiteSpace(a.Item) && a.Count > 0) b.inputs.Add(new AmountJson { item = a.Item.Trim(), count = a.Count });
-            foreach (var a in _unlock)
-                if (!string.IsNullOrWhiteSpace(a.Item) && a.Count > 0) b.unlockCost.Add(new AmountJson { item = a.Item.Trim(), count = a.Count });
-
-            try
-            {
-                string dir = Path.Combine(AppPaths.Root, "content_exports", key);
-                Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "content.json"), JsonUtility.ToJson(b, true));
-                SetStatus($"{L("ui.content.exported")}\n{dir}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[ContentEditor] Export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
-            }
-        }
-
-        private void SetStatus(string s) { if (_status != null) _status.text = s; }
-
-        /// <summary>Every typed item/block key this design references that the loaded content does not know.
-        /// Empty when no content is loaded (nothing to check against) or everything resolves.</summary>
-        private List<string> UnknownKeys()
-        {
-            var unknown = new List<string>();
-            var content = Shell != null ? Shell.Content : null;
-            if (content == null)
-            {
-                return unknown;
-            }
-
-            void CheckItem(string raw)
-            {
-                string k = (raw ?? string.Empty).Trim();
-                if (k.Length > 0 && content.GetItem(k) == null && !unknown.Contains(k))
-                {
-                    unknown.Add(k);
-                }
-            }
-
-            foreach (var a in _inputs)
-            {
-                CheckItem(a.Item);
-            }
-
-            if (_hasBlueprint)
-            {
-                foreach (var a in _unlock)
-                {
-                    CheckItem(a.Item);
-                }
-            }
-
-            string block = _placesBlock.Trim();
-            if (block.Length > 0 && content.GetBlock(block) == null && !unknown.Contains(block))
-            {
-                unknown.Add(block);
-            }
-
-            return unknown;
-        }
-
-        // ── small uGUI form helpers (manual y layout) ──────────────────────────────────────────
-
-        /// <summary>Character limits sized so the typed text always FITS its field instead of scrolling out
-        /// of sight (#514): measured against the form font in the 256 px wide input.</summary>
-        private const int KeyLimit = 28, NameLimit = 32, DescLimit = 160;
-
-        /// <summary>Form-field text size — smaller than the UiKit default so a full key/name fits the box.</summary>
-        private const int FieldFont = 15;
-
-        /// <summary>Localized label for a raw option value (<c>ui.opt.&lt;set&gt;.&lt;value&gt;</c>), falling
-        /// back to the identifier itself so a newly added enum member still shows something (#516).</summary>
-        private string Opt(string set, string value)
-        {
-            string key = "ui.opt." + set + "." + value;
-            return Shell != null && Shell.Localizer != null && Shell.Localizer.Has(key) ? Shell.L(key) : value;
-        }
-
-        /// <summary>The display labels for a whole option set; the exported value stays the raw identifier.</summary>
-        private string[] Display(string set, string[] values)
-        {
-            var labels = new string[values.Length];
-            for (int i = 0; i < values.Length; i++)
-            {
-                labels[i] = Opt(set, values[i]);
-            }
-
-            return labels;
-        }
-
-        /// <summary>The bottom hint line: the screen's width less the margins.</summary>
-        internal const float HintW = 1888f;
-
-        /// <summary>The label column of the form rows (#3263).</summary>
-        internal const float InputLabelW = 180f, StepperLabelW = 248f;
-
-        /// <summary>A row label that shrinks to 13 px on one line rather than run into its field (#3263).</summary>
-        private static void RowLabel(Transform p, float y, float width, string label)
-        {
-            var text = UiKit.AddText(p, 16f, y, width, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(text, width, UiKit.EditorMinFontSize, 15);
-        }
-
-        private static void Header(Transform p, ref float y, string text)
-        {
-            y += 6f;
-            UiKit.AddText(p, 16f, y, 440f, 24f, text, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 28f;
-        }
-
-        private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
-        {
-            RowLabel(p, y, InputLabelW, label);
-            UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
-            y += 38f;
-        }
-
-        /// <summary>A wrapping multi-line field for sentence-length text: item descriptions run ~70-80
-        /// characters (median of the shipped ones), which a single 256 px line could never show.</summary>
-        private static void TextAreaRow(Transform p, ref float y, string label, string value, Action<string> onChange)
-        {
-            RowLabel(p, y, InputLabelW, label);
-            UiKit.AddInput(p, 200f, y, 256f, 64f, value, onChange, string.Empty, DescLimit, FieldFont, multiline: true);
-            y += 72f;
-        }
-
-        private static void Stepper(Transform p, ref float y, string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt)
-        {
-            RowLabel(p, y, StepperLabelW, label);
-            var val = UiKit.AddText(p, 300f, y, 80f, 30f, get().ToString(fmt), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddFitButton(p, 268f, y + 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); val.text = get().ToString(fmt); });
-            UiKit.AddFitButton(p, 384f, y + 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); val.text = get().ToString(fmt); });
-            y += 38f;
-        }
-
-        /// <param name="labels">Localized display labels, one per option — the stored value stays the index
-        /// into the raw identifier list.</param>
-        private static void CycleRow(Transform p, ref float y, string label, string[] labels, Func<int> get, Action<int> set)
-        {
-            RowLabel(p, y, InputLabelW, label); // 180 px, not 150 — "Required tool" ran into its value (#3263)
-            // Two 13 px lines at the most ("Трансмутационная установка"): 36 px tall inside the 38 px row pitch.
-            var val = UiKit.AddText(p, 200f, y - 3f, 180f, 36f, labels[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.FitLabelLines(val, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-            UiKit.AddFitButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % labels.Length); val.text = labels[get()]; });
-            y += 38f;
-        }
-
-        private static string Slug(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in s.Trim().ToLowerInvariant())
-            {
-                if (char.IsLetterOrDigit(c)) sb.Append(c);
-                else if (c == ' ' || c == '-' || c == '_') sb.Append('_');
-            }
-
-            return sb.ToString();
-        }
-
-        private string L(string key) => Shell?.L(key) ?? key;
     }
 }

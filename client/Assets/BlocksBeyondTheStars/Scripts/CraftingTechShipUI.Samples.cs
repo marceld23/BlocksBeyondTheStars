@@ -34,8 +34,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #2324: chips sized by their words — "Lagerstätten 12" and "Месторождения 12" used to break in the middle of the
-            // word in a fixed 112 px chip; the effect button takes what is left of the row (the list frame's 796 px).
-            var chips = UiKit.AddChipRow(p, x, y, 796f, 44, labels, i =>
+            // word in a fixed 112 px chip; the effect button takes what is left of the row (the list view's width).
+            var chips = UiKit.AddChipRow(p, x, y, ListViewW, StripH, labels, i =>
             {
                 SampleCaseView.Kind = (SampleKindFilter)i;
                 BuildHeader();

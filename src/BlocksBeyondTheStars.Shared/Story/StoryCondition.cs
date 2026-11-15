@@ -89,7 +89,7 @@ public interface IStoryConditionContext
 
 /// <summary>
 /// One parsed condition of a story pack (#2465): the small server-evaluated grammar behind a step's <c>requires</c> /
-/// <c>feasibleIf</c> / <c>alreadyDoneIf</c>, a chapter's <c>offerWhen</c>, a pack's <c>start.after</c> and its
+/// <c>feasibleIf</c> / <c>alreadyDoneIf</c> / <c>waitWhile</c> (#3673), a chapter's <c>offerWhen</c>, a pack's <c>start.after</c> and its
 /// <c>gates</c>. Parse with <see cref="StoryConditionParser"/>; evaluation is pure — everything it reads comes through
 /// the <see cref="IStoryConditionContext"/>.
 /// <para>Grammar (no spaces inside an atom; spaces around <c>[</c>, <c>,</c>, <c>]</c> are fine):</para>
@@ -903,6 +903,11 @@ public static class StoryWorldPredicates
     /// <summary>#3685: a guardian giant (lying, awake or fallen) is within its found range of the player on their body.</summary>
     public const string GuardianGiantNear = "guardian_giant_near";
 
+    /// <summary>#3673: the player is on foot where the movement lessons count — on a world's surface or walking inside their
+    /// ship; not flying (at the helm in space or on a spacewalk), not aboard a station, not in a vehicle or on a train. The
+    /// walk and jump lessons wait for it (<c>waitWhile: not:world:on_foot</c>).</summary>
+    public const string OnFoot = "on_foot";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -921,6 +926,6 @@ public static class StoryWorldPredicates
         FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
         FestivalMidsummer, FestivalChildren, FestivalHalloween, FestivalChristmas,
         Monuments, Shrine, ShrineReachable,
-        GuardianGiants, GuardianGiantNear,
+        GuardianGiants, GuardianGiantNear, OnFoot,
     };
 }

@@ -169,5 +169,69 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.IsFalse(history.CanUndo);
             Assert.IsFalse(history.CanRedo, "undoing into the look you took off would mix two outfits together");
         }
+
+        [Test]
+        public void UndoingBackToTheSavedState_IsSavedAgain()
+        {
+            // #3689: the editor shell's "Not saved yet" and its drafts follow this mark across undo and redo.
+            var history = new PixelEditHistory();
+            Assert.IsFalse(history.IsDirty, "a fresh editor has nothing unsaved");
+            history.PushGrid(0, Grid(0), Grid(1));
+            history.MarkSaved();
+            history.PushGrid(0, Grid(1), Grid(2));
+            Assert.IsTrue(history.IsDirty);
+
+            history.Undo();
+            Assert.IsFalse(history.IsDirty, "back at the saved canvas");
+            history.Undo();
+            Assert.IsTrue(history.IsDirty, "further back than the save is unsaved again");
+            history.Redo();
+            Assert.IsFalse(history.IsDirty);
+        }
+
+        [Test]
+        public void AColourDragAfterASave_IsUnsaved_EvenThoughItGrowsTheSameStep()
+        {
+            var history = new PixelEditHistory();
+            history.PushColor(0, Color.black, Color.red, fromDrag: true);
+            history.MarkSaved();
+
+            history.PushColor(0, Color.black, Color.blue, fromDrag: true); // the same drag, a new shade
+
+            Assert.AreEqual(1, history.Count, "still one step");
+            Assert.IsTrue(history.IsDirty, "but not the saved shade");
+        }
+
+        [Test]
+        public void ClearingKeepsTheUnsavedAnswer_AndAFullStackKeepsItToo()
+        {
+            var history = new PixelEditHistory(maxSteps: 2);
+            history.PushGrid(0, Grid(0), Grid(1));
+            history.Clear();
+            Assert.IsTrue(history.IsDirty, "an outfit swap is not a step, and not a save either");
+            history.MarkSaved();
+
+            history.PushGrid(0, Grid(1), Grid(2));
+            history.PushGrid(0, Grid(2), Grid(3));
+            history.PushGrid(0, Grid(3), Grid(4)); // the oldest step falls off
+            history.Undo();
+            history.Undo();
+            Assert.IsFalse(history.CanUndo);
+            Assert.IsTrue(history.IsDirty, "the bottom of a trimmed stack is not the saved state");
+        }
+
+        [Test]
+        public void Peek_NamesTheNextStep_WithoutTakingIt()
+        {
+            var history = new PixelEditHistory();
+            Assert.IsNull(history.PeekUndo());
+            history.PushGrid(3, Grid(0), Grid(1));
+
+            Assert.AreEqual(3, history.PeekUndo().Subject, "the editor brings this tab on screen first");
+            Assert.IsTrue(history.CanUndo, "peeking moved nothing");
+            history.Undo();
+            Assert.IsNull(history.PeekUndo());
+            Assert.AreEqual(3, history.PeekRedo().Subject);
+        }
     }
 }

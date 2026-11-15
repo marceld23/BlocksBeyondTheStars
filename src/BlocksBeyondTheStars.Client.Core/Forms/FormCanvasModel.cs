@@ -38,12 +38,12 @@ namespace BlocksBeyondTheStars.Client
     public sealed class FormCanvasModel : ILayerCanvas
     {
         /// <summary>Undo steps kept. A step is one stroke or one helper action.</summary>
-        public const int MaxUndo = 48;
+        public const int MaxUndo = UndoHistory<byte[]>.DefaultCapacity;
 
-        private readonly List<Snapshot> _undo = new List<Snapshot>();
-        private readonly List<Snapshot> _redo = new List<Snapshot>();
+        /// <summary>The editors' shared snapshot history (#3695): a stroke is one step, a change that changed nothing is
+        /// no step, and undoing back to the saved form makes it unsaved no more.</summary>
+        private readonly UndoHistory<Snapshot> _history = new UndoHistory<Snapshot>(MaxUndo, SnapshotComparer.Instance);
         private byte[] _v = Array.Empty<byte>();
-        private Snapshot? _strokeStart;
 
         public FormCanvasModel()
         {
@@ -73,14 +73,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The layer (Y slice of the whole form) the canvas shows.</summary>
         public int Layer { get; private set; }
 
-        /// <summary>True when the form changed since it was loaded or marked saved.</summary>
-        public bool Dirty { get; private set; }
+        /// <summary>True when the form differs from the one loaded or last marked saved — undoing back to that state
+        /// makes it false again.</summary>
+        public bool Dirty => _history.IsDirty;
 
-        public bool CanUndo => _undo.Count > 0;
+        public bool CanUndo => _history.CanUndo;
 
-        public bool CanRedo => _redo.Count > 0;
+        public bool CanRedo => _history.CanRedo;
 
-        public void MarkSaved() => Dirty = false;
+        public void MarkSaved() => _history.MarkSaved();
 
         // ---------------------------------------------------------------- reading
 
@@ -252,10 +253,7 @@ namespace BlocksBeyondTheStars.Client
             Grid = grid;
             _v = new byte[SizeX * SizeY * SizeZ];
             Layer = 0;
-            _undo.Clear();
-            _redo.Clear();
-            _strokeStart = null;
-            Dirty = false;
+            _history.Reset();
         }
 
         // ---------------------------------------------------------------- editing
@@ -263,17 +261,19 @@ namespace BlocksBeyondTheStars.Client
         public void SetLayer(int layer) => Layer = Math.Max(0, Math.Min(SizeY - 1, layer));
 
         /// <summary>Starts a stroke: everything painted until <see cref="EndStroke"/> is ONE undo step.</summary>
-        public void BeginStroke() => _strokeStart ??= Take();
+        public void BeginStroke()
+        {
+            if (!_history.InGesture)
+            {
+                _history.Begin(Take());
+            }
+        }
 
         public void EndStroke()
         {
-            if (_strokeStart is { } start)
+            if (_history.InGesture)
             {
-                _strokeStart = null;
-                if (!Same(start.Voxels, _v))
-                {
-                    Push(start);
-                }
+                _history.Commit(Take());
             }
         }
 
@@ -293,13 +293,13 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            if (_strokeStart == null)
+            var before = _history.InGesture ? null : Take(); // inside a stroke the stroke's start is the step
+            _v[i] = value;
+            if (before != null)
             {
-                Push(Take());
+                _history.Record(before);
             }
 
-            _v[i] = value;
-            Dirty = true;
             return true;
         }
 
@@ -432,6 +432,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Resample(int width, int height, int length, int grid)
         {
+            EndStroke(); // a change recorded during an open stroke would belong to the stroke
             var before = Take();
             int oldGrid = Grid;
             Width = width;
@@ -456,35 +457,43 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Layer = Math.Min(Layer, SizeY - 1);
-            Push(before);
-            Dirty = true;
+            _history.Record(before);
         }
 
         // ---------------------------------------------------------------- undo / redo
 
-        public bool Undo() => Step(_undo, _redo);
-
-        public bool Redo() => Step(_redo, _undo);
-
-        private bool Step(List<Snapshot> from, List<Snapshot> to)
+        public bool Undo()
         {
             EndStroke();
-            if (from.Count == 0)
+            if (!_history.TryUndo(Take(), out var snapshot))
             {
                 return false;
             }
 
-            to.Add(Take());
-            var snapshot = from[from.Count - 1];
-            from.RemoveAt(from.Count - 1);
+            Restore(snapshot);
+            return true;
+        }
+
+        public bool Redo()
+        {
+            EndStroke();
+            if (!_history.TryRedo(Take(), out var snapshot))
+            {
+                return false;
+            }
+
+            Restore(snapshot);
+            return true;
+        }
+
+        private void Restore(Snapshot snapshot)
+        {
             Width = snapshot.Width;
             Height = snapshot.Height;
             Length = snapshot.Length;
             Grid = snapshot.Grid;
             _v = (byte[])snapshot.Voxels.Clone();
             Layer = Math.Min(Layer, SizeY - 1);
-            Dirty = true;
-            return true;
         }
 
         private void Edit(Action change)
@@ -492,43 +501,95 @@ namespace BlocksBeyondTheStars.Client
             EndStroke();
             var before = Take();
             change();
-            if (!Same(before.Voxels, _v))
-            {
-                Push(before);
-                Dirty = true;
-            }
-        }
-
-        private void Push(Snapshot snapshot)
-        {
-            _undo.Add(snapshot);
-            if (_undo.Count > MaxUndo)
-            {
-                _undo.RemoveAt(0);
-            }
-
-            _redo.Clear();
+            _history.Record(before, Take());
         }
 
         private Snapshot Take() => new Snapshot(Width, Height, Length, Grid, (byte[])_v.Clone());
 
-        private static bool Same(byte[] a, byte[] b)
+        // ---------------------------------------------------------------- drafts and pasting (#3689)
+
+        /// <summary>
+        /// The canvas as it stands, valid or not — <c>"w,h,l,grid:"</c> plus one <c>0</c>/<c>1</c> per micro cell (x
+        /// fastest, then z, then y). Unlike <see cref="Encode"/> it keeps a half-drawn form, which is what a draft must
+        /// bring back. <see cref="ReplaceRaw"/> reads it.
+        /// </summary>
+        public string Raw()
         {
-            if (a.Length != b.Length)
+            var chars = new char[_v.Length];
+            for (int i = 0; i < _v.Length; i++)
+            {
+                chars[i] = _v[i] != 0 ? '1' : '0';
+            }
+
+            return string.Join(",", Width, Height, Length, Grid) + ":" + new string(chars);
+        }
+
+        /// <summary>Puts a <see cref="Raw"/> canvas on the canvas as ONE undoable step (a restored draft is unsaved
+        /// work). False — and nothing changes — when the text is not a canvas this editor could have drawn.</summary>
+        public bool ReplaceRaw(string? raw)
+        {
+            if (!TryParseRaw(raw, out int w, out int h, out int l, out int grid, out byte[] voxels))
             {
                 return false;
             }
 
-            for (int i = 0; i < a.Length; i++)
+            EndStroke();
+            var before = Take();
+            Width = w;
+            Height = h;
+            Length = l;
+            Grid = grid;
+            _v = voxels;
+            Layer = Math.Min(Layer, SizeY - 1);
+            _history.Record(before, Take());
+            return true;
+        }
+
+        /// <summary>Puts a stored form (a pasted share code) on the canvas as ONE undoable step instead of opening it
+        /// with a fresh history. False — and nothing changes — for anything <see cref="Load"/> refuses.</summary>
+        public bool Replace(string? voxels)
+        {
+            var other = new FormCanvasModel();
+            return other.Load(voxels) && ReplaceRaw(other.Raw());
+        }
+
+        private static bool TryParseRaw(string? raw, out int w, out int h, out int l, out int grid, out byte[] voxels)
+        {
+            w = h = l = grid = 0;
+            voxels = Array.Empty<byte>();
+            int colon = raw == null ? -1 : raw.IndexOf(':');
+            string[] dims = colon > 0 ? raw!.Substring(0, colon).Split(',') : Array.Empty<string>();
+            if (dims.Length != 4 || !Digits(dims[0], out w) || !Digits(dims[1], out h) || !Digits(dims[2], out l)
+                || !Digits(dims[3], out grid) || w < 1 || h < 1 || l < 1 || w > CustomShape.MaxFootprint
+                || h > CustomShape.MaxFootprint || l > CustomShape.MaxFootprint || w * h * l > CustomShape.MaxCells
+                || (grid != CustomShape.GridLarge && (grid != CustomShape.GridSmall || w * h * l != 1)))
             {
-                if (a[i] != b[i])
+                return false;
+            }
+
+            string bits = raw!.Substring(colon + 1);
+            if (bits.Length != w * h * l * grid * grid * grid)
+            {
+                return false;
+            }
+
+            voxels = new byte[bits.Length];
+            for (int i = 0; i < bits.Length; i++)
+            {
+                if (bits[i] != '0' && bits[i] != '1')
                 {
                     return false;
                 }
+
+                voxels[i] = bits[i] == '1' ? (byte)1 : (byte)0;
             }
 
             return true;
         }
+
+        /// <summary>A small non-negative decimal (no sign, no culture).</summary>
+        private static bool Digits(string text, out int value)
+            => int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out value);
 
         private sealed class Snapshot
         {
@@ -556,6 +617,18 @@ namespace BlocksBeyondTheStars.Client
                 int sx = Width * Grid, sy = Height * Grid, sz = Length * Grid;
                 return x >= 0 && y >= 0 && z >= 0 && x < sx && y < sy && z < sz && Voxels[(((y * sz) + z) * sx) + x] != 0;
             }
+        }
+
+        /// <summary>Two snapshots are the same state when footprint, grid and every micro cell agree.</summary>
+        private sealed class SnapshotComparer : IEqualityComparer<Snapshot>
+        {
+            public static readonly SnapshotComparer Instance = new SnapshotComparer();
+
+            public bool Equals(Snapshot? a, Snapshot? b)
+                => ReferenceEquals(a, b) || (a != null && b != null && a.Width == b.Width && a.Height == b.Height
+                    && a.Length == b.Length && a.Grid == b.Grid && UndoSnapshots.Bytes.Equals(a.Voxels, b.Voxels));
+
+            public int GetHashCode(Snapshot s) => UndoSnapshots.Bytes.GetHashCode(s.Voxels) ^ (s.Width << 24) ^ (s.Grid << 16);
         }
     }
 }

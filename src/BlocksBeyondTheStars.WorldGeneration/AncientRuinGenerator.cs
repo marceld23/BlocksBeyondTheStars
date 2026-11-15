@@ -229,6 +229,11 @@ public static class AncientRuinGenerator
             ruin.Collapse();
         }
 
+        if (AbandonedBeds.Applies(terrainGeneration))
+        {
+            ruin.AbandonBeds(); // generation 44: nobody sleeps down here any more — the city's beds are no beds
+        }
+
         ruin.SetRessawIntoWalls();
         int door = ruin.Tube(gds: true);
         var basins = ruin.Basins();

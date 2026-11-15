@@ -68,7 +68,8 @@ public sealed partial class GameServer
     private static bool CarriesSounderItem(PlayerState p, string item)
         => p.Inventory.CountOf(item) > 0 || p.Equipment.Slots.Any(s => s is not null && string.Equals(s.Item, item, System.StringComparison.Ordinal));
 
-    /// <summary>Called by the loot flow before the transfer: a relic cache gets the player's next story disc.</summary>
+    /// <summary>Called by the loot flow before the transfer: a relic cache gets the player's next story disc — unless it holds
+    /// that disc already: a full backpack leaves the disc in the cache, and every further try used to add one more.</summary>
     private void AddStoryLoot(PlayerSession session, StoredContainer container)
     {
         if (!IsRelicCache(container) || !SoundersStoryLootDue(session)
@@ -77,9 +78,12 @@ public sealed partial class GameServer
             return;
         }
 
-        container.Items.Add(new ItemStack(disc, 1));
         session.State.Milestones.Add(SongDiscs.GotMilestone(disc));
-        _repo.SaveContainer(container);
+        if (!container.Items.Any(i => string.Equals(i.Item, disc, System.StringComparison.Ordinal)))
+        {
+            container.Items.Add(new ItemStack(disc, 1));
+            _repo.SaveContainer(container);
+        }
     }
 
     /// <summary>The non-story finds of a relic cache, rolled from its own key (seed-pure, outside the shared loot stream).</summary>

@@ -256,7 +256,7 @@ namespace BlocksBeyondTheStars.Client
             AddGrid(state, def);
             _message = UiKit.AddText(panel, 60f, 752f, DlgW - 120f, 56f, message, 18, messageColour, TextAnchor.MiddleCenter, FontStyle.Bold);
             _message.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(panel, DlgW / 2f - 160f, DlgH - 74f, 320f, 54f, L("ui.action.close"), Close, "btn_exit");
+            UiKit.AddButton(panel, DlgW / 2f - 160f, DlgH - 74f, 320f, 54f, L("ui.action.close"), Close, "btn_close");
             Reselect(selectedDoor);
         }
 

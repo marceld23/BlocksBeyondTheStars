@@ -9,28 +9,32 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The Station/Town editor's panels (uGUI). Laid out so every text fits in all 14 languages (#3263): a 140 px label
-    /// column, 150 px value labels that shrink to 13 px on one line, buttons fitted by <see cref="UiKit.AddFitButton"/>, and
-    /// the metadata in a scrolling body — module + settlement mode has more rows than the panel is tall, and the rows ran
-    /// under the status line. The boxes are mirrored by the headless <c>EditorTextFitTests</c>.
+    /// The Station/Village editor's two cards on the editor shell (#3692, the approved mock's "Dorf / Station" views): the left
+    /// card "Blocks &amp; markers" — search, the Place | Remove tool, the palette rows and the kits — and the right card with
+    /// the building parts every child needs (name, size, where it stands, "Show as a ruin", the block's form) and, behind the
+    /// remembered <b>Advanced</b> switch, the developer parts as collapsible sections (StructureEditor.Advanced.cs). The cards
+    /// are rebuilt in place (<see cref="RebuildUi"/>) — never the canvas, which carries the shell, its draft and its status.
+    /// Text boxes are mirrored by the headless <c>EditorTextFitTests</c>.
     /// </summary>
     public sealed partial class StructureEditor
     {
-        private const float PanelH = 1048f;
+        /// <summary>The two cards' widths (the right one keeps the 348 px content column the developer rows are laid out for).</summary>
+        internal const float LeftCardW = 400f, RightCardW = 380f;
 
-        /// <summary>The row grid of the metadata panel: label column, value label, its → button (#3263).</summary>
+        /// <summary>The row grid of the developer rows: label column, value label, its → button (#3263).</summary>
         internal const float LabelW = 140f, ValueX = 160f, ValueW = 150f, ArrowX = 316f, ArrowW = 40f, RowH = 30f;
 
         /// <summary>A labelled value row: tall enough for two 13 px lines ("Дверь стыковочного узла").</summary>
         internal const float ValueRowH = 36f, ValueRowStep = 40f;
 
-        /// <summary>The scrolling body between the title and the status line.</summary>
-        private const float BodyY = 48f, BodyH = PanelH - 216f - BodyY;
+        /// <summary>The right card's scrolling body below its kicker row.</summary>
+        internal const float BodyY = 60f;
+
+        /// <summary>A control of the children's rows: the menu template's 44 px.</summary>
+        internal const float KidRowH = 44f;
 
         private Canvas _canvas;
-        private Text _statusLabel;
         private Text _blocksLabel;
-        private Text _tierLabel;
         private Text _roleLabel;
         private Text _sizeHintLabel;
         private Text _weightLabel;
@@ -38,6 +42,8 @@ namespace BlocksBeyondTheStars.Client
         private Text _orientLabel;
         private Transform _palListParent;
         private PaletteListUi _palList;
+        private PaletteCard _paletteCard;
+        private Button _advancedSwitch;
         private RectTransform _body;
         private float _bodyScroll; // kept across RebuildUi, so a toggle at the bottom does not jump back to the top
         private int _lastPlaced = -1;
@@ -61,80 +67,206 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void SetStatus(string s) { _status = s; if (_statusLabel != null) _statusLabel.text = s; }
-
-        private void BuildUi()
+        /// <summary>Builds both cards' content (StructureEditor.Shell.cs created the cards themselves).</summary>
+        private void BuildCards()
         {
-            _canvas = UiKit.CreateCanvas("Structure Editor UI");
-            _canvas.sortingOrder = 5;
-            var root = _canvas.transform;
-
-            // Left: palette (markers, tools + every placeable block), grouped by category, with a search filter — only what the
-            // design's target reads (#3523); the selection stays an index into the whole palette.
-            int shownSelected = RefreshShownPalette();
-            (_palListParent, _palList) = EditorPaletteKit.AddPalettePanel(Shell, root, PanelH, L("ui.struct.palette"), L("ui.pal.search"),
-                _shown, shownSelected, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, SelectShown);
-
-            // Right: metadata, in a scrolling body.
-            var meta = RightPanel(root, 380f, PanelH);
-            string title = EditorMode == Mode.Station ? L("ui.struct.title_station") : L("ui.struct.title_settlement");
-            UiKit.AddText(meta, 16f, 12f, 348f, 26f, title, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _body = UiKit.AddScrollViewport(meta, "MetaBody", 0f, BodyY, 376f, BodyH, out var scroll);
-            UiKit.AddInlineScrollbar(scroll, 6f);
-            float y = BuildBodyRows(_body);
-            _body.sizeDelta = new Vector2(0f, y + 8f);
-            _body.anchoredPosition = new Vector2(0f, Mathf.Clamp(_bodyScroll, 0f, Mathf.Max(0f, y + 8f - BodyH)));
-            scroll.onValueChanged.AddListener(_ => _bodyScroll = _body.anchoredPosition.y);
-
-            // Footer: status, then save + submit (#3262) on a row of their own; load + back share the row below.
-            _statusLabel = UiKit.AddText(meta, 16f, PanelH - 208f, 348f, 84f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            AddSaveAndSubmit(meta, PanelH - 116f);
-            UiKit.AddFitButton(meta, 16f, PanelH - 66f, 168f, 40f, L("ui.struct.load"), OpenLoadPicker);
-            UiKit.AddFitButton(meta, 196f, PanelH - 66f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseStructureEditor());
-
-            // Controls hint, between the two side panels.
-            EditorSceneKit.AddBottomHint(root, EditorSceneKit.BottomHintWidth(300f, 380f), L("ui.struct.hint"));
+            BuildPaletteCard(_leftContent);
+            BuildFormCard(_rightContent);
             SyncZoneBoxes(); // a landmark's ruin zones in the room (StructureEditor.Zones.cs)
         }
 
-        /// <summary>The scrolling body: identity, the rows of the chosen <i>Use as</i>, pack and weight, then — for a design — the
-        /// previews and the procedural starting point, the stamping panel (#3523) and the brush. Returns the body's height.</summary>
+        // ---------------------------------------------------------------- the left card
+
+        /// <summary>"Blocks &amp; markers": the build editors' palette card (<see cref="EditorPaletteKit.AddPaletteCard"/> — the search,
+        /// the Place | Remove switch, the tiles the design's target reads, #3523; the children's view leaves the developer tools
+        /// out) and, at the bottom, the kits.</summary>
+        private void BuildPaletteCard(Transform card)
+        {
+            int shownSelected = RefreshShownPalette();
+            _paletteCard = EditorPaletteKit.AddPaletteCard(Shell, card, LeftCardW, CardH - KitsRowH, new PaletteCardSpec
+            {
+                Title = L("ui.struct.palette"),
+                Palette = _shown,
+                Selected = shownSelected,
+                Search = _search,
+                OnSelected = SelectShown,
+                OnSearchChanged = v => _search = v ?? string.Empty,
+                OnToolChanged = SetTool,
+            });
+            if (_removeTool)
+            {
+                _paletteCard.Tools.Select((int)EditorBuildTool.Remove); // a rebuild keeps the tool
+            }
+
+            _palListParent = _paletteCard.ListParent;
+            _palList = _paletteCard.List;
+            UiKit.AddTierButton(card, 16f, CardH - KitsRowH + 8f, LeftCardW - 32f, KidRowH, L("ui.struct.kits"), OpenKitPanel, ButtonTier.Secondary,
+                "btn_load");
+        }
+
+        /// <summary>The side cards' height (the work area less the margins).</summary>
+        private static float CardH => EditorShell.WorkRect.H - (2f * EditorShellLayout.Margin);
+
+        /// <summary>The kits row at the foot of the palette card.</summary>
+        private const float KitsRowH = 68f;
+
+        /// <summary>The tool switch: Place puts the picked block or marker, Remove takes the one under the cursor away — the
+        /// middle click is no longer the only way (a laptop touchpad has none, V8).</summary>
+        private void SetTool(EditorBuildTool tool)
+        {
+            _removeTool = tool == EditorBuildTool.Remove;
+            _ghost?.Update(false, default, false);
+        }
+
+        // ---------------------------------------------------------------- the right card
+
+        /// <summary>The kicker with the Advanced switch, then the scrolling body: the children's rows, then — Advanced on, or a
+        /// developer design — the developer sections.</summary>
+        private void BuildFormCard(Transform card)
+        {
+            UiKit.AddKicker(card, 16f, 18f, 196f, L(EditorMode == Mode.Station ? "ui.struct.title_station" : "ui.struct.title_settlement"));
+            var advancedLabel = UiKit.AddText(card, 212f, 12f, 88f, KidRowH, L("ui.struct.advanced"), 16, UiKit.TextCol, TextAnchor.MiddleRight);
+            UiKit.FitLabelSingleLine(advancedLabel, 88f, UiKit.EditorMinFontSize, 16);
+            _advancedSwitch = UiKit.AddSwitch(card, 304f, 18f, ShowAdvanced, SetAdvanced);
+            _advancedSwitch.interactable = !IsDeveloperDesign; // a module, a landmark … keeps its parts in view
+            UiKit.AddLabelHit(card, 212f, 12f, 88f, KidRowH, _advancedSwitch);
+
+            float bodyH = CardH - BodyY - 12f;
+            _body = UiKit.AddScrollViewport(card, "MetaBody", 0f, BodyY, RightCardW - 4f, bodyH, out var scroll);
+            UiKit.AddInlineScrollbar(scroll, 6f);
+            float y = BuildBodyRows(_body);
+            _body.sizeDelta = new Vector2(0f, y + 8f);
+            _body.anchoredPosition = new Vector2(0f, Mathf.Clamp(_bodyScroll, 0f, Mathf.Max(0f, y + 8f - bodyH)));
+            scroll.onValueChanged.AddListener(_ => _bodyScroll = _body.anchoredPosition.y);
+        }
+
+        /// <summary>The children's rows, then the developer part (or the line that says where it is). Returns the body's height.</summary>
         private float BuildBodyRows(Transform body)
         {
-            float y = BuildIdentityRows(body, 8f);
-            if (_entryMode)
+            float y = BuildKidRows(body, 4f);
+            if (ShowAdvanced)
             {
-                y = BuildEntryRows(body, y); // #3523: a generator entry
-            }
-            else if (_moduleMode)
-            {
-                y = BuildModuleRows(body, y);
-            }
-            else if (_landmarkMode)
-            {
-                y = BuildLandmarkRows(body, y); // #3492
-            }
-            else if (_giantShipMode)
-            {
-                y = BuildGiantShipRows(body, y); // #3616
+                return BuildAdvancedRows(body, y); // StructureEditor.Advanced.cs
             }
 
-            y = BuildPackRows(body, y);
-            if (StructureStampRules.TakesProtection(_target))
-            {
-                y = BuildProtectionRows(body, y); // generation 39: every whole template and entry; a kit module follows its structure
-            }
-
-            if (!_entryMode)
-            {
-                y = BuildPreviewRows(body, y); // #3523: quarter turn, materials, ruin
-                y = BuildGenerateRows(body, y);
-            }
-
-            y = BuildStampingRows(body, y); // #3523: what happens when it is stamped
-            return _entryMode ? y : BuildBrushRows(body, y);
+            UiKit.AddMeasuredText(body, 16f, y + 6f, 348f, L("ui.struct.advanced_hint"), 16, UiKit.CyanDim, out float hintH);
+            return y + 6f + hintH + 8f;
         }
+
+        /// <summary>Name, size, where it stands (a whole village), "Show as a ruin" (where the target can fall), the block's form
+        /// and turn, and the count.</summary>
+        private float BuildKidRows(Transform p, float y)
+        {
+            y = KidLabel(p, y, "ui.struct.name");
+            UiKit.AddInput(p, 16f, y, 348f, KidRowH, _name, v => _name = v ?? string.Empty);
+            y += KidRowH + 12f;
+
+            y = KidLabel(p, y, "ui.struct.tier");
+            UiKit.AddCycle(p, 16f, y, 348f, KidRowH, TierLabel(_tiers[_tier]), StepTier);
+            y += KidRowH + 4f;
+            _sizeHintLabel = UiKit.AddText(p, 16f, y, 348f, 42f, SizeHint(_tiers[_tier]), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.FitLabelLines(_sizeHintLabel, 16, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            y += 48f;
+
+            if (EditorMode == Mode.Settlement && !IsDeveloperDesign)
+            {
+                // #3333: a whole village may stand underground — never rolled for the surface, only the underground stamper seats it.
+                y = KidLabel(p, y, "ui.struct.where");
+                UiKit.AddCycle(p, 16f, y, 348f, KidRowH, WhereLabel(), _ =>
+                {
+                    _underground = !_underground;
+                    RebuildUi(); // the target (and with it the palette and the stamping) follows
+                    return WhereLabel();
+                });
+                y += KidRowH + 12f;
+            }
+
+            if (CanPreviewRuin())
+            {
+                y = KidSwitchRow(p, y, "ui.ed.landmark.preview_on", _previewOn && _previewKind == PreviewKind.Ruin, on =>
+                {
+                    if (on)
+                    {
+                        ShowRuinPreview();
+                    }
+                    else
+                    {
+                        BackToDesign();
+                    }
+                });
+            }
+
+            return BuildKidBrushRows(p, y);
+        }
+
+        private string WhereLabel() => L(_underground ? "ui.struct.where.underground" : "ui.struct.where.surface");
+
+        /// <summary>One step of the size cycle: the size hint follows at once; the developer rows (the stamping panel, a city
+        /// module's palette) are rebuilt only when they are on show.</summary>
+        private string StepTier(int dir)
+        {
+            _tier = (_tier + _tiers.Length + dir) % _tiers.Length;
+            if (_sizeHintLabel != null)
+            {
+                _sizeHintLabel.text = SizeHint(_tiers[_tier]);
+            }
+
+            if (ShowAdvanced)
+            {
+                RebuildUi(); // #3523: the tier is the style the stamping panel and a city module's palette follow
+            }
+
+            return TierLabel(_tiers[_tier]);
+        }
+
+        /// <summary>A label over a children's row (16 px, shrunk on one line when a language runs long). Returns the row's y.</summary>
+        private float KidLabel(Transform p, float y, string key)
+        {
+            var label = UiKit.AddText(p, 16f, y, 348f, 24f, L(key), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(label, 348f, UiKit.EditorMinFontSize, 16);
+            return y + 26f;
+        }
+
+        /// <summary>A switch with its label (the label toggles it too, <see cref="UiKit.AddLabelHit"/>).</summary>
+        private float KidSwitchRow(Transform p, float y, string key, bool on, System.Action<bool> change)
+        {
+            var toggle = UiKit.AddSwitch(p, 16f, y + 6f, on, change);
+            UiKit.AddLabelHit(p, 84f, y, 280f, KidRowH, toggle);
+            var label = UiKit.AddText(p, 88f, y, 276f, KidRowH, L(key), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelLines(label, 18, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            return y + KidRowH + 12f;
+        }
+
+        /// <summary>The block's form (icon, name, the in-game form grid) and turn (↻, R on the keyboard, Y on the pad), and the
+        /// count of placed cells.</summary>
+        private float BuildKidBrushRows(Transform p, float y)
+        {
+            y = KidLabel(p, y, "ui.struct.shape");
+            _formIcon = FormIcon(p, 16f, y + 2f, 40f);
+            _shapeLabel = UiKit.AddText(p, 64f, y, 154f, KidRowH, FormName(_brushShape), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.FitLabelLines(_shapeLabel, 16, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            UiKit.AddFitButton(p, 224f, y, 140f, KidRowH, L("ui.ed.form_pick"), OpenFormPicker); // the in-game form grid (#1975)
+            y += KidRowH + 8f;
+            var orient = UiKit.AddText(p, 16f, y, 120f, KidRowH, L("ui.struct.orient"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(orient, 120f, UiKit.EditorMinFontSize, 16);
+            _orientLabel = UiKit.AddText(p, 140f, y, 80f, KidRowH, (_brushOrient * 90) + "°", 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddFitButton(p, 224f, y, 140f, KidRowH, "↻ R", TurnBrush);
+            y += KidRowH + 8f;
+            _lastPlaced = _design.Count;
+            _blocksLabel = UiKit.AddText(p, 16f, y, 348f, 26f, string.Format(L("ui.ed.placed"), _design.Count), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            return y + 32f;
+        }
+
+        private void TurnBrush()
+        {
+            _brushOrient = (_brushOrient + 1) & 3;
+            if (_orientLabel != null)
+            {
+                _orientLabel.text = (_brushOrient * 90) + "°";
+            }
+        }
+
+        // ---------------------------------------------------------------- the developer rows' helpers
 
         /// <summary>A row label of the 140 px column: 16 px down to 13 on one line, else two lines at 13 (#3263).</summary>
         private static Text RowLabel(Transform p, float y, string text)
@@ -166,57 +298,29 @@ namespace BlocksBeyondTheStars.Client
             UiKit.FitLabelSingleLine(label, 348f, UiKit.EditorMinFontSize, 16);
         }
 
-        /// <summary>Key, name, size tier with its procedural size, "use as" and the kit row. Returns the next y.</summary>
+        /// <summary>Key and "use as" — the registration of the template (the size is a children's row now). Returns the next y.</summary>
         private float BuildIdentityRows(Transform p, float y)
         {
             FieldLabel(p, y, L("ui.struct.key"));
             UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _key, v => _key = v);
             y += 66f;
-            FieldLabel(p, y, L("ui.struct.name"));
-            UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _name, v => _name = v);
-            y += 70f;
-
-            RowLabel(p, y, L("ui.struct.tier"));
-            _tierLabel = ValueLabel(p, y, TierLabel(_tiers[_tier]));
-            UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", () =>
-            {
-                _tier = (_tier + 1) % _tiers.Length;
-                RebuildUi(); // #3523: the tier is the style the stamping panel and a city module's palette follow
-            });
-            y += ValueRowStep;
-
-            // What the procedural generator builds for this tier, so a template matches its scale (#1402).
-            _sizeHintLabel = UiKit.AddText(p, 16f, y, 348f, 36f, SizeHint(_tiers[_tier]), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
-            _sizeHintLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            y += 40f;
 
             // Use as (#1826 / #1877): a complete structure, or a MODULE of a kit with a function — the composers dock
             // station modules port to port and stamp settlement / city modules into plots and districts.
             RowLabel(p, y, L("ui.struct.role"));
             _roleLabel = ValueLabel(p, y, UseLabel());
             UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", CycleUse); // #3492: whole → kit module → landmark
-            y += ValueRowStep;
-
-            // #1890: the kit panel is reachable in both modes — editing a kit needs no module on the table. A module also
-            // names its kit here.
-            if (_moduleMode)
-            {
-                var kitLabel = UiKit.AddText(p, 16f, y, 70f, RowH, L("ui.struct.kit"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.FitLabelSingleLine(kitLabel, 70f, UiKit.EditorMinFontSize, 15);
-                UiKit.AddInput(p, 90f, y, 144f, RowH, _kit, v => _kit = v ?? string.Empty);
-                UiKit.AddFitButton(p, 240f, y, 124f, RowH, L("ui.struct.kits"), OpenKitPanel);
-            }
-            else
-            {
-                UiKit.AddFitButton(p, 16f, y, 168f, RowH, L("ui.struct.kits"), OpenKitPanel);
-            }
-
-            return y + 36f;
+            return y + ValueRowStep;
         }
 
-        /// <summary>A module's function, its port door (station) or style (settlement), and the seal / assemble checks.</summary>
+        /// <summary>A module's kit, its function, its port door (station) or style (settlement), and the seal / assemble checks.</summary>
         private float BuildModuleRows(Transform p, float y)
         {
+            var kitLabel = UiKit.AddText(p, 16f, y, 70f, RowH, L("ui.struct.kit"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(kitLabel, 70f, UiKit.EditorMinFontSize, 15);
+            UiKit.AddInput(p, 90f, y, 144f, RowH, _kit, v => _kit = v ?? string.Empty);
+            UiKit.AddFitButton(p, 240f, y, 124f, RowH, L("ui.struct.kits"), OpenKitPanel);
+            y += 36f;
             RowLabel(p, y, L("ui.struct.function"));
             ValueLabel(p, y, FunctionLabel(_function));
             UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "…", OpenFunctionPicker); // #3600: a pick list (23 functions)
@@ -245,12 +349,11 @@ namespace BlocksBeyondTheStars.Client
 
             y += ValueRowStep;
             UiKit.AddFitButton(p, 16f, y, 168f, 34f, L("ui.struct.check_seal"), CheckSeal);
-            UiKit.AddFitButton(p, 196f, y, 168f, 34f, L("ui.struct.assemble"), Assemble);
+            UiKit.AddFitButton(p, 196f, y, 168f, 34f, L("ui.struct.assemble"), () => _shell.ConfirmDiscard(Assemble)); // replaces the build
             return y + 40f;
         }
 
-        /// <summary>Template pack, selection weight and (settlements) the planet types and — whole settlements — the
-        /// underground toggle (#3333).</summary>
+        /// <summary>Template pack, selection weight and (settlements) the planet types.</summary>
         private float BuildPackRows(Transform p, float y)
         {
             FieldLabel(p, y, L("ui.struct.pack"));
@@ -268,45 +371,18 @@ namespace BlocksBeyondTheStars.Client
                 FieldLabel(p, y, L("ui.struct.planet_types"));
                 UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _planetTypes, v => _planetTypes = v ?? string.Empty);
                 y += 66f;
-
-                // #3333: a whole settlement may be UNDERGROUND — never rolled for the surface, only the underground stamper
-                // seats it. A module takes the flag from its kit (the kit panel's toggle).
-                if (!_moduleMode && !_landmarkMode && !_giantShipMode && !_entryMode) // an entry's pool says whether it is underground (#3523)
-                {
-                    UiKit.AddFitButton(p, 16f, y, 348f, 34f, (_underground ? "☑ " : "☐ ") + L("ui.struct.underground"), () => { _underground = !_underground; RebuildUi(); });
-                    y += 40f;
-                }
             }
 
             return y;
         }
 
-        /// <summary>The block brush — dye, glow, form and orientation for newly placed BLOCK cells — and the cell count.</summary>
-        private float BuildBrushRows(Transform p, float y)
+        /// <summary>The block brush's colours — dye and glow for newly placed BLOCK cells (the form is a children's row).</summary>
+        private float BuildBrushColourRows(Transform p, float y)
         {
-            SectionTitle(p, y, L("ui.struct.brush"));
-            y += 30f;
             BrushColourRow(p, y, L("ui.struct.dye"), HexOf(_brushTint), v => _brushTint = ParseHex(v), () => _brushTint = 0);
             y += 36f;
             BrushColourRow(p, y, L("ui.struct.glow"), HexOf(_brushGlow), v => _brushGlow = ParseHex(v), () => _brushGlow = 0);
-            y += 38f;
-            // The form row is two 13 px lines tall: "Ліжко (бік для голови)" needs them (#3263).
-            var shape = UiKit.AddText(p, 16f, y, 80f, ValueRowH, L("ui.struct.shape"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(shape, 80f, UiKit.EditorMinFontSize, 15);
-            _formIcon = FormIcon(p, 100f, y + 4f, 28f);
-            _shapeLabel = UiKit.AddText(p, 134f, y, 112f, ValueRowH, FormName(_brushShape), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.FitLabelLines(_shapeLabel, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-            UiKit.AddFitButton(p, 250f, y + 3f, 114f, RowH, L("ui.ed.form_pick"), OpenFormPicker); // the in-game form grid (#1975)
-            y += ValueRowStep;
-            var orient = UiKit.AddText(p, 16f, y, 120f, RowH, L("ui.struct.orient"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(orient, 120f, UiKit.EditorMinFontSize, 15);
-            _orientLabel = UiKit.AddText(p, 140f, y, 112f, RowH, (_brushOrient * 90) + "°", 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddFitButton(p, 258f, y, 106f, RowH, "↻ R", () => { _brushOrient = (_brushOrient + 1) & 3; _orientLabel.text = (_brushOrient * 90) + "°"; });
-            y += 38f;
-
-            _lastPlaced = _design.Count;
-            _blocksLabel = UiKit.AddText(p, 16f, y, 348f, 24f, string.Format(L("ui.ed.placed"), _design.Count), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            return y + 30f;
+            return y + 38f;
         }
 
         /// <summary>Dye / glow: a label, the hex field and "None" (which clears it and rebuilds the panel).</summary>
@@ -322,8 +398,6 @@ namespace BlocksBeyondTheStars.Client
         private static int ParseHex(string s) => EditorSceneKit.ParseHex(s);
 
         private static string HexOf(int rgb) => EditorSceneKit.HexOf(rgb);
-
-        private static RectTransform RightPanel(Transform root, float w, float h) => EditorSceneKit.RightPanel(root, w, h);
 
         private string L(string key) => Shell?.L(key) ?? key;
     }

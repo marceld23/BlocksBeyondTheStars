@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.Client
     /// the placed 3D cell, so the build preview matches the in-game material). The editors keep only
     /// their special entries (markers / ship parts) and the placement logic.
     /// </summary>
-    internal static class EditorPaletteKit
+    internal static partial class EditorPaletteKit
     {
         internal struct Entry
         {
@@ -191,6 +191,17 @@ namespace BlocksBeyondTheStars.Client
         }
     }
 
+    /// <summary>How a <see cref="PaletteListUi"/> draws its rows.</summary>
+    internal enum PaletteRowStyle
+    {
+        /// <summary>36 px rows, names at 15 px down to 13 (the texture and form editors' lists).</summary>
+        Compact,
+
+        /// <summary>The build editors' tiles on the editor shell (#3691): 52 px high (72 for a name that needs three
+        /// lines), a 36 px icon, names at 18 px down to 16 — a child's click target, readable at Full HD.</summary>
+        Tiles,
+    }
+
     /// <summary>
     /// The palette row list (uGUI): the entries rendered as selectable rows under localized section
     /// headers, filtered by a search string; exactly one entry is selected at a time. Selection is by
@@ -198,24 +209,47 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     internal sealed class PaletteListUi
     {
+        /// <summary>A tile's height for a name of one or two lines, and for one of three.</summary>
+        internal const float TileH = 52f, TileTallH = 72f;
+
+        /// <summary>A tile's icon size and where its name starts.</summary>
+        internal const float TileIcon = 36f, TileLabelX = 56f;
+
+        /// <summary>A tile name's font sizes: 18 on one line, else down to 16 (never smaller), up to three lines.</summary>
+        internal const int TileTextMax = 18, TileTextMin = 16;
+
         private readonly AppShell _shell;
         private readonly Transform _parent;
         private readonly IReadOnlyList<EditorPaletteKit.Entry> _entries;
         private readonly List<Image> _rowImages = new();
         private readonly List<int> _rowToEntry = new();
+        private readonly PaletteRowStyle _style;
+        private readonly float _rowW;
 
         public int Selected { get; private set; }
 
         /// <summary>Notified with the entry index on every selection (also the initial one).</summary>
         public Action<int> OnSelected;
 
-        public PaletteListUi(AppShell shell, Transform listParent, IReadOnlyList<EditorPaletteKit.Entry> entries, int initialSelected = 0)
+        /// <param name="style">The rows' look; <see cref="PaletteRowStyle.Tiles"/> needs <paramref name="rowWidth"/>.</param>
+        /// <param name="rowWidth">The width the list gives a row (its width minus the scroll list's padding).</param>
+        public PaletteListUi(AppShell shell, Transform listParent, IReadOnlyList<EditorPaletteKit.Entry> entries, int initialSelected = 0,
+            PaletteRowStyle style = PaletteRowStyle.Compact, float rowWidth = 0f)
         {
             _shell = shell;
             _parent = listParent;
             _entries = entries;
             Selected = initialSelected;
+            _style = style;
+            _rowW = rowWidth;
         }
+
+        /// <summary>The width of a tile's name in a row of <paramref name="rowWidth"/>.</summary>
+        internal static float TileLabelW(float rowWidth) => rowWidth - TileLabelX - 8f;
+
+        /// <summary>The entry at <paramref name="index"/>, or a default entry (<c>Id == null</c>) outside the list.</summary>
+        public EditorPaletteKit.Entry EntryAt(int index)
+            => index >= 0 && index < _entries.Count ? _entries[index] : default;
 
         /// <summary>Rebuilds the rows from the search filter (matched by label or id); a section header
         /// precedes the first visible row of each group.</summary>
@@ -223,7 +257,7 @@ namespace BlocksBeyondTheStars.Client
         {
             for (int i = _parent.childCount - 1; i >= 0; i--)
             {
-                UnityEngine.Object.Destroy(_parent.GetChild(i).gameObject);
+                EditorSceneKit.Discard(_parent.GetChild(i).gameObject);
             }
 
             _rowImages.Clear();
@@ -281,9 +315,15 @@ namespace BlocksBeyondTheStars.Client
         private const float LabelW = 230f;
 
         /// <summary>A row is 36 px — two 13 px lines — and 52 px for a name that needs three ("Шлюз корпуса: … (герметичный
-        /// блок, не проходная дверь)").</summary>
-        private static float RowHeightFor(string label)
+        /// блок, не проходная дверь)"). A tile is 52 px — two lines at 16 px — and 72 px for three.</summary>
+        private float RowHeightFor(string label)
         {
+            if (_style == PaletteRowStyle.Tiles)
+            {
+                var tile = UiKit.FitLines(label, TileLabelW(_rowW), TileH - 4f, FontStyle.Normal, TileTextMax, TileTextMin, TileTextMin);
+                return tile.Fits ? TileH : TileTallH;
+            }
+
             var fit = UiKit.FitLines(label, LabelW, 36f, FontStyle.Normal, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
             return fit.Fits ? 36f : 52f;
         }
@@ -292,6 +332,13 @@ namespace BlocksBeyondTheStars.Client
         {
             var row = new GameObject("Header", typeof(RectTransform));
             row.transform.SetParent(_parent, false);
+            if (_style == PaletteRowStyle.Tiles)
+            {
+                SetRowHeight(row, 32f);
+                UiKit.AddText(row.transform, 8f, 4f, _rowW - 16f, 26f, title, TileTextMin, UiKit.CyanDim, TextAnchor.LowerLeft, FontStyle.Bold);
+                return;
+            }
+
             SetRowHeight(row, 26f);
             UiKit.AddText(row.transform, 6f, 4f, 250f, 22f, title, 13, UiKit.CyanDim, TextAnchor.LowerLeft, FontStyle.Bold);
         }
@@ -303,7 +350,6 @@ namespace BlocksBeyondTheStars.Client
             row.transform.SetParent(_parent, false);
             float rowH = RowHeightFor(e.Label);
             SetRowHeight(row, rowH);
-
             var img = row.AddComponent<Image>();
             img.sprite = UiKit.ButtonSprite;
             img.type = Image.Type.Sliced;
@@ -313,27 +359,47 @@ namespace BlocksBeyondTheStars.Client
             btn.targetGraphic = img;
             int idx = entryIndex;
             btn.onClick.AddListener(() => Select(idx));
+            _rowImages.Add(img);
+            _rowToEntry.Add(entryIndex);
 
-            var iconGo = new GameObject("Icon", typeof(RectTransform));
-            iconGo.transform.SetParent(row.transform, false);
-            UiKit.Place(iconGo, 8f, (rowH - 24f) / 2f, 24f, 24f);
-            var iconImg = iconGo.AddComponent<Image>();
-            iconImg.raycastTarget = false;
-            if (e.Icon != null)
+            if (_style == PaletteRowStyle.Tiles)
             {
-                iconImg.sprite = e.Icon; // the block's real atlas tile
-            }
-            else
-            {
-                iconImg.sprite = UiKit.SolidSprite;
-                iconImg.color = e.Color;
+                // A tile (#3691): the 36 px icon, the name at 18 px down to 16 on up to three lines.
+                AddEntryIcon(row.transform, 10f, (rowH - TileIcon) / 2f, TileIcon, e);
+                var name = UiKit.AddText(row.transform, TileLabelX, 2f, TileLabelW(_rowW), rowH - 4f, e.Label, TileTextMax, UiKit.TextCol);
+                UiKit.FitLabelLines(name, TileTextMax, TileTextMin, TileTextMin, 3);
+                return;
             }
 
+            AddEntryIcon(row.transform, 8f, (rowH - 24f) / 2f, 24f, e);
             var label = UiKit.AddText(row.transform, 40f, 0f, LabelW, rowH, e.Label, 15, UiKit.TextCol);
             // A long block name shrinks to 13 px and takes more lines instead of being cut by the list's mask (#3263).
             UiKit.FitLabelLines(label, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize, 3);
-            _rowImages.Add(img);
-            _rowToEntry.Add(entryIndex);
+        }
+
+        /// <summary>An entry's icon at a rect of <paramref name="parent"/>: the block's real atlas tile, else a swatch of the
+        /// entry's colour (ship parts, markers). Not a raycast target — the row or tile under it is the button.</summary>
+        internal static Image AddEntryIcon(Transform parent, float x, float y, float size, EditorPaletteKit.Entry e)
+        {
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(parent, false);
+            UiKit.Place(iconGo, x, y, size, size);
+            var iconImg = iconGo.AddComponent<Image>();
+            iconImg.raycastTarget = false;
+            ShowEntryIcon(iconImg, e);
+            return iconImg;
+        }
+
+        /// <summary>Paints <paramref name="icon"/> as the icon of <paramref name="e"/> (see <see cref="AddEntryIcon"/>).</summary>
+        internal static void ShowEntryIcon(Image icon, EditorPaletteKit.Entry e)
+        {
+            if (icon == null)
+            {
+                return;
+            }
+
+            icon.sprite = e.Icon != null ? e.Icon : UiKit.SolidSprite;
+            icon.color = e.Icon != null ? Color.white : e.Color;
         }
     }
 }

@@ -30,7 +30,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildTaming(Transform root)
         {
-            // Creature-taming prompt (bottom-centre, above the hotbar): the translator's decoded mood + need,
+            // Creature-taming prompt (#3668: in the free centre under the toast lane — clear of the comms zone, so VEGA's
+            // taming hints stay readable, and of the right column): the translator's decoded mood + need,
             // a trust bar of correct responses, and the four response actions. Captions are set in RefreshTaming.
             // #2530: taller need box (message + need + the bait line naming the item and how to craft it), a wider Stop
             // for its "[Esc]" key label, and pad navigation over the five buttons (UiNav on the panel's own subtree).
@@ -47,6 +48,12 @@ namespace BlocksBeyondTheStars.Client
             _tameSpace = UiKit.AddButton(_tamePanel.transform, 14 + 3 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("space"));
             // Stop is built last so a pad's first focus lands on an answer, never on "Stop" (UiNav takes the first control).
             _tameStop = UiKit.AddButton(_tamePanel.transform, 378, 6, 108, 28, string.Empty, StopTaming);
+            // #3662: a finger's target (44) around the low buttons — invisible, so the look and the rows stay as they are.
+            foreach (var button in new[] { _tameFeed, _tameCalm, _tameApproach, _tameSpace, _tameStop })
+            {
+                UiKit.AddHitArea(button);
+            }
+
             UiNav.Enable(_tamePanel); // pad: stick walks the answers, A picks, B stops — the number keys stay
             _tamePanel.SetActive(false);
         }
@@ -183,16 +190,27 @@ namespace BlocksBeyondTheStars.Client
             _tameNeed.text = need;
             _tameTrust.text = $"{loc.Get("ui.tame.trust")}: {st.Trust}/{st.Required}";
 
-            // #2530: the keys on the buttons, like the NPC dialogue's "[1] " (#1127).
-            SetTameCaption(0, _tameFeed, "[1] ", loc.Get("ui.tame.feed"));
-            SetTameCaption(1, _tameCalm, "[2] ", loc.Get("ui.tame.calm"));
-            SetTameCaption(2, _tameApproach, "[3] ", loc.Get("ui.tame.approach"));
-            SetTameCaption(3, _tameSpace, "[4] ", loc.Get("ui.tame.space"));
-            SetTameCaption(4, _tameStop, "[Esc] ", loc.Get("ui.tame.cancel"));
+            // #2530: the keys on the buttons, like the NPC dialogue's "[1] " (#1127) — only while a keyboard is in hand
+            // (#3662): a pad answers with A (its hint strip names B for Stop) and a tablet taps.
+            var device = InputMap.ActiveDevice;
+            if (device != _tameCaptionDevice)
+            {
+                _tameCaptionDevice = device;
+                System.Array.Clear(_tameCaptionBase, 0, _tameCaptionBase.Length); // the prefixes change with the device
+            }
+
+            SetTameCaption(0, _tameFeed, NpcDialogUi.KeyPrefix(1), loc.Get("ui.tame.feed"));
+            SetTameCaption(1, _tameCalm, NpcDialogUi.KeyPrefix(2), loc.Get("ui.tame.calm"));
+            SetTameCaption(2, _tameApproach, NpcDialogUi.KeyPrefix(3), loc.Get("ui.tame.approach"));
+            SetTameCaption(3, _tameSpace, NpcDialogUi.KeyPrefix(4), loc.Get("ui.tame.space"));
+            SetTameCaption(4, _tameStop, device == InputDeviceKind.KeyboardMouse ? "[Esc] " : string.Empty, loc.Get("ui.tame.cancel"));
         }
 
+        /// <summary>The device the taming captions were last written for.</summary>
+        private InputDeviceKind _tameCaptionDevice = (InputDeviceKind)(-1);
+
         /// <summary>Sets a taming button's "[key] label" caption — only when the localized label changed (a language
-        /// switch), so the throttled refresh does not build five strings a tick.</summary>
+        /// switch) or the device did, so the throttled refresh does not build five strings a tick.</summary>
         private void SetTameCaption(int index, Button button, string keyPrefix, string label)
         {
             if (ReferenceEquals(_tameCaptionBase[index], label))

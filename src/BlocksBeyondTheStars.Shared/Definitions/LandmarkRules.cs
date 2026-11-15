@@ -226,30 +226,37 @@ public static class LandmarkRules
     };
 
     /// <summary>What is wrong with a template's protection word (any kind of template), or null when it is fine.</summary>
-    public static string? ProtectionProblem(StructureTemplate t)
+    public static string? ProtectionProblem(StructureTemplate t) => ProtectionProblemOf(t)?.English;
+
+    /// <summary><see cref="ProtectionProblem"/> as a code the structure editor translates (#3692).</summary>
+    public static TemplateProblem? ProtectionProblemOf(StructureTemplate t)
         => string.IsNullOrEmpty(t.Protection)
            || Array.FindIndex(ProtectionModes, m => string.Equals(m, t.Protection, StringComparison.OrdinalIgnoreCase)) >= 0
             ? null
-            : $"unknown protection '{t.Protection}' (auto | protected | open)";
+            : new TemplateProblem("protection.unknown", $"unknown protection '{t.Protection}' (auto | protected | open)", t.Protection);
 
     /// <summary>What is wrong with a landmark's ruin zones, one sentence each: too many, a box outside the structure (an entry
     /// without a size of its own is not checked), an unknown profile, a strength outside 0..1.</summary>
-    public static List<string> ZoneProblems(StructureTemplate t)
+    public static List<string> ZoneProblems(StructureTemplate t) => TemplateProblem.Sentences(ZoneProblemList(t));
+
+    /// <summary><see cref="ZoneProblems"/> as codes the structure editor translates (#3692).</summary>
+    public static List<TemplateProblem> ZoneProblemList(StructureTemplate t)
     {
-        var problems = new List<string>();
+        var problems = new List<TemplateProblem>();
         var zones = t.RuinZones ?? new List<RuinZone>();
         if (zones.Count > MaxRuinZones)
         {
-            problems.Add($"it has more than {MaxRuinZones} ruin zones");
+            problems.Add(new TemplateProblem("zone.too_many", $"it has more than {MaxRuinZones} ruin zones", TemplateProblem.Num(MaxRuinZones)));
         }
 
         for (int i = 0; i < zones.Count; i++)
         {
             var z = zones[i];
-            string at = "ruin zone " + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string n = TemplateProblem.Num(i + 1);
+            string at = "ruin zone " + n;
             if (z is null)
             {
-                problems.Add(at + " is empty");
+                problems.Add(new TemplateProblem("zone.empty", at + " is empty", n));
                 continue;
             }
 
@@ -257,17 +264,18 @@ public static class LandmarkRules
             if (sized && (Math.Min(z.X0, z.X1) < 0 || Math.Min(z.Y0, z.Y1) < 0 || Math.Min(z.Z0, z.Z1) < 0
                           || Math.Max(z.X0, z.X1) >= t.Width || Math.Max(z.Y0, z.Y1) >= t.Height || Math.Max(z.Z0, z.Z1) >= t.Length))
             {
-                problems.Add(at + " reaches outside the structure");
+                problems.Add(new TemplateProblem("zone.outside", at + " reaches outside the structure", n));
             }
 
             if (!string.IsNullOrEmpty(z.Profile) && Array.FindIndex(Profiles, p => string.Equals(p, z.Profile, StringComparison.OrdinalIgnoreCase)) < 0)
             {
-                problems.Add($"{at} names unknown ruin profile '{z.Profile}' (masonry | lattice | underground)");
+                problems.Add(new TemplateProblem("zone.profile", $"{at} names unknown ruin profile '{z.Profile}' (masonry | lattice | underground)",
+                    n, z.Profile));
             }
 
             if (z.Strength < 0 || z.Strength > 1)
             {
-                problems.Add(at + ": the strength must lie between 0 and 1");
+                problems.Add(new TemplateProblem("zone.strength", at + ": the strength must lie between 0 and 1", n));
             }
         }
 
@@ -275,87 +283,97 @@ public static class LandmarkRules
     }
 
     /// <summary>What is wrong with a landmark's seat and protection words (the school club's fields, generation 39).</summary>
-    private static void AddSeatAndProtectionProblems(StructureTemplate t, List<string> problems)
+    private static void AddSeatAndProtectionProblems(StructureTemplate t, List<TemplateProblem> problems)
     {
         if (!string.IsNullOrEmpty(t.Seat) && Array.FindIndex(Seats, s => string.Equals(s, t.Seat, StringComparison.OrdinalIgnoreCase)) < 0
             && !(IsSeabedSeat(t) && t.Civilization.Length > 0))
         {
-            problems.Add($"unknown seat '{t.Seat}' (span; seabed for a civilization template)");
+            problems.Add(new TemplateProblem("seat.unknown", $"unknown seat '{t.Seat}' (span; seabed for a civilization template)", t.Seat));
         }
         else if (IsSpanSeat(t) && !t.IsSource && Math.Max(t.Width, t.Length) < SpanMinLength)
         {
-            problems.Add($"a span needs a long axis of at least {SpanMinLength} blocks");
+            problems.Add(new TemplateProblem("seat.span_short", $"a span needs a long axis of at least {SpanMinLength} blocks",
+                TemplateProblem.Num(SpanMinLength)));
         }
 
-        if (ProtectionProblem(t) is { } protection)
+        if (ProtectionProblemOf(t) is { } protection)
         {
             problems.Add(protection);
         }
 
         if (t.MinTerrainGeneration < 0)
         {
-            problems.Add("the minimum terrain generation cannot be negative");
+            problems.Add(new TemplateProblem("generation.negative", "the minimum terrain generation cannot be negative"));
         }
     }
 
     /// <summary>What is wrong with a landmark template, one sentence each — empty when it is fine. A generator entry (#3518)
     /// has no size of its own (its source builds it), so only its sizes that are set are checked.</summary>
-    public static List<string> Problems(StructureTemplate t)
+    public static List<string> Problems(StructureTemplate t) => TemplateProblem.Sentences(ProblemList(t));
+
+    /// <summary><see cref="Problems"/> as codes the structure editor translates (#3692): the same checks, the same sentences.</summary>
+    public static List<TemplateProblem> ProblemList(StructureTemplate t)
     {
-        var problems = new List<string>();
+        var problems = new List<TemplateProblem>();
         if (!t.IsSource && (t.Width <= 0 || t.Height <= 0 || t.Length <= 0))
         {
-            problems.Add("it has no size");
+            problems.Add(new TemplateProblem("size.none", "it has no size"));
         }
         else if (t.Width > MaxSize || t.Height > MaxSize || t.Length > MaxSize)
         {
-            problems.Add($"it is larger than {MaxSize} blocks on an axis");
+            problems.Add(new TemplateProblem("size.too_large", $"it is larger than {MaxSize} blocks on an axis", TemplateProblem.Num(MaxSize)));
         }
 
+        AddRuinProblems(t, problems);
+        if (t.GroundRow < 0 || (t.Height > 0 && t.GroundRow >= t.Height))
+        {
+            problems.Add(new TemplateProblem("ground_row.outside", "the ground row lies outside the structure"));
+        }
+
+        if (t.IsModule)
+        {
+            problems.Add(new TemplateProblem("landmark.module", "a landmark cannot also be a kit module"));
+        }
+
+        if (t.Underground)
+        {
+            problems.Add(new TemplateProblem("landmark.underground", "a landmark cannot also be an underground structure (use the ground row)"));
+        }
+
+        AddSeatAndProtectionProblems(t, problems);
+        problems.AddRange(ZoneProblemList(t));
+        return problems;
+    }
+
+    /// <summary>The ruin mode, profile and strength and the conditions of a landmark.</summary>
+    private static void AddRuinProblems(StructureTemplate t, List<TemplateProblem> problems)
+    {
         if (t.Ruin.Length > 0 && Array.FindIndex(RuinModes, m => string.Equals(m, t.Ruin, StringComparison.OrdinalIgnoreCase)) < 0)
         {
-            problems.Add($"unknown ruin mode '{t.Ruin}' (never | always)");
+            problems.Add(new TemplateProblem("ruin.mode", $"unknown ruin mode '{t.Ruin}' (never | always)", t.Ruin));
         }
 
         if (t.RuinProfile.Length > 0 && Array.FindIndex(Profiles, p => string.Equals(p, t.RuinProfile, StringComparison.OrdinalIgnoreCase)) < 0)
         {
             problems.Add(string.Equals(t.RuinProfile, ProfileHull, StringComparison.OrdinalIgnoreCase)
-                ? "the ruin profile 'hull' is for wrecks, not landmarks (masonry | lattice | underground)"
+                ? new TemplateProblem("ruin.profile_wreck", "the ruin profile 'hull' is for wrecks, not landmarks (masonry | lattice | underground)", ProfileHull)
                 : string.Equals(t.RuinProfile, ProfileCrash, StringComparison.OrdinalIgnoreCase)
-                    ? "the ruin profile 'crash' is for giant ship wrecks, not landmarks (masonry | lattice | underground)"
-                    : $"unknown ruin profile '{t.RuinProfile}' (masonry | lattice | underground)");
+                    ? new TemplateProblem("ruin.profile_wreck", "the ruin profile 'crash' is for giant ship wrecks, not landmarks (masonry | lattice | underground)",
+                        ProfileCrash)
+                    : new TemplateProblem("ruin.profile", $"unknown ruin profile '{t.RuinProfile}' (masonry | lattice | underground)", t.RuinProfile));
         }
 
         if (t.RuinStrength < 0 || t.RuinStrength > 1)
         {
-            problems.Add("the ruin strength must lie between 0 and 1");
+            problems.Add(new TemplateProblem("ruin.strength", "the ruin strength must lie between 0 and 1"));
         }
 
         foreach (string r in t.Requires)
         {
             if (Array.FindIndex(Conditions, c => string.Equals(c, r, StringComparison.OrdinalIgnoreCase)) < 0)
             {
-                problems.Add($"unknown condition '{r}' (atmosphere | inhabited)");
+                problems.Add(new TemplateProblem("condition.unknown", $"unknown condition '{r}' (atmosphere | inhabited)", r));
             }
         }
-
-        if (t.GroundRow < 0 || (t.Height > 0 && t.GroundRow >= t.Height))
-        {
-            problems.Add("the ground row lies outside the structure");
-        }
-
-        if (t.IsModule)
-        {
-            problems.Add("a landmark cannot also be a kit module");
-        }
-
-        if (t.Underground)
-        {
-            problems.Add("a landmark cannot also be an underground structure (use the ground row)");
-        }
-
-        AddSeatAndProtectionProblems(t, problems);
-        problems.AddRange(ZoneProblems(t));
-        return problems;
     }
 }

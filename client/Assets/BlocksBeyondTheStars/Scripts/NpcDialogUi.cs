@@ -28,6 +28,11 @@ namespace BlocksBeyondTheStars.Client
         private const float PanelW = 560f, PanelBaseH = 130f, RowW = 520f, LineBaseH = 48f;
         private const float ChoicesY = 104f, ChoiceH = 44f, ChoiceGap = 8f;
 
+        /// <summary>How far the panel's centre sits above the screen's (1920×1080 units). At 70 the tallest panel (four
+        /// answers under a four-line speech, ~390 high) ends near y 665 — above VEGA's speech panel (HUD y 546 ≈ 682 here),
+        /// which on a tablet moves right of the move stick, under this panel's left half.</summary>
+        public const float PanelRaise = 70f;
+
         private Canvas _canvas;
         private GameObject _panel;
         private Text _title, _line;
@@ -70,11 +75,18 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape) || (_state.End && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))))
+            // Esc and pad B (the menu verb — B did nothing here before, though the pad's hint strip names it "back").
+            if (InputMap.Down(InputAction.UiCancel) || (_state.End && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))))
             {
+                Game.MarkMenuInputHandled(); // this Esc ends the talk — it must not also open the pause menu
                 Close(); // walking away is always allowed — the server ends the conversation (#2616)
             }
         }
+
+        /// <summary>"[1] " in front of an answer — the number key that picks it — only while a keyboard is in hand: a pad
+        /// picks with A and a tablet taps, and the bracketed digits read as noise there.</summary>
+        public static string KeyPrefix(int number)
+            => InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse ? "[" + number + "] " : string.Empty;
 
         private void LateUpdate()
         {
@@ -217,7 +229,12 @@ namespace BlocksBeyondTheStars.Client
         private void Refresh()
         {
             _panel.SetActive(true);
-            _title.text = _state.Name;
+            if (_title.text != _state.Name)
+            {
+                _title.text = _state.Name;
+                UiKit.FitLabelSingleLine(_title, RowW, 14, 22); // a long settler name with its profession stays on its row
+            }
+
             _title.color = RobotTalkPanel.TitleRgb(_state.NpcId) is int rgb ? RgbColor(rgb) : UiKit.Cyan; // #3405: the robot's light blue
 
             _line.text = "“" + _state.Text + "”";
@@ -233,7 +250,7 @@ namespace BlocksBeyondTheStars.Client
                 _choiceButtons[i].gameObject.SetActive(used);
                 if (used)
                 {
-                    _choiceLabels[i].text = $"[{i + 1}] " + DialogMelody.ChoiceLabel(_state.Choices[i], DialogMelody.MelodyOf(_state.ChoiceMelodies, i), toneNames);
+                    _choiceLabels[i].text = KeyPrefix(i + 1) + DialogMelody.ChoiceLabel(_state.Choices[i], DialogMelody.MelodyOf(_state.ChoiceMelodies, i), toneNames);
                 }
             }
 
@@ -279,7 +296,12 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(_canvas.gameObject); // pad: stick walks the replies, A picks — number keys stay
             var root = _canvas.transform;
 
-            _panel = UiKit.AddCenteredPanel(root, "DialogPanel", PanelW, PanelBaseH, 40f);
+            // #3668: no scrim and clear of the comms zone — VEGA's lesson on answering (tutorial c11.2, "Answers matter…")
+            // comes WHILE this panel is open, and her speech panel (bottom left; right of the move stick on a tablet) must
+            // stay readable beside it. Raised a little above the centre, so even the tallest conversation (four answers
+            // under a long line) ends above her panel on a tablet too. Opaque like every text-carrying panel (#3662).
+            _panel = UiKit.AddCenteredPanel(root, "DialogPanel", PanelW, PanelBaseH, PanelRaise);
+            _panel.GetComponent<Image>().sprite = UiKit.DialogSprite;
 
             var t = _panel.transform;
             _title = UiKit.AddText(t, 20f, 12f, RowW, 26f, string.Empty, 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -293,9 +315,11 @@ namespace BlocksBeyondTheStars.Client
                     string.Empty, () => Choose(index));
                 _choiceLabels[i] = _choiceButtons[i].GetComponentInChildren<Text>();
                 _choiceLabels[i].alignment = TextAnchor.MiddleLeft;
+                UiKit.FitButtonLabel(_choiceLabels[i]); // a long German answer wraps onto a second line instead of shrinking to 11 px
             }
 
-            _leave = UiKit.AddButton(t, 20f, ChoicesY, 200f, 40f, string.Empty, Close);
+            // Leave closes the conversation: the close icon, quiet, a full 44 px touch target (#3662).
+            _leave = UiKit.AddTierButton(t, 20f, ChoicesY, 220f, ChoiceH, string.Empty, Close, ButtonTier.Quiet, "btn_close");
             _leaveLabel = _leave.GetComponentInChildren<Text>();
 
             _panel.SetActive(false);

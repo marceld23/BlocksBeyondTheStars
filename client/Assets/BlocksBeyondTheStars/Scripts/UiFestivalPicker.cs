@@ -25,6 +25,23 @@ namespace BlocksBeyondTheStars.Client
         private const float RowH = 100f;
         private static readonly Color Amber = new Color(1f, 0.82f, 0.45f);
 
+        // The open picker and how it closes (the Close button's path), so Esc / pad B on the settings screen can close it
+        // first (UiSettings.CloseTopLayer) instead of leaving the screen with it.
+        private static GameObject s_open;
+        private static Action s_close;
+
+        /// <summary>Closes the open picker the way its Close button does; true when one was open.</summary>
+        public static bool CloseOpen()
+        {
+            if (s_open == null || !s_open.activeInHierarchy || s_close == null)
+            {
+                return false;
+            }
+
+            s_close();
+            return true;
+        }
+
         /// <summary>Opens the picker on <paramref name="root"/>; <paramref name="onClosed"/> runs when it closes after a change.</summary>
         public static GameObject Open(AppShell shell, Transform root, Action onClosed = null, float scroll = 1f, bool changed = false)
         {
@@ -46,14 +63,24 @@ namespace BlocksBeyondTheStars.Client
             rect = AddList(shell, dlg, Reopen);
             rect.verticalNormalizedPosition = Mathf.Clamp01(scroll);
 
-            UiKit.AddButton(dlg, DlgW / 2f - 160f, DlgH - 74f, 320f, 54f, shell.L("ui.festival.close"), () =>
+            void Close()
             {
+                if (s_open == overlay)
+                {
+                    s_open = null;
+                    s_close = null;
+                }
+
                 UnityEngine.Object.Destroy(overlay);
                 if (changed)
                 {
                     onClosed?.Invoke();
                 }
-            }, "btn_exit");
+            }
+
+            UiKit.AddButton(dlg, DlgW / 2f - 160f, DlgH - 74f, 320f, 54f, shell.L("ui.festival.close"), Close, "btn_back");
+            s_open = overlay;
+            s_close = Close;
             return overlay;
         }
 

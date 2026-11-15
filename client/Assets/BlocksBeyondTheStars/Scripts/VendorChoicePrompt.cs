@@ -54,6 +54,7 @@ namespace BlocksBeyondTheStars.Client
             _onFirst = onFirst;
             _onSecond = onSecond;
             _title.text = title;
+            UiKit.FitLabelSingleLine(_title, 600f, 18, 30); // "Name, Profession" of a vendor stays on its row
             if (_firstLabel != null)
             {
                 // #2502: "Trade ({key:Interact})" / "Workshop ({key:Interact})" — the live Interact glyph of the device in hand.
@@ -69,7 +70,9 @@ namespace BlocksBeyondTheStars.Client
             UiKit.OpenModal(_overlay); // #2302: the scrim fades in place, the question rises (TryOfferPair refuses while shown)
             _shown = true;
             _openedAt = Time.unscaledTime;
-            Game.SetCursorOwner(this, true);
+            // #3662: a menu owner, not only a cursor owner — the touch layer hides while a menu is open, and before this its
+            // full-screen look pad (canvas order 100, over this 84) swallowed every tap on the two buttons on a tablet.
+            Game.SetMenuOwner(this, true);
             return true;
         }
 
@@ -80,10 +83,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (InputMap.Down(InputAction.UiCancel))
             {
-                // #2303: this Escape is consumed — don't also pop the pause/quit prompt (#413). Escape only, not the
-                // menu verb: the prompt keeps the player in play, and pad B is crouch there.
+                // #2303: this Escape is consumed — don't also pop the pause/quit prompt (#413). #3662: pad B too — the
+                // prompt is a menu owner now (control pauses under it), so B is no longer crouch here but "back", as the
+                // pad's hint strip says.
                 Game?.MarkMenuInputHandled();
                 Close();
                 return;
@@ -115,7 +119,7 @@ namespace BlocksBeyondTheStars.Client
             _shown = false;
             _onFirst = null;
             _onSecond = null;
-            Game?.SetCursorOwner(this, false);
+            Game?.SetMenuOwner(this, false);
         }
 
         private void EnsureUi()
@@ -127,15 +131,17 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("VendorChoicePrompt");
             _canvas.sortingOrder = 84; // above the HUD (60), below the death prompt (85) — like the launch question
-            UiNav.Enable(_canvas.gameObject); // gamepad: A/B pick a button
+            UiNav.Enable(_canvas.gameObject); // gamepad: the stick picks a button, A presses it, B closes the question
 
             const float w = 640f, h = 250f;
             var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - w) / 2f, (1080f - h) / 2f, w, h);
             _overlay = overlay;
             _title = UiKit.AddText(panel, 20, 34, w - 40f, 60, string.Empty, 30, new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _title.supportRichText = false; // NPC names are generated text
-            _firstLabel = UiKit.AddButton(panel, 60, 140, 240, 64, string.Empty, First, "btn_join").GetComponentInChildren<UnityEngine.UI.Text>();
-            _secondLabel = UiKit.AddButton(panel, 340, 140, 240, 64, string.Empty, Second, "btn_feedback").GetComponentInChildren<UnityEngine.UI.Text>();
+            // #3662: the first answer (E / Enter, the old behaviour) is the primary one; the second steps back to secondary.
+            _firstLabel = UiKit.AddTierButton(panel, 60, 140, 240, 64, string.Empty, First, ButtonTier.Primary, "btn_join").GetComponentInChildren<UnityEngine.UI.Text>();
+            _secondLabel = UiKit.AddTierButton(panel, 340, 140, 240, 64, string.Empty, Second, ButtonTier.Secondary, "btn_feedback")
+                .GetComponentInChildren<UnityEngine.UI.Text>();
             _overlay.SetActive(false);
         }
 

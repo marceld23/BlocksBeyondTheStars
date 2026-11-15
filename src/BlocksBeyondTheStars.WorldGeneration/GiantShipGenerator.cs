@@ -75,10 +75,12 @@ public static partial class GiantShipGenerator
     /// The wreck of <paramref name="t"/> lying on a planet: turned by <paramref name="turns"/> quarter turns, ruined with
     /// revision 3 (profile <c>crash</c>, or the template's ruin zones) from <paramref name="seed"/>, the markers it keeps
     /// seated. <paramref name="surfaceBlock"/> is the biome surface (overgrowth, material tokens); <paramref name="atmosphere"/>
-    /// says whether the body has air — plants grow through only then, and without it water freezes.
+    /// says whether the body has air — plants grow through only then, and without it water freezes. <paramref name="abandonBeds"/>
+    /// (a world of terrain generation 45, <see cref="AbandonedBeds.Applies"/>): the wreck's beds are the abandoned twin, a lone
+    /// one given its foot on a free floor cell beside it away from every marker (<see cref="AbandonedBeds"/>).
     /// </summary>
     public static LandmarkLayout BuildPlanet(StructureTemplate t, long seed, int turns, GameContent content, string surfaceBlock,
-        bool atmosphere)
+        bool atmosphere, bool abandonBeds = false)
     {
         turns = ((turns % 4) + 4) % 4;
         var grid = Fill(t, turns, content, surfaceBlock, out var markers);
@@ -93,6 +95,7 @@ public static partial class GiantShipGenerator
         };
         Ruin(t, grid, markers, RuinSeed("planet", t, seed), LandmarkRules.ProfileCrash, groundRow, surfaceBlock, options, content,
             ZonesFor(t, turns, space: false));
+        AbandonBeds(grid, markers, groundRow, content, abandonBeds);
         SettleMarkers(grid, markers, groundRow, PlanetMarkers, content);
 
         int cavities = 0;
@@ -110,9 +113,10 @@ public static partial class GiantShipGenerator
     /// The wreck of <paramref name="t"/> drifting in space: never turned (template coordinates), ruined with revision 3
     /// (profile <c>hull</c> — every zone a hull with its own strength) from <paramref name="seed"/>; every piece of at least
     /// <see cref="MinPieceCells"/> blocks stays where it is, water is ice. The markers it keeps (doorways included) are in
-    /// template coordinates; <see cref="GiantSpaceLayout.Entrance"/> is the boarding arrival.
+    /// template coordinates; <see cref="GiantSpaceLayout.Entrance"/> is the boarding arrival. <paramref name="abandonBeds"/>: the
+    /// beds are the abandoned twin, as on a planet (<see cref="BuildPlanet"/>).
     /// </summary>
-    public static GiantSpaceLayout BuildSpace(StructureTemplate t, long seed, GameContent content)
+    public static GiantSpaceLayout BuildSpace(StructureTemplate t, long seed, GameContent content, bool abandonBeds = false)
     {
         var grid = Fill(t, 0, content, "stone", out var markers);
         int intact = 0;
@@ -124,6 +128,7 @@ public static partial class GiantShipGenerator
         var options = new RuinOptions { Overgrowth = false, Scorch = ScorchFor(IsAlien(t)), FreezeWater = true };
         Ruin(t, grid, markers, RuinSeed("space", t, seed), LandmarkRules.ProfileHull, groundRow: 0, "stone", options, content,
             ZonesFor(t, 0, space: true));
+        AbandonBeds(grid, markers, groundRow: 0, content, abandonBeds);
         var footing = SettleMarkers(grid, markers, groundRow: 0, SpaceMarkers, content, space: true);
         return new GiantSpaceLayout(t.Key, grid, markers, EntranceOf(markers, footing), intact);
     }
@@ -156,6 +161,18 @@ public static partial class GiantShipGenerator
         LandmarkGenerator.FillBlocks(t, turns, grid, content, materials);
         markers = LandmarkGenerator.ReadMarkers(t, turns, grid, content);
         return grid;
+    }
+
+    /// <summary>Generation 45: the ruined wreck's beds become the abandoned twin — after the ruin pass (a bed it broke stays
+    /// broken), before the markers settle, never reaching a marker's column with a new foot, and below the ground row only into
+    /// the hull's own air (a cavity), never into the ground it lies in.</summary>
+    private static void AbandonBeds(VoxelGrid grid, List<SettlementMarker> markers, int groundRow, GameContent content, bool abandonBeds)
+    {
+        if (abandonBeds)
+        {
+            var away = AbandonedBeds.AwayFromMarkers(grid, markers);
+            AbandonedBeds.Apply(grid, content, (x, y, z) => away(x, y, z) && (y >= groundRow || grid.Cavity[grid.Index(x, y, z)]));
+        }
     }
 
     private static void Ruin(StructureTemplate t, VoxelGrid grid, List<SettlementMarker> markers, long seed, string profile,

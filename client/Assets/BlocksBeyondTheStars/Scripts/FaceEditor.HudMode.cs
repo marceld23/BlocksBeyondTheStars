@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
 using BlocksBeyondTheStars.Client.HudFrames;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,13 +9,14 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The HUD mode of the character editor (#3318): a "Character | HUD frame" switch beside the part tabs turns the same
-    /// editor — palette, colour wheel, fill, eyedropper, undo/redo — onto the player's HUD frame (#3317). Its four tiles
-    /// (corner, top edge, side edge, bottom edge) are the four regions of ONE canvas, the tiles column beside it picks the
-    /// one to paint, exactly like the faces of a body part. In place of the figure, its base colours and the outfits it
-    /// shows a little 16:9 screen with a hinted HUD and the live frame, the frame's switches (on/off, size, opacity) and
-    /// its own library column: the player's saved frames (save, rename, delete, at most eight) and the templates on offer
-    /// (free ones everywhere, a calendar one only in a world that unlocked it).
+    /// The HUD mode of the character editor (#3318): the "HUD frame" tab of the appearance screen (#3693 — it used to be a
+    /// "Character | HUD frame" switch beside the part tabs) turns the same editor — palette, colour wheel, fill, eyedropper,
+    /// undo/redo — onto the player's HUD frame (#3317). Its four tiles (corner, top edge, side edge, bottom edge) are the
+    /// four regions of ONE canvas, the tiles column beside it picks the one to paint, exactly like the faces of a body part.
+    /// In place of the figure and its base colours the preview card shows a little 16:9 screen with a hinted HUD and the
+    /// live frame plus the frame's switches (on/off, size, opacity), and the outfits card becomes the frame library: the
+    /// player's saved frames (save, rename, delete, at most eight) and the templates on offer (free ones everywhere, a
+    /// calendar one only in a world that unlocked it).
     /// <para>
     /// Each mode keeps its own subjects and its own undo history; switching commits the canvas being left (like switching
     /// a part tab does) and parks the other mode untouched, so both histories survive any number of switches. The frame is
@@ -46,15 +48,15 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] HudSizeKeys = { "ui.hudframe.size_small", "ui.hudframe.size_medium", "ui.hudframe.size_large" };
         private static readonly float[] HudOpacitySteps = { 0.6f, 0.8f, 1f };
 
-        // Right of the region tiles: the mode switch on the tab row, the preview screen and the switches under the wheel.
-        private const float ModeButtonsX = 904f, ModeButtonW = 168f, HudColumnX = 904f, HudPreviewW = 320f, HudPreviewH = 180f;
-        private const float HudSettingsY = 510f, HudChoiceW = 104f, HudChoicePitch = 108f;
+        // Inside the preview card (500 wide): the little screen, then the switches; the colour wheel stays below them.
+        private const float HudColumnX = 90f, HudPreviewY = 52f, HudPreviewW = 320f, HudPreviewH = 180f;
+        private const float HudSettingsY = 248f, HudChoiceW = 104f, HudChoicePitch = 108f, HudSwitchH = 44f;
 
         private bool _hudMode;
         private ModeState _parked;
-        private RectTransform _charLayer, _hudLayer;
-        private Image _charModeButton, _hudModeButton;
-        private Text _charModeLabel, _hudModeLabel;
+        private RectTransform _hudLayer;
+        private readonly List<RectTransform> _charLayers = new List<RectTransform>();
+        private readonly List<RectTransform> _hudLayers = new List<RectTransform>();
         private HudFrameDesign _hudBase = HudFrameDesign.Empty; // the twinkle of the design on the canvas
         private string _hudTemplateKey = string.Empty;          // the template the canvas started from (a submission's basedOn)
         private Shelf _hudShelf;
@@ -65,24 +67,21 @@ namespace BlocksBeyondTheStars.Client
         private readonly Image[] _opacityButtons = new Image[3];
         private readonly Text[] _opacityLabels = new Text[3];
 
-        /// <summary>The character mode's own widgets (part tabs, base colours, the figure, the outfits) live in one layer
-        /// the HUD mode hides; without a HUD host they go straight onto the panel, as before.</summary>
-        private Transform CharacterLayer(Transform panel)
+        /// <summary>The character mode's own widgets in a card (the figure, its base colours, the outfits) live in a layer
+        /// the HUD mode hides; without a HUD mode they go straight onto the card.</summary>
+        private Transform CharacterLayer(Transform card)
         {
-            if (HudHost == null)
+            if (!HasHudMode)
             {
-                return panel;
+                return card;
             }
 
-            if (_charLayer == null)
-            {
-                _charLayer = AddLayer(panel, "CharacterLayer");
-            }
-
-            return _charLayer;
+            var layer = AddLayer(card, "CharacterLayer");
+            _charLayers.Add(layer);
+            return layer;
         }
 
-        /// <summary>A layer covering the whole panel, so its children use the panel's own coordinates.</summary>
+        /// <summary>A layer covering the whole card, so its children use the card's own coordinates.</summary>
         private static RectTransform AddLayer(Transform panel, string name)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -96,34 +95,41 @@ namespace BlocksBeyondTheStars.Client
             return rt;
         }
 
-        /// <summary>What BuildUi adds after the shared buttons: the Submit button (#3319) and — on the appearance screen of a
-        /// host with a HUD host — the mode switch and the HUD mode's layer.</summary>
-        private void BuildModeExtras(Transform panel, float panelW, float buttonsY)
+        /// <summary>The HUD mode's two layers: the little screen and the switches in the preview card, the frame library in
+        /// the outfits card. Only on the appearance screen of a host with a HUD host.</summary>
+        private void BuildHudMode()
         {
-            BuildSubmitButton(panel, buttonsY);
-            if (HudHost == null || _subjects.Count < 2)
+            if (!HasHudMode || _sideCard == null || _shelfCard == null)
             {
                 return;
             }
 
-            var charButton = UiKit.AddFitButton(panel, ModeButtonsX, 50f, ModeButtonW, 36f, L("ui.hudframe.mode_character"), EnterCharacterMode);
-            _charModeButton = charButton.image;
-            _charModeLabel = charButton.GetComponentInChildren<Text>();
-            var hudButton = UiKit.AddFitButton(panel, ModeButtonsX + ModeButtonW + 8f, 50f, ModeButtonW, 36f, L("ui.hudframe.mode_hud"), EnterHudMode);
-            _hudModeButton = hudButton.image;
-            _hudModeLabel = hudButton.GetComponentInChildren<Text>();
-
-            _hudLayer = AddLayer(panel, "HudLayer");
+            _hudLayer = AddLayer(_sideCard, "HudLayer");
+            _hudLayers.Add(_hudLayer);
             BuildHudPreview(_hudLayer);
             BuildHudSettings(_hudLayer);
+            var shelfLayer = AddLayer(_shelfCard, "HudShelfLayer");
+            _hudLayers.Add(shelfLayer);
             _hudShelf = HudShelf();
-            BuildShelf(_hudLayer, panelW - 250f, _hudShelf);
+            BuildShelf(shelfLayer, _hudShelf);
             ShowModeLayers();
         }
 
-        private void EnterHudMode() => SwitchMode(true);
+        private void EnterHudMode()
+        {
+            HideFigure();
+            SwitchMode(true);
+        }
 
         private void EnterCharacterMode() => SwitchMode(false);
+
+        /// <summary>Unattended editor screenshots (-captureEditors, ScreenshotDirector.Editors.cs, #3687): the HUD frame tab
+        /// without a click. Keep it working when the editor is restyled.</summary>
+        internal void CaptureEnterHudMode()
+        {
+            EnterHudMode();
+            ShowAbout();
+        }
 
         /// <summary>Commits the canvas of the mode being left, parks that mode (subjects, active part, region, history) and
         /// brings the other one back exactly as it was left.</summary>
@@ -145,18 +151,15 @@ namespace BlocksBeyondTheStars.Client
             _hudMode = hud;
 
             LoadSubject(entering.Active);
-            BuildSubjectArea(24f, 100f);
+            BuildSubjectArea();
             if (RegionMode)
             {
                 SetActiveRegion(entering.Region);
             }
 
             ShowModeLayers();
-            _title.text = L(Current.TitleKey ?? Current.LabelKey);
             SetHint(HintKeyNow());
-            HighlightTabs();
             UpdateBaseSwatch();
-            RefreshHistoryButtons();
             RefreshPreview();
             RefreshHudControls();
         }
@@ -165,8 +168,7 @@ namespace BlocksBeyondTheStars.Client
         private Subject HudSubject() => new Subject
         {
             LabelKey = "ui.hudframe.mode_hud",
-            TitleKey = "ui.hudframe.title",
-            HintKey = "ui.hudframe.hint",
+            AboutKey = "ui.hudframe.about",
             GridW = HudFrameDesign.EditorGridW,
             GridH = HudFrameDesign.EditorGridH,
             Pixels = HudHost.Design,
@@ -184,23 +186,22 @@ namespace BlocksBeyondTheStars.Client
 
         private void ShowModeLayers()
         {
-            if (_charLayer != null)
+            foreach (var layer in _charLayers)
             {
-                _charLayer.gameObject.SetActive(!_hudMode);
+                layer.gameObject.SetActive(!_hudMode);
             }
 
-            if (_hudLayer != null)
+            foreach (var layer in _hudLayers)
             {
-                _hudLayer.gameObject.SetActive(_hudMode);
+                layer.gameObject.SetActive(_hudMode);
             }
 
             if (_preview != null)
             {
-                _preview.SetActive(!_hudMode); // the figure's camera rests while it cannot be seen
+                _preview.SetActive(!_hudMode); // the figure's camera rests while it cannot be seen (the Figure tab shows it too)
             }
 
-            Arm(_charModeButton, _charModeLabel, !_hudMode);
-            Arm(_hudModeButton, _hudModeLabel, _hudMode);
+            HighlightTabs();
         }
 
         // ── the HUD library column ───────────────────────────────────────────────────────────────
@@ -279,7 +280,7 @@ namespace BlocksBeyondTheStars.Client
         /// (location, compass, vitals, hotbar, crosshair), so the player sees what the frame leaves free.</summary>
         private void BuildHudPreview(Transform layer)
         {
-            var box = AddArea(layer, "HudPreview", HudColumnX, 100f, HudPreviewW, HudPreviewH);
+            var box = AddArea(layer, "HudPreview", HudColumnX, HudPreviewY, HudPreviewW, HudPreviewH);
             UiKit.AddImage(box, 0f, 0f, HudPreviewW, HudPreviewH, UiKit.SolidSprite, new Color(0.10f, 0.16f, 0.30f, 1f));
             UiKit.AddImage(box, 0f, HudPreviewH * 0.62f, HudPreviewW, HudPreviewH * 0.38f, UiKit.SolidSprite, new Color(0.13f, 0.24f, 0.16f, 1f));
             _hudPreview = HudFrameView.Create(box, "PreviewFrame", FilterMode.Bilinear);
@@ -302,24 +303,24 @@ namespace BlocksBeyondTheStars.Client
         private void BuildHudSettings(Transform layer)
         {
             float y = HudSettingsY;
-            var onOff = UiKit.AddFitButton(layer, HudColumnX, y, HudPreviewW, 40f, L("ui.hudframe.on"), ToggleFrameOn);
+            var onOff = UiKit.AddFitButton(layer, HudColumnX, y, HudPreviewW, HudSwitchH, L("ui.hudframe.on"), ToggleFrameOn);
             _onOffLabel = onOff.GetComponentInChildren<Text>();
 
-            UiKit.AddText(layer, HudColumnX, y + 50f, HudPreviewW, 22f, L("ui.hudframe.size"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddKicker(layer, HudColumnX, y + 54f, HudPreviewW, L("ui.hudframe.size"));
             for (int i = 0; i < HudSizeKeys.Length; i++)
             {
                 int level = i;
-                var button = UiKit.AddFitButton(layer, HudColumnX + (i * HudChoicePitch), y + 76f, HudChoiceW, 40f, L(HudSizeKeys[i]), () => SetFrameSize(level));
+                var button = UiKit.AddFitButton(layer, HudColumnX + (i * HudChoicePitch), y + 82f, HudChoiceW, HudSwitchH, L(HudSizeKeys[i]), () => SetFrameSize(level));
                 _sizeButtons[i] = button.image;
                 _sizeLabels[i] = button.GetComponentInChildren<Text>();
             }
 
-            UiKit.AddText(layer, HudColumnX, y + 126f, HudPreviewW, 22f, L("ui.hudframe.opacity"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddKicker(layer, HudColumnX, y + 138f, HudPreviewW, L("ui.hudframe.opacity"));
             for (int i = 0; i < HudOpacitySteps.Length; i++)
             {
                 float opacity = HudOpacitySteps[i];
                 string label = Mathf.RoundToInt(opacity * 100f) + " %"; // a number, the same in every language
-                var button = UiKit.AddFitButton(layer, HudColumnX + (i * HudChoicePitch), y + 152f, HudChoiceW, 40f, label, () => SetFrameOpacity(opacity));
+                var button = UiKit.AddFitButton(layer, HudColumnX + (i * HudChoicePitch), y + 166f, HudChoiceW, HudSwitchH, label, () => SetFrameOpacity(opacity));
                 _opacityButtons[i] = button.image;
                 _opacityLabels[i] = button.GetComponentInChildren<Text>();
             }

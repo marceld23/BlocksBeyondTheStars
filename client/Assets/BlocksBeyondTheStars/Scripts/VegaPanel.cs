@@ -37,23 +37,27 @@ namespace BlocksBeyondTheStars.Client
 
         private const float CharsPerSecond = 42f;
 
-        // Left-column layout in HUD reference units (1536×864). The column is full: vitals end at y 260,
-        // the toast sits at 268, the scan panel starts at 650 and the hotbar backplate owns y 742…834 /
-        // x 400…1136. These two constants are what a layout tweak should move (#482). They are public
-        // because the chat overlay shares the lane and yields to whichever of the two is up (ChatUi).
-        public const float SpeechY = 396f, SpeechH = 190f;
-        public const float ChipY = 594f;
+        // The comms zone (#3668, HudZones F) in HUD reference units (1536×864): VEGA speaks from the bottom of the left
+        // column, out of the crosshair's way — her panel used to be 640 wide at y 396, 42 % of the screen at eye level. The
+        // hotbar backplate owns y 742…834 from x 400, so the panel ends above it. Public because the chat shares the zone
+        // and stacks above whichever of the two is up (ChatUi, ChatWindowLayout).
+        public const float SpeechX = HudZones.CommsX, SpeechW = HudZones.CommsW;
+        public const float SpeechY = 546f, SpeechH = 190f;
+
+        /// <summary>The folded tab's row (#2126) — at the bottom of the comms zone, where the speech panel ends.</summary>
+        public const float ChipY = SpeechY + SpeechH - TabH;
 
         // The speech body's text rect — the page splitter (#736) measures wrapped lines against exactly
         // this box, so a page can never be taller than what VerticalWrapMode.Truncate would show.
-        private const float SpeechTextW = 612f, SpeechTextH = 116f;
+        private const float SpeechTextW = SpeechW - 28f, SpeechTextH = 116f;
 
         // The continue pill (#2126): bottom-right in the speech panel, sized to its text; the collapsed tab sits on the
         // objective chip's row — at the chip's spot when no objective shows, else just right of the chip.
         private const float ContinueY = 156f, ContinueH = 28f, ContinuePad = 28f, ContinueRight = 14f;
-        private const float TabH = 40f, TabGap = 8f, TabMinW = 150f, TabMaxW = 480f, TabTextX = 46f;
+        private const float TabH = 40f, TabGap = 8f, TabMinW = 150f, TabMaxW = SpeechW, TabTextX = 46f;
 
         private Canvas _canvas;
+        private float _objectiveY = float.NaN; // where the objective chip sits this frame (PlaceObjectives, #3668)
         private GameObject _speech;
         private TMPro.TMP_Text _speechText;
         private TMPro.TMP_Text _continueHint;
@@ -166,7 +170,7 @@ namespace BlocksBeyondTheStars.Client
             // "bigger HUD" pass (#482), so her lines rendered 25 % smaller than every other HUD element at
             // every resolution. Subtitle-class text has to read while the eye is on the crosshair.
             _canvas = UiKit.CreateDiegeticCanvas("VegaPanel", UiKit.HudRefW, UiKit.HudRefH);
-            _canvas.sortingOrder = 11; // just above HudUi (10) — a story line must never be occluded
+            _canvas.sortingOrder = HudSortingOrder; // just above HudUi (10) — a story line must never be occluded
 
             // Prologue dim (#754): a soft full-screen shade BEHIND the speech panel while a Kind-4 story
             // page is up, so the moment reads cinematic without a separate dialog stealing the layout.
@@ -177,7 +181,7 @@ namespace BlocksBeyondTheStars.Client
             // Speech panel: left side above the vitals, out of the crosshair's way. VEGA gets a small
             // generated avatar chip beside her name (uGUI icon pass). Coordinates are in HUD reference
             // units; the left column is tight (vitals → speech → chip → scan panel → hotbar), see #482.
-            _speech = UiHolo.AddPanel(_canvas.transform, 24, SpeechY, 640, SpeechH, new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f).gameObject;
+            _speech = UiHolo.AddPanel(_canvas.transform, SpeechX, SpeechY, SpeechW, SpeechH, new Color(0.03f, 0.08f, 0.15f, 0.94f), 12f, 1.5f, 1.2f).gameObject;
             var avatar = UiKit.Icon("icon_vega");
             float nameX = 14f;
             if (avatar != null)
@@ -194,12 +198,13 @@ namespace BlocksBeyondTheStars.Client
             // Lines advance on a KEYPRESS (they queued straight through each other before — unreadable). The hint is
             // a clickable pill since #2126: brighter and bolder than the old dim 16 px line, and a mouse click (where
             // the cursor is free) or a tap does what the continue control does.
-            var pill = UiHolo.AddPanel(_speech.transform, 640f - ContinueRight - 200f, ContinueY, 200f, ContinueH,
+            var pill = UiHolo.AddPanel(_speech.transform, SpeechW - ContinueRight - 200f, ContinueY, 200f, ContinueH,
                 new Color(0.08f, 0.26f, 0.38f, 0.92f), 9f, 1.4f, 1.3f);
             pill.gameObject.name = "VegaContinue";
             _continuePill = pill.rectTransform;
             MakeClickable(pill);
             _continueHint = UiText.Add(pill.transform, 0, 0, 200f, ContinueH, L("ui.vega.next"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
+            UiText.Fit(_continueHint, 11f); // #3668: the narrower comms panel — a long button label shrinks instead of spilling
 
             // The skip pill (#2461): the prologue's way out on every device. Esc and the pad's cancel button skip, and so
             // does a click or a tap on the pill itself — touch players have neither key, and the touch layer (with its
@@ -210,6 +215,7 @@ namespace BlocksBeyondTheStars.Client
             _skipPill = skipPill.rectTransform;
             MakeClickable(skipPill, skip: true);
             _skipHint = UiText.Add(skipPill.transform, 0, 0, 160f, ContinueH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Normal, UiText.Look.Outline);
+            UiText.Fit(_skipHint, 11f);
             _skipPill.gameObject.SetActive(false);
             SetContinueVisible(false);
             _speech.SetActive(false);
@@ -219,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
             var chipRow = BuildChipRow();
 
             // The collapsed tab (#2126): VEGA's icon, her name and the waiting lines, on the chip row; click/tap opens it.
-            var tab = UiHolo.AddPanel(chipRow, 24, ChipY, TabMinW, TabH, new Color(0.05f, 0.10f, 0.16f, 0.86f), 10f, 1.5f, 1.3f);
+            var tab = UiHolo.AddPanel(chipRow, SpeechX, ChipY, TabMinW, TabH, new Color(0.05f, 0.10f, 0.16f, 0.86f), 10f, 1.5f, 1.3f);
             tab.gameObject.name = "VegaTab";
             _tab = tab.gameObject;
             _tabRect = tab.rectTransform;
@@ -232,10 +238,11 @@ namespace BlocksBeyondTheStars.Client
             _tabText = UiText.Add(_tab.transform, TabTextX, 0, TabMaxW - TabTextX, TabH, string.Empty, 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Glow);
             _tab.SetActive(false);
 
-            // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
-            // tutorial lives in the Character tab — the mouse is captured for camera control out here,
-            // so a button on the chip was unreachable.)
-            _chip = UiHolo.AddPanel(chipRow, 24, ChipY, 640, VegaObjectiveChip.HeightNormal, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
+            // Objective chip: a small persistent strip in the right column under the map and the clock (#3668, HudZones D) —
+            // it used to span 640 px under the speech panel for one line of text. Placed per frame (PlaceObjectives): the
+            // column above it grows and shrinks. (Skipping/restarting the tutorial lives in the Character tab — the mouse is
+            // captured for camera control out here, so a button on the chip was unreachable.)
+            _chip = UiHolo.AddPanel(chipRow, HudZones.RightX, HudZones.ObjectivesTop, HudZones.RightW, VegaObjectiveChip.HeightNormal, new Color(0.04f, 0.09f, 0.16f, 0.80f), 10f, 1.2f, 0.9f).gameObject;
             _chipRect = _chip.GetComponent<RectTransform>();
             _chipText = UiText.Add(_chip.transform, 14, 0, VegaObjectiveChip.TextWidth, VegaObjectiveChip.HeightNormal, string.Empty, VegaObjectiveChip.FontLarge, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
             // Wrap + truncate as a safety net — the UiKit default (Overflow) would let an over-long
@@ -248,8 +255,8 @@ namespace BlocksBeyondTheStars.Client
             // #2471: the "Show all objectives" strips under the chip (placed per frame below the chip's current height).
             for (int i = 0; i < _extraRows.Length; i++)
             {
-                float rowY = ChipY + VegaObjectiveChip.HeightNormal + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap));
-                var row = UiHolo.AddPanel(chipRow, 24, rowY, 640, ExtraRowH, new Color(0.05f, 0.10f, 0.16f, 0.55f), 8f, 1.0f, 0.8f).gameObject;
+                float rowY = HudZones.ObjectivesTop + VegaObjectiveChip.HeightNormal + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap));
+                var row = UiHolo.AddPanel(chipRow, HudZones.RightX, rowY, HudZones.RightW, ExtraRowH, new Color(0.04f, 0.09f, 0.16f, 0.70f), 8f, 1.0f, 0.8f).gameObject;
                 row.name = "VegaObjectiveExtra" + i;
                 _extraTexts[i] = UiText.Add(row.transform, 14, 0, VegaObjectiveChip.TextWidth, ExtraRowH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
                 UiText.Wrap(_extraTexts[i], truncate: true);
@@ -581,7 +588,8 @@ namespace BlocksBeyondTheStars.Client
         /// A fade, not SetActive, so the tab and the chip keep measuring their text while hidden.</summary>
         private void YieldChipRowToMelodyBar()
         {
-            bool yield = Game.Views.Hud?.MelodyBarShown ?? false;
+            // #3671: the console (Tab menu) also takes the objective chip and the folded tab away — they used to show through it.
+            bool yield = (Game.Views.Hud?.MelodyBarShown ?? false) || Game.ConsoleOpen || BioLabOpen; // the lab's right pane too
             if (_chipRow == null || yield == _chipRowYielded)
             {
                 return;
@@ -591,6 +599,41 @@ namespace BlocksBeyondTheStars.Client
             _chipRow.alpha = yield ? 0f : 1f;
             _chipRow.blocksRaycasts = !yield;
             _chipRow.interactable = !yield;
+        }
+
+        /// <summary>
+        /// The objective chip's place this frame (#3668): the right column, under the clock and playtime on foot or the radar
+        /// in space (<see cref="HudZones.ObjectivesTop"/>). Publishes where the chip and its extra rows end, so a context card
+        /// (scan result, planet card) stacks under them instead of on top.
+        /// </summary>
+        private void PlaceObjectives()
+        {
+            if (_chipRect == null)
+            {
+                return;
+            }
+
+            float top = HudZones.ObjectivesTop;
+            if (!Mathf.Approximately(top, _objectiveY))
+            {
+                _objectiveY = top;
+                _chipRect.anchoredPosition = new Vector2(HudZones.RightX, -top);
+            }
+
+            float bottom = 0f;
+            if (_chip.activeSelf && !_chipRowYielded)
+            {
+                bottom = top + _chipRect.sizeDelta.y;
+                foreach (var row in _extraRows)
+                {
+                    if (row != null && row.activeSelf)
+                    {
+                        bottom += ExtraRowH + ExtraRowGap;
+                    }
+                }
+            }
+
+            HudZones.ObjectivesBottom = bottom;
         }
 
         /// <summary>#2471 "Show all objectives": the objective list's other rows under the chip (<see cref="ObjectiveTracker.ExtraRows"/>
@@ -616,6 +659,7 @@ namespace BlocksBeyondTheStars.Client
                 sig = (sig * 31) + (Game?.StoryPackStates?.GetHashCode() ?? 0);
                 sig = (sig * 31) + (chipOn ? 1 : 0) + (chatOpen ? 2 : 0) + (showAll ? 4 : 0) + (hintsOn ? 8 : 0);
                 sig = (sig * 31) + (int)chipH;
+                sig = (sig * 31) + (int)_objectiveY;
             }
 
             if (sig == _extraSig)
@@ -643,7 +687,7 @@ namespace BlocksBeyondTheStars.Client
                 string counter = ObjectiveTracker.Counter(row.Progress, row.Target);
                 _extraTexts[i].text = counter.Length > 0 ? body + "  " + counter : body;
                 _extraRows[i].GetComponent<RectTransform>().anchoredPosition =
-                    new Vector2(24f, -(ChipY + chipH + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap))));
+                    new Vector2(HudZones.RightX, -(_objectiveY + chipH + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap))));
             }
         }
 
@@ -753,8 +797,11 @@ namespace BlocksBeyondTheStars.Client
 
             CheckPlaytimeReminder();
             CheckUnknownStoryNotice();
+            PlaceObjectives(); // #3668: under the right column's map part, which grows and shrinks
             UpdateExtraRows(); // #2471: "Show all objectives" (cheap unless something changed)
             YieldChipRowToMelodyBar(); // #3430
+            RiseAboveMenu(); // #3671: above the console — also out of the visor's render texture (VegaPanel.Layout.cs)
+            PlaceSpeech(); // #3668: a spot clear of the touch controls on a touch device (VegaPanel.Layout.cs)
 
             // #2551: a lesson the client raised for a moment that has passed — it waited unseen behind other lines (or a folded
             // tab, or a scene) for 30 s — goes; its once-flag stays unspent, so it comes again when the situation does.
@@ -1180,9 +1227,9 @@ namespace BlocksBeyondTheStars.Client
             _skipHint.rectTransform.sizeDelta = new Vector2(width, ContinueH);
         }
 
-        // #2499: the two choice pills share the panel's bottom edge (640 wide, 14 in from each side) — the secondary left, the
-        // primary right — so neither may grow into the other.
-        private const float SecondaryMaxW = 360f, PrimaryMaxW = 230f;
+        // #2499: the two choice pills share the panel's bottom edge (SpeechW wide, 14 in from each side) — the secondary left,
+        // the primary right — so neither may grow into the other; their labels shrink to fit (UiText.Fit).
+        private const float SecondaryMaxW = 220f, PrimaryMaxW = 180f;
 
         /// <summary>The control name on a pill for the device in hand: the bound key, the pad glyph, nothing on touch (the pill
         /// itself is tapped).</summary>
@@ -1334,9 +1381,9 @@ namespace BlocksBeyondTheStars.Client
             _tabText.text = string.Format(L(count == 1 ? "ui.vega.tab_one" : "ui.vega.tab_many"), count, control);
 
             float width = Mathf.Clamp(TabTextX + _tabText.preferredWidth + 14f, TabMinW, TabMaxW);
-            float x = besideChip ? 24f + 640f + TabGap : 24f;
+            float x = _speechAt.x; // #3668: the tab stays in the comms zone; the objective chip lives in the right column now
             _tabRect.sizeDelta = new Vector2(width, TabH);
-            _tabRect.anchoredPosition = new Vector2(x, -ChipY);
+            _tabRect.anchoredPosition = new Vector2(x, -TabY); // the panel's last row, wherever the panel is (VegaPanel.Layout.cs)
         }
 
         private void ShowContinueHint()
@@ -1374,7 +1421,7 @@ namespace BlocksBeyondTheStars.Client
             bool sharesEdge = primaryChoice || (ChoicesOnPage && _choices.Secondary != null); // the secondary pill sits left of it
             float width = Mathf.Min(sharesEdge ? PrimaryMaxW : SpeechTextW, _continueHint.preferredWidth + ContinuePad);
             _continuePill.sizeDelta = new Vector2(width, ContinueH);
-            _continuePill.anchoredPosition = new Vector2(640f - ContinueRight - width, -ContinueY);
+            _continuePill.anchoredPosition = new Vector2(SpeechW - ContinueRight - width, -ContinueY);
             _continueHint.rectTransform.sizeDelta = new Vector2(width, ContinueH);
         }
 
@@ -1492,7 +1539,8 @@ namespace BlocksBeyondTheStars.Client
 
     /// <summary>The objective chip's pure text/layout rules (#1859), kept free of any canvas so the EditMode
     /// tests can pin them: the {0} substitution with its fallback, the counter placement, and the chip height.
-    /// The geometry constants are the chip's: 640×48 at x 24 / y <see cref="VegaPanel.ChipY"/> in the left
+    /// The geometry constants are the chip's: <see cref="HudZones.RightW"/>×48 in the HUD's right column (#3668); it used to be
+    /// 640×48 at x 24 / y 594 in the left
     /// column; the tall variant (72) reaches 16 px into the scan panel's lane (y 650) — accepted for the rare
     /// three-line objective, since the scan panel only shows while scanning.</summary>
     public static class VegaObjectiveChip
@@ -1501,7 +1549,8 @@ namespace BlocksBeyondTheStars.Client
         public const float FontSmall = 17f;
         public const float HeightNormal = 48f;
         public const float HeightTall = 72f;
-        public const float TextWidth = 614f;
+        public const float HeightXL = 96f;
+        public const float TextWidth = HudZones.RightW - 24f;
 
         /// <summary>The objective line with its {0} argument filled in — the template as-is when there is no
         /// argument, and also when the template is not a valid format string (a stray brace in a translation
@@ -1529,8 +1578,8 @@ namespace BlocksBeyondTheStars.Client
             => string.IsNullOrEmpty(counter) ? body ?? string.Empty : (body ?? string.Empty) + (ownLine ? "\n" : "  ") + counter;
 
         /// <summary>Chip height for a wrapped text height: the normal row while two small-font lines fit, the
-        /// tall row (three lines) beyond that.</summary>
+        /// tall row (three lines), and in the narrower right column (#3668) a fourth line beyond that.</summary>
         public static float Height(float wrappedTextHeight)
-            => wrappedTextHeight <= HeightNormal ? HeightNormal : HeightTall;
+            => wrappedTextHeight <= HeightNormal ? HeightNormal : wrappedTextHeight <= HeightTall ? HeightTall : HeightXL;
     }
 }

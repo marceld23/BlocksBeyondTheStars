@@ -101,8 +101,8 @@ through Caddy.
 ## Client integration (implemented for the native client)
 
 - **Native client (desktop):** the main menu offers BOTH worlds — self-hosting exactly as today
-  (Singleplayer / Host (LAN) / Join-by-address) AND **"Official Worlds"** (the overlay class
-  `UiOfficialWorlds` that `UiMainMenu` builds, native-only `#if` branch): sign in with the portal account
+  (Singleplayer / hosting from *My worlds* / joining by address) AND **"Official Worlds"** (the first tab of the
+  Multiplayer screen `UiMultiplayer`, #3665; the class `UiOfficialWorlds`, native-only `#if` branch): sign in with the portal account
   (session stored in `ClientSettings.PortalSessionToken`,
   never the password; `PortalUrl` empty = the official portal, settable for self-hosted WorldHosts),
   list your worlds, one click joins — the join grant's `nativeHost:nativePort` + `joinToken` feed the
@@ -110,7 +110,7 @@ through Caddy.
   HTTP side is `Client.Core/Portal/PortalClient` (mirrors FeedbackUploader: HttpClient, sync, never
   throws, testable headless). Manual/SP/LAN joins explicitly clear the hosted token.
 - **Full portal parity in the native client (#268-#270):** the web portal is OPTIONAL for desktop
-  players. The Official Worlds overlay additionally offers: **account signup** with in-game rules
+  players. The Official Worlds tab additionally offers: **account signup** with in-game rules
   display + acceptance (rules text/version from the anonymous `GET /api/terms`, single-sourced with
   the /rules page via `CommunityRules`), the **terms re-accept flow** after a rules-version bump
   (login's `termsOutdated` or any `terms_outdated` error opens the rules screen → `POST

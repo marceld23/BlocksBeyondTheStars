@@ -166,6 +166,9 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 // Managed stripping stays Disabled on desktop: Low already removes the generic Serialize overloads that
                 // MessagePack's non-generic path looks up by reflection (NetCodec.Encode → "Sequence contains no matching element").
                 PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);
+                // Plain-HTTP downloads stay off on desktop (every URL there is https or file://); only the WebGL player
+                // allows them (ConfigureWebGLPlayer), and an editor session that built WebGL first must not carry it over.
+                PlayerSettings.insecureHttpOption = InsecureHttpOption.NotAllowed;
             }
 
             // #1537: BBS_DEV_BUILD=1 → a Development player, so PerfProbe -perfProfile
@@ -206,6 +209,9 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             {
                 RemoveAutoFullscreen(outDir);
                 StripBundledServerFromWebGLOutput(outDir);
+                // Baked into the player above; back to the committed value so a local WebGL build leaves
+                // ProjectSettings.asset unchanged.
+                PlayerSettings.insecureHttpOption = InsecureHttpOption.NotAllowed;
             }
 
             File.WriteAllText(Path.Combine(outDir, "version.txt"), PlayerSettings.bundleVersion);
@@ -269,6 +275,14 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.WebGL, apis);
             Debug.Log("WebGL graphics APIs: " + string.Join(" → ", apis));
+
+            // A self-hosted server serves this player at http://<lan-address>:<port>/play/ (#121). With "Allow downloads
+            // over HTTP" off, every UnityWebRequest to the page's own origin — the StreamingAssets data with the locale
+            // files, the music — threw "Insecure connection not allowed": the menu showed raw locale keys and each try
+            // filed a crash report (2026-11-15, 22 of them from one player). Unity exempts only localhost. In a browser the
+            // browser itself guards https pages against plain-http requests (mixed content), so the player allows HTTP;
+            // desktop builds keep it off (BuildPlayer resets it).
+            PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
 
             SetWebGLProperty("memorySize", 512);
             SetWebGLProperty("compressionFormat", fastLocal ? "Disabled" : "Brotli");

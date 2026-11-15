@@ -29,10 +29,12 @@ namespace BlocksBeyondTheStars.Client
         private const float ShowSeconds = 0.15f;   // the lane's (and the big window's) fade-in, and the fade-out on an explicit close
         private const int LogFontSize = 18;        // between the old bare overlay (16) and VEGA's chip (20)
 
-        // The left lane in HUD reference space (1536×864) — see BuildLane, ResolveLane and ResolveWindow.
-        private const float LaneX = 10f, LaneW = 380f;
-        private const float LaneTop = 280f, LaneBottom = 590f; // between the toast (268) and VEGA's chip (594)
-        private const float InputRowY = 596f, InputRowH = 44f, LaneGap = 6f;
+        // The lane in HUD reference space (1536×864): the comms zone (#3668, HudZones F) above VEGA — see BuildLane,
+        // ResolveLane and ResolveWindow. The opened chat window (ChatWindowLayout) docks in the same column (#3669).
+        private const float LaneX = HudZones.CommsX, LaneW = HudZones.CommsW;
+        private const float InputRowH = 44f, LaneGap = 6f;
+        private const float InputRowY = VegaPanel.ChipY - LaneGap - InputRowH; // above VEGA's folded tab
+        private const float LaneTop = 272f, LaneBottom = InputRowY - LaneGap;  // under the status panel (vitals end at 260)
         private const float WindowPad = 10f; // holo window inset around the text block
 
         // VEGA visibility as of the last refresh — the lane is re-resolved when either flips (UpdateLaneFrame).
@@ -63,12 +65,13 @@ namespace BlocksBeyondTheStars.Client
         /// panel, and while typing with either VEGA element up the input row stacks directly under the
         /// (shortened) scrollback instead of on top of the chip. With VEGA quiet the lane is the old one.
         /// Since #3264 the lane never types (the input row lives in the big window), so the lane passes
-        /// <c>typing: false</c>; the typing geometry stays pinned by its EditMode test. Pure so an EditMode test can
-        /// pin the geometry.
+        /// <c>typing: false</c>; the typing geometry stays pinned by its EditMode test. <paramref name="floor"/> is the
+        /// lowest the scrollback may reach — on a touch device the top of the touch controls under the lane (the RUN switch
+        /// and the move stick, <see cref="TouchFloor"/>). Pure so an EditMode test can pin the geometry.
         /// </summary>
-        public static ChatLane ResolveLane(bool typing, bool speechVisible, bool chipVisible)
+        public static ChatLane ResolveLane(bool typing, bool speechVisible, bool chipVisible, float floor = float.MaxValue)
         {
-            float bottom = speechVisible ? VegaPanel.SpeechY - LaneGap : LaneBottom;
+            float bottom = Mathf.Min(speechVisible ? VegaPanel.SpeechY - LaneGap : LaneBottom, floor);
             float inputY = InputRowY;
             if (typing && (speechVisible || chipVisible))
             {
@@ -115,9 +118,10 @@ namespace BlocksBeyondTheStars.Client
         /// the box the player types into is framed together with the lines it answers; with no lines that
         /// leaves a compact input frame. No text and no typing → no window at all. Pure for the EditMode test.
         /// </summary>
-        public static ChatWindow ResolveWindow(bool typing, bool speechVisible, bool chipVisible, float contentH)
+        public static ChatWindow ResolveWindow(bool typing, bool speechVisible, bool chipVisible, float contentH,
+            float floor = float.MaxValue)
         {
-            var lane = ResolveLane(typing, speechVisible, chipVisible);
+            var lane = ResolveLane(typing, speechVisible, chipVisible, floor);
             float bottom = typing ? lane.InputY + InputRowH : lane.LogY + lane.LogH;
             float inputH = typing ? InputRowH : 0f;
             float capacity = Mathf.Max(0f, bottom - LaneTop - inputH - 2f * WindowPad);
@@ -126,6 +130,11 @@ namespace BlocksBeyondTheStars.Client
             float h = textBlock + inputH;
             return new ChatWindow(bottom - h, h, textH, textBlock, capacity);
         }
+
+        /// <summary>On a touch device the lane ends above the touch controls under its column (RUN, the move stick) — they
+        /// draw above the chat and a line under them could not be read; no limit with a mouse, keyboard or pad.</summary>
+        private static float TouchFloor
+            => HudZones.Touch.Any ? HudZones.Touch.FloorBelow(LaneX, LaneX + LaneW, LaneTop) - LaneGap : float.MaxValue;
 
         /// <summary>The lane's per-frame work: re-lay out when VEGA's speech panel or objective chip appears or goes (two
         /// bool reads, no allocation), and re-render when the next line is due to age out (RefreshLog parks
@@ -169,7 +178,7 @@ namespace BlocksBeyondTheStars.Client
             string block = from < end ? FitLaneBlock(ref from, end, out textH) : string.Empty;
 
             // Idle chat yields to VEGA's speech panel (#1798).
-            var win = ResolveWindow(false, _vegaSpeechSeen, _vegaChipSeen, textH);
+            var win = ResolveWindow(false, _vegaSpeechSeen, _vegaChipSeen, textH, TouchFloor);
             bool visible = win.H > 0f;
             if (visible)
             {
@@ -234,7 +243,7 @@ namespace BlocksBeyondTheStars.Client
                 _window.gameObject.SetActive(true);
             }
 
-            float capacity = ResolveWindow(false, _vegaSpeechSeen, _vegaChipSeen, float.MaxValue).Capacity;
+            float capacity = ResolveWindow(false, _vegaSpeechSeen, _vegaChipSeen, float.MaxValue, TouchFloor).Capacity;
             string block = Compose(from, end, trimmed: false);
             textH = Measure(block);
             while (from < end - 1 && textH > capacity)

@@ -73,6 +73,8 @@ namespace BlocksBeyondTheStars.Client
             var source = Find(_sourceId);
             string srcName = source == null || string.IsNullOrEmpty(source.Name) ? L("ui.beam.default") : source.Name;
             _title.text = L("ui.beam.title") + " — " + srcName;
+            UiKit.FitLabelSingleLine(_title, 572f, 16, 26); // a long pad name stays on the title row
+            _rename.interactable = source != null && Game != null && source.OwnerId == Game.LocalPlayerId;
 
             // Collect usable destinations (own + allied), excluding the source, nearest first.
             var dests = new List<NetBeam>();
@@ -105,7 +107,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         UiKit.AddText(go.transform, 12f, 4f, 380f, 28f, name, 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
                         UiKit.AddText(go.transform, 12f, 30f, 380f, 22f, $"X {cx}  ·  Z {cz}  ·  {distLine}", 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                        UiKit.AddButton(go.transform, 404f, 8f, 150f, 40f, L("ui.beam.beam_button"), () =>
+                        UiKit.AddButton(go.transform, 404f, 6f, 150f, 44f, L("ui.beam.beam_button"), () =>
                         {
                             Game.Network?.SendBeamTeleport(_sourceId, dest.Id);
                             Close();
@@ -135,14 +137,17 @@ namespace BlocksBeyondTheStars.Client
 
         protected override void BuildChrome(Transform root)
         {
-            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
+            // #3662: the in-world dialog look — a modal scrim (the pad's focus stays inside it) and an OPAQUE panel; the
+            // translucent one let the world shine through the destination names. Everything hangs off the scrim, which
+            // covers the whole 1920×1080 canvas, so the coordinates stay the canvas's.
+            root = UiKit.AddModalDim(root, 0.45f).transform;
 
             const float w = 620f, h = 560f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
-            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+            UiKit.AddDialogPanel(root, x, y, w, h);
 
-            _title = UiKit.AddText(root, x + 24, y + 20, w - 48, 32, string.Empty, 24, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _title.fontStyle = FontStyle.Bold;
+            _title = UiKit.AddText(root, x + 24, y + 20, w - 48, 32, string.Empty, 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_title);
 
             UiKit.AddText(root, x + 24, y + 58, w - 48, 24, L("ui.beam.destinations"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(root, x + 24, y + 58, w - 48, 24,
@@ -151,7 +156,7 @@ namespace BlocksBeyondTheStars.Client
 
             _list = UiKit.ScrollList(root, x + 16, y + 90, w - 32, h - 168, 6f);
 
-            UiKit.AddButton(root, x + 24, y + h - 60, 220, 44, L("ui.beam.rename"), () =>
+            _rename = UiKit.AddButton(root, x + 24, y + h - 60, 220, 44, L("ui.beam.rename"), () =>
             {
                 var source = Find(_sourceId);
                 if (source == null || source.OwnerId != Game?.LocalPlayerId) return; // owner-only (server re-checks)
@@ -161,7 +166,12 @@ namespace BlocksBeyondTheStars.Client
                 Game?.Context.Panel<BeaconLabelUi>()?.Open(L("ui.beam.rename_prompt"), current, name => Game.Network?.SendSetBeamName(id, name));
             });
 
-            UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close);
+            // #3662: Close = the cross, quiet, built last — the pad lands on the first destination's Beam.
+            UiKit.AddTierButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close, ButtonTier.Quiet, "btn_close");
         }
+
+        /// <summary>Rename (owner only): greyed out — and so skipped by the pad — on a pad that is not the player's, where
+        /// a click used to do nothing at all.</summary>
+        private Button _rename;
     }
 }

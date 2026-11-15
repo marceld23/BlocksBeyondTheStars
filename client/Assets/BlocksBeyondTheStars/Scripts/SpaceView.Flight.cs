@@ -482,14 +482,9 @@ namespace BlocksBeyondTheStars.Client
                         BeginVisit();
                         break;
                     case CruiseInteractTarget.Station:
-                        // Whichever you're closest to wins: dock the station or land on the body.
-                        _phase = Phase.Boarding; // dock-approach animation (into the hangar, #1917); board intent sent on completion
-                        _seq = 0f;
-                        _boardSent = false;
-                        _boardWait = 0f;
-                        _boardTargetId = _nearStationId;
-                        _boardStartPos = _ship.transform.localPosition;
-                        PlanDockApproach();
+                        // Whichever you're closest to wins: dock the station or land on the body. The dock-approach animation
+                        // (into the hangar, #1917) plays first; the board intent goes out on its completion.
+                        BeginDocking(fromSpacewalk: false);
                         break;
                     case CruiseInteractTarget.Body:
                         // One press opens the planet map; you pick the pad to land on there (item 38 / B?).

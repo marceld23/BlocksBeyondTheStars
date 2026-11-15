@@ -506,8 +506,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float bw = 200f, by = ((RectTransform)panel).rect.height - 90f;
-            UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.start", "Start"), () => _host.StartGame());
-            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.help", "Help"), () => _host.ShowHelp());
+            // #3662: Start is the screen's one primary action (and the pad's first stop).
+            UiKit.AddTierButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.start", "Start"), () => _host.StartGame(), ButtonTier.Primary, "btn_continue");
+            UiKit.AddTierButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.help", "Help"), () => _host.ShowHelp(), ButtonTier.Secondary);
         }
 
         private void BuildHelp()
@@ -524,7 +525,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddText(panel, 44, 100, pw - 88, 300, sb.ToString(), 18, UiKit.TextCol, TextAnchor.UpperLeft);
-            UiKit.AddButton(panel, pw / 2 - 100, ((RectTransform)panel).rect.height - 84f, 200, 54, L("ui.minigame.back", "Back"), () => _host.CloseHelp());
+            UiKit.AddTierButton(panel, pw / 2 - 100, ((RectTransform)panel).rect.height - 84f, 200, 54, L("ui.minigame.back", "Back"), () => _host.CloseHelp(),
+                ButtonTier.Quiet, "btn_back");
         }
 
         private void BuildPaused()
@@ -534,9 +536,9 @@ namespace BlocksBeyondTheStars.Client
             float ph = ((RectTransform)panel).rect.height;
             UiKit.AddText(panel, 0, ph / 2 - 120, pw, 44, L("ui.minigame.paused", "Paused"), 28, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             float bw = 220f, bx = pw / 2 - bw / 2;
-            UiKit.AddButton(panel, bx, ph / 2 - 50, bw, 50, L("ui.minigame.resume", "Resume"), () => _host.Resume());
-            UiKit.AddButton(panel, bx, ph / 2 + 8, bw, 50, L("ui.minigame.restart", "Restart"), () => _host.StartGame());
-            UiKit.AddButton(panel, bx, ph / 2 + 66, bw, 50, L("ui.minigame.quit", "Quit"), () => _host.Quit());
+            UiKit.AddTierButton(panel, bx, ph / 2 - 50, bw, 50, L("ui.minigame.resume", "Resume"), () => _host.Resume(), ButtonTier.Primary, "btn_continue");
+            UiKit.AddTierButton(panel, bx, ph / 2 + 8, bw, 50, L("ui.minigame.restart", "Restart"), () => _host.StartGame(), ButtonTier.Secondary);
+            UiKit.AddTierButton(panel, bx, ph / 2 + 66, bw, 50, L("ui.minigame.quit", "Quit"), () => _host.Quit(), ButtonTier.Quiet);
         }
 
         private void BuildResult()
@@ -554,8 +556,8 @@ namespace BlocksBeyondTheStars.Client
                 : (r.Completed ? L("ui.minigame.no_new_best", "No new best — beat it for knowledge") : string.Empty);
             UiKit.AddText(panel, 40, 200, pw - 80, 30, reward, 16, r.IsNewBest ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleCenter);
             float bw = 200f, by = ph - 90f;
-            UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.play_again", "Play again"), () => _host.StartGame());
-            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.close", "Close"), () =>
+            UiKit.AddTierButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.play_again", "Play again"), () => _host.StartGame(), ButtonTier.Primary);
+            UiKit.AddTierButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.close", "Close"), () =>
             {
                 if (OnClose != null)
                 {
@@ -565,7 +567,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _host.Quit(); // back to this game's start screen
                 }
-            });
+            }, ButtonTier.Quiet, OnClose != null ? "btn_close" : "btn_back"); // the arcade's goes back to the start screen
         }
 
         private void OnDestroy()

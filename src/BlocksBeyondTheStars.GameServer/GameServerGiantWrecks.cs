@@ -187,9 +187,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>The wreck of the plan's ship lying on the active body: ruin revision 3, profile <c>crash</c>; plants only with
-    /// air, water frozen without it.</summary>
+    /// air, water frozen without it; from terrain generation 45 its beds are the abandoned twin (no home, no rest, no settler).</summary>
     private LandmarkLayout BuildGiantWreckLayout(LandmarkPlan plan, bool atmosphere)
-        => GiantShipGenerator.BuildPlanet(plan.Template, plan.Seed, plan.Turns, _content, LandmarkSurfaceBlock(), atmosphere);
+        => GiantShipGenerator.BuildPlanet(plan.Template, plan.Seed, plan.Turns, _content, LandmarkSurfaceBlock(), atmosphere,
+            abandonBeds: AbandonedBeds.Applies(_generator.TerrainGeneration));
 
     /// <summary>Seats the planned wreck with the guaranteed search (#586) and the footprint registry: dry ground of any
     /// relief the site grade can level, or partly in shallow water; never lava.</summary>

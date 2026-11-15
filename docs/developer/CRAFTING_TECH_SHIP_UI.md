@@ -22,6 +22,14 @@ components, a category sidebar and blueprint state.
   It does **not** follow the player's `ClientSettings.UiScale` setting: this screen lays out in
   absolute 1920 coordinates, so scaling the canvas up would push content off-screen. Only HUD
   canvases are user-scalable (`UiKit.CreateCanvas(..., userScalable: true)`) — see #483.
+- **Header: 8 main tabs, sub-tab bars (#3671).** `CraftingTechShipUI.Header.cs` holds the `Groups` table: Inventory,
+  Crafting, Blueprints, Ship, Map, **Logbook** (Missions · Journal · Achievements), **Knowledge** (Codex · Creatures ·
+  DataQubes — the two browsers open as before) and **Me** (Character · Photos · Alliances). The selected tab is drawn
+  `ButtonTier.Primary`; a group with several pages shows them as a segmented bar under the tabs, the Inventory shows its
+  pages there too (no sidebar column), and the station gate row moved into that row for the four station tabs. Pause and
+  Close are icon buttons at the top right; LB/RB walk the main tabs. The backdrop is opaque (0.96), and VEGA's
+  objective chip steps aside while the console is open ([UI_LAYOUT.md](UI_LAYOUT.md)). With nothing picked, the
+  Inventory's detail column shows an overview (`CraftingTechShipUI.InventoryPages.cs`).
 - **Card → detail flow.** Lists show cards (icon, name, status, cost row); selecting one fills a detail
   pane with ingredients (have/need, pooled from inventory + ship cargo), required station/blueprint,
   the effect/benefit, and the action button with a reason when disabled. A "craftable now" filter,

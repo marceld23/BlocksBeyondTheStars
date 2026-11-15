@@ -96,7 +96,9 @@ namespace BlocksBeyondTheStars.Client
                 new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _detail = UiKit.AddText(_panel.transform, 360, 500, 1200, 140, string.Empty, 32,
                 new Color(0.8f, 0.84f, 0.92f), TextAnchor.MiddleCenter);
-            UiKit.AddButton(_panel.transform, (1920f - 340f) / 2f, 680, 340, 80, Tr("ui.disconnect.to_menu"), OnBackToMenu);
+            _detail.horizontalOverflow = HorizontalWrapMode.Wrap; // the maintenance line runs past 1200 px in German
+            // #3662: the screen's one action — primary, with the back arrow (the world is gone; this is the way back).
+            UiKit.AddTierButton(_panel.transform, (1920f - 340f) / 2f, 680, 340, 80, Tr("ui.disconnect.to_menu"), OnBackToMenu, ButtonTier.Primary, "btn_back");
             _panel.SetActive(false);
         }
 

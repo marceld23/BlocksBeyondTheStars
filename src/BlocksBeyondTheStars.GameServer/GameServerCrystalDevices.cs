@@ -704,7 +704,7 @@ public sealed partial class GameServer
     {
         var def = _content.BlockById(id);
         if (def is null || !def.Mineable || def.Liquid || IsFluid(id.Value) || IsFlora(id.Value) || IsContainerBlock(def.Key)
-            || def.Key is "bed" or "crew_bunk" or "bedrock" or PistonHeadBlock or "lift_platform"
+            || def.Key is "bed" or FurnitureShapes.AbandonedBedKey or "crew_bunk" or "bedrock" or PistonHeadBlock or "lift_platform"
             || CrystalNet.Cells.ContainsKey(p) || DoorFillsCell(p) || MultiCellVoxelsOf(_world.GetShape(p)) is not null)
         {
             return false;

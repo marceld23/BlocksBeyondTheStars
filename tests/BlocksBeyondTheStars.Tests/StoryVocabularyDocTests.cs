@@ -481,9 +481,9 @@ internal static class StoryVocabularyDoc
         // ---- Conditions ----
         Line("## Conditions");
         Line();
-        Line("One grammar for `requires`, `feasibleIf`, `alreadyDoneIf`, `visibleIf`, `offerWhen`, `autoCompleteIf`, `start.after`,");
-        Line("`gates` and `variants[].when` (`StoryConditionParser`); a JSON list of conditions means all of them. Nesting is");
-        Line($"limited to {StoryConditionParser.MaxDepth} levels.");
+        Line("One grammar for `requires`, `feasibleIf`, `alreadyDoneIf`, `waitWhile`, `visibleIf`, `offerWhen`, `autoCompleteIf`,");
+        Line("`start.after`, `gates` and `variants[].when` (`StoryConditionParser`); a JSON list of conditions means all of them.");
+        Line($"Nesting is limited to {StoryConditionParser.MaxDepth} levels.");
         Line();
         Line("```");
         Line("condition := atom | all:[c, c, …] | any:[c, c, …] | not:c");

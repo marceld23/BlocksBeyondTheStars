@@ -119,6 +119,85 @@ blue too; all train fixes in one go.
   light-blue pedestal and terrace, same 100 × 141 × 100 box; Codex text in 14 languages. A Soaniri that already stamped
   the old copper statue keeps it (landmarks are written once).
 
+### 🧩 UI layout overhaul: one menu template + a HUD zone plan — epic #3674 (#3662–#3673), ✅ 2026-11-15 (PR pending)
+
+From a UI/UX critique of 13 screenshots: the look was consistent, the layout grammar was not (Back in five places with the
+power icon, four title styles, collisions, VEGA at eye level, no "Continue"). Reference: [docs/developer/UI_LAYOUT.md](docs/developer/UI_LAYOUT.md).
+
+- ✅ **Menu template** (#3662): `UiKit.Screen.cs` — header (Back top left with an arrow, title left), button tiers
+  (one Primary per screen, Secondary, Quiet, Danger), link buttons, cards, tabs, `‹ value ›` cycles, switches; fixed
+  icon meanings (power = quit only); 19 new AI icons. Every power-icon "Back/Close/Cancel" swapped.
+- ✅ **Main menu** (#3663): Continue (last world, mode, time ago), one Multiplayer entry, Editors, small Settings / Credits /
+  Quit row; player name as a profile chip; "What's new?" card + festival card (ellipsis); community buttons. SYSTEM CHECK
+  (also on the loading screen) and the static "Mode: Survival" info panel removed.
+- ✅ **My worlds** (#3664): master-detail — rows with mode / last played / playtime (the `world.meta.json` sidecar now
+  carries `Mode`), Play, Delete with a bin; "New world" form with mode cards; **Open to friends** switch replaces the
+  separate Host screen.
+- ✅ **Multiplayer** (#3665): `UiMultiplayer` with tabs Official worlds (sign-in card, three steps, rules) · Join a server
+  (no name field, **recently joined** servers) · Host on your network; Esc closes a portal dialog first.
+- ✅ **Settings** (#3666): categories (Graphics, Display & HUD, Audio, Controls, Controller, Voice, Accessibility, Game,
+  Language), description column, cycle arrows, "Reset this category", new **Controls line** setting.
+- ✅ **Editors** (#3667): card grid with icons and one-line descriptions, help card, one developer section; English "Town
+  editor" → "Village editor".
+- ✅ **HUD zones** (#3668): `HudZones` — VEGA bottom left (440 × 190), objectives in the right column under the clock,
+  toasts top centre, scan / wreck / planet cards stacked under the objectives, playtime under the clock, compass captions
+  below the dial, short controls line (≤ 4 keys) bottom right, readable lamp key.
+- ✅ **Chat** (#3669): the opened chat docks in the comms zone above VEGA (no centred window that jumped sideways).
+- ✅ **Space HUD** (#3670): hull/shield in the vitals panel (the English "HULL/SHD" bars are gone), radar top right with
+  decluttered rim labels, planet card without the playtime collision, flight strip above the systems bar.
+- ✅ **Console** (#3671): 8 main tabs (Logbook, Knowledge, Me group the rest) with sub-tab bars, Pause/Close as icon
+  buttons, opaque backdrop, inventory page bar + overview; VEGA's chip steps aside, her lines rise above the console.
+- ✅ **Codex, pause menu, admin menu** (#3672) on the template.
+- ✅ **Tutorial** (#3673): the jump/crouch step waits while the player flies the ship; the "show you the basics?"
+  question stays due while that first lesson waits (it used to be dropped).
+- ✅ **Review round** (2026-11-15): text shortening by binary search (the main menu hitched on every return), the New-world
+  form survives the world list arriving, Esc closes the topmost portal dialog (never the rescue codes, not while typing),
+  rules readable when signed in, HUD context cards stack (scan → wreck → repair → planet card) and no longer jump on
+  open, Back after the content (pad first focus), F1 on the Multiplayer screen, the short controls line keeps one
+  context hint (fly / rotate / slot actions), no double low-hull beep while piloting, the comms column 440 wide (clear of
+  the melody bar), VEGA rises only over the console, planet card never below the screen edge, LAN address built only
+  when hosting, toast lane under the admin line, glitch save hint clear of the What's-new card, the chat window starts
+  under a tall status panel, radar and planet card in the HUD's 16:9 frame (wide browser windows no longer step the
+  right column).
+- ✅ **Gamepad pass** (2026-11-15): dialogs own the pad focus (`UiModalScope`, `UiNav.Modal.cs`; back to the opener on
+  close, never first on a Danger button), first focus never on Back/Leave (My worlds → Play, Multiplayer/Settings/Codex/
+  admin → the open tab), B closes one layer at a time (My worlds, Settings, the Codex back to the console), `‹ value ›`
+  cycles and −/+ steppers are one stop (left/right step), LB/RB on the Multiplayer tabs, rebinding a pad button no
+  longer closes Settings, "Reset this category" asks first. Tests: `PadMenuFocusEditModeTests`.
+- ✅ **Touch HUD** (2026-11-15): one table for every touch control (`Client.Core/TouchLayout`), published as
+  `HudZones.Touch`; the map part starts under the touch top row (the radar lay under ≡), the right-column cards stop above
+  the action buttons and spill into a second column, the planet card scrolls, VEGA's panel takes a free spot measured
+  every frame (no longer under the stick, UP/DOWN or the gear strip), NEXT sits beside her (no longer on the toasts), the
+  chat window can be tapped (the look pad lets it through), VEGA rises over the console with the visor on too, the pad
+  glyph for rotate is the d-pad, the browser's fullscreen button no longer covers the controls line. Tests:
+  `TouchHudLayoutTests` (5 aspects × 3 UI scales × 3 contexts), `TouchHudLayoutEditModeTests`.
+- ✅ **Menus on touch / in the browser**: every menu hit area ≥ 44 px (links, switches, the ban list), a switch's label
+  toggles it; Settings hide what the browser cannot do (window mode, updates, voice — the muted list stays); the dead
+  browser branch of the Multiplayer screen is gone.
+- ⚠ Playtest open: every screen at 16:9 / 16:10 / 21:9, gamepad walk-through of the new screens, the browser menu.
+
+### 🐞 Reports 2026-11-15 (Justus + browser crashes) — in the UI-layout PR, ✅ 2026-11-15 (PR pending)
+
+- ✅ **Black screen after E at a station on a spacewalk** (Justus, giant wreck Raphae): a stale "hangar doors closing" flag
+  from an earlier helm docking blocked the board intent for good (present since v2026.11.10). The docking hand-over is
+  now `Client.Core/DockHandoff` (every wait has a clock); a spacewalk docking keeps the ship parked, a refused one
+  returns to the spacewalk at the suit's spot. Tests: `DockHandoffTests`, `GiantWreckSpacewalkDockingTests`.
+- ✅ **Old-looking, working beds in ruins and wrecks** (Justus): new decor block `bed_abandoned` (looks like the two-cell
+  bed, no home spawn, no rest heal, no settlers, mines into a plain bed). Ruined structures, buried G.D.S. ruins and the
+  giant wrecks get it from **terrain generation 45** on (save version 17); claimable crash-site wrecks keep working
+  beds. Existing worlds keep their beds. Tests: `AbandonedBedTests`.
+- ✅ **"Insecure connection not allowed"** — 22 browser crash reports from one player (v2026.11.18): the WebGL player
+  refused HTTP downloads, so a `/play` page opened over plain `http://` from a LAN/Internet address (a self-hosted
+  server) loaded neither its data nor its locale files (a menu of raw keys). The WebGL build now allows HTTP
+  (`BuildScript.ConfigureWebGLPlayer`; desktop stays off). Reproduced with the release build on `http://127.0.0.2`.
+- ✅ **Story step skipped with a full backpack, the item is gone** (Justus, Sounders s3.4): the skip hand-over put the
+  song discs into the ship's hold or a bundle on the ground (the toast was throttled) and counted them as decoded, so
+  nothing ever handed out the hearing disc again — s4.7 and chapter 5 became dead ends. Now a skip hand-over goes into
+  the backpack or waits (VEGA asks for room), key items a running step needs (Song Spindle, disc 1, hearing disc) are
+  handed again when the player has none, a dialog gift spills at the feet instead of vanishing, a hand-over aboard uses
+  the player's own ship, a relic cache keeps one disc. Tests: `StoryItemFullBackpackTests`.
+- 📋 **Guardian giants** (Justus' idea: fallen block-built hunter robots, one wakes as a boss) — #3676, own PR after this one.
+
 ### 🧭 Admin teleport targets: civilization sites + giant wrecks in space — #3654, #3655, ✅ 2026-11-15 (PR pending)
 
 - ✅ **`/tp civ [n]`** (#3654): every lost-civilization site of the current body, named like its map entry; the spot stands

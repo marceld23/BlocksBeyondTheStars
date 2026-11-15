@@ -147,13 +147,20 @@ moth-eaten, not as a wreck. Revision 3 (`StructureRuiner.Giant.cs`, `StructureRu
   entrance) and has none any more moves to the nearest free cell with a floor and a roof above it, never onto another
   marker's cell. In space `GiantSpaceLayout.Entrance` — the boarding arrival — is the first entrance that survived, else
   the standable cell nearest the middle of the top.
+- **Abandoned beds** (a world of terrain generation 45 — the `abandonBeds` flag of both builds, set by the server from the
+  save's generation, the space build cache keys it): after the ruin pass and before the markers settle, every `bed` becomes
+  `bed_abandoned` — the bed's look, no bed to any rule (no home spawn, rest heal or settler). The templates place one-cell
+  `bed` cubes; two in a row become one two-cell bed, a lone one gets its foot on a free floor cell beside it (+Z first;
+  never a kept cell, never within one column of a marker, below the ground row only into a cavity) or stays a head alone.
+  The markers come out exactly as without it, and an older world's wrecks keep their beds — so no pin or base hash moves.
+  Write `bed` in a ship script as before. See [WORLD_GENERATION.md](WORLD_GENERATION.md) §59.
 
 Calibration at the default strength: about 20–30 % of a hull's cells go (the shipped ships lose 15–21 %), lone one-cell
 holes are a fraction of a percent of the outer hull, about a tenth of it is sooted; a 256 × 80 × 100 hull builds in a few
 hundred milliseconds.
 
-`BuildPlanet(t, seed, turns, content, surfaceBlock, atmosphere)` returns the `LandmarkLayout` the landmark stamp writes
-(turned by quarter turns, tier `giant_wreck`); `BuildSpace(t, seed, content)` returns a `GiantSpaceLayout` — never turned,
+`BuildPlanet(t, seed, turns, content, surfaceBlock, atmosphere, abandonBeds)` returns the `LandmarkLayout` the landmark stamp
+writes (turned by quarter turns, tier `giant_wreck`); `BuildSpace(t, seed, content, abandonBeds)` returns a `GiantSpaceLayout` — never turned,
 in template coordinates, with blocks, modifiers, shapes, the surviving markers, the arrival and the intact block count.
 `Fingerprint(t)` is a 16-hex-digit hash of everything that shapes the wreck (size, ground row, strength, style, zones, the
 body, every listed cell) — not the name, weight, pack or planet types — so a record can pin it and notice a changed design.
@@ -396,7 +403,7 @@ wreck (ledger `space:giantwreck:<id>#<ship>` — the ship class after the `#`, s
   ragged edge cells only — the battleship's 118 816-cell shell plans in about 11 ms (was 200 ms), at most 8 sparks and 6
   pieces, once per design.
 
-**The editor** (town editor, *Use as → Giant ship*; [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md) §3f): the
+**The editor** (village editor, *Use as → Giant ship*; [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md) §3f): the
 style, strength, ground row and name key; the palette shows only the giant ship's markers (its entrance labelled just
 *Entrance*, `StructureStampRules.MarkerLabelKey`) plus keep, cavity and settings;
 *Show as a wreck: On a planet / In space* runs `BuildPlanet` / `BuildSpace` with the preview seed; save derives a missing
@@ -467,5 +474,6 @@ scorch; revisions 1 and 2 unchanged), `GiantShipGeneratorTests` (planet and spac
 `GiantWreckPlanetTests` (a generation-42 body carries its wreck as one overlay, airless = ice, gas giant and generation 41
 none, keep-clear, a changed ship, the one-in-twenty roll), `GiantWreckWorldTests` (list, map, VEGA, scan, the admin stamp),
 `GiantWreckPlacerTests`, `GiantDerelictTests` (start system, boarding, no air, spacewalk, chests, a mined hull cell as one
-cell and a delta, a changed ship, the guardian bay, VEGA, the flight spot), `HullShellTests`, `DerivedStationTests`;
+cell and a delta, a changed ship, the guardian bay, VEGA, the flight spot), `HullShellTests`, `DerivedStationTests`,
+`AbandonedBedTests` (generation 45: only abandoned two-cell beds aboard, the markers unmoved);
 Client.Tests `SpaceDesignAssemblerTests`, `FlightStructureMeshTests`, `GiantShipEditorTests`, `WorldOptionsLayoutTests`.

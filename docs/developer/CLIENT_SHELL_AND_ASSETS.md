@@ -43,6 +43,10 @@ documented folder layout so dropping in real assets needs no code change.
 
 ## Main menu (answers §4.3)
 
+> **Superseded (#3663):** the live main menu is on the menu template — Continue, Singleplayer (*My worlds*), Multiplayer,
+> Editors, then Settings / Credits / Quit, the player name as a profile chip; see [UI_LAYOUT.md](UI_LAYOUT.md). The list
+> below is the original MVP plan.
+
 MVP entries (the spec's first-version list, §4.2):
 
 ```

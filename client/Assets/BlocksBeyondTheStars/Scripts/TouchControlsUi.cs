@@ -33,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
     /// (playtest issue #202); the UI builds lazily on the first Update so labels can use the localizer.
     /// </summary>
     [DefaultExecutionOrder(-100)] // resolve control state before gameplay reads it this frame
-    public sealed class TouchControlsUi : MonoBehaviour
+    public sealed partial class TouchControlsUi : MonoBehaviour
     {
         public static TouchControlsUi Active { get; private set; }
 
@@ -203,6 +203,7 @@ namespace BlocksBeyondTheStars.Client
             if (Active == this)
             {
                 Active = null;
+                HudZones.SetTouch(TouchReservation.None); // the HUD lays out for no touch layer again
             }
 
             // The root panel IS the controls' canvas, a scene root — it goes with the rig, or the sticks and buttons of a
@@ -232,10 +233,21 @@ namespace BlocksBeyondTheStars.Client
                 Build();
             }
 
+            if (Game == null)
+            {
+                SetActive(_rootPanel, false);
+                return;
+            }
+
+            // The HUD keeps its zones clear of this context's controls (HudZones.Touch) — published while the layer hides
+            // under a menu too, so the HUD does not jump to the desktop layout and back behind it.
+            var cluster = CurrentCluster();
+            PublishReservation(cluster);
+
             // Hide everything while a menu is open so taps reach the menu — and under a cutscene (#2461): this canvas
             // (order 100) sat above every cinematic frame, and its full-screen look pad swallowed the taps meant for the
             // cinematic's own skip and continue buttons.
-            bool show = Game != null && !Game.MenuOpen && !GameBootstrap.CutsceneActive;
+            bool show = !Game.MenuOpen && !GameBootstrap.CutsceneActive;
             if (_rootPanel.activeSelf != show)
             {
                 _rootPanel.SetActive(show);
@@ -247,48 +259,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Pick the cluster for the current control context.
-            bool flight = Game.SpaceViewActive;
-            bool speeder = !flight && Game.DrivenSpeeder != null;
-            bool onFoot = !flight && !speeder;
-            SetActive(_flightCluster, flight);
-            SetActive(_speederCluster, speeder);
-            SetActive(_onFootCluster, onFoot);
-            if (speeder)
-            {
-                // A boat (#1215) has no hop and no cell: those two verbs would be dead buttons.
-                bool boat = Game.DrivenSpeeder.Kind == "boat";
-                SetActive(_hop.gameObject, !boat);
-                SetActive(_fuel.gameObject, !boat);
-            }
-
-            // Contextual buttons (#1042): shown only while their verb applies, so a tablet never carries a
-            // dead target. On foot: ROTATE with a rotatable block in hand, ATTACK with a weapon (or on the
-            // Guardian core, where the same hold breaches it). In flight the helm-only verbs (land / ship /
-            // autopilot / map) give way to the EVA pair (place / deploy) — SpaceView polls each set only in
-            // its own state, so a swapped-out button would be inert anyway.
-            if (onFoot)
-            {
-                SetActive(_rotate?.gameObject, Player != null && Player.HeldRotatable);
-                var finale = Game?.Views.Finale;
-                SetActive(_attack?.gameObject, (Player != null && Player.HoldsWeapon) || (finale != null && finale.BreachAvailable));
-                SetActive(_feed?.gameObject, Player != null && Player.CanFeedCreature); // #2018
-                LightRunButton(Player != null && Player.SprintLatched); // #3376
-            }
-
-            if (flight)
-            {
-                bool eva = Game.InEva;
-                SetActive(_land?.gameObject, !eva);
-                SetActive(_shipIn?.gameObject, !eva);
-                SetActive(_auto?.gameObject, !eva);
-                SetActive(_flightMap?.gameObject, !eva);
-                SetActive(_target?.gameObject, !eva);
-                SetActive(_evaPlace?.gameObject, eva);
-                SetActive(_evaDeploy?.gameObject, eva);
-            }
+            SetActive(_flightCluster, cluster == TouchCluster.Flight);
+            SetActive(_speederCluster, cluster == TouchCluster.Speeder);
+            SetActive(_onFootCluster, cluster == TouchCluster.OnFoot);
+            ShowContextualButtons(cluster);
+            PassTapsToOpenChat();
 
             // NEXT advances VEGA (#1041) — visible only while a line is on screen; the panel itself stays
-            // non-modal, so this sits beside the other shared controls rather than covering the world.
+            // non-modal, so the button sits beside it (PlaceVegaNext) rather than covering the world.
             SetActive(_vegaNext?.gameObject, Vega != null && Vega.LineShowing);
 
             // ACT opens the context-actions list (#1042) — every verb that applies right now, one tap away.
@@ -310,10 +288,10 @@ namespace BlocksBeyondTheStars.Client
                 Menu.SetMenuOpen(!Game.MenuOpen);
             }
 
-            // The chat button opens the chat input (tablets have no Enter key).
+            // The chat button opens the chat input (tablets have no Enter key) — and closes it again (ChatUi.TouchChatPressed).
             if (_chat != null && _chat.DownThisFrame && Chat != null)
             {
-                Chat.OpenInput();
+                Chat.TouchChatPressed();
             }
 
             // The "…" button opens the slot-action pie on the selected hotbar slot (#940). Shown only while
@@ -331,6 +309,42 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Contextual buttons (#1042): shown only while their verb applies, so a tablet never carries a dead target.
+        /// On foot: ROTATE with a rotatable block in hand, ATTACK with a weapon (or on the Guardian core, where the same hold
+        /// breaches it). In flight the helm-only verbs (land / ship / autopilot / map) give way to the EVA pair (place /
+        /// deploy) — SpaceView polls each set only in its own state, so a swapped-out button would be inert anyway. A boat
+        /// (#1215) has no hop and no cell: those two verbs would be dead buttons.</summary>
+        private void ShowContextualButtons(TouchCluster cluster)
+        {
+            if (cluster == TouchCluster.Speeder)
+            {
+                bool boat = Game.DrivenSpeeder.Kind == "boat";
+                SetActive(_hop.gameObject, !boat);
+                SetActive(_fuel.gameObject, !boat);
+            }
+
+            if (cluster == TouchCluster.OnFoot)
+            {
+                SetActive(_rotate?.gameObject, Player != null && Player.HeldRotatable);
+                var finale = Game.Views.Finale;
+                SetActive(_attack?.gameObject, (Player != null && Player.HoldsWeapon) || (finale != null && finale.BreachAvailable));
+                SetActive(_feed?.gameObject, Player != null && Player.CanFeedCreature); // #2018
+                LightRunButton(Player != null && Player.SprintLatched); // #3376
+            }
+
+            if (cluster == TouchCluster.Flight)
+            {
+                bool eva = Game.InEva;
+                SetActive(_land?.gameObject, !eva);
+                SetActive(_shipIn?.gameObject, !eva);
+                SetActive(_auto?.gameObject, !eva);
+                SetActive(_flightMap?.gameObject, !eva);
+                SetActive(_target?.gameObject, !eva);
+                SetActive(_evaPlace?.gameObject, eva);
+                SetActive(_evaDeploy?.gameObject, eva);
+            }
+        }
+
         private static void SetActive(GameObject go, bool active)
         {
             if (go != null && go.activeSelf != active)
@@ -343,6 +357,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // Clear the per-frame look accumulation after gameplay has read it this frame.
             _lookPad?.ResetDelta();
+            PlaceVegaNext(); // after VEGA's own Update has placed her panel this frame
         }
 
         /// <summary>Localized short label for a touch button (falls back to the English text pre-localizer).</summary>
@@ -362,98 +377,15 @@ namespace BlocksBeyondTheStars.Client
             // win the touch; empty-area drags fall through to the look pad.
             _lookPad = MakeLookPad(canvas.transform);
             _lookPad.Game = Game;
+            _lookPadImage = _lookPad.GetComponent<Image>();
 
-            // Left virtual joystick.
-            _stick = MakeStick(canvas.transform);
-
-            // Shared: hotbar cycle (bottom-centre, above the hotbar) + menu (top-right).
-            _prev = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(-360f, 130f), 90f, "◄");
-            _next = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(360f, 130f), 90f, "►");
-            _menu = MakeButton(canvas.transform, new Vector2(1f, 1f), new Vector2(-90f, -90f), 96f, "≡");
-
-            // Slot-action pie opener (#940), tucked beside the ► arrow: touch has no key to press, so this
-            // button IS the feature's input path here. Symbol label like ◄►≡, so no locale key is needed;
-            // Update shows it only while the pie could actually open.
-            _slotActions = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(480f, 130f), 90f, "…");
-
-            // Context-actions list opener (#1042), mirrored on the ◄ side: every verb that applies right now
-            // (trade / dock / loot / lamp / …), one tap away. Update shows it only while the list could open.
-            _contextActions = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(-480f, 130f), 90f, L("ui.touch.actions", "ACT"));
-
-            // VEGA continue (#1041), top-centre: the speech panel is non-modal and keyboard-only advanced
-            // before this — on a tablet a line (and every page after it) simply stayed forever.
-            _vegaNext = MakeButton(canvas.transform, new Vector2(0.5f, 1f), new Vector2(0f, -90f), 96f, L("ui.touch.next", "NEXT ▶"));
-            _actions.Add((InputAction.VegaContinue, _vegaNext));
-
-            // ---- On-foot cluster (bottom-right) --------------------------------------------------------
-            _onFootCluster = MakeCluster(canvas.transform, "OnFoot");
-            var foot = _onFootCluster.transform;
-            _jump = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-140f, 150f), 120f, L("ui.touch.jump", "JUMP"));
-            _mine = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-280f, 260f), 120f, L("ui.touch.mine", "MINE"));
-            _place = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-140f, 300f), 120f, L("ui.touch.place", "PLACE"));
-            var use = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-300f, 130f), 110f, L("ui.touch.use", "USE"));
-            _descend = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-430f, 170f), 96f, L("ui.touch.down", "DOWN"));
-            _chat = MakeButton(foot, new Vector2(1f, 1f), new Vector2(-200f, -90f), 88f, L("ui.touch.chat", "CHAT"));
-            var footView = MakeButton(foot, new Vector2(1f, 1f), new Vector2(-310f, -90f), 88f, L("ui.touch.view", "VIEW"));
-            var footMap = MakeButton(foot, new Vector2(1f, 1f), new Vector2(-420f, -90f), 88f, L("ui.touch.map", "MAP"));
-            // Contextual (#1042): ROTATE beside PLACE while a rotatable block is held; ATTACK is a hold-capable
-            // button (weapon swing on tap; the Guardian-core breach channels while held).
-            _rotate = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-420f, 300f), 96f, L("ui.touch.rotate", "ROTATE"));
-            _attack = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-560f, 240f), 100f, L("ui.touch.attack", "ATTACK"));
-            // #2018: FEED while food is held and a begging animal is near — above ATTACK, clear of ROTATE.
-            _feed = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-560f, 360f), 96f, L("ui.touch.feed", "FEED"));
-            _actions.Add((InputAction.Interact, use));
-            _actions.Add((InputAction.ToggleThirdPerson, footView));
-            _actions.Add((InputAction.PlanetMap, footMap));
-            _actions.Add((InputAction.RotateShape, _rotate));
-            _actions.Add((InputAction.PrimaryFire, _attack));
-            _actions.Add((InputAction.FeedCreature, _feed));
-            _heldActions.Add((InputAction.PrimaryFire, _attack));
-
-            // #3376: RUN above-right of the stick, in reach of the moving thumb — tap it while moving to run; it switches off
-            // when you stop, the stamina runs out, or you tap it again. Lit while on.
-            _run = MakeButton(foot, new Vector2(0f, 0f), new Vector2(450f, 430f), 96f, L("ui.touch.run", "RUN"));
-            _runImage = _run.GetComponent<Image>();
-            _actions.Add((InputAction.Sprint, _run));
-
-            // ---- Flight + EVA cluster ------------------------------------------------------------------
-            _flightCluster = MakeCluster(canvas.transform, "Flight");
-            var fly = _flightCluster.transform;
-            _fire = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-140f, 150f), 130f, L("ui.touch.fire", "FIRE"));
-            var flyUse = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-300f, 130f), 110f, L("ui.touch.use", "USE"));
-            _land = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-290f, 265f), 110f, L("ui.touch.land", "LAND"));
-            _shipIn = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-150f, 305f), 100f, L("ui.touch.ship", "SHIP"));
-            _auto = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-420f, 190f), 92f, L("ui.touch.auto", "AUTO"));
-            var view = MakeButton(fly, new Vector2(1f, 1f), new Vector2(-200f, -90f), 88f, L("ui.touch.view", "VIEW"));
-            _flightMap = MakeButton(fly, new Vector2(1f, 1f), new Vector2(-310f, -90f), 88f, L("ui.touch.map", "MAP"));
-            _flightUp = MakeButton(fly, new Vector2(0f, 0f), new Vector2(430f, 300f), 96f, L("ui.touch.up", "UP"));
-            _flightDown = MakeButton(fly, new Vector2(0f, 0f), new Vector2(430f, 190f), 96f, L("ui.touch.down", "DOWN"));
-            // EVA (#1042): PLACE + DEPLOY take the helm-only LAND / SHIP spots — Update swaps them with Game.InEva.
-            _evaPlace = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-290f, 265f), 110f, L("ui.touch.place", "PLACE"));
-            _evaDeploy = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-150f, 305f), 100f, L("ui.touch.deploy", "DEPLOY"));
-            // #2277: TARGET above AUTO — a tap cycles the target lock, a long press clears it (SpaceView reads the
-            // press edge AND the hold, so the button is registered for both).
-            _target = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-420f, 310f), 92f, L("ui.touch.target", "TARGET"));
-            _actions.Add((InputAction.FlightTargetNext, _target));
-            _heldActions.Add((InputAction.FlightTargetNext, _target));
-            _actions.Add((InputAction.Interact, flyUse));
-            _actions.Add((InputAction.FlightPadChooser, _land));
-            _actions.Add((InputAction.FlightEnterInterior, _shipIn));
-            _actions.Add((InputAction.FlightAutopilot, _auto));
-            _actions.Add((InputAction.ToggleThirdPerson, view));
-            _actions.Add((InputAction.FlightMap, _flightMap));
-            _actions.Add((InputAction.EvaDeployStation, _evaDeploy));
-
-            // ---- Speeder cluster -----------------------------------------------------------------------
-            _speederCluster = MakeCluster(canvas.transform, "Speeder");
-            var spd = _speederCluster.transform;
-            _boost = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-140f, 150f), 130f, L("ui.touch.boost", "BOOST"));
-            _hop = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-300f, 130f), 110f, L("ui.touch.jump", "JUMP"));
-            var exit = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-290f, 265f), 110f, L("ui.touch.exit", "EXIT"));
-            _fuel = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-150f, 305f), 100f, L("ui.touch.fuel", "FUEL"));
-            _actions.Add((InputAction.SpeederExit, exit));
-            _actions.Add((InputAction.SpeederRefuel, _fuel));
-            _heldActions.Add((InputAction.SpeederBoost, _boost));
+            // Left virtual joystick. Every control's place and size comes from one table (TouchLayout) — the HUD keeps its
+            // zones clear of the same rectangles (HudZones.Touch).
+            _stick = MakeStick(canvas.transform, TouchLayout.Of(TouchControl.Stick));
+            BuildShared(canvas.transform);
+            BuildOnFoot(MakeCluster(canvas.transform, "OnFoot"));
+            BuildFlight(MakeCluster(canvas.transform, "Flight"));
+            BuildSpeeder(MakeCluster(canvas.transform, "Speeder"));
 
             // Only the on-foot cluster starts visible; Update swaps clusters with the control context. The
             // contextual buttons start hidden too — Update shows each while its verb applies.
@@ -465,6 +397,108 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _built = true;
+        }
+
+        /// <summary>The controls every context shows: the hotbar cycle (bottom-centre, above the hotbar), the menu (top-right),
+        /// the two list openers and VEGA's NEXT.</summary>
+        private void BuildShared(Transform canvas)
+        {
+            _prev = MakeButton(canvas, TouchControl.Prev);
+            _next = MakeButton(canvas, TouchControl.Next);
+            _menu = MakeButton(canvas, TouchControl.Menu);
+
+            // Slot-action pie opener (#940), tucked beside the ► arrow: touch has no key to press, so this
+            // button IS the feature's input path here. Symbol label like ◄►≡, so no locale key is needed;
+            // Update shows it only while the pie could actually open.
+            _slotActions = MakeButton(canvas, TouchControl.SlotActions);
+
+            // Context-actions list opener (#1042), mirrored on the ◄ side: every verb that applies right now
+            // (trade / dock / loot / lamp / …), one tap away. Update shows it only while the list could open.
+            _contextActions = MakeButton(canvas, TouchControl.ContextActions);
+
+            // VEGA continue (#1041): the speech panel is non-modal and keyboard-only advanced before this — on a tablet a
+            // line (and every page after it) simply stayed forever. It sits beside her panel (PlaceVegaNext).
+            _vegaNext = MakeButton(canvas, TouchControl.VegaNext);
+            _actions.Add((InputAction.VegaContinue, _vegaNext));
+        }
+
+        /// <summary>The on-foot cluster: the action buttons bottom right, chat / view / map top right, RUN by the stick.</summary>
+        private void BuildOnFoot(GameObject cluster)
+        {
+            _onFootCluster = cluster;
+            var foot = cluster.transform;
+            _jump = MakeButton(foot, TouchControl.Jump);
+            _mine = MakeButton(foot, TouchControl.Mine);
+            _place = MakeButton(foot, TouchControl.Place);
+            var use = MakeButton(foot, TouchControl.Use);
+            _descend = MakeButton(foot, TouchControl.Descend);
+            _chat = MakeButton(foot, TouchControl.Chat);
+            var footView = MakeButton(foot, TouchControl.FootView);
+            var footMap = MakeButton(foot, TouchControl.FootMap);
+            // Contextual (#1042): ROTATE beside PLACE while a rotatable block is held; ATTACK is a hold-capable
+            // button (weapon swing on tap; the Guardian-core breach channels while held).
+            _rotate = MakeButton(foot, TouchControl.Rotate);
+            _attack = MakeButton(foot, TouchControl.Attack);
+            // #2018: FEED while food is held and a begging animal is near — above ATTACK, clear of ROTATE.
+            _feed = MakeButton(foot, TouchControl.Feed);
+            _actions.Add((InputAction.Interact, use));
+            _actions.Add((InputAction.ToggleThirdPerson, footView));
+            _actions.Add((InputAction.PlanetMap, footMap));
+            _actions.Add((InputAction.RotateShape, _rotate));
+            _actions.Add((InputAction.PrimaryFire, _attack));
+            _actions.Add((InputAction.FeedCreature, _feed));
+            _heldActions.Add((InputAction.PrimaryFire, _attack));
+
+            // #3376: RUN above-right of the stick, in reach of the moving thumb — tap it while moving to run; it switches off
+            // when you stop, the stamina runs out, or you tap it again. Lit while on.
+            _run = MakeButton(foot, TouchControl.Run);
+            _runImage = _run.GetComponent<Image>();
+            _actions.Add((InputAction.Sprint, _run));
+        }
+
+        /// <summary>The flight and EVA cluster.</summary>
+        private void BuildFlight(GameObject cluster)
+        {
+            _flightCluster = cluster;
+            var fly = cluster.transform;
+            _fire = MakeButton(fly, TouchControl.Fire);
+            var flyUse = MakeButton(fly, TouchControl.FlyUse);
+            _land = MakeButton(fly, TouchControl.Land);
+            _shipIn = MakeButton(fly, TouchControl.Ship);
+            _auto = MakeButton(fly, TouchControl.Auto);
+            var view = MakeButton(fly, TouchControl.FlyView);
+            _flightMap = MakeButton(fly, TouchControl.FlyMap);
+            _flightUp = MakeButton(fly, TouchControl.Up);
+            _flightDown = MakeButton(fly, TouchControl.Down);
+            // EVA (#1042): PLACE + DEPLOY take the helm-only LAND / SHIP spots — Update swaps them with Game.InEva.
+            _evaPlace = MakeButton(fly, TouchControl.EvaPlace);
+            _evaDeploy = MakeButton(fly, TouchControl.EvaDeploy);
+            // #2277: TARGET above AUTO — a tap cycles the target lock, a long press clears it (SpaceView reads the
+            // press edge AND the hold, so the button is registered for both).
+            _target = MakeButton(fly, TouchControl.Target);
+            _actions.Add((InputAction.FlightTargetNext, _target));
+            _heldActions.Add((InputAction.FlightTargetNext, _target));
+            _actions.Add((InputAction.Interact, flyUse));
+            _actions.Add((InputAction.FlightPadChooser, _land));
+            _actions.Add((InputAction.FlightEnterInterior, _shipIn));
+            _actions.Add((InputAction.FlightAutopilot, _auto));
+            _actions.Add((InputAction.ToggleThirdPerson, view));
+            _actions.Add((InputAction.FlightMap, _flightMap));
+            _actions.Add((InputAction.EvaDeployStation, _evaDeploy));
+        }
+
+        /// <summary>The speeder cluster (a boat hides HOP and FUEL).</summary>
+        private void BuildSpeeder(GameObject cluster)
+        {
+            _speederCluster = cluster;
+            var spd = cluster.transform;
+            _boost = MakeButton(spd, TouchControl.Boost);
+            _hop = MakeButton(spd, TouchControl.Hop);
+            var exit = MakeButton(spd, TouchControl.Exit);
+            _fuel = MakeButton(spd, TouchControl.Fuel);
+            _actions.Add((InputAction.SpeederExit, exit));
+            _actions.Add((InputAction.SpeederRefuel, _fuel));
+            _heldActions.Add((InputAction.SpeederBoost, _boost));
         }
 
         // ---- Widget builders ------------------------------------------------------------------------------
@@ -495,16 +529,16 @@ namespace BlocksBeyondTheStars.Client
             return go.GetComponent<TouchLookPad>();
         }
 
-        private static TouchStick MakeStick(Transform parent)
+        private static TouchStick MakeStick(Transform parent, TouchControlSpec spec)
         {
-            const float baseSize = 320f;
+            float baseSize = spec.Size;
             var baseGo = new GameObject("MoveStick", typeof(RectTransform), typeof(Image), typeof(TouchStick));
             var rt = (RectTransform)baseGo.transform;
             rt.SetParent(parent, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0f); // bottom-left
+            rt.anchorMin = rt.anchorMax = new Vector2(spec.AnchorX, spec.AnchorY); // bottom-left
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(baseSize, baseSize);
-            rt.anchoredPosition = new Vector2(230f, 230f);
+            rt.anchoredPosition = new Vector2(spec.X, spec.Y);
             var baseImg = baseGo.GetComponent<Image>();
             baseImg.sprite = UiKit.ButtonSprite;
             baseImg.type = Image.Type.Sliced;
@@ -536,6 +570,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 _runImage.color = col;
             }
+        }
+
+        /// <summary>A button from its <see cref="TouchLayout"/> entry: its anchor, centre, size and (localized) label.</summary>
+        private TouchButton MakeButton(Transform parent, TouchControl control)
+        {
+            var spec = TouchLayout.Of(control);
+            string label = spec.LabelKey != null ? L(spec.LabelKey, spec.Fallback) : spec.Fallback;
+            return MakeButton(parent, new Vector2(spec.AnchorX, spec.AnchorY), new Vector2(spec.X, spec.Y), spec.Size, label);
         }
 
         private TouchButton MakeButton(Transform parent, Vector2 anchor, Vector2 anchoredPos, float size, string label)
@@ -657,10 +699,17 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A tap that never became a look drag (#2126). The pad lies over the whole HUD, so a tap meant for
         /// VEGA's continue pill or her folded tab lands here first — hand it on (a drag is never a click). #2471: a playing
-        /// story card (the touch controls stay up under it) gets it first — its skip button, continue button and speaker box.</summary>
+        /// story card (the touch controls stay up under it) gets it first — its skip button, continue button and speaker box.
+        /// The HUD's context cards next: the wreck card's Claim and the ship-repair card's Repair button sit under this pad
+        /// too, and were out of a finger's reach.</summary>
         public void OnPointerClick(PointerEventData e)
         {
             if (Game?.Views.Director != null && Game.Views.Director.TapAt(e.position))
+            {
+                return;
+            }
+
+            if (Game?.Views.Hud != null && Game.Views.Hud.TapAt(e.position))
             {
                 return;
             }

@@ -200,8 +200,10 @@ namespace BlocksBeyondTheStars.Client
         private string _landMapBody;      // which body the currently-built land map is for
         private string _boardTargetId;    // station being boarded during the dock-approach animation
         private Vector3 _boardTargetPos, _boardStartPos;
-        private bool _boardSent;          // the board intent was sent (now waiting for the server)
-        private float _boardWait;         // safety timeout so a rejected board never leaves a black screen
+
+        // The docking's hand-over: the doors, the board intent, and the give-up so a refused docking never leaves a black
+        // screen. Started afresh by every docking (BeginDocking) — Justus' black screen came from a flag that was not.
+        private readonly BlocksBeyondTheStars.Client.Core.DockHandoff _dockHandoff = new BlocksBeyondTheStars.Client.Core.DockHandoff();
 
         private bool _eva;                // on an EVA spacewalk: first-person 6-DOF float, ship parked
         private Vector3 _evaPos;          // suit position (space-local), independent of the parked ship
@@ -548,7 +550,7 @@ namespace BlocksBeyondTheStars.Client
             _pitch = 0f;
             _confirmLand = false;
             HideLandMap();
-            _boardSent = false;
+            _dockHandoff.Reset();
             _hyperjumping = false;
             _transitLaunchDone = false;
             _transitWait = 0f;

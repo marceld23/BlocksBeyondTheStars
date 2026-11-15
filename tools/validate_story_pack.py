@@ -117,6 +117,7 @@ FALLBACK_PREDICATES = [
     "festival_any", "festival_harvest", "festival_lights", "festival_newyear", "festival_blossoms", "festival_colours",
     "festival_stars", "festival_midsummer", "festival_children", "festival_halloween", "festival_christmas",
     "monuments", "shrine", "shrine_reachable",
+    "on_foot",
 ]
 # #3349: the marker providers (StoryRevealProviders) without an argument.
 REVEAL_PROVIDERS = ["nearest_settlement", "nearest_food_plant", "nearest_station", "nearest_monument", "nearest_rune_shrine"]
@@ -152,7 +153,7 @@ KNOWN_FIELDS = {
     "lead": {"type", "objKey"},
     "step": {
         "id", "kind", "tier", "legacyKey", "objective", "requires", "feasibleIf", "alternative", "alreadyDoneIf",
-        "variants", "explain", "onStart", "onComplete", "escalate", "skippable", "hintRefs",
+        "waitWhile", "variants", "explain", "onStart", "onComplete", "escalate", "skippable", "hintRefs",
     },
     "objective": {"event", "arg", "required", "type", "target"},
     "explain": {"startKey", "chipKey", "hintKey", "doneKey", "midKey", "moreGuide"},
@@ -944,6 +945,9 @@ class Validator:
                 conditions(f"{sp}.requires", step.get("requires"))
                 conditions(f"{sp}.feasibleIf", step.get("feasibleIf"))
                 conditions(f"{sp}.alreadyDoneIf", step.get("alreadyDoneIf"))
+                conditions(f"{sp}.waitWhile", step.get("waitWhile"))  # #3673
+                if skind == "react" and step.get("waitWhile"):
+                    r.error(pid, f"{sp}.waitWhile", "a react step never waits - its 'requires' arms it")
                 alternative = step.get("alternative", "")
                 if alternative and (alternative == sid or not any(s.get("id") == alternative for s in steps)):
                     r.error(pid, f"{sp}.alternative", f"'{alternative}' is not another step of {owner_word} '{owner_id}'")

@@ -18,6 +18,15 @@ namespace BlocksBeyondTheStars.Client
     /// can carry the tab back with the step — a change the player cannot see happening does not read as an
     /// undo at all.
     /// </para>
+    /// <para>
+    /// Why it is not the shared snapshot history <c>UndoHistory&lt;T&gt;</c> (#3695): that one restores whole states,
+    /// and the caller hands it the CURRENT state to keep for redo — but the state of which tab? A step here belongs to
+    /// one subject, and the editor must first bring that tab on screen (committing the one it leaves) before the step
+    /// moves; <see cref="PeekUndo"/> / <see cref="PeekRedo"/> say which. A whole-look snapshot instead would have to hold
+    /// every tab's uncommitted canvas and put them back through the hosts, which in a world SEND each painting to the
+    /// server. So the command-style stack stays, and it borrows the shell's "unsaved" rule instead: every state has an
+    /// id, <see cref="MarkSaved"/> remembers the current one, and undoing back to it makes <see cref="IsDirty"/> false.
+    /// </para>
     /// Plain C# on purpose: this is where the fiddly rules live (a new step forgets the redo tail, the
     /// oldest step falls off a full stack, a colour DRAG is one step and not sixty), so it is testable
     /// without standing up a canvas.
@@ -31,6 +40,9 @@ namespace BlocksBeyondTheStars.Client
             public byte[] GridBefore, GridAfter;
             public Color ColorBefore, ColorAfter;
 
+            /// <summary>The id of the state this step leads to (see <see cref="PixelEditHistory.IsDirty"/>).</summary>
+            internal long StateId;
+
             /// <summary>True when this step changed a base colour rather than the canvas.</summary>
             public bool IsColor => GridBefore == null;
         }
@@ -39,6 +51,9 @@ namespace BlocksBeyondTheStars.Client
         private readonly int _max;
         private int _at;            // steps [0.._at) are applied, [_at..) are redoable
         private int _colorRun = -1; // slot the colour drag in progress keeps growing, -1 = no drag
+        private long _nextId;
+        private long _baseId;       // the state below the oldest step kept
+        private long _savedId;      // the state MarkSaved last saw
 
         /// <summary>A grid is one byte per cell, so the worst case — a full leg canvas of 128×64 — is 8 KB
         /// before + 8 KB after per step: 32 steps is about half a megabyte, which buys a real undo.</summary>
@@ -51,10 +66,21 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Steps currently on the stack (applied plus redoable) — for tests and diagnostics.</summary>
         public int Count => _edits.Count;
 
-        /// <summary>Throws the whole history away: used when the host swaps the entire look under the editor
-        /// (wearing an outfit), where undoing into the previous look would mix two outfits together.</summary>
+        /// <summary>True when the current state is not the one last marked with <see cref="MarkSaved"/> — undoing back to
+        /// that state makes it false again (#3689: the shell's "Not saved yet" and its drafts follow it).</summary>
+        public bool IsDirty => CurrentId != _savedId;
+
+        private long CurrentId => _at > 0 ? _edits[_at - 1].StateId : _baseId;
+
+        /// <summary>The current state is the saved (or applied) one now.</summary>
+        public void MarkSaved() => _savedId = CurrentId;
+
+        /// <summary>Throws the steps away: used when the host swaps the entire look under the editor
+        /// (wearing an outfit), where undoing into the previous look would mix two outfits together.
+        /// Whether the work is unsaved does not change — the swap is not a step.</summary>
         public void Clear()
         {
+            _baseId = CurrentId;
             _edits.Clear();
             _at = 0;
             _colorRun = -1;
@@ -91,12 +117,20 @@ namespace BlocksBeyondTheStars.Client
                 && _edits[_colorRun].IsColor && _edits[_colorRun].Subject == subject)
             {
                 _edits[_colorRun].ColorAfter = after;
+                _edits[_colorRun].StateId = ++_nextId; // the state moved on: a save in mid-drag is not this one
                 return;
             }
 
             Push(new Edit { Subject = subject, ColorBefore = before, ColorAfter = after });
             _colorRun = fromDrag ? _edits.Count - 1 : -1;
         }
+
+        /// <summary>The step <see cref="Undo"/> would take back, without taking it (null at the bottom) — the editor
+        /// brings its tab on screen first.</summary>
+        public Edit PeekUndo() => CanUndo ? _edits[_at - 1] : null;
+
+        /// <summary>The step <see cref="Redo"/> would put back, without putting it (null at the top).</summary>
+        public Edit PeekRedo() => CanRedo ? _edits[_at] : null;
 
         /// <summary>The step to take back, or null at the bottom of the stack.</summary>
         public Edit Undo() => CanUndo ? _edits[--_at] : null;
@@ -111,9 +145,11 @@ namespace BlocksBeyondTheStars.Client
                 _edits.RemoveRange(_at, _edits.Count - _at); // a new step forgets what was redoable
             }
 
+            edit.StateId = ++_nextId;
             _edits.Add(edit);
             if (_edits.Count > _max)
             {
+                _baseId = _edits[0].StateId; // the oldest state still reachable is the one after the dropped step
                 _edits.RemoveAt(0);
                 _colorRun--;
             }

@@ -57,18 +57,50 @@ namespace BlocksBeyondTheStars.Client
     public sealed class PixelCanvasModel
     {
         public const int Size = TextureTiles.Size;
-        private const int MaxUndo = 48;
 
         private readonly List<byte[]> _frames = new List<byte[]>();
-        private readonly List<Snapshot> _undo = new List<Snapshot>();
-        private readonly List<Snapshot> _redo = new List<Snapshot>();
-        private Snapshot? _pending;
 
+        // The editors' shared snapshot history (#3695): 48 steps, a stroke = one step (BeginEdit / CommitEdit), a change
+        // that changed nothing is no step, a new step forgets the redo tail — and "unsaved" survives undo (MarkSaved).
+        private readonly UndoHistory<Snapshot> _history = new UndoHistory<Snapshot>(UndoHistory<Snapshot>.DefaultCapacity, SnapshotComparer.Instance);
+
+        /// <summary>One state of the canvas: deep copies of the frames, the speed and the frame on show.</summary>
         private sealed class Snapshot
         {
             public byte[][] Frames = Array.Empty<byte[]>();
             public int Fps;
             public int Active;
+        }
+
+        /// <summary>Two snapshots are the same state when speed and pixels agree (the frame on show is not a change).</summary>
+        private sealed class SnapshotComparer : IEqualityComparer<Snapshot>
+        {
+            public static readonly SnapshotComparer Instance = new SnapshotComparer();
+
+            public bool Equals(Snapshot? a, Snapshot? b)
+            {
+                if (ReferenceEquals(a, b))
+                {
+                    return true;
+                }
+
+                if (a == null || b == null || a.Fps != b.Fps || a.Frames.Length != b.Frames.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < a.Frames.Length; i++)
+                {
+                    if (!a.Frames[i].AsSpan().SequenceEqual(b.Frames[i]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            public int GetHashCode(Snapshot s) => (s.Fps * 31) + s.Frames.Length;
         }
 
         public PixelCanvasModel(TextureAlphaMode alphaMode, IReadOnlyList<byte[]>? frames = null, int fps = 0)
@@ -94,14 +126,15 @@ namespace BlocksBeyondTheStars.Client
 
         public bool MirrorY { get; set; }
 
-        public bool CanUndo => _undo.Count > 0;
+        public bool CanUndo => _history.CanUndo;
 
-        public bool CanRedo => _redo.Count > 0;
+        public bool CanRedo => _history.CanRedo;
 
-        /// <summary>True once anything was changed since <see cref="Load"/> / <see cref="MarkSaved"/>.</summary>
-        public bool Dirty { get; private set; }
+        /// <summary>True while the canvas differs from the state of <see cref="Load"/> / <see cref="MarkSaved"/> — undoing
+        /// back to that state makes it false again.</summary>
+        public bool Dirty => _history.IsDirty;
 
-        public void MarkSaved() => Dirty = false;
+        public void MarkSaved() => _history.MarkSaved();
 
         /// <summary>Replaces the whole content (another texture was opened). Clears the history.</summary>
         public void Load(IReadOnlyList<byte[]>? frames, int fps, TextureAlphaMode? alphaMode = null)
@@ -132,10 +165,7 @@ namespace BlocksBeyondTheStars.Client
 
             Fps = _frames.Count > 1 ? (TextureTiles.IsValidAnimation(_frames.Count, fps) ? fps : 8) : 0;
             ActiveFrame = 0;
-            _undo.Clear();
-            _redo.Clear();
-            _pending = null;
-            Dirty = false;
+            _history.Reset();
         }
 
         private byte[] BlankFrame()
@@ -216,63 +246,42 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="CommitEdit"/> after the last. Tools that are a single gesture (fill, adjust…) do both themselves.</summary>
         public void BeginEdit()
         {
-            if (_pending == null)
+            if (!_history.InGesture)
             {
-                _pending = Capture();
+                _history.Begin(Capture());
             }
         }
 
+        /// <summary>Closes the step <see cref="BeginEdit"/> opened; a click that changed nothing is not a step.</summary>
         public void CommitEdit()
         {
-            if (_pending == null)
+            if (_history.InGesture)
             {
-                return;
+                _history.Commit(Capture());
             }
-
-            var before = _pending;
-            _pending = null;
-            if (SameAsNow(before))
-            {
-                return; // a click that changed nothing is not a step
-            }
-
-            _undo.Add(before);
-            if (_undo.Count > MaxUndo)
-            {
-                _undo.RemoveAt(0);
-            }
-
-            _redo.Clear();
-            Dirty = true;
         }
 
         public bool Undo()
         {
             CommitEdit();
-            if (_undo.Count == 0)
+            if (!_history.TryUndo(Capture(), out var restore))
             {
                 return false;
             }
 
-            _redo.Add(Capture());
-            Restore(_undo[_undo.Count - 1]);
-            _undo.RemoveAt(_undo.Count - 1);
-            Dirty = true;
+            Restore(restore);
             return true;
         }
 
         public bool Redo()
         {
             CommitEdit();
-            if (_redo.Count == 0)
+            if (!_history.TryRedo(Capture(), out var restore))
             {
                 return false;
             }
 
-            _undo.Add(Capture());
-            Restore(_redo[_redo.Count - 1]);
-            _redo.RemoveAt(_redo.Count - 1);
-            Dirty = true;
+            Restore(restore);
             return true;
         }
 
@@ -297,24 +306,6 @@ namespace BlocksBeyondTheStars.Client
 
             Fps = s.Fps;
             ActiveFrame = Math.Min(s.Active, _frames.Count - 1);
-        }
-
-        private bool SameAsNow(Snapshot s)
-        {
-            if (s.Fps != Fps || s.Frames.Length != _frames.Count)
-            {
-                return false;
-            }
-
-            for (int i = 0; i < s.Frames.Length; i++)
-            {
-                if (!s.Frames[i].AsSpan().SequenceEqual(_frames[i]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         private void Single(Action change)

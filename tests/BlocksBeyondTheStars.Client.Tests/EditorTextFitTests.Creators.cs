@@ -3,123 +3,77 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 namespace BlocksBeyondTheStars.Client.Tests;
 
-/// <summary>The catalogue: the Avatar Designer, the paint (appearance) editor, the form, tool-look and in-world shape editors.</summary>
+/// <summary>The catalogue: the Avatar Designer and the paint (appearance) editor on the editor shell (#3693) — boxes as
+/// <c>FaceEditor.Layout.cs</c>, <c>FaceEditor.Shelf.cs</c> and <c>AvatarEditor.Figure.cs</c> lay them out; the form,
+/// tool-look and shape editors are in <c>EditorTextFitTests.Forms.cs</c>.</summary>
 public sealed partial class EditorTextFitTests
 {
+    // Card titles (UiKit.AddKicker) are drawn in upper case, which this headless measure does not do: they get 80 % of
+    // their room.
+    private const float FaceKickerShare = 0.8f;
+
+    // The shell header's title with Undo, Submit and Save (EditorShellLayout): 1062 + 12 − 24 − 210.
+    private const float FaceHeaderTitleW = 840f;
+
+    // The shell's status bar text: 1140 wide, 16–18 px, two lines in its 48 px.
+    private const float FaceStatusW = 1140f;
+
     private static IEnumerable<FitSite> AvatarSites() => new[]
     {
-        Label("AvatarEditor title", 380f, 20, "ui.avatar.title"),
-        Label("AvatarEditor section headers", 380f, 16, "ui.avatar.colors", "ui.avatar.gear_preview", "ui.avatar.face"),
-        Label("AvatarEditor colour rows", 156f, 16, "ui.settings.skin", "ui.settings.torso", "ui.settings.arms", "ui.settings.legs"),
-        Wrap("AvatarEditor more colours (measured)", 372f, 3, 13, "ui.appearance.more_colors"),
-        Label("AvatarEditor gear rows", 216f, 16, "ui.avatar.helmet", "ui.avatar.chest", "ui.avatar.legs", "ui.avatar.pack", "ui.avatar.lamp"),
-        Button("AvatarEditor on/off", 140f, 30f, "ui.avatar.on", "ui.avatar.off"),
-        Button("AvatarEditor appearance", 380f, 34f, "ui.appearance.title"),
-        Label("AvatarEditor name label", 380f, 15, "ui.avatar.name"),
-        Button("AvatarEditor apply", 380f, 38f, "ui.avatar.apply"),
-        Button("AvatarEditor export / submit", 185f, 38f, "ui.avatar.export", "ui.submit.button"),
-        Wrap("AvatarEditor status (380×60)", 380f, 3, 14, "ui.avatar.applied", "ui.avatar.exported", "ui.avatar.need_name",
+        FitLine("AvatarEditor header title", FaceHeaderTitleW, 20, 30, "ui.menu.avatar_editor"),
+        FitLine("AvatarEditor figure kickers (upper case)", 600f * FaceKickerShare, 13, 16, "ui.avatar.colors", "ui.avatar.gear_preview",
+            "ui.avatar.name"),
+        Label("AvatarEditor colour rows", 220f, 18, "ui.settings.skin", "ui.settings.torso", "ui.settings.arms", "ui.settings.legs"),
+        Label("AvatarEditor gear rows", 300f, 18, "ui.avatar.helmet", "ui.avatar.chest", "ui.avatar.legs", "ui.avatar.pack", "ui.avatar.lamp"),
+        Input("AvatarEditor default name in the name field", 600f, 18, "ui.ed.default.skin"),
+        Button("AvatarEditor export", 300f, 44f, "ui.avatar.export"),
+        Wrap("AvatarEditor status (the shell's status bar)", FaceStatusW, 2, 16, "ui.avatar.need_name",
             "ui.ed.export_failed_hint", "ui.avatar.outfit_deleted", "ui.avatar.outfit_limit", "ui.avatar.outfit_loaded",
             "ui.avatar.outfit_name_taken", "ui.avatar.outfit_renamed", "ui.avatar.outfit_saved", "ui.avatar.outfit_select_first",
-            "ui.avatar.outfit_updated") with { Sample = "Mein Skin" },
-        Input("AvatarEditor default name in the name field", 380f, 18, "ui.ed.default.skin"),
-        Button("AvatarEditor back", 200f, 40f, "ui.menu.back"),
-        Lines("AvatarEditor hint", 1420f, 36f, 16, 13, 13, "ui.avatar.hint"),
-        Label("AvatarEditor outfits title", 268f, 20, "ui.avatar.outfits"),
-        Wrap("AvatarEditor no outfits (268×80)", 268f, 4, 14, "ui.avatar.outfit_none"),
-        Button("AvatarEditor outfit save / rename", 268f, 38f, "ui.avatar.outfit_save", "ui.avatar.outfit_rename"),
-    };
+            "ui.avatar.outfit_updated", "ui.avatar.outfit_worn", "ui.avatar.skin_worn") with { Sample = "Mein Skin" },
+    }.Concat(WhenMerged(
+        Button("AvatarEditor Figure tab", 170f, 52f, "ui.avatar.figure_tab"),
+        Wrap("AvatarEditor export done (the shell's status bar)", FaceStatusW, 2, 16, "ui.avatar.exported_folder")));
 
     private static IEnumerable<FitSite> PaintSites() => new[]
     {
-        Label("Paint editor title (narrow panel)", 652f, 22, "ui.face.title", "ui.paint.body.torso", "ui.paint.body.arms",
-            "ui.paint.body.legs", "ui.paint.body.helmet"),
-        Button("Paint editor part tabs", 168f, 36f, "ui.paint.tab.*"),
-        Label("Paint editor palette label", 400f, 15, "ui.face.palette"),
-        Button("Paint editor fill / fill all / pick (narrow)", 215f, 40f, "ui.face.fill", "ui.face.fill_all", "ui.face.pick"),
-        Button("Paint editor undo / redo (narrow)", 103f, 40f, "ui.face.undo", "ui.face.redo"),
-        Button("Paint editor apply / back", 220f, 56f, "ui.face.apply", "ui.menu.back"),
-        Button("Paint editor clear", 180f, 56f, "ui.face.clear"),
-        Lines("Paint editor hint (narrow panel, three lines)", 652f, 52f, 14, 13, 13, "ui.face.hint", "ui.face.hint_fill_armed", "ui.face.hint_pick_armed",
-            "ui.face.hint_pad", "ui.face.hint_pad_panel", "ui.paint.body.helmet_hint") with { MaxLines = 3 },
-        Label("Paint editor library title", 226f, 15, "ui.paint.library"),
-        Input("Paint editor design name", 226f, 16, "ui.paint.name"),
-        Button("Paint editor save design", 226f, 44f, "ui.paint.save"),
-        Button("Paint / shape editor export / import", 226f, 40f, "ui.shape.custom.export", "ui.shape.custom.import"),
-        Label("Paint editor active region", 512f, 15, "ui.paint.body.front", "ui.paint.body.left", "ui.paint.body.back", "ui.paint.body.right",
+        FitLine("Paint editor header title", FaceHeaderTitleW, 20, 30, "ui.face.title", "ui.paint.title", "ui.appearance.title"),
+        Button("Paint editor part tabs (170×52)", 170f, 52f, "ui.paint.tab.*", "ui.hudframe.mode_hud"),
+        Button("Paint editor tool bar: fill / pick (four segments of 532)", 127f, 48f, "ui.face.fill", "ui.face.pick"),
+        FitLine("Paint editor palette kicker (upper case)", 532f * FaceKickerShare, 13, 16, "ui.face.palette"),
+        Button("Paint editor fill everything / clear", 262f, 44f, "ui.face.fill_all", "ui.face.clear"),
+        Lines("Paint editor pad tools hint (the shell's hint, 680×48)", 680f, 48f, 16, 16, 16, "ui.face.hint_pad_panel"),
+        FitLine("Paint editor library kicker (upper case)", 312f * FaceKickerShare, 13, 16, "ui.paint.library"),
+        Input("Paint editor design name", 312f, 18, "ui.paint.name"),
+        Button("Paint editor copy / paste code", 152f, 44f, "ui.shape.custom.export", "ui.shape.custom.import"),
+        Label("Paint editor active region", 512f, 16, "ui.paint.body.front", "ui.paint.body.left", "ui.paint.body.back", "ui.paint.body.right",
             "ui.paint.body.chin", "ui.paint.body.top", "ui.paint.body.outer", "ui.paint.body.inner"),
-        Label("Paint editor wheel label", 230f, 13, "ui.face.wheel", "ui.paint.base_color"),
-        Label("Paint editor base colour title", 220f, 15, "ui.paint.base_color"),
+        FitLine("Paint editor wheel label", 230f, 13, 16, "ui.face.wheel"),
+        FitLine("Paint editor wheel label on the base colour", 230f, 13, 16, "ui.paint.base_color") with { Prefix = "Farbrad → " },
+        FitLine("Paint editor base colour kicker (upper case)", 300f * FaceKickerShare, 13, 16, "ui.paint.base_color"),
         Label("Paint editor limb headers", 136f, 14, "ui.paint.row.left", "ui.paint.row.right"),
         Label("Paint editor region labels", 136f, 13, "ui.paint.body.front", "ui.paint.body.left", "ui.paint.body.back",
             "ui.paint.body.right", "ui.paint.body.chin", "ui.paint.body.top", "ui.paint.body.outer", "ui.paint.body.inner"),
-        Label("Paint editor outfits title", 226f, 15, "ui.avatar.outfits"),
-        Input("Paint editor outfit name", 226f, 16, "ui.avatar.outfit_name"),
-        Button("Paint editor outfit save / rename", 226f, 40f, "ui.avatar.outfit_save", "ui.avatar.outfit_rename"),
-        Wrap("Paint editor no outfits (226×90)", 226f, 5, 13, "ui.avatar.outfit_none"),
-        Wrap("Paint editor outfit status (226×90)", 226f, 5, 13, "ui.avatar.outfit_deleted", "ui.avatar.outfit_limit",
-            "ui.avatar.outfit_loaded", "ui.avatar.outfit_name_taken", "ui.avatar.outfit_renamed", "ui.avatar.outfit_saved",
-            "ui.avatar.outfit_select_first", "ui.avatar.outfit_updated") with { Sample = "Mein Skin" },
-    };
+        FitLine("Paint editor outfits kicker (upper case)", 392f * FaceKickerShare, 13, 16, "ui.avatar.outfits", "ui.avatar.skin_templates"),
+        Input("Paint editor outfit name", 392f, 18, "ui.avatar.outfit_name"),
+        Button("Paint editor outfit save / rename", 192f, 44f, "ui.avatar.outfit_save", "ui.avatar.outfit_rename"),
+        Wrap("Paint editor no outfits (392 × 120)", 392f, 6, 16, "ui.avatar.outfit_none"),
+    }.Concat(WhenMerged(
+        Button("Paint editor tool bar: pen / eraser", 127f, 48f, "ui.face.tool.pen", "ui.face.tool.eraser"),
+        Lines("Paint editor controls hint (the shell's hint, 680×48)", 680f, 48f, 16, 16, 16, "ui.face.hint_short", "ui.face.hint_fill_short",
+            "ui.face.hint_pick_short", "ui.face.hint_pad_short"),
+        Wrap("Paint editor tab notes and library lines (the shell's status bar)", FaceStatusW, 2, 16, "ui.paint.body.helmet_about",
+            "ui.paint.about", "ui.hudframe.about", "ui.paint.kept", "ui.paint.keep_empty", "ui.paint.code_copied", "ui.paint.imported",
+            "ui.paint.import_failed"),
+        IconButton("Paint editor keep in my designs", 312f, 44f, "ui.paint.keep"),
+        FitLine("Paint editor preview kicker (upper case)", 452f * FaceKickerShare, 13, 16, "ui.face.preview"),
+        Button("Paint editor outfit row: wear", 140f, 44f, "ui.avatar.wear")));
 
-    private static IEnumerable<FitSite> FormSites() => new[]
-    {
-        Label("Form / tool-look title line", 1400f, 17, "ui.form.title", "ui.toollook.title"),
-        Label("Form / tool-look hint line", 1880f, 14, "ui.form.hint", "ui.form.hint_pad", "ui.form.hint_pad_panel", "ui.toollook.hint",
-            "ui.toollook.hint_pad"),
-        Label("FormEditor library title", 330f, 16, "ui.shape.custom.library"),
-        Button("FormEditor library buttons", 162f, 40f, "ui.form.new", "ui.form.duplicate", "ui.shape.custom.export", "ui.shape.custom.import"),
-        Button("FormEditor library rows", 262f, 42f, "ui.form.blocks") with { Prefix = "Mein Tisch  · ", Sample = "8" },
-        Label("FormEditor layer label", 320f, 18, "ui.shape.custom.layer") with { Sample = "8" },
-        Button("FormEditor canvas buttons", 208f, 40f, "ui.shape.custom.copy_below", "ui.shape.custom.clear_layer", "ui.form.fill_layer",
-            "ui.shape.custom.mirror_x", "ui.shape.custom.mirror_z", "ui.shape.custom.clear_all", "ui.tex.undo", "ui.tex.redo",
-            "ui.shape.custom.grid_toggle"),
-        Label("FormEditor budget", 640f, 15, "ui.form.budget_per_block", "ui.shape.custom.budget") with { Sample = "88" },
-        Wrap("FormEditor problem (640×44)", 640f, 2, 15, "ui.form.problem_empty", "ui.form.problem_solid", "ui.form.problem_empty_cell",
-            "ui.form.problem_detailed"),
-        Label("FormEditor right column titles", 288f, 15, "ui.form.material", "ui.form.dye"),
-        Label("FormEditor footprint title", 764f, 16, "ui.form.footprint_title"),
-        Label("FormEditor footprint", 764f, 15, "ui.form.footprint") with { Sample = "8" },
-        Label("FormEditor footprint rows", 254f, 16, "ui.form.width", "ui.form.height", "ui.form.length"),
-        Wrap("FormEditor footprint note (764×66)", 764f, 3, 14, "ui.form.footprint_note"),
-        Label("FormEditor name label", 764f, 15, "ui.shape.custom.name"),
-        Input("FormEditor name field", 470f, 18, "ui.shape.custom.name_hint", "ui.form.unnamed"),
-        IconButton("FormEditor save", 286f, 44f, "ui.form.save"),
-        Wrap("FormEditor status (600×48)", 600f, 2, 14, "ui.form.saved", "ui.form.need_name", "ui.form.deleted", "ui.form.load_failed",
-            "ui.form.footprint_limit", "ui.shape.custom.exported", "ui.shape.custom.imported", "ui.shape.custom.import_failed")
-            with { Sample = "Mein Tisch" },
-        Button("Form / tool-look back", 160f, 40f, "ui.menu.back"),
-        Label("FormEditor material list title", 330f, 16, "ui.form.material"),
-        Input("FormEditor material search", 332f, 15, "ui.tex.search"),
-
-        Label("ToolLookEditor tools title", 330f, 16, "ui.toollook.my_tools"),
-        Wrap("ToolLookEditor note (measured, 332 wide)", 332f, 5, 13, "ui.toollook.note"),
-        Label("ToolLookEditor hand here", 320f, 13, "ui.toollook.hand_here"),
-        Label("ToolLookEditor colours", 290f, 15, "ui.toollook.colours"),
-        Button("ToolLookEditor column buttons", 290f, 40f, "ui.toollook.glow_toggle", "ui.shape.custom.copy_below", "ui.shape.custom.mirror_x",
-            "ui.shape.custom.clear_layer", "ui.shape.custom.clear_all"),
-        Label("ToolLookEditor glow state", 290f, 14, "ui.toollook.glow_on", "ui.toollook.glow_off"),
-        Button("ToolLookEditor undo / redo", 141f, 40f, "ui.tex.undo", "ui.tex.redo"),
-        Label("ToolLookEditor budget", 290f, 15, "ui.toollook.budget") with { Sample = "88" },
-        Label("ToolLookEditor preview title", 400f, 16, "ui.shape.custom.preview"),
-        IconButton("ToolLookEditor save", 380f, 52f, "ui.toollook.save"),
-        Button("ToolLookEditor use standard", 376f, 52f, "ui.toollook.use_standard"),
-        Button("ToolLookEditor code buttons", 186f, 40f, "ui.tex.copy_code", "ui.tex.paste_code"),
-        Wrap("ToolLookEditor status (764×60)", 764f, 3, 14, "ui.toollook.saved", "ui.toollook.limit", "ui.toollook.standard_again",
-            "ui.toollook.problem_empty", "ui.toollook.problem_parts", "ui.tex.code_copied", "ui.toollook.pasted", "ui.shape.custom.import_failed",
-            "ui.toollook.no_tools") with { Sample = "Bohrer" },
-        Wrap("ToolLookEditor rules (764×80)", 764f, 4, 13, "ui.toollook.rules"),
-
-        Label("ShapeEditor title", 1132f, 22, "ui.shape.custom.title"),
-        Label("ShapeEditor layer label", 300f, 18, "ui.shape.custom.layer") with { Sample = "8" },
-        Button("ShapeEditor helpers", 232f, 44f, "ui.shape.custom.copy_below", "ui.shape.custom.mirror_x", "ui.shape.custom.mirror_z",
-            "ui.shape.custom.clear_layer", "ui.shape.custom.clear_all", "ui.shape.custom.grid_toggle"),
-        Label("ShapeEditor budget", 480f, 15, "ui.shape.custom.budget") with { Sample = "88" },
-        Label("ShapeEditor name label", 480f, 15, "ui.shape.custom.name"),
-        Input("ShapeEditor name field", 480f, 18, "ui.shape.custom.name_hint"),
-        Button("ShapeEditor apply / back", 232f, 56f, "ui.shape.custom.craft", "ui.shape.custom.keep", "ui.menu.back"),
-        Label("ShapeEditor preview / library titles", 226f, 15, "ui.shape.custom.preview", "ui.shape.custom.library"),
-        Button("ShapeEditor save", 226f, 48f, "ui.shape.custom.save"),
-        Label("ShapeEditor hint", 1132f, 14, "ui.shape.custom.hint"),
-    };
+    /// <summary>
+    /// Sites of keys #3693 adds through its locale fragment (<c>artifacts/locale-fragments/paint.json</c>): they are
+    /// checked from the moment the fragment is merged into <c>en.json</c>, and skipped before — so the catalogue can name
+    /// them already without failing <see cref="EveryCataloguedKey_Exists"/>. Once merged, inline them into the list above.
+    /// </summary>
+    private static IEnumerable<FitSite> WhenMerged(params FitSite[] sites)
+        => sites.Where(site => site.Keys.All(key => English.ContainsKey(key)));
 }

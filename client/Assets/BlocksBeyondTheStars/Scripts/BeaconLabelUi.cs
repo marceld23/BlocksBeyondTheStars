@@ -20,6 +20,7 @@ namespace BlocksBeyondTheStars.Client
     public sealed partial class BeaconLabelUi : UiPanel
     {
         private Text _title;
+        private Text _keysHint; // "Confirm — Enter · Cancel — Esc": shown only with a keyboard in hand
         private InputField _input;
         private System.Action<string> _onConfirm;
 
@@ -60,7 +61,11 @@ namespace BlocksBeyondTheStars.Client
             ClearYield(); // #2999: only a base core or the own station's core shows its yield
             _onConfirm = onConfirm;
             _title.text = title;
+            UiKit.FitLabelSingleLine(_title, 412f, 16, 26); // "Name this floor" / "Rename the beam pad" in every language
             _input.text = current ?? string.Empty;
+            // "Confirm — Enter · Cancel — Esc" names keyboard keys: only with a keyboard in hand (a pad has its hint strip,
+            // a tablet the two buttons).
+            _keysHint.gameObject.SetActive(InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse);
             ShowCanvas();
 
             SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
@@ -210,43 +215,46 @@ namespace BlocksBeyondTheStars.Client
 
         protected override void BuildChrome(Transform root)
         {
-            // Dim the screen behind the modal so it reads as the focus (Place anchors top-left, 1920x1080 ref).
-            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
+            // Dim the screen behind the modal so it reads as the focus (Place anchors top-left, 1920x1080 ref). #3662: a modal
+            // scrim (the pad's focus stays inside the dialog) — everything hangs off it, at the canvas's own coordinates.
+            root = UiKit.AddModalDim(root, 0.45f).transform;
 
-            // Centred card.
+            // Centred card — opaque, like every text-carrying panel (#3662).
             const float w = 460f, h = 236f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
-            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+            UiKit.AddDialogPanel(root, x, y, w, h);
 
-            _title = UiKit.AddText(root, x + 24, y + 22, w - 48, 30, string.Empty, 24, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _title.fontStyle = FontStyle.Bold;
+            _title = UiKit.AddText(root, x + 24, y + 22, w - 48, 30, string.Empty, 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_title);
 
-            _input = UiKit.AddInput(root, x + 24, y + 74, w - 48, 40, string.Empty, null, L("ui.beacon.placeholder"));
+            _input = UiKit.AddInput(root, x + 24, y + 72, w - 48, 44, string.Empty, null, L("ui.beacon.placeholder"));
             _input.characterLimit = 24;
             _input.lineType = InputField.LineType.SingleLine;
 
             // Deliberately NO auto-confirm on onEndEdit: on touch it fires on the pointer-DOWN that
             // deselects the field — i.e. also when tapping the Cancel button — which would commit the
             // name before the Cancel click lands. The on-screen buttons below are the touch path (#408).
-            UiKit.AddText(root, x + 24, y + 122, w - 48, 24, L("ui.beacon.confirm") + " — Enter   ·   " + L("ui.beacon.cancel") + " — Esc",
+            _keysHint = UiKit.AddText(root, x + 24, y + 122, w - 48, 24, L("ui.beacon.confirm") + " — Enter   ·   " + L("ui.beacon.cancel") + " — Esc",
                 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(_keysHint, w - 48, 12, 18);
 
             // On-screen Confirm/Cancel: the only way to close the modal without a physical keyboard —
-            // while it is open every touch control is hidden, so it must be self-sufficient (#408).
-            UiKit.AddButton(root, x + 24, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.confirm"), Confirm);
-            UiKit.AddButton(root, x + 36 + (w - 60f) * 0.5f, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.cancel"), () =>
+            // while it is open every touch control is hidden, so it must be self-sufficient (#408). #3662: Confirm is the
+            // one primary action and the pad's first stop (the field is skipped); Cancel steps back quietly.
+            UiKit.AddTierButton(root, x + 24, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.confirm"), Confirm, ButtonTier.Primary);
+            UiKit.AddTierButton(root, x + 36 + (w - 60f) * 0.5f, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.cancel"), () =>
             {
                 ConsumeMenuInput();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_back");
 
             // #2717: the resident list, a wider panel right under the card (two header lines, then one line per person).
             // #2775: a base holds up to 32 people now, more than the panel shows at once — the text sits in a scroll list
             // (mouse wheel, and a scrollbar that appears only when the list is longer than the panel).
             const float infoW = 760f, infoH = 300f;
-            var infoPanel = UiKit.AddPanel(root, (1920f - infoW) * 0.5f, y + h + 12f, infoW, infoH, UiKit.Panel);
+            var infoPanel = UiKit.AddDialogPanel(root, (1920f - infoW) * 0.5f, y + h + 12f, infoW, infoH);
             _infoPanel = infoPanel.gameObject;
-            var list = UiKit.ScrollList(infoPanel.transform, 12f, 12f, infoW - 24f, infoH - 24f, 0f);
+            var list = UiKit.ScrollList(infoPanel, 12f, 12f, infoW - 24f, infoH - 24f, 0f);
             _infoScroll = list.parent.GetComponent<ScrollRect>();
             var row = new GameObject("ResidentText", typeof(RectTransform));
             row.transform.SetParent(list, false);

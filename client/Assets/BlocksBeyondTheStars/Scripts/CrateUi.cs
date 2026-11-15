@@ -278,11 +278,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y += Cell + 14f;
-            UiKit.AddButton(panel, PanelW - X0 - 180f, Mathf.Max(y, PanelH - 70f), 180f, 48f, L("ui.crate.close"), () =>
+            UiKit.AddTierButton(panel, PanelW - X0 - 200f, Mathf.Max(y, PanelH - 70f), 200f, 48f, L("ui.crate.close"), () =>
             {
                 Game?.MarkMenuInputHandled();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_close"); // #3662: Close = the cross, built last (never the pad's first stop)
         }
 
         /// <param name="fromSlot">#2729: the backpack slot that was clicked — exactly that stack goes in, not the first one of

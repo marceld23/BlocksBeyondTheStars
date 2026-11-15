@@ -30,29 +30,11 @@ namespace BlocksBeyondTheStars.Client
         public GameMenu Menu;
 
         // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen. (Launching into
-        // space lives on the Map tab now — there is no separate Space tab.)
+        // space lives on the Map tab now — there is no separate Space tab.) How the pages are reached — eight main tabs, the
+        // grouped ones with sub-tabs (#3671) — is the Groups table in CraftingTechShipUI.Header.cs. Mode.Character is labelled
+        // "Character" (#2505; "Settings" before — the key is still ui.tab.settings): it holds the character page, the people
+        // you know and the in-world options.
         public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8, Companions = 9, Photos = 10, Achievements = 11 }
-
-        // Tab bar display order (left→right), decoupled from the Mode enum value so tabs can be reordered without
-        // renumbering the modes: each entry carries its Mode (used for activation, routing and badges) and label
-        // key. Core build/travel loop first, then the world/social cluster (Story/Creatures/Alliances), with
-        // Character pinned far right. Mode.Character is labelled "Character" (#2505; "Settings" before — the key is still
-        // ui.tab.settings): it holds the character page, the people you know and the in-world options.
-        private static readonly (Mode Mode, string Loc)[] Tabs =
-        {
-            (Mode.Inventory, "ui.inventory.title"),
-            (Mode.Crafting,  "ui.crafting.title"),
-            (Mode.Tech,      "ui.tab.tech"),
-            (Mode.Ship,      "ui.tab.ship"),
-            (Mode.Map,       "ui.tab.map"),
-            (Mode.Missions,  "ui.tab.missions"),
-            (Mode.Story,     "ui.tab.story"),
-            (Mode.Companions, "ui.tab.companions"),
-            (Mode.Alliances, "ui.tab.alliances"),
-            (Mode.Achievements, "ui.tab.achievements"),
-            (Mode.Photos,    "ui.tab.photos"),
-            (Mode.Character, "ui.tab.settings"),
-        };
 
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
@@ -101,10 +83,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mode = mode;
+            _lastSub[GroupOf(mode)] = (int)mode; // #3671: the group opens on this page next time
             CloseSlotPicker(); // #2289: the picker belongs to the Suit page it was opened from
             _avatarPreview?.SetActive(mode == Mode.Character); // only render the live preview on the colour tab
             _shipPreview?.SetActive(false); // re-enabled by the paint detail pane when that category is shown
-            // The Inventory tab has no "all" page (its sidebar is Rucksack / Anzug / Frachtraum) — landing on "all"
+            // The Inventory tab has no "all" page (its pages are Backpack / Suit / Cargo hold / Samples) — landing on "all"
             // showed an orphaned card list without the grid or the stow button, so it opens on the backpack.
             _category = !string.IsNullOrEmpty(_pendingCategory) ? _pendingCategory
                 : mode == Mode.Inventory ? "personal" : "all";
@@ -237,7 +220,7 @@ namespace BlocksBeyondTheStars.Client
                 _craftHooked = true;
             }
 
-            // LB / RB step through the tab row (#1409) — the console convention, and the only alternative on
+            // LB / RB step through the main tabs (#1409, #3671) — the console convention, and the only alternative on
             // a pad is walking the stick back up through a whole list. The two buttons are place / mine in
             // the world, but an open screen freezes player control, so they are free here (the same way B
             // is both crouch and cancel). Not while the on-screen keyboard has the pad, and not while the
@@ -590,32 +573,33 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("CraftingTechShipUI");
             _canvas.sortingOrder = 50;
-            // The pad drives all 11 tabs. This MUST sit on the canvas, not on GameMenu's GameObject:
+            // The pad drives every tab. This MUST sit on the canvas, not on GameMenu's GameObject:
             // CreateCanvas returns a scene-root object, so a UiNavFocus on the owner sees nothing (#1198).
             UiNav.Enable(_canvas.gameObject);
-            UiNav.AddHint(_canvas.gameObject, "ui.pad.tabs", PadButton.Lb, PadButton.Rb); // LB/RB step the tabs (#1409)
+            UiNav.AddHint(_canvas.gameObject, "ui.pad.tabs", PadButton.Lb, PadButton.Rb); // LB/RB step the main tabs (#1409)
             var root = _canvas.transform;
 
-            // Full-screen dim backdrop — translucent so the world/HUD shows through (holographic-overlay look,
-            // matching the diegetic HUD) rather than a solid modal; still dark enough to keep panels readable.
-            UiKit.AddImage(root, 0, 0, W, H, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.6f));
+            // Full-screen backdrop, opaque (#3671): the console hides the game view behind it. It used to be a 60 % dim, so
+            // the world and the HUD's own text showed through and fought with the console's text.
+            UiKit.AddImage(root, 0, 0, W, H, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.96f));
 
             // The in-game menu is framed as the ship's computer, so it carries its own heading
             // ("Ship Interface", localized) instead of the game title.
-            UiKit.AddLogo(root, 40, 14, 360, 40, L("ui.shipmenu.title"), 22);
+            UiKit.AddLogo(root, 40, TitleY, 600, TitleH, L("ui.shipmenu.title"), 24);
 
             _header = new GameObject("Header", typeof(RectTransform)).GetComponent<RectTransform>();
             _header.SetParent(root, false);
-            UiKit.Place(_header.gameObject, 0, 0, W, 132);
+            UiKit.Place(_header.gameObject, 0, 0, W, PaneTop);
 
-            // Panels — holo chrome (same shader + colour family as the HUD's panels), see PlayReveal.
-            _frames[0] = UiHolo.AddPanel(root, 40, 150, 320, 820, UiKit.Panel, 12f, 1.5f, 1f);    // sidebar
-            _frames[1] = UiHolo.AddPanel(root, 380, 150, 820, 820, UiKit.Panel, 12f, 1.5f, 1f);   // list
-            _frames[2] = UiHolo.AddPanel(root, 1220, 150, 660, 820, UiKit.Panel, 12f, 1.5f, 1f);  // detail
+            // Panels — holo chrome (same shader + colour family as the HUD's panels), see PlayReveal. The list frame and its
+            // scroll view take the sidebar's place on the Inventory tab (ApplyPaneLayout).
+            _frames[0] = UiHolo.AddPanel(root, 40, PaneTop, 320, PaneH, UiKit.Panel, 12f, 1.5f, 1f);    // sidebar
+            _frames[1] = UiHolo.AddPanel(root, 380, PaneTop, 820, PaneH, UiKit.Panel, 12f, 1.5f, 1f);   // list
+            _frames[2] = UiHolo.AddPanel(root, 1220, PaneTop, 660, PaneH, UiKit.Panel, 12f, 1.5f, 1f);  // detail
 
-            _sidebar = MakeScroll(root, 50, 162, 300, 796);
-            _listContent = MakeScroll(root, 392, 220, 796, 742);
-            _detail = MakeScroll(root, 1232, 162, 636, 796);
+            _sidebar = MakeScroll(root, 50, PaneTop + 12f, 300, PaneH - 24f);
+            _listContent = MakeScroll(root, ListX, ListTop, ListW, ListH);
+            _detail = MakeScroll(root, 1232, 196, 636, 762); // literal: CraftDetailLayoutTests reads the detail width here
 
             // One CanvasGroup per scroll VIEW (the content under it is rebuilt per tab; the view survives),
             // so a pane's content can fade up behind its frame's wipe. Header likewise — BuildHeader clears
@@ -627,11 +611,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Gate row between the tab bar and the panels (#1071/#1072): "what do I need" (hint), "where is it"
             // (live distance + arrow), a Show-on-compass button and a "craft one" jump. Used to sit INSIDE the
-            // list panel at the search box's exact rect, so in Crafting mode the two overlapped.
-            _hint = UiKit.AddText(root, 380, 112, 800, 36, string.Empty, 20, new Color(1f, 0.8f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
-            _whereText = UiKit.AddText(root, 1190, 112, 300, 36, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _whereShow = UiKit.AddButton(root, 1500, 114, 120, 32, L("ui.craft.where_show"), () => MarkLocatedStation(MissingStation()));
-            _whereCraft = UiKit.AddButton(root, 1630, 114, 250, 32, L("ui.craft.where_craft"), () =>
+            // list panel at the search box's exact rect, so in Crafting mode the two overlapped. It shares the sub-tab row
+            // (#3671): only the single-page tabs (Crafting, Blueprints, Ship, Map) ever fill it, and they have no sub-tabs.
+            _hint = UiKit.AddText(root, 40, SubTabY, 1100, SubTabH, string.Empty, 20, new Color(1f, 0.8f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            _whereText = UiKit.AddText(root, 1150, SubTabY, 300, SubTabH, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _whereShow = UiKit.AddButton(root, 1460, SubTabY, 140, SubTabH, L("ui.craft.where_show"), () => MarkLocatedStation(MissingStation()));
+            _whereCraft = UiKit.AddButton(root, 1610, SubTabY, 270, SubTabH, L("ui.craft.where_craft"), () =>
             {
                 var r = RecipeForStationBlock(MissingStation());
                 if (r != null)
@@ -652,177 +637,16 @@ namespace BlocksBeyondTheStars.Client
             _built = true;
         }
 
-        /// <summary>Tab bar + (for crafting) the search box + "craftable now" toggle, rebuilt per mode.</summary>
-        private void BuildHeader()
-        {
-            ClearChildren(_header);
-            var p = _header;
-
-            // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
-            // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
-            //
-            // The bar is split across two rows so the Close button can no longer overlap the right-most tabs:
-            //   • a top utility strip (next to the "Ship Interface" logo) carries Codex / Arcade / Close, and
-            //   • the main row below carries the content tabs only.
-            // Freeing the right side of the tab row also lets the tabs stay full-width/readable instead of being
-            // tightened to squeeze the Codex/Arcade/Close buttons onto the same line.
-            float tw = 150f;
-            float step = 158f;
-            float x = 40f;
-            for (int i = 0; i < Tabs.Length; i++)
-            {
-                int tab = (int)Tabs[i].Mode; // routing/activation/badges key on the Mode, not the display position
-                bool active = (int)_mode == tab;
-                var b = UiKit.AddButton(p, x, 64, tw, 46, L(Tabs[i].Loc), () => OnTab(tab));
-                if (active)
-                {
-                    b.GetComponent<Image>().color = UiKit.Cyan;
-                    if (_selectActiveTabOnBuild)
-                    {
-                        // A shoulder-button tab step lands the pad ON the new tab, not wherever the
-                        // remembered index happens to point in a differently shaped page (#1409).
-                        _selectActiveTabOnBuild = false;
-                        EventSystem.current?.SetSelectedGameObject(b.gameObject);
-                        _canvas.GetComponent<UiNavFocus>()?.NoteSelection(b.gameObject);
-                    }
-                }
-                else if (!IsTabAvailable(Tabs[i].Mode))
-                {
-                    // Context not met (Map needs you aboard; Crafting/Tech/Ship need their station): dim the tab so
-                    // it reads as out-of-reach. It stays CLICKABLE so the player can still browse the tab's
-                    // content — the action buttons inside enforce the actual gate. The small icon in the corner
-                    // names the BLOCK the tab is waiting for (#1071): workbench / cockpit / workshop module.
-                    b.GetComponent<Image>().color = UiKit.TabLocked;
-                    var dimLbl = b.GetComponentInChildren<Text>();
-                    if (dimLbl != null)
-                    {
-                        dimLbl.color = UiKit.CyanDim;
-                    }
-
-                    var badgeSprite = StationSprite(TabStation(Tabs[i].Mode));
-                    if (badgeSprite != null)
-                    {
-                        var ic = UiKit.AddIconSprite(b.transform, tw - 24, 4, 20, badgeSprite, new Color(1f, 1f, 1f, 0.85f));
-                        if (ic != null)
-                        {
-                            ic.raycastTarget = false;
-                        }
-                    }
-                }
-
-                // Auto-fit the label so a long localized tab (e.g. Polish "Osiągnięcia") shrinks to fit the
-                // fixed-width button instead of spilling over its graphic (B28); short labels keep full size.
-                UiKit.FitLabel(b.GetComponentInChildren<Text>(), 12, 22);
-
-                // Badge a tab that has new content waiting behind it: the Tech tab when research is affordable
-                // now, the Story tab when an unread beat/fragment/memory arrived. Cleared by opening the tab.
-                bool badge = (tab == (int)Mode.Tech && AnyBlueprintUnlockable())
-                             || (tab == (int)Mode.Story && (Game?.NewStoryUnseen ?? false))
-                             || (tab == (int)Mode.Companions && (Game?.NewCompanionUnseen ?? false));
-                if (badge && !active)
-                {
-                    UiKit.AddBadge(b, tw);
-                }
-
-                x += step;
-            }
-
-            // Utility strip on the top row (right of the "Ship Interface" logo, at the logo's y): the
-            // always-available browser screens (Codex/wiki + Arcade, separate full-screen overlays) and Close.
-            // Kept off the tab row so Close can sit in the top-right corner without overlapping the tabs.
-            const float topY = 14f;     // matches the logo's y so the strip aligns with the heading
-            const float topH = 40f;
-            UiKit.AddButton(p, W - 150, topY, 110, topH, L("ui.action.close"), () => Menu?.CloseFromUi());
-            UiKit.AddButton(p, W - 298, topY, 140, topH, L("ui.tab.wiki"), () => Menu?.OpenWiki());
-            var arcadeBtn = UiKit.AddButton(p, W - 446, topY, 140, topH, L("ui.tab.arcade"), () => Menu?.OpenArcade());
-            if (Game?.NewArcadeUnseen ?? false)
-            {
-                UiKit.AddBadge(arcadeBtn, 140f); // a freshly downloaded data-cube game is waiting in the Arcade
-            }
-
-            // The Esc pause menu (Resume / Settings / Quit) had no pad route at all: Esc is keyboard-only
-            // in-game and every stock pad button is spoken for. Start opens THIS screen, so a button here is
-            // the one place a pad player will look for it. Closes the tab menu first — the two are separate
-            // owners in the cursor arbiter and must not stack.
-            UiKit.AddButton(p, W - 594, topY, 140, topH, L("ui.tab.pause"), () =>
-            {
-                Menu?.CloseFromUi();
-                FindAnyObjectByType<AppShell>()?.OpenPauseMenu();
-            });
-
-            // Search + craftable filter (crafting + ship lists benefit; other modes don't need it).
-            if (_mode == Mode.Crafting || _mode == Mode.Ship)
-            {
-                AddSearchBox(p, 392, 168, 470, 44);
-                var t = UiKit.AddButton(p, 880, 168, 300, 44,
-                    (_craftableOnly ? "[x] " : "[ ] ") + L("ui.craft.craftable_now"),
-                    () => { _craftableOnly = !_craftableOnly; BuildHeader(); RebuildList(); });
-                if (_craftableOnly)
-                {
-                    t.GetComponent<Image>().color = UiKit.Cyan;
-                }
-            }
-            else if (_mode == Mode.Tech)
-            {
-                // Blueprints tab (#1191): the same strip carries the player's knowledge balance — the detail pane
-                // used to be the only place it showed — plus the data fragments owned (68 of 72 blueprints cost
-                // them), and a "Researchable now" toggle (#2563; "Enough knowledge" before) that keeps only the
-                // blueprints the player can research right now — prerequisites, knowledge AND materials, the same
-                // test as the card status, so it never shows a "Materials missing" card (the crafting tab's
-                // "Craftable now" is just as strict). The balance and the inventory are part of the data hash, so the
-                // strip and the list refresh when a scan or minigame pays out while the tab is open.
-                // #3104: the strip now carries a search box like the Crafting tab's; the knowledge balance and the data
-                // fragments moved into the list header (BuildTechList), next to "x of y researched".
-                AddSearchBox(p, 392, 168, 470, 44);
-                var t = UiKit.AddButton(p, 880, 168, 300, 44,
-                    (_craftableOnly ? "[x] " : "[ ] ") + L("ui.tech.researchable_now"),
-                    () => { _craftableOnly = !_craftableOnly; BuildHeader(); RebuildList(); });
-                if (_craftableOnly)
-                {
-                    t.GetComponent<Image>().color = UiKit.Cyan;
-                }
-            }
-            else if (_mode == Mode.Inventory && _category == "samples")
-            {
-                AddSampleFilters(p, 392, 168); // #2300: the sample case's filter, shared with the bio lab
-            }
-            else if (_mode == Mode.Inventory && (_category == "personal" || _category == "cargo"
-                                                 || (_category == "catalog" && CatalogAvailable())))
-            {
-                AddInventoryStrip(p); // #3110/#3111: search + category filter (+ sort in the hold); the catalog's search (#1930)
-            }
-        }
-
-        private void OnTab(int tab) => Menu?.SwitchFromUi(tab); // GameMenu owns the active tab
-
-        private bool _selectActiveTabOnBuild; // set by CycleTab, consumed by the next BuildHeader
-
-        /// <summary>Steps the active tab by <paramref name="dir"/> in DISPLAY order (wrapping), through the
-        /// same path a tab click takes so badges, station gating and data refresh behave identically. Dimmed
-        /// (context-not-met) tabs are stepped onto like a click reaches them: they stay browsable (#1071).</summary>
-        private void CycleTab(int dir)
-        {
-            int at = 0;
-            for (int i = 0; i < Tabs.Length; i++)
-            {
-                if (Tabs[i].Mode == _mode)
-                {
-                    at = i;
-                    break;
-                }
-            }
-
-            int next = (at + dir + Tabs.Length) % Tabs.Length;
-            _selectActiveTabOnBuild = true;
-            UiSound.Click();
-            OnTab((int)Tabs[next].Mode);
-        }
-
         // --- sidebar (categories) ---
 
         private void RebuildSidebar()
         {
             ClearChildren(_sidebar);
+            if (WideList)
+            {
+                return; // #3671: the Inventory's pages are its sub-tabs (AddInventoryPages) — no sidebar
+            }
+
             var cats = Categories();
             float y = 0f;
             foreach (var (key, label, icon) in cats)
@@ -845,15 +669,8 @@ namespace BlocksBeyondTheStars.Client
                 string k = key;
                 var b = UiKit.AddButton(_sidebar, 0, y, 290, 52, label, () =>
                 {
-                    // Each inventory page brings its own strip: the sample filter (#2300), search + category filter (#3110).
-                    bool strip = _mode == Mode.Inventory && k != _category;
                     _category = k;
                     _selected = string.Empty;
-                    if (strip)
-                    {
-                        BuildHeader(); // the Samples page brings its own filter strip (#2300)
-                    }
-
                     RebuildList();
                     RebuildDetail();
                 }, SidebarIconName(icon));
@@ -1148,6 +965,12 @@ namespace BlocksBeyondTheStars.Client
 
             if (string.IsNullOrEmpty(_selected))
             {
+                if (_mode == Mode.Inventory)
+                {
+                    SetContentHeight(_detail, BuildInventoryOverview()); // #3671: what the backpack, hold, suit and case hold
+                    return;
+                }
+
                 UiKit.AddText(_detail, 8, 20, 620, 30, L("ui.craft.pick"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
                 SetContentHeight(_detail, 60);
                 return;

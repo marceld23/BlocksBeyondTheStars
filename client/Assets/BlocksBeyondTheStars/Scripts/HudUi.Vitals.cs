@@ -149,13 +149,10 @@ namespace BlocksBeyondTheStars.Client
             SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / Mathf.Max(1f, Game.SuitEnergyMax),
                 Game.SuitClimateActive ? EnergyStressed : Energy, true);
             SetVital(3, loc.Get("ui.hud.hunger"), Game.Hunger, Game.Hunger / 100f, Hunger, true);
-            // Ship rows (hull/shield) exist whenever the player owns a ship in combat range — but while
-            // PILOTING they repeat the flight instrument line (SPD/THR/HDG + HULL/SHD, bottom-left), so
-            // hide them there, exactly as the compass and the time-of-day panel already do (#915). On an
-            // EVA the instrument line is hidden (it needs !_eva), so these bars are the only hull readout
-            // and must stay.
-            bool piloting = Game.SpaceViewActive && !Game.InEva;
-            bool ship = Game.ShipCombat != null && !piloting;
+            // Ship rows (hull/shield) exist whenever the player owns a ship in combat range — on foot, on an EVA AND while
+            // piloting (#3670): the flight view used to hide them and draw its own "HULL/SHD" bars in another style and in
+            // hard-coded English under this panel; one panel, one bar style, one language now.
+            bool ship = Game.ShipCombat != null;
             if (ship)
             {
                 var c = Game.ShipCombat;
@@ -459,13 +456,16 @@ namespace BlocksBeyondTheStars.Client
         private void UpdateLowVitalWarnings(float dt)
         {
             int warnMask = 0; // the beep-worthy vitals below their line, one bit per row
+            // #3670: while piloting, hull (4) and shield (5) beep through the flight view's own alarm (SpaceView.UpdateHullAlarm,
+            // the combat cadence) — the rows still blink here, but a second, out-of-phase beep would double the warning.
+            bool flightAlarm = Game != null && Game.SpaceViewActive && !Game.InEva;
             for (int i = 0; i < _vitals.Length; i++)
             {
                 var v = _vitals[i];
                 if (v.Fill == null || !v.Warn || !v.Go.activeSelf) continue;
                 float k = UiKit.ReducedMotion ? 1f : Mathf.PingPong(Time.time * 2.4f, 1f);
                 v.Fill.color = Color.Lerp(v.BaseColor, VitalWarnRed, 0.35f + 0.65f * k);
-                if (i != 1) warnMask |= 1 << i; // 1 = oxygen — covered by UpdateOxygenAlarm
+                if (i != 1 && !(flightAlarm && i >= 4)) warnMask |= 1 << i; // 1 = oxygen — covered by UpdateOxygenAlarm
             }
 
             bool atHome = Game != null && Game.AtHome;

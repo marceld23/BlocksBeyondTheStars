@@ -130,12 +130,13 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(body, 32f, y + 4f, W - 64f, 26f, _settings.IsEmpty ? L("ui.ed.marker.defaults") : _settings.ToString(), 14, UiKit.CyanDim,
                 TextAnchor.MiddleLeft);
-            UiKit.AddFitButton(body, 32f, H - 72f, 300f, 48f, L("ui.ed.device.apply"), () =>
+            // #3692: the template look — Apply is the panel's one primary button, Close its quiet ✕ (Esc / pad B close it too).
+            UiKit.AddTierButton(body, 32f, H - 72f, 300f, 48f, L("ui.ed.device.apply"), () =>
             {
                 _onApply?.Invoke(_settings.ToString());
                 Close();
-            });
-            UiKit.AddFitButton(body, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), Close);
+            }, ButtonTier.Primary);
+            UiKit.AddTierButton(body, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), Close, ButtonTier.Quiet, "btn_close");
         }
 
         // ---------------------------------------------------------------- rows

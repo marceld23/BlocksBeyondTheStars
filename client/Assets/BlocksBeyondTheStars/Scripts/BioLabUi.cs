@@ -443,11 +443,11 @@ namespace BlocksBeyondTheStars.Client
                 status.horizontalOverflow = HorizontalWrapMode.Wrap;
             }
 
-            UiKit.AddButton(panel, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.action.close"), () =>
+            UiKit.AddTierButton(panel, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.action.close"), () =>
             {
                 ConsumeMenuInput();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_close"); // #3662: Close = the cross, built last (never the pad's first stop)
         }
 
         /// <summary>Drops what is no longer there: a sample that was used up, a carrier that left the backpack, a
@@ -815,7 +815,9 @@ namespace BlocksBeyondTheStars.Client
             string label = armed
                 ? L("ui.inventory.discard_confirm").Replace("{item}", SampleName(Game, key))
                 : L("ui.inventory.discard");
-            var button = UiKit.AddButton(panel, PaneX + PaneW - 300f, ActionY, 300f, 48f, label, () =>
+            // #3662: a destructive action is drawn as one (red, the bin icon) — and so is never the pad's first focus. The
+            // armed question needs the whole width for its words, so it goes without the icon.
+            UiKit.AddTierButton(panel, PaneX + PaneW - 300f, ActionY, 300f, 48f, label, () =>
             {
                 if (_discardArmed != key)
                 {
@@ -832,12 +834,7 @@ namespace BlocksBeyondTheStars.Client
                 Game?.Network?.SendDiscardSample(key);
                 ClientAudio.Instance?.Cue("ui_confirm");
                 Rebuild();
-            });
-            var img = button.GetComponent<Image>();
-            if (img != null)
-            {
-                img.color = armed ? new Color(0.62f, 0.20f, 0.20f) : new Color(0.40f, 0.26f, 0.26f);
-            }
+            }, ButtonTier.Danger, armed ? null : "btn_delete");
         }
 
         // ---------------- Mix ----------------
@@ -1161,11 +1158,11 @@ namespace BlocksBeyondTheStars.Client
                 });
             }
 
-            UiKit.AddButton(panel, PaneX, ActionY, 220f, 48f, L("ui.hotbar_action.back"), () =>
+            UiKit.AddTierButton(panel, PaneX, ActionY, 220f, 48f, L("ui.hotbar_action.back"), () =>
             {
                 _pick = Pick.None;
                 Rebuild();
-            });
+            }, ButtonTier.Quiet, "btn_back"); // #3662: back out of the option list — the arrow (pad B does the same)
         }
 
         private static string PickTitle(Pick pick) => pick switch

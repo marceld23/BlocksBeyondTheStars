@@ -324,42 +324,20 @@ namespace BlocksBeyondTheStars.Client
             // string was identical; the setter only early-outs on an equal string.
             // #2247: the space view prints its own controls line in the same spot (flight or EVA) — the on-foot one
             // ran underneath it.
-            string hint = Game.SpaceViewActive ? string.Empty : InputMap.ActiveDevice switch
+            // #3668: the controls line is short by default — at most four keys for the situation, bottom right (HudZones G);
+            // the full line (Settings › Display & HUD) is the old one-row list of every key, off hides it.
+            int hintMode = Settings != null ? Settings.ControlsHintMode : ClientSettings.ControlsHintShort;
+            bool shortHint = hintMode == ClientSettings.ControlsHintShort;
+            PlaceHintLine(shortHint);
+            string hint = Game.SpaceViewActive || hintMode == ClientSettings.ControlsHintOff ? string.Empty : InputMap.ActiveDevice switch
             {
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
-                InputDeviceKind.Gamepad => PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
-                _ => KeyboardHint(loc, MelodyBarShown), // #2502: the bound keys ({key:Action} tokens); #3431: no hotbar under the bar
+                InputDeviceKind.Gamepad => shortHint ? PadLine(loc, "ui.hud.hint_short_pad") : PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
+                _ => shortHint ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_short")) : KeyboardHint(loc, MelodyBarShown), // #2502: the bound keys ({key:Action} tokens); #3431: no hotbar under the bar
             };
 
-            // Creative/Sandbox worlds only: the one control the hint can't afford to omit, because flight has
-            // no other tell. Appended rather than baked into ui.hud.hint so Explorer worlds stay uncluttered.
-            // #2502: "{key:Jump}×2" — the pad line used to append the keyboard's "Space×2".
-            if (Game.CanFly && hint.Length > 0)
-            {
-                hint += " · " + ExpandKeyTokens(loc, loc.Get("ui.hud.hint_fly"));
-            }
-
-            // Holding a rotatable block (a crafted shape or furniture): surface the rotate control (#863) —
-            // nothing else in the game ever said the key exists. Appended only while it applies, like the
-            // fly hint, so the always-on line stays short.
-            if (Game.HoldingRotatableBlock && hint.Length > 0)
-            {
-                hint += " · " + loc.Get("ui.hud.hint_rotate")
-                    .Replace("{key}", GlyphText(loc, InputAction.RotateShape));
-            }
-
-            // The middle-click slot-action ring (#924) has no other on-screen tell (#935): advertise it
-            // while the hotbar is up and the selected slot holds anything to act on, like the hints above.
-            // RefreshHotbar ran just before this, so the root's active state is current for this frame.
-            if (hint.Length > 0 && _hotbarRoot != null && _hotbarRoot.activeSelf
-                && !string.IsNullOrEmpty(Game.ItemInSlot(Game.SelectedHotbarSlot)))
-            {
-                hint += " · " + loc.Get("ui.hud.hint_slot_actions")
-                    .Replace("{key}", GlyphText(loc, InputAction.HotbarAction));
-            }
-
-            _hint.text = hint;
+            _hint.text = WithContextHints(loc, hint, shortHint);
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
@@ -372,9 +350,12 @@ namespace BlocksBeyondTheStars.Client
             // flight view is up or a speeder is driven, so showing the prompt there was a dead key.
             _loot.text = Game.SpaceViewActive || chatOpen || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : FeedOrLootText(loc);
 
+            // The right column's context cards stack top to bottom (#3668): each one that shows takes the next free place.
+            _contextY = HudZones.ContextTop;
             RefreshScan(loc);
             RefreshWreck(loc);
             RefreshShipRepair(loc);
+            HudZones.SetHudCardsBottom(_contextY);
             RefreshTaming(loc);
             RefreshSpeeder(loc);
         }

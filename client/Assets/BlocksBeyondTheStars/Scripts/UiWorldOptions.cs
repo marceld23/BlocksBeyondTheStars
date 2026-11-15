@@ -203,24 +203,26 @@ namespace BlocksBeyondTheStars.Client
                 advanced.SetActive(true);
                 refreshAdvanced?.Invoke(); // a preset may have replaced the per-type map since the page was built
             });
-            UiKit.AddButton(main.transform, 1290f, FooterY, 280f, 48f, shell.L("ui.worldopt.done"), () => overlay.SetActive(false), "btn_singleplayer");
+            UiKit.AddButton(main.transform, 1290f, FooterY, 280f, 48f, shell.L("ui.worldopt.done"), () => overlay.SetActive(false), "btn_continue");
 
             // ── Advanced: per-planet-type frequencies ──────────────────────────────────────
-            refreshAdvanced = BuildAdvanced(shell, advanced.transform, opt, freqSteps, () =>
+            System.Action backFromAdvanced = () =>
             {
                 advanced.SetActive(false);
                 main.SetActive(true);
-            });
+            };
+            refreshAdvanced = BuildAdvanced(shell, advanced.transform, opt, freqSteps, backFromAdvanced);
 
             // ── Authored structures: template-use sliders + pack picker ─────────────────────
-            BuildStructures(shell, structures.transform, opt, freqSteps, () =>
+            System.Action backFromStructures = () =>
             {
                 structures.SetActive(false);
                 main.SetActive(true);
-            });
+            };
+            BuildStructures(shell, structures.transform, opt, freqSteps, backFromStructures);
 
             // ── Stories: main story, pace, tutorial rule (#2472) ────────────────────────────
-            refreshStories = BuildStories(shell, stories.transform, opt, () =>
+            System.Action backFromStories = () =>
             {
                 stories.SetActive(false);
                 main.SetActive(true);
@@ -228,11 +230,50 @@ namespace BlocksBeyondTheStars.Client
                 {
                     r(); // the main page's Stories summary row follows the page's choices
                 }
-            });
+            };
+            refreshStories = BuildStories(shell, stories.transform, opt, backFromStories);
             rebuilders.Add(refreshStories); // a preset resets the stories too
 
+            // Esc / pad B (Back): a sub-page returns to the main page the way its own Back button does.
+            overlay.AddComponent<OptionPages>().Pages = new[]
+            {
+                (advanced, backFromAdvanced), (structures, backFromStructures), (stories, backFromStories),
+            };
             overlay.SetActive(false);
             return overlay;
+        }
+
+        /// <summary>
+        /// Esc / pad B on the open overlay ("My worlds", <c>UiSaveSelect.CloseTopLayer</c>): an open sub-page goes back to
+        /// the main page exactly as its Back button does; the main page closes the overlay as Done does.
+        /// </summary>
+        public static void Back(GameObject overlay)
+        {
+            if (overlay == null)
+            {
+                return;
+            }
+
+            var pages = overlay.GetComponent<OptionPages>();
+            if (pages != null)
+            {
+                foreach (var (page, back) in pages.Pages)
+                {
+                    if (page != null && page.activeSelf)
+                    {
+                        back();
+                        return;
+                    }
+                }
+            }
+
+            overlay.SetActive(false);
+        }
+
+        /// <summary>The overlay's sub-pages and the Back action of each (<see cref="Back"/>).</summary>
+        private sealed class OptionPages : MonoBehaviour
+        {
+            public (GameObject Page, System.Action Back)[] Pages = System.Array.Empty<(GameObject, System.Action)>();
         }
 
         /// <summary>Whether this client has a text for <paramref name="key"/> (a pack may name keys an older locale table lacks).</summary>
@@ -266,7 +307,7 @@ namespace BlocksBeyondTheStars.Client
             note.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // Back in the shared footer slot, built first so the page can never trap the player.
-            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
+            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_back");
 
             // Left column: the main story — one choice per row (the list is data: every installed world story, capped
             // at WorldStoryOptions.MaxChoices so it always ends above the footer), its description, then the pace.
@@ -414,7 +455,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Back sits in the shared footer slot (bottom-right = "leave this page" on every page) and is
             // built even when the page stays empty, so the sub-page can never trap the player.
-            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
+            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_back");
 
             var types = shell.Content?.Planets.Values
                 .Where(p => p.Selectable)
@@ -600,7 +641,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
+            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_back");
         }
 
         /// <summary>A row that opens a sub-page (#2472): one button over the row's 40 px with the label where a slider row

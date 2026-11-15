@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The search and category filter of the inventory pages of <see cref="CraftingTechShipUI"/> (#3110, #3111): the cargo
     /// hold's list narrows to what matches and can be sorted; the backpack grid keeps every slot where it is and dims the
-    /// ones that do not match; the Sandbox catalogue narrows like the hold. The filter is a "◀ Category ▶" selector that
+    /// ones that do not match; the Sandbox catalogue narrows like the hold. The filter is a "‹ Category ›" cycle that
     /// steps through "All" and the categories that occur on the page right now — buttons only, so pad and touch work it the
     /// way the mouse does. Presentation only: no slot moves, the server is not asked.
     /// </summary>
@@ -37,40 +37,54 @@ namespace BlocksBeyondTheStars.Client
             _ => (Game.Personal ?? System.Array.Empty<NetItemStack>()).Select(s => s.Item),
         };
 
-        /// <summary>The header strip of the backpack, the cargo hold and the catalogue: search, filter and (in the hold) sort.</summary>
+        /// <summary>The toolbar of the backpack, the cargo hold and the catalogue — one row at the top of the list pane
+        /// (#3671): search, the category cycle, then on the backpack (aboard) "Stow all materials", in the hold the order.</summary>
         private void AddInventoryStrip(Transform p)
         {
-            bool sort = _category == "cargo";
-            float searchW = sort ? 280f : 380f;
-            AddSearchBox(p, 392, 168, searchW, 44);
-            float x = 392f + searchW + 8f;
-            float filterW = sort ? 320f : 400f;
-            AddFilterSelector(p, x, 168, filterW, 44);
-            if (sort)
+            bool cargo = _category == "cargo";
+            float searchW = cargo ? 340f : 380f;
+            float filterW = cargo ? 380f : 400f;
+            float x = ListViewX;
+            AddSearchBox(p, x, StripY, searchW, StripH);
+            x += searchW + 8f;
+            AddFilterCycle(p, x, StripY, filterW, StripH);
+            x += filterW + 8f;
+            float rest = ListViewX + ListViewW - x;
+            if (cargo)
             {
-                float sx = x + filterW + 8f;
-                var b = UiKit.AddButton(p, sx, 168, 1188f - sx, 44, L(CargoSortKeys[_invSort % CargoSortKeys.Length]), () =>
+                UiKit.AddCycle(p, x, StripY, rest, StripH, L(CargoSortKeys[_invSort % CargoSortKeys.Length]), step =>
                 {
-                    _invSort = (_invSort + 1) % CargoSortKeys.Length;
-                    BuildHeader();
+                    int n = CargoSortKeys.Length;
+                    _invSort = ((_invSort + step) % n + n) % n;
                     RebuildList();
+                    return L(CargoSortKeys[_invSort]);
                 });
-                UiKit.FitLabel(b.GetComponentInChildren<Text>(), 11, 20);
+            }
+            else if (_category == "personal" && AboardShipNow())
+            {
+                // The backpack's bulk stow into the hold (the hold exists only aboard) — it used to sit above the grid.
+                UiKit.AddButton(p, x, StripY, rest, StripH, L("ui.cargo.stow_all"),
+                    () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true), "cat_cargo");
             }
         }
 
-        /// <summary>"◀ Category ▶": the arrows and the label step through "All" and the categories of the page's items.</summary>
-        private void AddFilterSelector(Transform p, float x, float y, float w, float h)
+        /// <summary>"‹ Category ›" (<see cref="UiKit.AddCycle"/>): the arrows and the value step through "All" and the
+        /// categories of the page's items; the value turns cyan while a category is picked.</summary>
+        private void AddFilterCycle(Transform p, float x, float y, float w, float h)
         {
-            UiKit.AddButton(p, x, y, 44, h, "◀", () => StepFilter(-1));
-            var label = UiKit.AddButton(p, x + 48, y, w - 96, h, FilterLabel(), () => StepFilter(1));
-            UiKit.FitLabel(label.GetComponentInChildren<Text>(), 11, 20);
+            Text value = null;
+            Color idle = Color.white;
+            value = UiKit.AddCycle(p, x, y, w, h, FilterLabel(), step =>
+            {
+                StepFilter(step);
+                value.color = string.IsNullOrEmpty(_invFilter) ? idle : UiKit.Cyan;
+                return FilterLabel();
+            });
+            idle = value.color;
             if (!string.IsNullOrEmpty(_invFilter))
             {
-                label.GetComponent<Image>().color = UiKit.Cyan;
+                value.color = UiKit.Cyan;
             }
-
-            UiKit.AddButton(p, x + w - 44, y, 44, h, "▶", () => StepFilter(1));
         }
 
         private string FilterLabel() => string.IsNullOrEmpty(_invFilter) ? L("ui.inventory.filter_all") : CategoryName(_invFilter);
@@ -86,8 +100,7 @@ namespace BlocksBeyondTheStars.Client
             int i = Mathf.Max(0, choices.IndexOf(_invFilter));
             int n = choices.Count;
             _invFilter = choices[((i + step) % n + n) % n];
-            BuildHeader();
-            RebuildList();
+            RebuildList(); // the cycle shows the new value itself; the grid dims, the lists narrow
         }
 
         private bool InventoryFilterActive => !string.IsNullOrEmpty(_invFilter) || !string.IsNullOrEmpty(_search);

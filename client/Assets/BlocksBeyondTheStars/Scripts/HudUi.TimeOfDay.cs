@@ -139,8 +139,7 @@ namespace BlocksBeyondTheStars.Client
 
             _todChipRow = row;
             _todPanel.sizeDelta = new Vector2(HudRightColumn.PanelW, HudRightColumn.ClockHeight(row));
-            var playtime = (RectTransform)_playtimePanel.transform;
-            playtime.anchoredPosition = new Vector2(playtime.anchoredPosition.x, -HudRightColumn.PlaytimeY(row));
+            // The playtime panel follows in PlaceRightStack (#3668), every refresh.
         }
 
         /// <summary>
@@ -230,6 +229,7 @@ namespace BlocksBeyondTheStars.Client
                 _playtimePanel.SetActive(show);
             }
 
+            PlaceRightStack(show);
             if (!show)
             {
                 return;
@@ -246,6 +246,51 @@ namespace BlocksBeyondTheStars.Client
             // #3219: two lines — "Sitzung 1:54:09 · Gesamt 93:59:18" on one ran past the panel once the total reached 10 hours.
             _playtimeText.text = $"{loc.Get("ui.hud.playtime")}  {FormatDuration(session)}"
                                  + $"\n{loc.Get("ui.hud.playtime_total")}  {FormatDuration(Game.TotalPlaytimeSeconds)}";
+        }
+
+        /// <summary>
+        /// The right column's map part (#3668): on foot the clock with the playtime tucked right under it, in space the playtime
+        /// under the radar (the clock has nothing to say there — #3670: the playtime used to stay at the clock's height and lay on
+        /// top of the planet card). Publishes where the part ends, so VEGA's objectives and a context card stack under it.
+        /// </summary>
+        private void PlaceRightStack(bool playtime)
+        {
+            float shift = FollowMapShift(); // on a touch device the map part starts under the touch row (HudZones.MapShift)
+            bool clock = _todPanel != null && _todPanel.gameObject.activeSelf;
+            float top = Game.SpaceViewActive ? HudZones.SpaceRadarBottom + HudZones.Gap
+                : (clock ? HudRightColumn.PlaytimeY(_todChipRow) : HudRightColumn.ClockY) + shift;
+            SetTop((RectTransform)_playtimePanel.transform, top);
+
+            float bottom = Game.SpaceViewActive ? HudZones.SpaceRadarBottom
+                : (clock ? HudRightColumn.ClockY + HudRightColumn.ClockHeight(_todChipRow) : HudRightColumn.CompassBottom) + shift;
+            HudZones.RightStackBottom = playtime ? top + HudRightColumn.PlaytimeH : bottom;
+        }
+
+        /// <summary>Moves the compass (with its caption rows) and the clock down by <see cref="HudZones.MapShift"/> — on a tablet
+        /// the touch row along the top (≡, CHAT, VIEW, MAP) lay on the compass. Returns the shift.</summary>
+        private float FollowMapShift()
+        {
+            float shift = HudZones.MapShift;
+            if (_compassParent != null)
+            {
+                SetTop((RectTransform)_compassParent, HudRightColumn.CompassY + shift);
+            }
+
+            if (_todPanel != null)
+            {
+                SetTop(_todPanel, HudRightColumn.ClockY + shift);
+            }
+
+            return shift;
+        }
+
+        /// <summary>Puts a top-left anchored element's top edge at <paramref name="top"/> — only when it moved.</summary>
+        private static void SetTop(RectTransform rt, float top)
+        {
+            if (!Mathf.Approximately(-rt.anchoredPosition.y, top))
+            {
+                rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, -top);
+            }
         }
 
         /// <summary>Formats a span of seconds as <c>H:MM:SS</c> (or <c>M:SS</c> under an hour) for the HUD.</summary>

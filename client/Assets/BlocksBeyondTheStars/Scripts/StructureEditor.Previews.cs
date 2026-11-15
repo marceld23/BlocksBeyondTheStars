@@ -160,11 +160,11 @@ namespace BlocksBeyondTheStars.Client
             var design = DesignCells();
             if (design.Count == 0)
             {
-                SetStatus(L("ui.submit.empty"));
+                SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
-            int turns = _previewKind == PreviewKind.Turn ? (_turns + 1) & 3 : 1;
+            int turns = _previewKind == PreviewKind.Turn ? (_turns + 1) & 3 : 1; // four bring the design back
             if (turns == 0)
             {
                 BackToDesign();
@@ -180,7 +180,7 @@ namespace BlocksBeyondTheStars.Client
 
             ShowPreview(PreviewKind.Turn, cells);
             _turns = turns;
-            _status = string.Format(L("ui.ed.turn_shown"), turns * 90);
+            SetStatus(string.Format(L("ui.ed.turn_shown"), turns * 90));
             RebuildUi();
         }
 
@@ -208,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ShowPreview(PreviewKind.Materials, cells);
-            _status = string.Format(L("ui.ed.materials_shown"), tokens, L("block." + PreviewSurface() + ".name"));
+            SetStatus(string.Format(L("ui.ed.materials_shown"), tokens, L("block." + PreviewSurface() + ".name")));
             RebuildUi();
         }
 
@@ -223,7 +223,7 @@ namespace BlocksBeyondTheStars.Client
             var design = DesignCells();
             if (design.Count == 0)
             {
-                SetStatus(L("ui.submit.empty"));
+                SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -244,7 +244,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ShowPreview(PreviewKind.Ruin, cells);
-            _status = string.Format(L("ui.ed.landmark.preview_shown"), _previewSeed, _design.Count, design.Count);
+            SetStatus(string.Format(L("ui.ed.landmark.preview_shown"), _previewSeed, _design.Count, design.Count));
             RebuildUi();
         }
 

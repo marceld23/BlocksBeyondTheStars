@@ -82,6 +82,35 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>
+        /// Starts docking the station in reach (<see cref="_nearStationId"/>) — from the helm, with the dock approach into the
+        /// hangar (#1917), or on a spacewalk, where the suit already floats at the hull: no fly-in, and the parked ship stays
+        /// where it floats. Every docking starts its hand-over afresh (<see cref="BlocksBeyondTheStars.Client.Core.DockHandoff"/>):
+        /// a "doors closing" flag left from an earlier docking from the helm used to keep a spacewalk's docking from ever
+        /// sending its board intent — a black screen for good (Justus, 2026-11-15).
+        /// </summary>
+        private void BeginDocking(bool fromSpacewalk)
+        {
+            _phase = Phase.Boarding;
+            _boardTargetId = _nearStationId;
+            _boardTargetName = _nearStationName ?? string.Empty;
+            _boardStartPos = _ship.transform.localPosition;
+            _dockCamFrom = Camera != null ? Camera.transform.localPosition : Vector3.zero;
+            _dockCamFromRot = Camera != null ? Camera.transform.localRotation : Quaternion.identity;
+            _boardPath.Clear();
+            _boardDuration = BoardDuration;
+            _dockHandoff.Begin(fromSpacewalk);
+            if (fromSpacewalk)
+            {
+                _eva = false;
+                _seq = BoardDuration; // skip the fly-in: you're already at the hull on foot
+                return;
+            }
+
+            _seq = 0f;
+            PlanDockApproach();
+        }
+
+        /// <summary>
         /// #1917: plans the dock approach into a station's hangar — out to the point in front of the mouth, then in. When
         /// the hull's box stands between the ship and that point, the path climbs over it (or dives under it, when the ship
         /// is below the station). A station without a known mouth keeps the classic short fly-in (an empty path).
@@ -89,12 +118,6 @@ namespace BlocksBeyondTheStars.Client
         private void PlanDockApproach()
         {
             _lastDockedStationId = _boardTargetId; // #3142: undocking slides out of this station's hangar
-            _boardTargetName = _nearStationName ?? string.Empty;
-            _dockDoorsClosing = false;
-            _dockCamFrom = Camera != null ? Camera.transform.localPosition : Vector3.zero;
-            _dockCamFromRot = Camera != null ? Camera.transform.localRotation : Quaternion.identity;
-            _boardPath.Clear();
-            _boardDuration = BoardDuration;
             if (_ship == null || _boardTargetId == null || !_structs.TryGetValue(_boardTargetId, out var vs) || !vs.HasDock
                 || StationApproachPoint(_boardTargetId, DockApproachStandOff) is not { } approach)
             {
@@ -261,8 +284,10 @@ namespace BlocksBeyondTheStars.Client
                     _ship.transform.localRotation = Quaternion.Slerp(_ship.transform.localRotation, look, Time.deltaTime * 5f);
                 }
             }
-            else if (_ship != null)
+            else if (_ship != null && !_dockHandoff.FromSpacewalk)
             {
+                // (A spacewalker docks on foot: the parked ship stays where it floats, as the server keeps it for the undock.
+                // Flying it toward the station's centre put it — and, after a refused docking, the suit — inside a giant wreck.)
                 var dock = Vector3.Lerp(_boardTargetPos, _boardStartPos, 0.14f); // stop just short of the hull
                 _ship.transform.localPosition = Vector3.Lerp(_boardStartPos, dock, ease);
                 var dir = _boardTargetPos - _ship.transform.localPosition;
@@ -279,46 +304,46 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The end of the dock approach: the hangar doors close over the mouth (#3142) and, once they are shut, the
         /// board intent goes out — without a transition director the old veil and the intent at once. A refusal (or no
-        /// answer) hands the flight back and opens the doors again.</summary>
+        /// answer) hands the flight back and opens the doors again. The steps and every give-up are
+        /// <see cref="BlocksBeyondTheStars.Client.Core.DockHandoff"/>'s.</summary>
         private void FinishDockApproach()
         {
-            if (_seq >= _boardDuration && !_boardSent)
+            var director = Transitions;
+            var step = _dockHandoff.Tick(Time.deltaTime, _seq >= _boardDuration, director != null, director == null || director.CoverShut);
+            switch (step)
             {
-                if (Transitions == null)
-                {
-                    _boardSent = true;
-                    Game.BeginWorldTransition(); // veil now (the approach has played) so the station doesn't flash (B34)
-                    Game.Network?.SendBoardStation(_boardTargetId);
-                }
-                else if (!_dockDoorsClosing)
-                {
-                    _dockDoorsClosing = true; // #3142: the hangar doors close over the mouth; the station loads behind them
-                    Transitions.CoverDocking(_boardTargetName, 0.9f);
-                }
-                else if (Transitions.CoverShut)
-                {
-                    _boardSent = true;
-                    Game.Network?.SendBoardStation(_boardTargetId);
-                }
-            }
+                case BlocksBeyondTheStars.Client.Core.DockHandoffStep.CloseDoors:
+                    director.CoverDocking(_boardTargetName, 0.9f); // #3142: the doors close over the mouth; the station loads behind them
+                    break;
+                case BlocksBeyondTheStars.Client.Core.DockHandoffStep.SendBoard:
+                    if (director == null)
+                    {
+                        Game.BeginWorldTransition(); // veil now (the approach has played) so the station doesn't flash (B34)
+                    }
 
-            if (_boardSent)
+                    Game.Network?.SendBoardStation(_boardTargetId);
+                    break;
+                case BlocksBeyondTheStars.Client.Core.DockHandoffStep.GiveUp:
+                    HandBackRefusedDocking();
+                    break;
+            }
+        }
+
+        /// <summary>The server did not confirm the docking (it refused — the reason is on the toast — or did not answer):
+        /// recover instead of hanging. The doors open on the flight — or, for a docking from a spacewalk, on the suit where it
+        /// floated: <see cref="BeginEvaMode"/> would set it down behind the ship instead.</summary>
+        private void HandBackRefusedDocking()
+        {
+            _phase = Phase.Cruise;
+            _seq = 0f;
+            Transitions?.CancelArrival();
+            if (_dockHandoff.FromSpacewalk && Game.InEva)
             {
-                _boardWait += Time.deltaTime;
-                // The server didn't confirm (e.g. rejected) — recover instead of hanging. Behind the doors (#3142) a cold
-                // station may take a moment to build on the server, so they wait longer before opening on the flight.
-                if (_boardWait > (Transitions != null ? 8f : 2.5f))
-                {
-                    _phase = Phase.Cruise;
-                    _seq = 0f;
-                    _boardSent = false;
-                    Transitions?.CancelArrival();
-                }
+                _eva = true; // the server still has us on the spacewalk — float on from the same spot, facing the same way
             }
         }
 
         private string _boardTargetName = string.Empty;
-        private bool _dockDoorsClosing;
         private Vector3 _dockCamFrom;
         private Quaternion _dockCamFromRot = Quaternion.identity;
         private float _dockLightClock;

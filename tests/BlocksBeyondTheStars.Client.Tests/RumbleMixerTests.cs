@@ -156,7 +156,7 @@ public sealed class RumbleMixerTests
         Assert.Contains("PadRumble.Landing(", ClientTestPaths.PlayerControllerSources());
         Assert.Contains("rumble: false", ClientTestPaths.PlayerControllerSources()); // a jump's landing does not buzz
         Assert.Contains("AddComponent<PadRumble>()", Script("WorldRig.cs"));
-        Assert.Contains("PadRumble.Supported ? \"ui.settings.pad_vibration_hint\" : \"ui.settings.pad_vibration_unsupported\"", Script("UiSettings.cs"));
+        Assert.Contains("PadRumble.Supported ? \"ui.settings.pad_vibration_hint\" : \"ui.settings.pad_vibration_unsupported\"", ClientTestPaths.ScriptPartsText("UiSettings"));
 
         // Every P/Invoke sits inside the Windows-only, non-WebGL block.
         string pad = Script("PadRumble.cs");

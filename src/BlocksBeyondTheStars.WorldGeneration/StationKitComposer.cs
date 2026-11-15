@@ -122,6 +122,16 @@ public static class StationKitComposer
     public static StationStructure? Compose(StructureKit kit, Func<string, StructureTemplate?> moduleByKey, long seed, GameContent content,
         out StationComposition composition, out string? failure)
     {
+        var station = ComposeExplained(kit, moduleByKey, seed, content, out composition, out var problem);
+        failure = station is null ? problem?.English ?? string.Empty : null;
+        return station;
+    }
+
+    /// <summary><see cref="Compose"/> with the failure as a code the structure editor translates (#3692): the same composition,
+    /// the same English sentence.</summary>
+    public static StationStructure? ComposeExplained(StructureKit kit, Func<string, StructureTemplate?> moduleByKey, long seed, GameContent content,
+        out StationComposition composition, out TemplateProblem? failure)
+    {
         composition = new StationComposition
         {
             KitKey = kit.Key,
@@ -133,7 +143,7 @@ public static class StationKitComposer
         failure = null;
         if (kit.Entries.Count == 0)
         {
-            failure = $"kit '{kit.Key}' has no entries";
+            failure = new TemplateProblem("kit.no_entries", $"kit '{kit.Key}' has no entries", kit.Key);
             return null;
         }
 
@@ -148,11 +158,11 @@ public static class StationKitComposer
         var start = cache.Get(startKey, 0);
         if (start is null)
         {
-            failure = $"kit '{kit.Key}': start module '{startKey}' is missing";
+            failure = new TemplateProblem("kit.start_missing", $"kit '{kit.Key}': start module '{startKey}' is missing", kit.Key, startKey);
             return null;
         }
 
-        string lastFailure = string.Empty;
+        TemplateProblem? lastFailure = null;
         for (int attempt = 0; attempt < Attempts; attempt++)
         {
             var rng = new Random(unchecked((int)WorldGenerator.StableHash($"kit:{kit.Key}:{seed}:{attempt}")));
@@ -181,7 +191,8 @@ public static class StationKitComposer
                     else
                     {
                         ok = false;
-                        lastFailure = $"kit '{kit.Key}': required module '{entry.Module}' found no port to dock on (attempt {attempt + 1})";
+                        lastFailure = new TemplateProblem("kit.no_dock",
+                            $"kit '{kit.Key}': required module '{entry.Module}' found no port to dock on (attempt {attempt + 1})", kit.Key, entry.Module);
                         break;
                     }
                 }

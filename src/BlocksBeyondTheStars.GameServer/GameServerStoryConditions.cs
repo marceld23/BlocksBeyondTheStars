@@ -152,7 +152,19 @@ public sealed partial class GameServer
         // #3685: VEGA's mission "The Fallen Giant" (GameServerGuardianGiantStory.cs).
         [StoryWorldPredicates.GuardianGiants] = _ => GuardianGiantsInWorld(),
         [StoryWorldPredicates.GuardianGiantNear] = s => NearestGuardianGiantInFoundRange(s) is not null,
+        // #3673: the movement lessons wait while the player flies the ship (or rides) — where TutorialMovementEvents counts.
+        [StoryWorldPredicates.OnFoot] = OnFoot,
     };
+
+    /// <summary><c>world:on_foot</c> (#3673): the player moves on foot where the walk and jump lessons count — the move
+    /// handler's surface rule (not in a flight instance, at the helm or on a spacewalk; not aboard a station) and
+    /// <c>TutorialMovementEvents</c>' own (not in a vehicle, not on a train). Walking inside the ship's interior in space
+    /// counts as on foot.</summary>
+    private bool OnFoot(PlayerSession who)
+    {
+        var p = who.State;
+        return !InSpace(p.PlayerId) && !InStation(p.PlayerId) && p.InSpeeder.Length == 0 && p.InTrain.Length == 0;
+    }
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement
     /// counter), carry one (backpack or the ship's hold), or their ship has the refinery module.</summary>

@@ -14,9 +14,9 @@ public sealed partial class EditorTextFitTests
         Lines("Admin view title (640×40)", 640f, 40f, 26, 16, 14, "ui.admin.title"),
         Lines("Admin view mode line (1000×46)", 1000f, 46f, 16, 14, 13, "ui.admin.mode_invisible", "ui.admin.mode_visible"),
         Button("Admin view leave", 300f, 46f, "ui.admin.leave"),
-        Button("Admin view close", 160f, 46f, "ui.admin.close"),
-        Button("Admin view tabs with a count", 232f, 46f, "ui.admin.tab_players", "ui.admin.tab_log", "ui.admin.tab_chat", "ui.admin.tab_reports")
-            with { Suffix = " (88)" },
+        IconButton("Admin view close (cross icon)", 190f, 46f, "ui.admin.close"),
+        IconButton("Admin view tabs with a count (icons)", 300f, 46f, "ui.admin.tab_players", "ui.admin.tab_log", "ui.admin.tab_chat",
+            "ui.admin.tab_reports") with { Suffix = " (88)" },
         Lines("Admin view empty notes (1464×40)", 1464f, 40f, 18, 14, 13, "ui.admin.players_none", "ui.admin.log_none", "ui.admin.reports_none"),
         Button("Admin players: jump", 130f, 46f, "ui.admin.jump"),
         Button("Admin players: follow / stop", 210f, 46f, "ui.admin.follow", "ui.admin.unfollow"),

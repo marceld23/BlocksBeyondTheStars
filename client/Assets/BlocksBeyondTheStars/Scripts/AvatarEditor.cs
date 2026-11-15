@@ -5,66 +5,35 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Standalone avatar skin designer (menu tool, sibling of <see cref="ShipEditor"/>). A slowly
-    /// rotating live <see cref="PlayerAvatar"/> preview with per-part colour controls and gear toggles;
-    /// <b>Apply</b> saves the colours into <see cref="ClientSettings"/> (so the in-game avatar uses them),
-    /// <b>Export</b> writes the whole skin (colours, face, body paintings) as <c>skin.json</c> and <b>Submit</b>
-    /// (#3262, <c>AvatarEditor.Submit.cs</c>) sends that same file to the developers for review; a skin they adopt
-    /// becomes a pioneer's look via <c>tools/gen_pioneer_skins.py --from-skin</c>. Self-contained on the client (no
-    /// server); modern uGUI.
+    /// The Avatar Designer of the main menu (menu tool, sibling of <see cref="ShipEditor"/>). Since the editor shell (#3693,
+    /// the approved mock's "Avatar &amp; Aussehen" view) it is ONE screen: the shared character editor
+    /// (<see cref="FaceEditor"/>) with its tab bar — face, torso, arms, legs, helmet, <b>Figure</b>, HUD frame — instead of a
+    /// figure screen with a second "Appearance" window over it. This class is that editor's HOST: it keeps the designer's
+    /// scratch look (four colours, the face, the four paintings) read from <see cref="ClientSettings"/>, builds the Figure
+    /// tab's extras (the skin's name and Export, <c>AvatarEditor.Figure.cs</c> — the tab itself, colour rows, gear preview
+    /// and figure, is the editor's own), and makes the shell's <b>Save</b> write the scratch look into the settings ("on your character") —
+    /// nothing reaches the in-game avatar before that. Export writes the whole skin as <c>skin.json</c>; Submit is the
+    /// character editor's (#3319), which sends the same file to the developers.
     /// <para>
-    /// The <b>Outfits</b> panel beside it (#1047) keeps up to <see cref="ClientSettings.MaxOutfits"/> named
-    /// looks (colours + face + body paint) in the settings file: <i>Save outfit</i> stores the designer's
-    /// current scratch look under the name field (a new outfit, or overwriting the one with that name),
-    /// clicking a row loads it into the designer, <i>Rename selected</i> renames the highlighted row to the
-    /// name field, ✕ deletes. None of that touches the in-game avatar — only Apply does, exactly as before —
-    /// so the server never learns about outfits; it only ever sees the applied look on the next join.
+    /// The <b>Outfits</b> card (#1047) keeps up to <see cref="ClientSettings.MaxOutfits"/> named looks in the settings file:
+    /// "Save outfit" stores the scratch look under the typed name, "Wear" loads one into the designer, the red ✕ deletes
+    /// it (after asking). None of that touches the in-game avatar — only Save does — so the server never learns about
+    /// outfits; it only ever sees the saved look on the next join.
     /// </para>
     /// </summary>
     public sealed partial class AvatarEditor : MonoBehaviour
     {
         public AppShell Shell;
 
-        private Camera _cam;
-        private PlayerAvatar _avatar;
-        private Transform _avatarRoot;
-        private Canvas _canvas;
-
         private readonly Color[] _col = new Color[4]; // skin, torso, arms, legs
-        private readonly Image[] _swatch = new Image[4];
-        private readonly bool[] _gear = new bool[5];  // helmet, chest, legs, pack, lamp
-        private readonly Text[] _gearLabel = new Text[5];
-
-        /// <summary>The gear-look bit each preview toggle stands for (same order as <see cref="_gear"/>).</summary>
-        private static readonly int[] GearBits =
-        {
-            BlocksBeyondTheStars.Shared.State.GearLook.Helmet, BlocksBeyondTheStars.Shared.State.GearLook.Chest,
-            BlocksBeyondTheStars.Shared.State.GearLook.Legs, BlocksBeyondTheStars.Shared.State.GearLook.Jetpack,
-            BlocksBeyondTheStars.Shared.State.GearLook.Lamp,
-        };
         private string _name = string.Empty; // the localized default is set in Start (#3263)
-        private Text _status;
         private string _face = string.Empty; // encoded pixel face (same format as the in-game editor)
         private readonly string[] _bodyPaint = new string[BodyPaintKit.PartCount]; // body paintings (#874)
         private FaceEditor _faceEditor;
-        private InputField _nameInput;
-
-        // Outfits panel (#1047): rows are rebuilt from Settings.Outfits on every change; the selection is the
-        // row last loaded/saved and is what "Rename selected" acts on.
-        private RectTransform _outfitPanel;
-        private readonly List<GameObject> _outfitRows = new List<GameObject>();
-        private readonly List<Text> _outfitLabels = new List<Text>();
-        private Text _outfitEmpty;
-        private int _selectedOutfit = -1;
-        private const float OutfitPanelW = 300f, OutfitPanelH = 480f, OutfitRowH = 32f, OutfitRowStep = 38f, OutfitRowsY = 56f;
-
-        /// <summary>The controls hint under the preview: from x = 40 to 24 px short of the control panel (#3263).</summary>
-        internal const float HintW = 1920f - 16f - 420f - 24f - 40f;
 
         private void Start()
         {
@@ -80,146 +49,93 @@ namespace BlocksBeyondTheStars.Client
                 _bodyPaint[part] = s?.GetBodyPaint(part) ?? string.Empty;
             }
 
-            BuildScene();
-            BuildUi();
+            OpenAppearanceEditor();
         }
 
-        private void BuildScene()
+        /// <summary>Opens the character editor as this designer's whole screen — face, torso, arms, legs and helmet as
+        /// tabs, each with its base colour, plus the Figure tab and the HUD frame. Edits land in the scratch values; the
+        /// shell's Save is what writes them into <see cref="ClientSettings"/>, so leaving without saving changes nothing
+        /// (the shell keeps a draft instead).</summary>
+        private void OpenAppearanceEditor()
         {
-            var camGo = new GameObject("AvatarCam");
-            camGo.transform.SetParent(transform, false);
-            _cam = camGo.AddComponent<Camera>();
-            _cam.clearFlags = CameraClearFlags.SolidColor;
-            _cam.backgroundColor = new Color(0.03f, 0.05f, 0.09f);
-            _cam.transform.position = new Vector3(-0.7f, 1.15f, 3.4f);
-            _cam.transform.rotation = Quaternion.Euler(4f, 192f, 0f); // look back at the avatar
-            camGo.AddComponent<AudioListener>();
-
-            var lightGo = new GameObject("AvatarSun");
-            lightGo.transform.SetParent(transform, false);
-            var sun = lightGo.AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.transform.rotation = Quaternion.Euler(35f, 200f, 0f);
-            sun.intensity = 1.1f;
-
-            _avatarRoot = new GameObject("AvatarPreview").transform;
-            _avatarRoot.SetParent(transform, false);
-            _avatar = _avatarRoot.gameObject.AddComponent<PlayerAvatar>();
-            _avatar.Build(_col[0], _col[1], _col[2], _col[3], spacesuit: true); // preview the player's suited look
-            _avatar.SetVisible(true);
-            _avatar.SetFace(_face); // show the player's current custom face on the preview figure
-            for (int part = 0; part < _bodyPaint.Length; part++)
+            if (_faceEditor != null)
             {
-                _avatar.SetBodyPaint(part, _bodyPaint[part]); // and the current body paintings (#874)
+                return;
+            }
+
+            var go = new GameObject("AppearanceEditor");
+            go.transform.SetParent(transform, false);
+            _faceEditor = go.AddComponent<FaceEditor>();
+            _faceEditor.Localizer = L;
+            _faceEditor.Subjects = AppearanceSubjects.Build(
+                () => _face, SetFace, part => _bodyPaint[part], SetBodyPaint, which => _col[which], SetColor);
+            _faceEditor.PreviewState = Look;
+            _faceEditor.OutfitNames = OutfitNames;
+            _faceEditor.OnWearOutfit = LoadOutfit;
+            _faceEditor.OnSaveOutfit = SaveOutfitNamed;
+            _faceEditor.OnRenameOutfit = RenameOutfitAt;
+            _faceEditor.OnDeleteOutfit = DeleteOutfit;
+            ConfigureTemplatesAndHud(_faceEditor); // #3318/#3319/#3321: free skins, the HUD mode, the Submit button
+            ConfigureShell(_faceEditor);
+            _faceEditor.OnClosed = () => _faceEditor = null;
+            _faceEditor.Begin(); // now, not next frame: the capture director and the tests talk to it at once
+        }
+
+        /// <summary>The designer's frame on the shell: its title, its draft slot, Save = <see cref="Apply"/>, Back to the
+        /// editors' hub, the Figure tab.</summary>
+        private void ConfigureShell(FaceEditor editor)
+        {
+            editor.EditorKey = "avatar";
+            editor.ShellTitleKey = "ui.menu.avatar_editor";
+            editor.SaveSublineKey = "ui.editor.save_sub.avatar";
+            editor.KeepsScratch = true;
+            editor.OnSaveAll = Apply;
+            editor.OnBack = Leave;
+            editor.FigureTabKey = "ui.avatar.figure_tab";
+            editor.BuildFigureExtras = BuildFigureExtras; // the skin's name and Export under the tab's own rows
+            editor.HostDraft = () => _name;
+            editor.RestoreHostDraft = name =>
+            {
+                _name = name ?? string.Empty;
+                if (_nameInput != null)
+                {
+                    _nameInput.text = _name;
+                }
+            };
+        }
+
+        private void Leave()
+        {
+            if (Shell != null)
+            {
+                Shell.CloseAvatarEditor();
+            }
+            else
+            {
+                Destroy(gameObject);
             }
         }
 
-        private void Update()
+        /// <summary>Unattended editor screenshots (-captureEditors, ScreenshotDirector.Editors.cs, #3687): the appearance screen
+        /// without a click — the designer IS that screen now, on its Face tab. Keep it working when the designer is restyled.</summary>
+        internal FaceEditor CaptureOpenAppearance()
         {
-            if (_avatarRoot != null)
-            {
-                _avatarRoot.Rotate(0f, Time.deltaTime * 24f, 0f, Space.World);
-            }
+            OpenAppearanceEditor();
+            _faceEditor?.CaptureShowFirstTab();
+            return _faceEditor;
         }
 
-        private void BuildUi()
-        {
-            _canvas = UiKit.CreateCanvas("Avatar Editor UI");
-            _canvas.sortingOrder = 5;
-            var root = _canvas.transform;
+        // --- the scratch look the character editor paints into (its preview figure shows it) ---
 
-            // Right-hand control panel (anchored to the top-right).
-            const float w = 420f, h = 920f;
-            var panel = EditorSceneKit.RightPanel(root, w, h);
-            UiKit.AddText(panel, 20f, 14f, w - 40f, 28f, L("ui.avatar.title"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            BuildOutfitPanel(root, w); // saved looks, left of the control panel (#1047)
+        private void SetFace(string face) => _face = face ?? string.Empty;
 
-            float y = 56f;
-            UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.colors"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 30f;
-            ColorRow(panel, ref y, L("ui.settings.skin"), 0);
-            ColorRow(panel, ref y, L("ui.settings.torso"), 1);
-            ColorRow(panel, ref y, L("ui.settings.arms"), 2);
-            ColorRow(panel, ref y, L("ui.settings.legs"), 3);
-            // An instruction: normal colour, 13 px, as many lines as the language needs (#3263).
-            UiKit.AddMeasuredText(panel, 24f, y, w - 48f, L("ui.appearance.more_colors"), 13, UiKit.TextCol, out float moreH);
-            y += Mathf.Max(20f, moreH) + 6f;
+        private void SetBodyPaint(int part, string pixels) => _bodyPaint[part] = pixels ?? string.Empty;
 
-            y += 8f;
-            UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.gear_preview"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 30f;
-            GearRow(panel, ref y, L("ui.avatar.helmet"), 0);
-            GearRow(panel, ref y, L("ui.avatar.chest"), 1);
-            GearRow(panel, ref y, L("ui.avatar.legs"), 2);
-            GearRow(panel, ref y, L("ui.avatar.pack"), 3);
-            GearRow(panel, ref y, L("ui.avatar.lamp"), 4);
-
-            y += 10f;
-            UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.face"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 30f;
-
-            // One button instead of five (#899): face, torso, arms, legs and helmet are tabs of the shared
-            // appearance screen, which also carries the base colours for the part being painted.
-            UiKit.AddFitButton(panel, 20f, y, w - 40f, 34f, L("ui.appearance.title"), OpenAppearanceEditor);
-            y += 52f;
-            UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            y += 26f;
-            _nameInput = UiKit.AddInput(panel, 20f, y, w - 40f, 30f, _name, v => _name = v);
-            y += 44f;
-
-            UiKit.AddFitButton(panel, 20f, y, w - 40f, 38f, L("ui.avatar.apply"), Apply);
-            y += 46f;
-            AddExportAndSubmit(panel, y, w - 40f);
-            y += 50f;
-            _status = UiKit.AddText(panel, 20f, y, w - 40f, 60f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
-            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            UiKit.AddFitButton(panel, 20f, h - 56f, 200f, 40f, L("ui.menu.back"), () => Shell?.CloseAvatarEditor());
-
-            AddControlsHint(root);
-            UiNav.Enable(_canvas.gameObject); // gamepad can drive the designer + outfits (inert on KB/mouse)
-        }
-
-        /// <summary>The controls hint, bottom-left under the preview: an instruction, so in the normal colour, and 16 px down
-        /// to 13 on one line, else two lines at 13 (#3263).</summary>
-        private void AddControlsHint(Transform root)
-        {
-            var hint = UiKit.AddText(root, 40f, 1080f - 14f - EditorSceneKit.BottomHintHeight, HintW, EditorSceneKit.BottomHintHeight,
-                L("ui.avatar.hint"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelLines(hint, 16, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-        }
+        private void SetColor(int which, Color color) => _col[which] = color;
 
         // --- outfits (#1047) ---
 
-        /// <summary>The Outfits panel: a fixed-height list of named looks (no scrolling — the list is capped at
-        /// <see cref="ClientSettings.MaxOutfits"/> rows) plus Save / Rename. Sits left of the control panel,
-        /// anchored top-right like it, so both stay together on any aspect ratio.</summary>
-        private void BuildOutfitPanel(Transform root, float controlPanelW)
-        {
-            var go = new GameObject("OutfitPanel", typeof(RectTransform));
-            go.transform.SetParent(root, false);
-            _outfitPanel = go.GetComponent<RectTransform>();
-            _outfitPanel.anchorMin = _outfitPanel.anchorMax = _outfitPanel.pivot = new Vector2(1f, 1f);
-            _outfitPanel.sizeDelta = new Vector2(OutfitPanelW, OutfitPanelH);
-            _outfitPanel.anchoredPosition = new Vector2(-16f - controlPanelW - 12f, -16f);
-            var img = go.AddComponent<Image>();
-            img.sprite = UiKit.PanelSprite;
-            img.type = Image.Type.Sliced;
-            img.color = UiKit.PanelFill;
-
-            UiKit.AddText(_outfitPanel, 16f, 14f, OutfitPanelW - 32f, 28f, L("ui.avatar.outfits"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _outfitEmpty = UiKit.AddText(_outfitPanel, 16f, OutfitRowsY, OutfitPanelW - 32f, 80f, L("ui.avatar.outfit_none"), 14, UiKit.TextCol, TextAnchor.UpperLeft);
-            _outfitEmpty.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            float y = OutfitRowsY + ClientSettings.MaxOutfits * OutfitRowStep + 12f;
-            UiKit.AddFitButton(_outfitPanel, 16f, y, OutfitPanelW - 32f, 38f, L("ui.avatar.outfit_save"), SaveOutfit);
-            y += 46f;
-            UiKit.AddFitButton(_outfitPanel, 16f, y, OutfitPanelW - 32f, 38f, L("ui.avatar.outfit_rename"), RenameSelectedOutfit);
-
-            RefreshOutfitList();
-        }
-
-        /// <summary>The saved outfits' names, in order — what the appearance screen's outfit column lists.</summary>
+        /// <summary>The saved outfits' names, in order — what the outfits card lists.</summary>
         private List<string> OutfitNames()
         {
             var names = new List<string>();
@@ -235,59 +151,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return names;
-        }
-
-        /// <summary>Rebuilds the outfit rows from the settings (cheap: at most eight rows, and only on a change).</summary>
-        private void RefreshOutfitList()
-        {
-            foreach (var row in _outfitRows)
-            {
-                if (row != null)
-                {
-                    Destroy(row);
-                }
-            }
-
-            _outfitRows.Clear();
-            _outfitLabels.Clear();
-
-            var outfits = Shell?.Settings?.Outfits;
-            int count = outfits?.Count ?? 0;
-            if (_selectedOutfit >= count)
-            {
-                _selectedOutfit = -1;
-            }
-
-            if (_outfitEmpty != null)
-            {
-                _outfitEmpty.gameObject.SetActive(count == 0);
-            }
-
-            for (int i = 0; i < count && i < ClientSettings.MaxOutfits; i++)
-            {
-                int idx = i;
-                float y = OutfitRowsY + i * OutfitRowStep;
-                var name = string.IsNullOrEmpty(outfits[i].Name) ? "?" : outfits[i].Name;
-                var load = UiKit.AddFitButton(_outfitPanel, 16f, y, OutfitPanelW - 32f - 56f, OutfitRowH, name, () => LoadOutfit(idx));
-                var label = load.GetComponentInChildren<Text>();
-                label.color = idx == _selectedOutfit ? UiKit.Cyan : UiKit.TextCol;
-                var del = UiKit.AddFitButton(_outfitPanel, OutfitPanelW - 16f - 48f, y, 48f, OutfitRowH, "✕", () => DeleteOutfit(idx));
-                _outfitRows.Add(load.gameObject);
-                _outfitRows.Add(del.gameObject);
-                _outfitLabels.Add(label);
-            }
-        }
-
-        private void SelectOutfit(int index)
-        {
-            _selectedOutfit = index;
-            for (int i = 0; i < _outfitLabels.Count; i++)
-            {
-                if (_outfitLabels[i] != null)
-                {
-                    _outfitLabels[i].color = i == index ? UiKit.Cyan : UiKit.TextCol;
-                }
-            }
         }
 
         /// <summary>The designer's current scratch look as an outfit (detached copies of the pixel strings).</summary>
@@ -310,9 +173,8 @@ namespace BlocksBeyondTheStars.Client
             return o;
         }
 
-        /// <summary>Loads a saved outfit into the designer (scratch values, swatches, preview figure and the name
-        /// field) — the in-game avatar is untouched until Apply, which the status line says explicitly. Returns
-        /// the status line, because the appearance screen's outfit column shows it in its own panel.</summary>
+        /// <summary>Loads a saved outfit into the designer (scratch values, the figure and the name field) — the in-game
+        /// avatar is untouched until Save, which the status line says. Returns that line for the status bar.</summary>
         private string LoadOutfit(int index)
         {
             var outfits = Shell?.Settings?.Outfits;
@@ -329,17 +191,11 @@ namespace BlocksBeyondTheStars.Client
                 _nameInput.text = _name;
             }
 
-            SelectOutfit(index);
-            string status = L("ui.avatar.outfit_loaded").Replace("{name}", _name);
-            SetStatus(status);
-            return status;
+            return L("ui.avatar.outfit_loaded").Replace("{name}", _name);
         }
 
-        /// <summary>The panel's Save button: the name field names the outfit.</summary>
-        private void SaveOutfit() => SaveOutfitNamed(_name);
-
-        /// <summary>Save outfit: stores the scratch look under <paramref name="wanted"/> — overwriting an outfit
-        /// that already carries that name (case-insensitive), otherwise appending a new one up to the cap.</summary>
+        /// <summary>Save outfit: stores the scratch look under <paramref name="wanted"/> — overwriting an outfit that already
+        /// carries that name (case-insensitive), otherwise appending a new one up to the cap.</summary>
         private string SaveOutfitNamed(string wanted)
         {
             if (Shell?.Settings is not { } s)
@@ -350,7 +206,7 @@ namespace BlocksBeyondTheStars.Client
             string name = (wanted ?? string.Empty).Trim();
             if (name.Length == 0)
             {
-                return Status(L("ui.avatar.need_name"));
+                return L("ui.avatar.need_name");
             }
 
             s.Outfits ??= new List<AvatarOutfit>();
@@ -359,25 +215,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 s.Outfits[existing] = CaptureScratch(s.Outfits[existing].Name);
                 s.Save();
-                RefreshOutfitList();
-                SelectOutfit(existing);
-                return Status(L("ui.avatar.outfit_updated").Replace("{name}", s.Outfits[existing].Name));
+                return L("ui.avatar.outfit_updated").Replace("{name}", s.Outfits[existing].Name);
             }
 
             if (s.Outfits.Count >= ClientSettings.MaxOutfits)
             {
-                return Status(L("ui.avatar.outfit_limit").Replace("{max}", ClientSettings.MaxOutfits.ToString()));
+                return L("ui.avatar.outfit_limit").Replace("{max}", ClientSettings.MaxOutfits.ToString());
             }
 
             s.Outfits.Add(CaptureScratch(name));
             s.Save();
-            RefreshOutfitList();
-            SelectOutfit(s.Outfits.Count - 1);
-            return Status(L("ui.avatar.outfit_saved").Replace("{name}", name));
+            return L("ui.avatar.outfit_saved").Replace("{name}", name);
         }
-
-        /// <summary>The panel's Rename button: the highlighted row takes the name field's text.</summary>
-        private void RenameSelectedOutfit() => RenameOutfitAt(_selectedOutfit, _name);
 
         /// <summary>Rename: an outfit takes a new name (its pixels stay).</summary>
         private string RenameOutfitAt(int index, string wanted)
@@ -389,30 +238,28 @@ namespace BlocksBeyondTheStars.Client
 
             if (index < 0 || index >= s.Outfits.Count)
             {
-                return Status(L("ui.avatar.outfit_select_first"));
+                return L("ui.avatar.outfit_select_first");
             }
 
             string name = (wanted ?? string.Empty).Trim();
             if (name.Length == 0)
             {
-                return Status(L("ui.avatar.need_name"));
+                return L("ui.avatar.need_name");
             }
 
             int clash = s.Outfits.FindIndex(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
             if (clash >= 0 && clash != index)
             {
-                return Status(L("ui.avatar.outfit_name_taken").Replace("{name}", s.Outfits[clash].Name));
+                return L("ui.avatar.outfit_name_taken").Replace("{name}", s.Outfits[clash].Name);
             }
 
             s.Outfits[index].Name = name;
             s.Save();
-            RefreshOutfitList();
-            SelectOutfit(index);
-            return Status(L("ui.avatar.outfit_renamed").Replace("{name}", name));
+            return L("ui.avatar.outfit_renamed").Replace("{name}", name);
         }
 
-        /// <summary>Deletes a saved outfit. The applied in-game look is a separate copy, so deleting even the outfit
-        /// you are wearing changes nothing in the game — which is why this needs no confirmation.</summary>
+        /// <summary>Deletes a saved outfit (the editor asked first, #3690). The saved in-game look is a separate copy, so
+        /// deleting even the outfit you are wearing changes nothing in the game.</summary>
         private string DeleteOutfit(int index)
         {
             if (Shell?.Settings is not { } s || s.Outfits == null || index < 0 || index >= s.Outfits.Count)
@@ -423,155 +270,32 @@ namespace BlocksBeyondTheStars.Client
             string name = s.Outfits[index].Name;
             s.Outfits.RemoveAt(index);
             s.Save();
-            if (_selectedOutfit == index)
+            return L("ui.avatar.outfit_deleted").Replace("{name}", name);
+        }
+
+        // --- save and export ---
+
+        /// <summary>The shell's Save ("on your character"): the scratch look becomes the player's — colours, face and the
+        /// four paintings in the settings, which the in-game avatar uses. False without settings to write.</summary>
+        private bool Apply()
+        {
+            if (Shell?.Settings is not { } s)
             {
-                _selectedOutfit = -1;
-            }
-            else if (_selectedOutfit > index)
-            {
-                _selectedOutfit--;
-            }
-
-            RefreshOutfitList();
-            return Status(L("ui.avatar.outfit_deleted").Replace("{name}", name));
-        }
-
-        /// <summary>Shows a line in the designer's status area AND hands it back, so the appearance screen's
-        /// outfit column can print the same sentence in its own panel.</summary>
-        private string Status(string text)
-        {
-            SetStatus(text);
-            return text;
-        }
-
-        private void ColorRow(Transform panel, ref float y, string label, int which)
-        {
-            UiKit.AddText(panel, 24f, y, 150f, 30f, label, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-
-            var sw = new GameObject("Swatch", typeof(RectTransform));
-            sw.transform.SetParent(panel, false);
-            UiKit.Place(sw, 180f, y + 3f, 24f, 24f);
-            var img = sw.AddComponent<Image>();
-            img.sprite = UiKit.SolidSprite;
-            img.color = _col[which];
-            img.raycastTarget = false;
-            _swatch[which] = img;
-
-            int idx = which;
-            UiKit.AddFitButton(panel, 214f, y, 80f, 30f, "→", () => CyclePart(idx, 1));
-            UiKit.AddFitButton(panel, 300f, y, 80f, 30f, "←", () => CyclePart(idx, -1));
-            y += 38f;
-        }
-
-        private void CyclePart(int which, int dir)
-        {
-            _col[which] = AppearancePalette.Next(_col[which], dir);
-            _swatch[which].color = _col[which];
-            _avatar.ApplyColors(_col[0], _col[1], _col[2], _col[3]);
-        }
-
-        private void GearRow(Transform panel, ref float y, string label, int which)
-        {
-            UiKit.AddText(panel, 24f, y, 200f, 30f, label, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            int idx = which;
-            var btn = UiKit.AddFitButton(panel, 240f, y, 140f, 30f, OffOn(false), () => ToggleGear(idx));
-            _gearLabel[which] = btn.GetComponentInChildren<Text>();
-            y += 38f;
-        }
-
-        private void ToggleGear(int which)
-        {
-            _gear[which] = !_gear[which];
-            _gearLabel[which].text = OffOn(_gear[which]);
-            int mask = 0;
-            for (int i = 0; i < _gear.Length; i++)
-            {
-                mask |= _gear[i] ? GearBits[i] : 0;
+                return false;
             }
 
-            _avatar.SetGear(mask);
-        }
-
-        private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");
-
-        /// <summary>Opens the shared appearance screen over the designer — face, torso, arms, legs and helmet
-        /// as tabs, each with its base colour. Edits land in this designer's scratch values and on the rotating
-        /// figure behind the panel; the panel's Apply is still what persists them into
-        /// <see cref="ClientSettings"/>, so backing out of the designer changes nothing.</summary>
-        private void OpenAppearanceEditor()
-        {
-            if (_faceEditor != null)
+            s.SkinColor = _col[0];
+            s.TorsoColor = _col[1];
+            s.ArmColor = _col[2];
+            s.LegColor = _col[3];
+            s.FacePixels = _face;
+            for (int part = 0; part < _bodyPaint.Length; part++)
             {
-                return;
+                s.SetBodyPaint(part, _bodyPaint[part]);
             }
 
-            var go = new GameObject("AppearanceEditor");
-            go.transform.SetParent(transform, false);
-            _faceEditor = go.AddComponent<FaceEditor>();
-            _faceEditor.Localizer = L;
-            _faceEditor.Subjects = AppearanceSubjects.Build(
-                () => _face,
-                face =>
-                {
-                    _face = face ?? string.Empty;
-                    _avatar?.SetFace(_face);
-                },
-                part => _bodyPaint[part],
-                (part, pixels) =>
-                {
-                    _bodyPaint[part] = pixels ?? string.Empty;
-                    _avatar?.SetBodyPaint(part, _bodyPaint[part]);
-                },
-                which => _col[which],
-                (which, color) =>
-                {
-                    _col[which] = color;
-                    if (_swatch[which] != null)
-                    {
-                        _swatch[which].color = color;
-                    }
-
-                    _avatar.ApplyColors(_col[0], _col[1], _col[2], _col[3]);
-                });
-            _faceEditor.PreviewState = () => AppearanceSubjects.Snapshot(
-                which => _col[which], () => _face, part => _bodyPaint[part]);
-
-            // The same outfit shelf the panel behind carries, so a look can be picked up where it is being
-            // judged. Both write the same list, so the panel's rows are rebuilt when the screen closes.
-            _faceEditor.OutfitNames = OutfitNames;
-            _faceEditor.OnWearOutfit = LoadOutfit;
-            _faceEditor.OnSaveOutfit = SaveOutfitNamed;
-            _faceEditor.OnRenameOutfit = RenameOutfitAt;
-            _faceEditor.OnDeleteOutfit = DeleteOutfit;
-            ConfigureTemplatesAndHud(_faceEditor); // #3318/#3319/#3321: free skins, the HUD mode, the Submit button
-            _faceEditor.OnClosed = () =>
-            {
-                _faceEditor = null;
-                RefreshOutfitList();
-                if (_nameInput != null)
-                {
-                    _nameInput.text = _name; // an outfit worn in there renamed the designer's scratch look
-                }
-            };
-        }
-
-        private void Apply()
-        {
-            if (Shell?.Settings is { } s)
-            {
-                s.SkinColor = _col[0];
-                s.TorsoColor = _col[1];
-                s.ArmColor = _col[2];
-                s.LegColor = _col[3];
-                s.FacePixels = _face;
-                for (int part = 0; part < _bodyPaint.Length; part++)
-                {
-                    s.SetBodyPaint(part, _bodyPaint[part]);
-                }
-
-                s.Save();
-                SetStatus(L("ui.avatar.applied"));
-            }
+            s.Save();
+            return true;
         }
 
         private void Export()
@@ -579,7 +303,7 @@ namespace BlocksBeyondTheStars.Client
             string key = EditorSceneKit.Slug(_name);
             if (string.IsNullOrEmpty(key))
             {
-                SetStatus(L("ui.avatar.need_name"));
+                SetStatus(L("ui.avatar.need_name"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -588,30 +312,16 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(AppPaths.Root, "avatar_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "skin.json"), SkinFile(key, pretty: true));
-                SetStatus($"{L("ui.avatar.exported")}\n{dir}");
+                SetStatus(L("ui.avatar.exported_folder"), EditorStatusSeverity.Success); // no path: the folder's name only
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[AvatarEditor] Export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
+                SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error); // a friendly line; the exception goes to the log
             }
         }
 
-        private void SetStatus(string text)
-        {
-            if (_status != null)
-            {
-                _status.text = text;
-            }
-        }
-
-        private void OnDestroy()
-        {
-            if (_canvas != null)
-            {
-                Destroy(_canvas.gameObject);
-            }
-        }
+        private void SetStatus(string text, EditorStatusSeverity severity) => _faceEditor?.ShowStatus(text, severity);
 
         // --- helpers ---
 

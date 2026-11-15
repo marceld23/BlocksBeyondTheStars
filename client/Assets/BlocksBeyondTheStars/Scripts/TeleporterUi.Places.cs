@@ -198,11 +198,12 @@ namespace BlocksBeyondTheStars.Client
 
             AddRowGo(56f, go =>
             {
-                UiKit.AddText(go.transform, 12f, 8f, 28f, 40f, "X", 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                _xField = UiKit.AddInput(go.transform, 40f, 8f, 140f, 40f, _coordX, v => _coordX = v, "812", 9);
-                UiKit.AddText(go.transform, 196f, 8f, 28f, 40f, "Z", 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                _zField = UiKit.AddInput(go.transform, 224f, 8f, 140f, 40f, _coordZ, v => _coordZ = v, "-904", 9);
-                UiKit.AddButton(go.transform, 404f, 8f, 150f, 40f, L("ui.tp.beam_button"), JumpToTyped);
+                // 44 high: a finger's target (#3662) — the fields bring up the touch keyboard (UiKit.AddInput).
+                UiKit.AddText(go.transform, 12f, 6f, 28f, 44f, "X", 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                _xField = UiKit.AddInput(go.transform, 40f, 6f, 140f, 44f, _coordX, v => _coordX = v, "812", 9);
+                UiKit.AddText(go.transform, 196f, 6f, 28f, 44f, "Z", 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                _zField = UiKit.AddInput(go.transform, 224f, 6f, 140f, 44f, _coordZ, v => _coordZ = v, "-904", 9);
+                UiKit.AddButton(go.transform, 404f, 6f, 150f, 44f, L("ui.tp.beam_button"), JumpToTyped);
             });
         }
 

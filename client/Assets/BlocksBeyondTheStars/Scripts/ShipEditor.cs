@@ -8,18 +8,23 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Standalone ship-type editor (M27+ tooling; see docs/developer/SHIP_TYPE_EDITOR.md). An empty build
     /// room you fly through (hold RMB to look, WASD/QE to move) and place blocks into: hull, viewports,
-    /// all ship stations, a hatch, lights and an engine. A side panel sets the design's name, stats and
+    /// all ship stations, a hatch, lights and an engine. A side card sets the design's name, stats and
     /// blueprint/craft costs. Save writes a ship-type bundle (ship.json + layout.json) that a developer
     /// folds into the game with tools/merge_ship.py; Submit (#3262, <c>ShipEditor.Submit.cs</c>) sends the same
     /// bundle to the developers for review. Self-contained on the client (no server).
+    /// <para>
+    /// On the <see cref="EditorShell"/> (#3691, <c>ShipEditor.Ui.cs</c>): Back, the title with the ship's name, Undo / Redo,
+    /// Load, New, Submit and the one primary Save sit in the shell's header; the palette card on the left has a
+    /// <b>Place | Remove</b> switch (removing no longer needs the middle mouse button — Delete or X remove too), the ship card
+    /// on the right holds name, description, values and the selected part; the 3D view between them stays free. Every
+    /// placed or removed block is one undo step, unsaved work is kept as a draft (<c>ShipEditor.Document.cs</c>).
+    /// </para>
     /// <para>
     /// Coordinates (#1396, #1397): the layout's interior origin (0,0,0) sits at <see cref="Origin"/> in the
     /// room, so exterior cells at negative x/z (wings, engines, nav lights — every shipped layout has them)
@@ -33,13 +38,17 @@ namespace BlocksBeyondTheStars.Client
     /// one stick cannot walk a list and fly a camera at the same time. In PANEL mode
     /// (<see cref="UiNavFocus"/> active) the sticks walk the palette and the form. In VIEWPORT mode the
     /// left stick moves, the right stick looks, LB/RB drop and rise, the d-pad steps through the palette,
-    /// A places, X removes, Y turns the shape brush, and a centre reticle replaces the mouse pointer as
-    /// the picking ray's origin. B leaves the viewport; from the panels it leaves the editor.
+    /// A uses the tool, X removes, Y turns the shape brush, and a centre reticle replaces the mouse pointer as
+    /// the picking ray's origin. B leaves the viewport (through <see cref="EditorShell.HandleCancel"/> →
+    /// <see cref="CloseTopLayer"/>); it never leaves the editor — only Back does (#3690).
     /// </para>
     /// </summary>
-    public sealed partial class ShipEditor : MonoBehaviour
+    public sealed partial class ShipEditor : MonoBehaviour, IEditorDocument
     {
         public AppShell Shell;
+
+        /// <summary>Where the drafts go; null = the player's drafts folder. The EditMode tests point it at a temp folder.</summary>
+        public string DraftRoot;
 
         private const int MaxW = ShipLayout.EditorRoomWidth, MaxH = ShipLayout.EditorRoomHeight, MaxL = ShipLayout.EditorRoomLength;
         private const float RaycastDist = 1200f;
@@ -51,19 +60,16 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _floor;
         private float _yaw, _pitch;
 
-        // Gamepad focus (#1198): false = the side panels own the sticks, true = the build viewport does.
-        // Panels first, so a pad player lands on the palette and picks a block before flying anywhere.
-        private bool _padViewport;
-        private GameObject _reticle;
-        private Text _hintLabel;
-
-        // Stick look is already a per-frame delta (GamepadInputSource scales by deltaTime); this puts it
-        // in the same range as the mouse path's 2.6 multiplier so both feel alike.
-        private const float PadLookScale = 2.6f;
-
         /// <summary>One authored cell: palette id + kind plus the in-game per-voxel modifiers (dye/glow
         /// colour 0xRRGGBB, packed shape+orientation). Elements/stations carry no modifiers.</summary>
-        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; }
+        private struct CellData
+        {
+            public string Id;
+            public string Kind;
+            public int Tint, Glow, Shape;
+
+            public bool SameAs(CellData o) => Id == o.Id && Kind == o.Kind && Tint == o.Tint && Glow == o.Glow && Shape == o.Shape;
+        }
 
         private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell (export source)
         private EditorVoxelChunkView _view;                                // chunked combined-mesh renderer
@@ -80,35 +86,31 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The form brush's name: "Automatic" (the block's own form, #1975) or the built-in form's name.</summary>
         private string FormName(int shape)
-            => shape < 0 ? L("ui.ed.form_auto_short") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube"); // "Auto": a 118 px value (#3263)
+            => shape < 0 ? L("ui.ed.form_auto_short") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube"); // "Auto": a short value (#3263)
 
-        // --- editable metadata ---
-        private string _key = "my_ship";
-        private string _shipName = string.Empty; // the localized defaults are set in Start (#3263)
+        // --- editable metadata (defaults in ResetMeta) ---
+        private string _key = string.Empty;
+        private string _shipName = string.Empty;
         private string _desc = string.Empty;
         private string _requiredBlueprint = string.Empty;
-        private float _hull = 100f, _shield = 20f, _flightSpeed = 1f, _handling = 1f;
-        private int _cargo = 48;
-        private readonly List<CostRow> _craftCost = new() { new CostRow { Item = "iron_plate", Count = 20 } };
+        private float _hull, _shield, _flightSpeed, _handling;
+        private int _cargo;
+        private readonly List<CostRow> _craftCost = new();
+
+        /// <summary>False while the key follows the name (a new design): the key now sits under "Advanced", and every new ship
+        /// saved as "my_ship" would overwrite the last one. A typed or loaded key stays.</summary>
+        private bool _keyEdited;
 
         // Interior (cabin) size the server stamps as 0..W-1 × 0..H × 0..L-1 (#1396) — explicit, never derived
         // from the placed cells, because exterior greebles sit outside it. Defaults match the starter box.
-        private int _intW = 5, _intL = 7, _intH = 4;
+        private int _intW, _intL, _intH;
         private EditorInteriorFrame _frame;
 
         // The modules a loaded built-in ship starts with (reactor, life support, weapons …) — carried through
         // to ship.json so tools/merge_ship.py keeps them instead of deriving only from station tiles (#1399).
         private List<string> _startModules = new();
 
-        private string _statusText = string.Empty;
         private bool _mouseOverUi;
-
-        /// <summary>Setting the status also pushes it to the on-screen label.</summary>
-        private string _status
-        {
-            get => _statusText;
-            set { _statusText = value; if (_statusLabel != null) _statusLabel.text = value; }
-        }
 
         private sealed class CostRow { public string Item = string.Empty; public int Count = 1; }
 
@@ -117,8 +119,7 @@ namespace BlocksBeyondTheStars.Client
             // Editor-local block atlas: gives the palette (and the placed cells) the real material look.
             _atlas = Shell != null && Shell.Content != null ? BlockTextureAtlas.Acquire(Shell.Content) : null; // shared per process (#1523)
             _palette = BuildPalette();
-            _shipName = L("ui.ed.default.ship");
-            _desc = L("ui.ed.default.ship_desc");
+            ResetMeta();
 
             _cam = EditorSceneKit.CreateEditorCamera(transform, 800f);
             _yaw = 0f;
@@ -133,6 +134,29 @@ namespace BlocksBeyondTheStars.Client
             RebuildFrame();
             FrameCamera(); // opening view (#1390): the interior frame when nothing is placed yet
             BuildUi();
+        }
+
+        /// <summary>The metadata of a new design: the localized default name and description (#3263), the starter box's
+        /// interior, stats and craft cost, a key that follows the name.</summary>
+        private void ResetMeta()
+        {
+            _key = "my_ship";
+            _keyEdited = false;
+            _shipName = L("ui.ed.default.ship");
+            _desc = L("ui.ed.default.ship_desc");
+            _requiredBlueprint = string.Empty;
+            _hull = 100f;
+            _shield = 20f;
+            _flightSpeed = 1f;
+            _handling = 1f;
+            _cargo = 48;
+            _craftCost.Clear();
+            _craftCost.Add(new CostRow { Item = "iron_plate", Count = 20 });
+            _intW = 5;
+            _intL = 7;
+            _intH = 4;
+            _startModules = new List<string>();
+            _basedOn = string.Empty;
         }
 
         private void RebuildFrame() => _frame?.Rebuild(Origin, Mathf.Max(1, _intW), Mathf.Max(1, _intH), Mathf.Max(1, _intL));
@@ -203,186 +227,6 @@ namespace BlocksBeyondTheStars.Client
             EditorSceneKit.BuildSun(transform);
         }
 
-        private void Update()
-        {
-            if (_cam == null || CreationSubmitDialog.IsAnyOpen)
-            {
-                return; // the submit dialog (#3262) owns the keys and the mouse while it is open
-            }
-
-            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
-            UpdatePadFocus(pad);
-            bool padViewport = pad && _padViewport;
-
-            // The mouse looks while RMB is held; the pad looks whenever the viewport has focus. Holding a
-            // button to look would cost a face button the editor needs for placing.
-            bool flying = Input.GetMouseButton(1);
-            Cursor.lockState = flying ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !flying;
-
-            if (flying)
-            {
-                _yaw += Input.GetAxis("Mouse X") * 2.6f;
-                _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * 2.6f, -89f, 89f);
-                _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
-            }
-            else if (padViewport)
-            {
-                _yaw += InputMap.PadLookX() * PadLookScale;
-                _pitch = Mathf.Clamp(_pitch - InputMap.PadLookY() * PadLookScale, -89f, 89f);
-                _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
-            }
-
-            // Keystrokes belong to a focused text field (the palette search, the form inputs) — typing
-            // "sand" must not fly the camera away or turn the brush (#1388).
-            bool typing = UiKit.TextFieldFocused();
-            bool fast = Input.GetKey(KeyCode.LeftShift) || (padViewport && InputMap.PadHeld(PadButton.L3));
-            float speed = (fast ? 30f : 14f) * Time.deltaTime;
-            var move = Vector3.zero;
-            if (!typing)
-            {
-                if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
-                if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
-                if (Input.GetKey(KeyCode.D)) move += _cam.transform.right;
-                if (Input.GetKey(KeyCode.A)) move -= _cam.transform.right;
-                if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space)) move += Vector3.up;
-                if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
-                if (Input.GetKeyDown(KeyCode.F))
-                {
-                    FrameCamera();
-                }
-            }
-
-            if (padViewport)
-            {
-                move += _cam.transform.forward * InputMap.PadStickY();
-                move += _cam.transform.right * InputMap.PadStickX();
-                if (InputMap.PadHeld(PadButton.Rb)) move += Vector3.up;
-                if (InputMap.PadHeld(PadButton.Lb)) move += Vector3.down;
-            }
-
-            _cam.transform.position += move * speed;
-
-            // Place (LMB) / remove (MMB) when not flying and not over a uGUI panel. The pad has no pointer,
-            // so in viewport mode the panels can never be 'under' the aim and the reticle always picks.
-            _mouseOverUi = !padViewport && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            if (!_mouseOverUi)
-            {
-                EditorSceneKit.WheelDolly(_cam.transform, fast); // wheel over a panel scrolls the panel (#1390)
-            }
-
-            if (_blocksLabel != null && _lastPlaced != _design.Count)
-            {
-                _lastPlaced = _design.Count;
-                _blocksLabel.text = string.Format(L("ui.ed.placed"), _design.Count);
-            }
-
-            UpdateGhost(flying || _mouseOverUi);
-            if (padViewport)
-            {
-                if (InputMap.PadDown(PadButton.A))
-                {
-                    TryPlace();
-                }
-                else if (InputMap.PadDown(PadButton.X))
-                {
-                    TryRemove();
-                }
-
-                StepPalette(InputMap.PadDpadStep());
-            }
-            else if (!flying && !_mouseOverUi)
-            {
-                if (Input.GetMouseButtonDown(0))
-                {
-                    TryPlace();
-                }
-                else if (Input.GetMouseButtonDown(2))
-                {
-                    TryRemove();
-                }
-            }
-
-            // Rotate the shape brush (matches the in-game place-orientation control); Y on the pad.
-            if ((!typing && !_mouseOverUi && Input.GetKeyDown(KeyCode.R)) || (padViewport && InputMap.PadDown(PadButton.Y)))
-            {
-                _brushOrient = (_brushOrient + 1) & 3;
-            }
-
-            RefreshPadChrome(pad, padViewport);
-
-            _view.Flush(); // upload any chunk meshes touched by this frame's edits
-        }
-
-        /// <summary>Start swaps the pad between the side panels and the build viewport; B leaves the
-        /// viewport. Exactly one of the two owns the sticks at a time, so walking a list and flying the
-        /// camera never fight over the same axis (#1198). From the panels, B falls through to AppShell,
-        /// which closes the editor.</summary>
-        private void UpdatePadFocus(bool pad)
-        {
-            if (_canvas == null)
-            {
-                return; // BuildUi has not run yet
-            }
-
-            if (!pad)
-            {
-                UiNav.SetSuspended(_canvas.gameObject, false); // mouse in hand — the panels are always live
-                return;
-            }
-
-            if (InputMap.Down(InputAction.UiMenu))
-            {
-                _padViewport = !_padViewport;
-            }
-            else if (_padViewport && InputMap.Down(InputAction.UiCancel))
-            {
-                _padViewport = false;
-            }
-
-            UiNav.SetSuspended(_canvas.gameObject, _padViewport);
-        }
-
-        /// <summary>Moves the palette selection by one repeat-gated d-pad step (the pad's stand-in for
-        /// scrolling the list, which needs a pointer).</summary>
-        private void StepPalette(float step)
-        {
-            if (Mathf.Abs(step) < 0.5f || _palList == null || _palette == null || _palette.Length == 0)
-            {
-                return;
-            }
-
-            int next = _palList.Selected + (step > 0f ? -1 : 1); // >0 = left = previous, matching the hotbar
-            _palList.Select(Mathf.Clamp(next, 0, _palette.Length - 1));
-        }
-
-        /// <summary>Shows the centre reticle and the pad control hint only while the pad flies the
-        /// viewport — with a mouse the pointer IS the aim, and a crosshair would just be clutter.</summary>
-        private void RefreshPadChrome(bool pad, bool padViewport)
-        {
-            if (_reticle != null && _reticle.activeSelf != padViewport)
-            {
-                _reticle.SetActive(padViewport);
-            }
-
-            if (_hintLabel != null)
-            {
-                string key = !pad ? "ui.struct.hint" : padViewport ? "ui.struct.hint_pad" : "ui.struct.hint_pad_panel";
-                string text = L(key);
-                if (_hintLabel.text != text)
-                {
-                    _hintLabel.text = text;
-                }
-            }
-        }
-
-        /// <summary>Where the picking ray starts on screen: the mouse pointer, or the centre reticle while
-        /// the pad owns the viewport — a pad has no pointer, and a screen-centre crosshair is how every
-        /// pad-driven builder aims (#1198).</summary>
-        private Vector3 PickPoint() => _padViewport && InputMap.ActiveDevice == InputDeviceKind.Gamepad
-            ? new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f)
-            : Input.mousePosition;
-
         /// <summary>Resolves the cell a placement would land in: the floor column, or the empty cell just
         /// outside the hit face (the chunk mesh is authored in world coords, so the hit point + normal locate
         /// the cell directly — no per-cell GameObject to read a transform from).</summary>
@@ -401,17 +245,23 @@ namespace BlocksBeyondTheStars.Client
         private EditorPlacementGhost _ghost;
         private EditorPropOverlay _overlay;
         private EditorGhostMeshes _ghostMeshes;
-        private EditorFormPicker _formPicker;
-        private RawImage _formIcon;
-        private Text _formLabel;
         private string _hintShown;
 
         /// <summary>Shows where a click would land and WHAT it would leave there (#1975): the block's form (a bed as
         /// head + foot), the door the server would hang (axis + width read from the design), the hatch frame, a
         /// station's block with its decor — green when the placement is valid, red when the cell is occupied / out
-        /// of bounds, or a door has no room above it (the status line says which).</summary>
+        /// of bounds, or a door has no room above it (the status line says which). With the Remove tool (#3691) a red
+        /// cube marks the block a click takes away.</summary>
         private void UpdateGhost(bool hidden)
         {
+            if (!hidden && Tool == EditorBuildTool.Remove)
+            {
+                bool hit = TryGetHitCell(out var target) && _design.ContainsKey(target);
+                _ghost?.Update(hit, target, false);
+                Hint(null);
+                return;
+            }
+
             if (hidden || _palette == null || _selected < 0 || _selected >= _palette.Length || !TryGetTargetCell(out var cell, out int hitFace))
             {
                 _ghost?.Update(false, default, false);
@@ -440,7 +290,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A block: the form it will take (and, for a bed, its foot half); a plain cube keeps the cube ghost.
+            UpdateBlockGhost(pal, cell, hitFace, free);
+        }
+
+        /// <summary>A block's ghost: the form it will take (and, for a bed, its foot half); a plain cube keeps the cube ghost.</summary>
+        private void UpdateBlockGhost(EditorPaletteKit.Entry pal, Vector3i cell, int hitFace, bool free)
+        {
             if (free)
             {
                 if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
@@ -463,11 +318,35 @@ namespace BlocksBeyondTheStars.Client
             Hint(null);
         }
 
+        /// <summary>A click with the current tool (#3691): place the selected entry, or remove what the click hits.</summary>
+        private void UseTool()
+        {
+            if (Tool == EditorBuildTool.Remove)
+            {
+                TryRemove();
+            }
+            else
+            {
+                TryPlace();
+            }
+        }
+
         private void TryPlace()
         {
-            if (!TryGetTargetCell(out var cell, out int hitFace) || !InBounds(cell) || _design.ContainsKey(cell))
+            if (TryGetTargetCell(out var cell, out int hitFace))
             {
-                return;
+                PlaceAt(cell, hitFace);
+            }
+        }
+
+        /// <summary>Places the selected palette entry at <paramref name="cell"/> (<paramref name="hitFace"/>: the face the click
+        /// came through, -1 for none) as ONE undo step — a bed's two halves together. False when nothing was placed (an
+        /// occupied cell, a refused door or bed — the status bar says why).</summary>
+        private bool PlaceAt(Vector3i cell, int hitFace)
+        {
+            if (_palette == null || _selected < 0 || _selected >= _palette.Length || !InBounds(cell) || _design.ContainsKey(cell))
+            {
+                return false;
             }
 
             var pal = _palette[_selected];
@@ -475,40 +354,56 @@ namespace BlocksBeyondTheStars.Client
             // here: the server completes a ship's hull around the layout, so a door on the layout's edge is fine.
             if (pal.Kind == "element" && DoorBlocks.IsDoorMarker(pal.Id) && !DoorRoomAbove(cell, out string why))
             {
-                _status = L(why);
-                return;
+                Status(L(why), EditorStatusSeverity.Warning);
+                return false;
             }
 
-            if (pal.Kind == "block")
+            if (pal.Kind != "block")
             {
-                // The server's own placement rules (#1975): the block's default form unless the brush chose one, a
-                // bed as head + foot (refused where the foot would not fit), the ladder against its wall.
-                if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
-                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
-                {
-                    _status = L(refusal);
-                    return;
-                }
-
-                foreach (var w in writes)
-                {
-                    PlaceCellData(new Vector3i(w.X, w.Y, w.Z), pal,
-                        new CellData { Id = pal.Id, Kind = pal.Kind, Tint = _brushTint, Glow = _brushGlow, Shape = w.Shape });
-                }
-
-                return;
+                var before = CellSnapshot();
+                PlaceCell(cell, pal);
+                Edited(before);
+                return true;
             }
 
-            PlaceCell(cell, pal);
+            // The server's own placement rules (#1975): the block's default form unless the brush chose one, a
+            // bed as head + foot (refused where the foot would not fit), the ladder against its wall.
+            if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
+                    Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+            {
+                Status(L(refusal), EditorStatusSeverity.Warning);
+                return false;
+            }
+
+            var snapshot = CellSnapshot();
+            foreach (var w in writes)
+            {
+                PlaceCellData(new Vector3i(w.X, w.Y, w.Z), pal,
+                    new CellData { Id = pal.Id, Kind = pal.Kind, Tint = _brushTint, Glow = _brushGlow, Shape = w.Shape });
+            }
+
+            Edited(snapshot);
+            return true;
         }
 
         private void TryRemove()
         {
-            if (!TryGetHitCell(out var cell) || !_design.TryGetValue(cell, out var d))
+            if (TryGetHitCell(out var cell))
             {
-                return;
+                RemoveAt(cell);
+            }
+        }
+
+        /// <summary>Removes the cell at <paramref name="cell"/> — a bed with its other half (#1846) — as ONE undo step.
+        /// False when nothing is there.</summary>
+        private bool RemoveAt(Vector3i cell)
+        {
+            if (!_design.TryGetValue(cell, out var d))
+            {
+                return false;
             }
 
+            var before = CellSnapshot();
             RemoveCell(cell);
             foreach (var (px, py, pz) in EditorPlacementRules.PartnerCells(d.Shape, cell.X, cell.Y, cell.Z))
             {
@@ -519,6 +414,9 @@ namespace BlocksBeyondTheStars.Client
                     RemoveCell(partner);
                 }
             }
+
+            Edited(before);
+            return true;
         }
 
         private void PlaceCell(Vector3i cell, EditorPaletteKit.Entry pal)
@@ -616,8 +514,9 @@ namespace BlocksBeyondTheStars.Client
             _overlay?.OnDesignChanged(cell, IsSolidCell);
         }
 
-        /// <summary>A placement hint in the status line while the ghost is red for a RULE (a door without room above, a
-        /// bed without room) — set once per change, cleared when the ghost turns valid again.</summary>
+        /// <summary>A placement hint in the status bar while the ghost is red for a RULE (a door without room above, a
+        /// bed without room) — set once per change. When the ghost turns valid again only the hint itself goes: a
+        /// message the hint did not write ("Saved.") stays until the next one (the shell's rule).</summary>
         private void Hint(string key)
         {
             if (key == _hintShown)
@@ -625,45 +524,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            string old = _hintShown;
             _hintShown = key;
-            _status = key != null ? L(key) : string.Empty;
+            if (key != null)
+            {
+                Status(L(key), EditorStatusSeverity.Warning);
+            }
+            else if (old != null && _shell != null && _shell.StatusText.text == ShownAs(L(old)))
+            {
+                _shell.ClearStatus();
+            }
         }
 
         /// <summary>The tile the form icons are drawn on: the selected block's, else stone.</summary>
         private ushort BrushTile()
             => EditorSceneKit.BrushTile(Shell, _palette != null && _selected >= 0 && _selected < _palette.Length ? _palette[_selected] : default);
-
-        /// <summary>The brush's form row: icon + name + "Change…", which opens the in-game form grid (#1975).</summary>
-        private void FormRow()
-        {
-            var row = Row(_form, 36f); // two 13 px lines for a long form name ("Ліжко (бік для голови)", #3263)
-            var label = UiKit.AddText(row, 4f, 0f, 86f, 36f, L("ui.struct.shape"), 15, UiKit.TextCol);
-            UiKit.FitLabelSingleLine(label, 86f, UiKit.EditorMinFontSize, 15);
-            var iconGo = new GameObject("FormIcon", typeof(RectTransform));
-            iconGo.transform.SetParent(row, false);
-            UiKit.Place(iconGo, 92f, 4f, 28f, 28f);
-            _formIcon = iconGo.AddComponent<RawImage>();
-            _formIcon.raycastTarget = false;
-            EditorFormPicker.PaintIcon(_formIcon, _atlas, BrushTile(), _brushShape);
-            _formLabel = UiKit.AddText(row, 126f, 0f, 114f, 36f, FormName(_brushShape), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.FitLabelLines(_formLabel, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-            UiKit.AddFitButton(row, 244f, 4f, 112f, 28f, L("ui.ed.form_pick"), OpenFormPicker);
-        }
-
-        private void OpenFormPicker()
-        {
-            _formPicker?.Close();
-            _formPicker = EditorFormPicker.Show(Shell, _canvas.transform, _atlas, BrushTile(), _brushShape, shape =>
-            {
-                _brushShape = shape;
-                if (_formLabel != null)
-                {
-                    _formLabel.text = FormName(shape);
-                }
-
-                EditorFormPicker.PaintIcon(_formIcon, _atlas, BrushTile(), shape);
-            }, () => _formPicker = null);
-        }
 
         /// <summary>The atlas tile of a palette entry that is a real content block (stations never are;
         /// elements only when their id is a block key), and the block's id for its per-face tiles (#2744);
@@ -682,30 +557,6 @@ namespace BlocksBeyondTheStars.Client
             return _atlas.TileUv(def.NumericId.Value);
         }
 
-        // ----------------------------- UI (modern uGUI) -----------------------------
-
-        private const float PanelH = 1048f;
-
-        /// <summary>The label column of a stepper row (#3263).</summary>
-        internal const float StepperLabelW = 204f;
-
-        private Canvas _canvas;
-        private RectTransform _form;
-        private Text _statusLabel;
-        private Text _blocksLabel;
-        private Transform _palListParent;
-        private PaletteListUi _palList;
-        private int _lastPlaced = -1;
-        private readonly List<CostUi> _costPool = new();
-
-        private sealed class CostUi
-        {
-            public GameObject Go;
-            public InputField Item;
-            public InputField Count;
-            public CostRow Bound;
-        }
-
         private void OnDestroy()
         {
             _view?.Dispose();
@@ -714,231 +565,17 @@ namespace BlocksBeyondTheStars.Client
             _ghostMeshes?.Dispose();
             _formPicker?.Close();
             _formPicker = null;
+            _loadPicker?.Close();
+            _loadPicker = null;
             _frame?.Dispose();
             _atlas?.Release(); // palette sprites reference this texture; the editor holds a reference (#423 lesson, shared since #1523)
             _atlas = null;
             if (_canvas != null)
             {
-                Destroy(_canvas.gameObject);
+                // The shell on it writes a draft of unsaved work as it goes (EditorShell.FlushDraftOnDestroy).
+                EditorSceneKit.Discard(_canvas.gameObject);
             }
         }
-
-        private void BuildUi()
-        {
-            _canvas = UiKit.CreateCanvas("Ship Editor UI");
-            _canvas.sortingOrder = 5;
-            UiNav.Enable(_canvas.gameObject, padHints: false); // pad: walk the palette + the form (#1198); own hint line below
-            var root = _canvas.transform;
-
-            // Left: block/part palette (elements + stations + every placeable block), grouped by
-            // category, with a search filter.
-            (_palListParent, _palList) = EditorPaletteKit.AddPalettePanel(Shell, root, PanelH, L("ui.ship.palette"), L("ui.pal.search"),
-                _palette, _selected, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, i => _selected = i);
-
-            // Right: ship metadata + stats + cost (anchored to the top-right so it hugs the edge).
-            var meta = RightPanel(root, 380f, PanelH);
-            UiKit.AddText(meta, 16f, 12f, 348f, 26f, L("ui.ship.title"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            _form = UiKit.ScrollList(meta, 8f, 48f, 364f, PanelH - 48f - 204f, 3f); // the form scrolls; the status gets 5 lines (#3263)
-            BuildForm();
-
-            // Pinned footer: status, then save + submit (#3262) on a row of their own, then load + back
-            // sharing the row below.
-            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 200f, 356f, 86f, string.Empty, 13, UiKit.Ok);
-            _statusLabel.alignment = TextAnchor.UpperLeft;
-            _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap; // "skipped 3 cells: …" needs a second line
-            AddSaveAndSubmit(meta, PanelH - 110f);
-            UiKit.AddFitButton(meta, 12f, PanelH - 62f, 172f, 38f, L("ui.struct.load"), OpenLoadPicker);
-            UiKit.AddFitButton(meta, 196f, PanelH - 62f, 172f, 38f, L("ui.menu.back"), () => Shell?.CloseShipEditor());
-
-            // Bottom-centre controls hint, between the two side panels; RefreshPadChrome swaps it for the pad wording.
-            _hintLabel = EditorSceneKit.AddBottomHint(root, EditorSceneKit.BottomHintWidth(300f, 380f), L("ui.struct.hint"));
-
-            BuildReticle(root);
-        }
-
-        /// <summary>The pad's aiming crosshair: two thin bars at the exact screen centre, which is where
-        /// <see cref="PickPoint"/> casts from. Hidden until the pad takes the viewport.</summary>
-        private void BuildReticle(Transform root)
-        {
-            _reticle = new GameObject("Reticle", typeof(RectTransform));
-            _reticle.transform.SetParent(root, false);
-            var rt = (RectTransform)_reticle.transform;
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(22f, 22f);
-            rt.anchoredPosition = Vector2.zero;
-            Bar(rt, new Vector2(22f, 2f));
-            Bar(rt, new Vector2(2f, 22f));
-            _reticle.SetActive(false);
-
-            static void Bar(RectTransform parent, Vector2 size)
-            {
-                var go = new GameObject("Bar", typeof(RectTransform));
-                go.transform.SetParent(parent, false);
-                var brt = (RectTransform)go.transform;
-                brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 0.5f);
-                brt.sizeDelta = size;
-                brt.anchoredPosition = Vector2.zero;
-                var img = go.AddComponent<Image>();
-                img.sprite = UiKit.SolidSprite;
-                img.color = new Color(0.45f, 0.92f, 1f, 0.85f);
-                img.raycastTarget = false;
-            }
-        }
-
-        private void BuildForm()
-        {
-            FormLabel(L("ui.struct.key"));
-            InputRow(_key, v => _key = v);
-            FormLabel(L("ui.struct.name"));
-            InputRow(_shipName, v => _shipName = v);
-            FormLabel(L("ui.ship.desc"));
-            InputRow(_desc, v => _desc = v);
-            FormLabel(L("ui.ship.blueprint"));
-            InputRow(_requiredBlueprint, v => _requiredBlueprint = v);
-
-            FormHeader(L("ui.ship.stats"));
-            Stepper(L("ui.ship.hull"), () => _hull, v => _hull = v, 20f, 500f, 10f, "0");
-            Stepper(L("ui.ship.shield"), () => _shield, v => _shield = v, 0f, 300f, 10f, "0");
-            Stepper(L("ui.ship.speed"), () => _flightSpeed, v => _flightSpeed = v, 0.4f, 2.5f, 0.05f, "0.00");
-            Stepper(L("ui.ship.handling"), () => _handling, v => _handling = v, 0.4f, 2.5f, 0.05f, "0.00");
-            Stepper(L("ui.ship.cargo"), () => _cargo, v => _cargo = Mathf.RoundToInt(v), 12f, 240f, 4f, "0");
-
-            // Interior (cabin) frame: the volume the server walks, floors and roofs (#1396). The cyan box in
-            // the room follows these steppers; exterior cells may sit anywhere outside it.
-            FormHeader(L("ui.ship.interior"));
-            Stepper(L("ui.ship.int_w"), () => _intW, v => { _intW = Mathf.RoundToInt(v); RebuildFrame(); }, 3f, MaxW - Origin.X, 1f, "0");
-            Stepper(L("ui.ship.int_l"), () => _intL, v => { _intL = Mathf.RoundToInt(v); RebuildFrame(); }, 3f, MaxL - Origin.Z, 1f, "0");
-            Stepper(L("ui.ship.int_h"), () => _intH, v => { _intH = Mathf.RoundToInt(v); RebuildFrame(); }, 2f, MaxH - 1, 1f, "0");
-            WrappedFormLabel(L("ui.ship.interior_hint")); // an instruction: 13 px, normal colour, all its lines (#3263)
-
-            // Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells
-            // (every block is dyeable + shapeable in-game; shaped blocks orient at placement).
-            FormHeader(L("ui.ship.brush"));
-            FormLabel(L("ui.ship.dye_hex"));
-            InputRow(HexOf(_brushTint), v => _brushTint = ParseHex(v));
-            FormLabel(L("ui.ship.glow_hex"));
-            InputRow(HexOf(_brushGlow), v => _brushGlow = ParseHex(v));
-            FormRow(); // the in-game form grid instead of a −/+ stepper (#1975)
-            Stepper(L("ui.struct.orient"), () => _brushOrient, v => _brushOrient = Mathf.RoundToInt(v) & 3, 0f, 3f, 1f, "0",
-                v => (Mathf.RoundToInt(v) * 90) + "°");
-
-            _lastPlaced = _design.Count;
-            _blocksLabel = FormLabel(string.Format(L("ui.ed.placed"), _design.Count));
-
-            // CRAFT COST is the last section so its dynamic rows can simply append to the form.
-            var head = Row(_form, 28f);
-            var costTitle = UiKit.AddText(head, 4f, 0f, 216f, 28f, L("ui.ship.cost"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.FitLabelSingleLine(costTitle, 216f, UiKit.EditorMinFontSize, 16);
-            UiKit.AddFitButton(head, 224f, 0f, 132f, 28f, L("ui.ship.cost_add"), () =>
-            {
-                _craftCost.Add(new CostRow { Item = "iron_plate", Count = 1 });
-                RefreshCostRows();
-            });
-
-            RefreshCostRows();
-        }
-
-        private static int ParseHex(string s) => EditorSceneKit.ParseHex(s);
-
-        private static string HexOf(int rgb) => EditorSceneKit.HexOf(rgb);
-
-        private void RefreshCostRows()
-        {
-            int i = 0;
-            foreach (var c in _craftCost)
-            {
-                var ui = i < _costPool.Count ? _costPool[i] : MakeCostRow();
-                ui.Bound = null; // suppress notify while we set the displayed text
-                ui.Item.SetTextWithoutNotify(c.Item);
-                ui.Count.SetTextWithoutNotify(c.Count.ToString());
-                ui.Bound = c;
-                ui.Go.SetActive(true);
-                i++;
-            }
-
-            for (; i < _costPool.Count; i++)
-            {
-                _costPool[i].Go.SetActive(false);
-            }
-        }
-
-        private CostUi MakeCostRow()
-        {
-            var row = Row(_form, 30f);
-            var ui = new CostUi { Go = row.gameObject };
-            ui.Item = UiKit.AddInput(row, 4f, 2f, 200f, 26f, string.Empty, null, L("ui.ship.cost_item"));
-            ui.Count = UiKit.AddInput(row, 210f, 2f, 72f, 26f, string.Empty, null);
-            ui.Count.contentType = InputField.ContentType.IntegerNumber;
-            UiKit.AddFitButton(row, 288f, 2f, 30f, 26f, "×", () =>
-            {
-                if (ui.Bound != null)
-                {
-                    _craftCost.Remove(ui.Bound);
-                    RefreshCostRows();
-                }
-            });
-
-            ui.Item.onValueChanged.AddListener(v => { if (ui.Bound != null) ui.Bound.Item = v; });
-            ui.Count.onValueChanged.AddListener(v => { if (ui.Bound != null && int.TryParse(v, out var c)) ui.Bound.Count = Mathf.Max(0, c); });
-            _costPool.Add(ui);
-            return ui;
-        }
-
-        // --- small uGUI form builders ---
-
-        private static RectTransform Row(Transform parent, float height)
-        {
-            var go = new GameObject("Row", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var le = go.AddComponent<LayoutElement>();
-            le.minHeight = le.preferredHeight = height;
-            return go.GetComponent<RectTransform>();
-        }
-
-        private Text FormLabel(string text)
-        {
-            var row = Row(_form, 22f);
-            return UiKit.AddText(row, 4f, 0f, 352f, 22f, text, 15, UiKit.TextCol);
-        }
-
-        /// <summary>A form row as tall as its wrapped text at 13 px (<see cref="UiKit.MeasureHeight"/>) — the interior hint
-        /// was one clipped 12 px line, cut in every language (#3263).</summary>
-        private void WrappedFormLabel(string text)
-        {
-            float h = Mathf.Ceil(UiKit.MeasureHeight(text, 352f, UiKit.EditorMinFontSize, FontStyle.Normal, false)) + 4f;
-            var row = Row(_form, h);
-            var label = UiKit.AddText(row, 4f, 2f, 352f, h - 4f, text, UiKit.EditorMinFontSize, UiKit.TextCol, TextAnchor.UpperLeft);
-            label.horizontalOverflow = HorizontalWrapMode.Wrap;
-        }
-
-        private void FormHeader(string text)
-        {
-            Row(_form, 8f); // spacer
-            var row = Row(_form, 24f);
-            UiKit.AddText(row, 4f, 0f, 352f, 24f, text, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-        }
-
-        private void InputRow(string value, Action<string> onChange)
-        {
-            var row = Row(_form, 32f);
-            UiKit.AddInput(row, 4f, 2f, 352f, 28f, value, onChange);
-        }
-
-        private void Stepper(string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt,
-            Func<float, string> display = null)
-        {
-            string Show() => display != null ? display(get()) : get().ToString(fmt);
-            var row = Row(_form, 30f);
-            // A 204 px label column with −/value/+ at the right edge — "Cargo slots" and friends ran under the − (#3263).
-            var text = UiKit.AddText(row, 4f, 0f, StepperLabelW, 30f, label, 15, UiKit.TextCol);
-            UiKit.FitLabelSingleLine(text, StepperLabelW, UiKit.EditorMinFontSize, 15);
-            var valTxt = UiKit.AddText(row, 246f, 0f, 66f, 30f, Show(), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddFitButton(row, 214f, 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); valTxt.text = Show(); });
-            UiKit.AddFitButton(row, 316f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = Show(); });
-        }
-
-        private static RectTransform RightPanel(Transform root, float w, float h) => EditorSceneKit.RightPanel(root, w, h);
 
         // ----------------------------- export -----------------------------
 
@@ -954,13 +591,23 @@ namespace BlocksBeyondTheStars.Client
             public List<string> startModules = new();
         }
 
-        private void Export()
+        /// <summary>The key a save writes under: the typed key as a slug — or, when that is empty, the name as one.</summary>
+        private string SaveKey()
         {
             string key = Slug(_key);
+            return string.IsNullOrEmpty(key) ? Slug(_shipName) : key;
+        }
+
+        /// <summary>Save (the shell's primary button, Ctrl+S): writes the export bundle and the one-file user ship (#3520).
+        /// True when it was written — the shell then removes the draft.</summary>
+        private bool Export()
+        {
+            string key = SaveKey();
             if (string.IsNullOrEmpty(key))
             {
-                _status = L("ui.ed.need_key");
-                return;
+                Status(L("ui.ed.need_key"), EditorStatusSeverity.Warning);
+                ShowAdvanced(true); // the key field lives there
+                return false;
             }
 
             var (ship, layout) = BuildExport(key);
@@ -971,240 +618,18 @@ namespace BlocksBeyondTheStars.Client
                 File.WriteAllText(Path.Combine(dir, "ship.json"), JsonUtility.ToJson(ship, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
                 string userKey = WriteUserShip(key, ship, layout); // #3520: the one-file copy the local server reads (ShipEditor.UserContent.cs)
-                _status = string.Format(L("ui.ed.saved_ship"), key, _design.Count, dir) + UserShipRenamedNote(key, userKey);
+                // The third argument is only for a translation that still names the folder; the status bar shows no path.
+                Status(string.Format(L("ui.ed.saved_ship"), key, _design.Count, key) + UserShipRenamedNote(key, userKey),
+                    EditorStatusSeverity.Success);
+                MarkSaved();
+                return true;
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[ShipEditor] Export failed: {e}");
-                _status = L("ui.ed.export_failed_hint"); // a friendly line; the exception goes to the log (#3263)
+                Status(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error); // a friendly line; the exception goes to the log (#3263)
+                return false;
             }
-        }
-
-        private EditorLoadPicker _loadPicker;
-
-        /// <summary>The LOAD dialog (#1394): the shipped ships (every <see cref="ShipDefinition"/> with a
-        /// layout, straight from the loaded content) as starting points, the user ships of <c>usercontent/ship_types/</c> (#3520),
-        /// then the user's own exports under <c>ship_exports/</c>. The starter ship is a code-built box without a layout and is not listed.</summary>
-        private void OpenLoadPicker()
-        {
-            _loadPicker?.Close();
-
-            var builtIn = new EditorLoadPicker.Section { Title = L("ui.ed.sec_builtin_ships") };
-            if (Shell?.Content != null)
-            {
-                var ships = new List<ShipDefinition>(Shell.Content.Ships.Values);
-                ships.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
-                foreach (var def in ships)
-                {
-                    var layout = Shell.Content.GetShipLayout(def.Layout);
-                    if (layout == null)
-                    {
-                        continue;
-                    }
-
-                    var d = def;
-                    builtIn.Items.Add(new EditorLoadPicker.Item
-                    {
-                        Label = L(def.NameKey),
-                        Detail = $"{layout.Width}×{layout.Length}×{layout.Height} · " + string.Format(L("ui.ed.cells"), layout.Cells.Count),
-                        Load = () => LoadBuiltIn(d),
-                    });
-                }
-            }
-
-            var mine = new EditorLoadPicker.Section { Title = L("ui.ed.sec_exports") };
-            string root = Path.Combine(AppPaths.Root, "ship_exports");
-            if (Directory.Exists(root))
-            {
-                foreach (var dir in Directory.GetDirectories(root))
-                {
-                    if (!File.Exists(Path.Combine(dir, "layout.json")))
-                    {
-                        continue;
-                    }
-
-                    string k = Path.GetFileName(dir);
-                    mine.Items.Add(new EditorLoadPicker.Item { Label = k, Load = () => LoadDesign(k) });
-                }
-            }
-
-            _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, UserShipsSection(), mine }, _design.Count, () => _loadPicker = null);
-        }
-
-        /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (a block and a marker may
-        /// share an id), then by id alone; <c>Id == null</c> when the palette has no such entry.</summary>
-        private EditorPaletteKit.Entry FindPalette(string id, string kind) => EditorPaletteKit.Find(_palette, id, kind);
-
-        /// <summary>Replaces the build with <paramref name="cells"/> (layout coordinates; the room origin is
-        /// added). Cells whose id the palette lacks, or that fall outside the room, are counted and named
-        /// so the status line can say what was lost instead of dropping them silently (#1398).</summary>
-        private int ApplyCells(IEnumerable<ExportCellJson> cells, List<string> skippedIds)
-        {
-            _view.Clear();
-            _overlay?.Clear();
-            _design.Clear();
-            int skipped = 0;
-            foreach (var c in cells)
-            {
-                var cell = new Vector3i(c.x + Origin.X, c.y + Origin.Y, c.z + Origin.Z);
-                var pal = FindPalette(c.id, c.kind);
-                if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
-                {
-                    skipped++;
-                    if (!skippedIds.Contains(c.id ?? "?"))
-                    {
-                        skippedIds.Add(c.id ?? "?");
-                    }
-
-                    continue;
-                }
-
-                var data = new CellData
-                {
-                    Id = c.id,
-                    Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
-                    Tint = c.tint, Glow = c.glow, Shape = c.shape,
-                };
-                PlaceCellData(cell, pal, data);
-            }
-
-            _view.Flush(); // build all loaded chunks in one batch
-            return skipped;
-        }
-
-        /// <summary>Common tail of every load: frame, status (with the skipped-cells note), form.</summary>
-        private void FinishLoad(string label, int skipped, List<string> skippedIds)
-        {
-            RebuildFrame();
-            FrameCamera();
-            _status = string.Format(L("ui.ed.loaded"), label, _design.Count);
-            if (skipped > 0)
-            {
-                _status += "\n" + string.Format(L("ui.ed.skipped"), skipped, string.Join(", ", skippedIds));
-            }
-
-            RebuildForm();
-        }
-
-        /// <summary>Loads a shipped ship type as a starting point (#1394): its layout cells plus the whole
-        /// definition (localized name/description, stats, craft cost, blueprint, interior size, start
-        /// modules). Saving under the same key replaces the ship at merge time — the intended edit path.</summary>
-        private void LoadBuiltIn(ShipDefinition def)
-        {
-            var layout = Shell?.Content?.GetShipLayout(def.Layout);
-            if (layout == null)
-            {
-                _status = L("ui.ed.not_found");
-                return;
-            }
-
-            var cells = new List<ExportCellJson>(layout.Cells.Count);
-            foreach (var c in layout.Cells)
-            {
-                cells.Add(new ExportCellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape });
-            }
-
-            var skippedIds = new List<string>();
-            int skipped = ApplyCells(cells, skippedIds);
-
-            _key = _basedOn = def.Key; // a submission names the shipped ship it started from (#3262)
-            _shipName = L(def.NameKey);
-            _desc = L(def.DescriptionKey);
-            _requiredBlueprint = def.RequiredBlueprint ?? string.Empty;
-            _hull = def.BaseHull;
-            _shield = def.BaseShield;
-            _flightSpeed = def.FlightSpeed;
-            _handling = def.Handling;
-            _intW = Mathf.Max(1, layout.Width);
-            _intL = Mathf.Max(1, layout.Length);
-            _intH = Mathf.Max(1, layout.Height);
-            _startModules = new List<string>(def.StartModules);
-            _craftCost.Clear();
-            foreach (var c in def.CraftCost)
-            {
-                _craftCost.Add(new CostRow { Item = c.Item, Count = c.Count });
-            }
-
-            FinishLoad(_shipName, skipped, skippedIds);
-        }
-
-        /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
-        private void LoadDesign(string key)
-        {
-            _basedOn = string.Empty; // the player's own design; a shipped key is recognised at submit time
-            string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
-            string layoutPath = Path.Combine(dir, "layout.json");
-            if (!File.Exists(layoutPath))
-            {
-                _status = L("ui.ed.not_found");
-                return;
-            }
-
-            try
-            {
-                var layout = JsonUtility.FromJson<ExportLayoutJson>(File.ReadAllText(layoutPath));
-                var skippedIds = new List<string>();
-                int skipped = ApplyCells(layout?.cells ?? new List<ExportCellJson>(), skippedIds);
-                if (layout != null && layout.width > 0 && layout.length > 0 && layout.height > 0)
-                {
-                    _intW = layout.width;
-                    _intL = layout.length;
-                    _intH = layout.height;
-                }
-
-                string shipPath = Path.Combine(dir, "ship.json");
-                if (File.Exists(shipPath) && JsonUtility.FromJson<ExportShipJson>(File.ReadAllText(shipPath)) is { } ship)
-                {
-                    _key = string.IsNullOrEmpty(ship.key) ? key : ship.key;
-                    _shipName = string.IsNullOrEmpty(ship.name) ? _shipName : ship.name;
-                    _desc = string.IsNullOrEmpty(ship.description) ? _desc : ship.description;
-                    _requiredBlueprint = ship.requiredBlueprint ?? string.Empty;
-                    if (ship.baseHull > 0) _hull = ship.baseHull;
-                    _shield = ship.baseShield;
-                    if (ship.flightSpeed > 0) _flightSpeed = ship.flightSpeed;
-                    if (ship.handling > 0) _handling = ship.handling;
-                    if (ship.cargoSlots > 0) _cargo = ship.cargoSlots;
-                    _startModules = ship.startModules != null ? new List<string>(ship.startModules) : new List<string>();
-                    if (ship.craftCost != null && ship.craftCost.Count > 0)
-                    {
-                        _craftCost.Clear();
-                        foreach (var c in ship.craftCost)
-                        {
-                            _craftCost.Add(new CostRow { Item = c.item ?? string.Empty, Count = c.count });
-                        }
-                    }
-                }
-                else
-                {
-                    _key = key;
-                }
-
-                FinishLoad(key, skipped, skippedIds);
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[ShipEditor] Load failed: {e}");
-                _status = L("ui.ed.load_failed_hint"); // a friendly line; the exception goes to the log (#3263)
-            }
-        }
-
-        /// <summary>Rebuilds the right-hand form (key/name + stats) so it reflects a freshly loaded design.</summary>
-        private void RebuildForm()
-        {
-            _formPicker?.Close();
-            _formPicker = null;
-            if (_form == null)
-            {
-                return;
-            }
-
-            for (int i = _form.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_form.GetChild(i).gameObject);
-            }
-
-            BuildForm();
-            if (_statusLabel != null) _statusLabel.text = _status;
         }
 
         private static string Slug(string s) => EditorSceneKit.Slug(s);

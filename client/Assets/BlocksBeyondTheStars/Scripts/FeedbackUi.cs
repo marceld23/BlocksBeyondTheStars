@@ -184,7 +184,7 @@ namespace BlocksBeyondTheStars.Client
         /// the pause menu belongs to the world.</summary>
         public static bool IsShellFeedbackScreen(ShellPhase phase) =>
             phase == ShellPhase.MainMenu || phase == ShellPhase.SaveSelect || phase == ShellPhase.Settings
-            || phase == ShellPhase.Credits || phase == ShellPhase.Editors;
+            || phase == ShellPhase.Credits || phase == ShellPhase.Editors || phase == ShellPhase.Multiplayer;
 
         private void Start()
         {
@@ -615,7 +615,7 @@ namespace BlocksBeyondTheStars.Client
             _status = UiKit.AddText(panel, m, 524, innerW, 24, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             _sendBtn = UiKit.AddButton(panel, m, 560, 330, 56, L("ui.feedback.send"), OnSendClicked, "btn_feedback");
-            _cancelBtn = UiKit.AddButton(panel, m + 358, 560, 330, 56, L("ui.menu.back"), Close, "btn_exit");
+            _cancelBtn = UiKit.AddButton(panel, m + 358, 560, 330, 56, L("ui.menu.back"), Close, "btn_back");
 
             _dialog.SetActive(false);
         }

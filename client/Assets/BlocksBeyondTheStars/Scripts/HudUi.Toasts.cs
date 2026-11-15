@@ -46,14 +46,45 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildToast(Transform root)
         {
-            _toast = UiText.Add(root, 14, 268, W - 28, 22, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Outline);
+            // #3668: ONE toast lane, top centre (HudZones B) — the line used to sit in the status column under the vitals.
+            _toast = UiText.Add(root, (W / 2f) - (ToastW / 2f), ToastY, ToastW, 24, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
             _toast.richText = false; // carries developer/player text (reply toasts, chat echoes) — shown verbatim (#1368)
             _toastGroup = _toast.gameObject.AddComponent<CanvasGroup>();
             _toastGroup.blocksRaycasts = false;
             _toastBasePos = _toast.rectTransform.anchoredPosition;
         }
 
-        /// <summary>Toast slide-in: a new message eases in from the left and fades up.</summary>
+        /// <summary>The toast lane (#3668): top centre, under the "in space" line, the observer badge and the admin counts line
+        /// (y 54…74).</summary>
+        private const float ToastY = 80f, ToastW = 840f, ToastH = 24f, ToastFont = 16f, ToastMinFont = 11f, ToastMinW = 560f;
+
+        private TouchReservation _toastTouch; // the touch layer's controls the lane was fitted to
+
+        /// <summary>
+        /// On a touch device the lane narrows, still centred, until it clears the touch row along the top (at 16:9 the on-foot
+        /// MAP button reached into its right end), and a long line shrinks to fit it instead of running under the button; where
+        /// that would leave it too narrow it drops under the row instead (<see cref="TouchHudLayout.ToastLane"/>). VEGA's NEXT,
+        /// which used to sit on the lane, is beside her panel now.
+        /// </summary>
+        private void FitToastLane()
+        {
+            var touch = HudZones.Touch;
+            if (ReferenceEquals(touch, _toastTouch))
+            {
+                return;
+            }
+
+            _toastTouch = touch;
+            var lane = TouchHudLayout.ToastLane(touch, W / 2f, ToastY, ToastH, ToastW, ToastMinW);
+            UiKit.Place(_toast.gameObject, lane.X, lane.Y, lane.W, lane.H);
+            _toastBasePos = _toast.rectTransform.anchoredPosition;
+            _toast.enableAutoSizing = touch.Any;
+            _toast.fontSizeMax = ToastFont;
+            _toast.fontSizeMin = ToastMinFont;
+            _toast.fontSize = ToastFont;
+        }
+
+        /// <summary>Toast slide-in: a new message eases in from above and fades up.</summary>
         private void ShowToast(string msg)
         {
             _toast.text = msg;
@@ -64,11 +95,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            FitToastLane();
             _toast.rectTransform.anchoredPosition = _toastBasePos;
             if (!UiKit.ReducedMotion)
             {
                 _toastGroup.alpha = 0f;
-                UiTween.Move(_toast.rectTransform, _toastBasePos + new Vector2(-16f, 0f), _toastBasePos, 0.30f, UiTween.Ease.OutCubic);
+                UiTween.Move(_toast.rectTransform, _toastBasePos + new Vector2(0f, 12f), _toastBasePos, 0.30f, UiTween.Ease.OutCubic);
             }
 
             UiTween.Alpha(_toastGroup, 1f, 0.22f, UiTween.Ease.OutQuad);

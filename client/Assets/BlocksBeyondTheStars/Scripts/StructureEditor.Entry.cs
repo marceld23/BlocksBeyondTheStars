@@ -126,7 +126,7 @@ namespace BlocksBeyondTheStars.Client
             var built = BuildSource(source, asInWorld: true);
             if (built == null)
             {
-                SetStatus(L("ui.ed.load_failed_hint"));
+                SetStatus(L("ui.ed.load_failed_hint"), EditorStatusSeverity.Error);
                 return;
             }
 
@@ -138,7 +138,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SetStatus(string.Format(L("ui.ed.entry.preview"), L(source.LabelKey), _seed, _design.Count)
-                + (_entrySourceInvalid ? "\n⚠ " + L("ui.ed.entry.pick_source") : string.Empty));
+                + (_entrySourceInvalid ? "\n⚠ " + L("ui.ed.entry.pick_source") : string.Empty),
+                _entrySourceInvalid ? EditorStatusSeverity.Warning : EditorStatusSeverity.Info);
         }
 
         // ---------------------------------------------------------------- save
@@ -161,7 +162,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_previewOn)
             {
-                SetStatus(L(PreviewLockedKey()));
+                SetStatus(L(PreviewLockedKey()), EditorStatusSeverity.Warning);
                 return true;
             }
 
@@ -209,7 +210,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            SetStatus(string.Format(L(_entryMode ? "ui.ed.entry.key_taken_design" : "ui.ed.entry.key_taken_entry"), key));
+            SetStatus(string.Format(L(_entryMode ? "ui.ed.entry.key_taken_design" : "ui.ed.entry.key_taken_entry"), key), EditorStatusSeverity.Error);
             return true;
         }
 
@@ -224,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_entrySourceInvalid)
             {
-                SetStatus(L("ui.ed.entry.pick_source")); // the form shows a default the entry never named
+                SetStatus(L("ui.ed.entry.pick_source"), EditorStatusSeverity.Warning); // the form shows a default the entry never named
                 return;
             }
 
@@ -233,9 +234,9 @@ namespace BlocksBeyondTheStars.Client
             var entry = BuildEntry(key, target, source);
             var (pool, _) = StructureStampRules.RegistryPool(target);
             var check = new StructureTemplate { Key = key, Tier = entry.tier, Source = entry.source, SourceParams = entry.sourceParams, Underground = entry.underground };
-            if (SourceTemplates.Problem(check, pool, Shell.Content) is { } problem)
+            if (SourceTemplates.ProblemOf(check, pool, Shell.Content) is { } problem)
             {
-                SetStatus(string.Format(L("ui.ed.landmark.problem"), problem));
+                SetStatus(string.Format(L("ui.ed.landmark.problem"), Problem(problem)), EditorStatusSeverity.Error); // #3692: localized
                 return;
             }
 
@@ -249,12 +250,13 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(landmark ? LandmarkExportsRoot : ExportsRoot, key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "entry.json"), json);
-                SetStatus(string.Format(L("ui.ed.entry.saved"), key, L(source.LabelKey), L("ui.struct.pool." + PoolOf(target))));
+                _savedNow = true;
+                SetStatus(string.Format(L("ui.ed.entry.saved"), key, L(source.LabelKey), L("ui.struct.pool." + PoolOf(target))), EditorStatusSeverity.Success);
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[StructureEditor] Entry export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint"));
+                SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error);
             }
         }
 
@@ -463,9 +465,11 @@ namespace BlocksBeyondTheStars.Client
             ShowEntryPreview();
             if (_entrySourceInvalid)
             {
-                SetStatus(string.Format(L("ui.ed.entry.bad_source"), e.source ?? string.Empty) + "\n" + _status);
+                SetStatus(string.Format(L("ui.ed.entry.bad_source"), e.source ?? string.Empty) + "\n" + _status, EditorStatusSeverity.Warning);
             }
 
+            _loadedFrom = "entry:" + (copy ? "copy:" : string.Empty) + e.key;
+            OpenActiveSection();
             RebuildUi();
         }
     }

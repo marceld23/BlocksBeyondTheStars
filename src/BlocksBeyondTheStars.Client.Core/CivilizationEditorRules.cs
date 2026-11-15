@@ -175,14 +175,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>What refuses a save, one sentence each — empty when it may be saved: a civilization template is checked as the
         /// content loader checks it (<see cref="GameContent.CivilizationTemplateProblems"/>: the landmark checks, its civilization
         /// and pool, nobody home in a lost civilization, known blocks and loot tables), any other landmark by the landmark checks.</summary>
-        public static List<string> SaveProblems(StructureTemplate t, GameContent? content)
+        public static List<string> SaveProblems(StructureTemplate t, GameContent? content) => TemplateProblem.Sentences(SaveProblemList(t, content));
+
+        /// <summary><see cref="SaveProblems"/> as codes the editor translates (#3692): the same checks, the same sentences.</summary>
+        public static List<TemplateProblem> SaveProblemList(StructureTemplate t, GameContent? content)
         {
             if (t is null)
             {
                 throw new ArgumentNullException(nameof(t));
             }
 
-            return content != null && !string.IsNullOrWhiteSpace(t.Civilization) ? content.CivilizationTemplateProblems(t) : LandmarkRules.Problems(t);
+            return content != null && !string.IsNullOrWhiteSpace(t.Civilization) ? content.CivilizationTemplateProblemList(t) : LandmarkRules.ProblemList(t);
         }
     }
 }

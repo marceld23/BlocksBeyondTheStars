@@ -192,7 +192,7 @@ namespace BlocksBeyondTheStars.Client
             var cells = DesignCells();
             if (cells.Count == 0)
             {
-                SetStatus(L("ui.submit.empty"));
+                SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -248,7 +248,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (!_lmRuin)
             {
-                SetStatus(L("ui.ed.zone.not_ruin"));
+                SetStatus(L("ui.ed.zone.not_ruin"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -271,7 +271,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (_zones.Count >= LandmarkRules.MaxRuinZones)
                 {
-                    SetStatus(string.Format(L("ui.ed.zone.full"), LandmarkRules.MaxRuinZones));
+                    SetStatus(string.Format(L("ui.ed.zone.full"), LandmarkRules.MaxRuinZones), EditorStatusSeverity.Warning);
                     SyncZoneBoxes();
                     return;
                 }
@@ -282,7 +282,7 @@ namespace BlocksBeyondTheStars.Client
             var z = _zones[index];
             (z.X0, z.Y0, z.Z0) = (Math.Min(first.X, cell.X), Math.Min(first.Y, cell.Y), Math.Min(first.Z, cell.Z));
             (z.X1, z.Y1, z.Z1) = (Math.Max(first.X, cell.X), Math.Max(first.Y, cell.Y), Math.Max(first.Z, cell.Z));
-            _status = string.Format(L("ui.ed.zone.set"), index + 1, CellText(new Vector3i(z.X0, z.Y0, z.Z0)), CellText(new Vector3i(z.X1, z.Y1, z.Z1)));
+            SetStatus(string.Format(L("ui.ed.zone.set"), index + 1, CellText(new Vector3i(z.X0, z.Y0, z.Z0)), CellText(new Vector3i(z.X1, z.Y1, z.Z1))));
             RebuildUi();
         }
 

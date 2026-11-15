@@ -27,7 +27,7 @@
 > entry's) instead of deriving from station tiles only (#1399).
 >
 > **Update (2026-11-14, #3625, #3606):** the **giant ships** (up to 256 blocks a side) are not ship types and are not made
-> in this editor: they are authored templates (`data/giant_ships/`, the town editor's *Use as → Giant ship*) that exist
+> in this editor: they are authored templates (`data/giant_ships/`, the village editor's *Use as → Giant ship*) that exist
 > only as wrecks — see [GIANT_SHIPS.md](GIANT_SHIPS.md). And a shipped ship type without a `requiredBlueprint` (the
 > starter) can no longer be crafted: the server refuses the request (a user ship keeps its own `craft` rule).
 

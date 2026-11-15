@@ -25,18 +25,18 @@ namespace BlocksBeyondTheStars.Client
         private void BuildFocusRow(Transform root, float stripY)
         {
             const float w = 760f, h = 136f;
-            var panel = UiKit.AddPanel(root, (1920f - w) * 0.5f, stripY - h - 12f, w, h, UiKit.Panel);
+            var panel = UiKit.AddDialogPanel(root, (1920f - w) * 0.5f, stripY - h - 12f, w, h); // opaque, as the card (#3662)
             _focusPanel = panel.gameObject;
-            UiKit.AddText(panel.transform, 16f, 6f, w - 32f, 26f, L("ui.base.focus.title"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel, 16f, 6f, w - 32f, 26f, L("ui.base.focus.title"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             int n = BaseFocus.All.Length;
             float bw = (w - 32f - ((n - 1) * 8f)) / n;
             for (int i = 0; i < n; i++)
             {
                 string focus = BaseFocus.All[i];
-                _focusButtons[i] = UiKit.AddButton(panel.transform, 16f + (i * (bw + 8f)), 36f, bw, 42f, L(BaseFocus.NameKey(focus)), () => PickFocus(focus));
+                _focusButtons[i] = UiKit.AddButton(panel, 16f + (i * (bw + 8f)), 34f, bw, 44f, L(BaseFocus.NameKey(focus)), () => PickFocus(focus));
             }
 
-            _focusDesc = UiKit.AddText(panel.transform, 16f, 84f, w - 32f, 48f, string.Empty, 15, UiKit.TextCol, TextAnchor.UpperLeft);
+            _focusDesc = UiKit.AddText(panel, 16f, 84f, w - 32f, 48f, string.Empty, 15, UiKit.TextCol, TextAnchor.UpperLeft);
             _focusDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
             _focusPanel.SetActive(false);
         }

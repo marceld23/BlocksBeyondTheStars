@@ -112,18 +112,21 @@ namespace BlocksBeyondTheStars.Client
             float bx = width - ButtonsWidth - 12f, by = y + ((RowH - ButtonH) * 0.5f);
             if (Invisible)
             {
-                UiKit.AddFitButton(_list, bx, by, JumpW, ButtonH, L("ui.admin.jump"), () => JumpToPlayer(id));
-                row.Follow = UiKit.AddFitButton(_list, bx + JumpW + ButtonGap, by, FollowW, ButtonH, L("ui.admin.follow"), () => ToggleFollow(id, name))
+                AddTierFitButton(_list, bx, by, JumpW, ButtonH, L("ui.admin.jump"), () => JumpToPlayer(id), ButtonTier.Secondary);
+                row.Follow = AddTierFitButton(_list, bx + JumpW + ButtonGap, by, FollowW, ButtonH, L("ui.admin.follow"), () => ToggleFollow(id, name),
+                        ButtonTier.Secondary)
                     .GetComponentInChildren<Text>();
             }
 
             bx += JumpW + FollowW + (2f * ButtonGap);
-            UiKit.AddFitButton(_list, bx, by, ChatW, ButtonH, L("ui.admin.chat"), () => OpenConversation(id, name));
+            AddTierFitButton(_list, bx, by, ChatW, ButtonH, L("ui.admin.chat"), () => OpenConversation(id, name), ButtonTier.Secondary);
             bx += ChatW + ButtonGap;
-            row.Silence = UiKit.AddFitButton(_list, bx, by, SilenceW, ButtonH, L("ui.admin.silence"), () => ToggleSilence(id, name))
+            row.Silence = AddTierFitButton(_list, bx, by, SilenceW, ButtonH, L("ui.admin.silence"), () => ToggleSilence(id, name), ButtonTier.Secondary)
                 .GetComponentInChildren<Text>();
             bx += SilenceW + ButtonGap;
-            row.Kick = UiKit.AddFitButton(_list, bx, by, KickW, ButtonH, L("ui.admin.kick"), () => Kick(id, name)).GetComponentInChildren<Text>();
+            // Kick is the one destructive action: red, last in the row (#3672).
+            row.Kick = AddTierFitButton(_list, bx, by, KickW, ButtonH, L("ui.admin.kick"), () => Kick(id, name), ButtonTier.Danger)
+                .GetComponentInChildren<Text>();
             return row;
         }
 

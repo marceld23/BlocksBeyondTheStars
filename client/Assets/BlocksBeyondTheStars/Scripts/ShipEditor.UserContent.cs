@@ -151,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _key = s.key;
+            _keyEdited = true; // a loaded ship keeps its key
             _shipName = string.IsNullOrEmpty(s.name) ? _shipName : s.name;
             _desc = string.IsNullOrEmpty(s.description) ? _desc : s.description;
             _requiredBlueprint = s.requiredBlueprint ?? string.Empty;

@@ -108,13 +108,17 @@ AI-synthesised instrumental audio (not third-party recordings); use is governed 
 **ElevenLabs Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay
 **generated procedurally in code** (`ClientMusic`, `ClientAudio`).
 
-**UI icons:** `client/Assets/Resources/icons/*.png` (41 files, incl. menu category icons, the world-map
+**UI icons:** `client/Assets/Resources/icons/*.png` (60 files, incl. menu category icons, the world-map
 marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with the
 **OpenAI** image API (`gpt-image-1-mini`, transparent cyan line icons — see
 `tools/ai-assets/gen_icons.py`; the world-map marker set `map_*` was regenerated as bold filled
 white-ink pictograms for tintability/legibility — see `tools/ai-assets/gen_map_icons.py`; the
 player-marker safe set `map_mark_flag/home/ore/danger/water/star/heart/question` (#1217) and the wilderness hut
-marker `map_lodge` (#2647, `gen_map_icons.py --only map_lodge`, 2026-10-15) were generated the same way); they are
+marker `map_lodge` (#2647, `gen_map_icons.py --only map_lodge`, 2026-10-15) were generated the same way; the 19 icons of
+the UI layout overhaul — `btn_back`, `btn_close`, `btn_continue`, `btn_delete`, `btn_dice`, `btn_editors`,
+`btn_multiplayer`, `btn_new`, `btn_pause`, `ed_shape`, `ed_texture` and the settings categories `set_*` (#3662,
+`gen_icons.py --only …`, 2026-11-15, recoloured to the set's cyan) and the editor shell's `btn_save`, `btn_load`,
+`btn_undo`, `btn_redo` (mirrored `btn_undo`) and `btn_submit` (#3688, same way, 2026-11-15) — too); they are
 AI-synthesised images, use governed by the OpenAI usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for

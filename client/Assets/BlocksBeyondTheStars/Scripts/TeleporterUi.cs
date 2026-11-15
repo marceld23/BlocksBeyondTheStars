@@ -43,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
             _quantum = quantum;
             EnsureCanvas();
             _title.text = L(quantum ? "ui.tp.title_quantum" : "ui.tp.title");
+            UiKit.FitLabelSingleLine(_title, 572f, 16, 26);
             ShowCanvas();
             RebuildList();
 
@@ -150,7 +151,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 UiKit.AddText(go.transform, 12f, 4f, 380f, 28f, L("ui.tp.to_ship"), 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.AddText(go.transform, 12f, 30f, 380f, 22f, L("ui.tp.to_ship_hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.AddButton(go.transform, 404f, 8f, 150f, 40f, L("ui.tp.beam_button"), () =>
+                UiKit.AddButton(go.transform, 404f, 6f, 150f, 44f, L("ui.tp.beam_button"), () =>
                 {
                     Game.Network?.SendTeleportToShip();
                     Close();
@@ -197,7 +198,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 UiKit.AddText(go.transform, 12f, 4f, 380f, 28f, title, 19, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.AddText(go.transform, 12f, 30f, 380f, 22f, sub, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.AddButton(go.transform, 404f, 8f, 150f, 40f, L("ui.tp.beam_button"), () =>
+                UiKit.AddButton(go.transform, 404f, 6f, 150f, 44f, L("ui.tp.beam_button"), () =>
                 {
                     beam();
                     Close();
@@ -219,14 +220,16 @@ namespace BlocksBeyondTheStars.Client
 
         protected override void BuildChrome(Transform root)
         {
-            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
+            // #3662: the in-world dialog look — a modal scrim (the pad's focus stays inside it) and an OPAQUE panel; all of
+            // it hangs off the full-screen scrim, at the canvas's own coordinates.
+            root = UiKit.AddModalDim(root, 0.45f).transform;
 
             const float w = 620f, h = 760f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
-            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+            UiKit.AddDialogPanel(root, x, y, w, h);
 
-            _title = UiKit.AddText(root, x + 24, y + 20, w - 48, 32, L("ui.tp.title"), 24, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _title.fontStyle = FontStyle.Bold;
+            _title = UiKit.AddText(root, x + 24, y + 20, w - 48, 32, L("ui.tp.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_title);
 
             UiKit.AddText(root, x + 24, y + 58, w - 48, 24, L("ui.tp.destinations"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
             // #2994: the cost label reads the server's own numbers (it was hard-coded beside them).
@@ -236,7 +239,8 @@ namespace BlocksBeyondTheStars.Client
 
             _list = UiKit.ScrollList(root, x + 16, y + 90, w - 32, h - 168, 6f);
 
-            UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close);
+            // #3662: Close = the cross, quiet, built last — the pad lands on "back to the ship".
+            UiKit.AddTierButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close, ButtonTier.Quiet, "btn_close");
         }
     }
 }

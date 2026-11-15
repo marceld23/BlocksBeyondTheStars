@@ -134,7 +134,7 @@ namespace BlocksBeyondTheStars.Client
             var design = DesignCells();
             if (design.Count == 0)
             {
-                SetStatus(L("ui.submit.empty"));
+                SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -144,6 +144,7 @@ namespace BlocksBeyondTheStars.Client
                 : RuinCells(GiantShipGenerator.BuildPlanet(t, _previewSeed, 0, Shell.Content, PreviewSurface(), atmosphere: true));
             ShowPreview(PreviewKind.Wreck, cells);
             _wreckInSpace = space;
+            _statusSeverity = EditorStatusSeverity.Info;
             _status = string.Format(L("ui.ed.giantship.preview_shown"), L(space ? "ui.ed.giantship.in_space" : "ui.ed.giantship.on_planet"),
                 _previewSeed, _design.Count, design.Count);
             RebuildUi();
@@ -279,7 +280,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_design.Count == 0)
             {
-                SetStatus(L("ui.submit.empty"));
+                SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -292,14 +293,14 @@ namespace BlocksBeyondTheStars.Client
             var t = BuildGiantShipTemplate(key, SnapshotCells(), unclear);
             if (unclear.Count > 0)
             {
-                SetStatus(string.Format(L("ui.ed.giantship.door_unclear"), CellText(unclear[0])));
+                SetStatus(string.Format(L("ui.ed.giantship.door_unclear"), CellText(unclear[0])), EditorStatusSeverity.Error);
                 return;
             }
 
-            var problems = Shell?.Content != null ? Shell.Content.GiantShipProblems(t) : GiantShipRules.Problems(t, _ => true);
+            var problems = Shell?.Content != null ? Shell.Content.GiantShipProblemList(t) : GiantShipRules.ProblemList(t, _ => true);
             if (problems.Count > 0)
             {
-                SetStatus(string.Format(L("ui.ed.landmark.problem"), problems[0]));
+                SetStatus(string.Format(L("ui.ed.landmark.problem"), Problem(problems[0])), EditorStatusSeverity.Error); // #3692: localized
                 return;
             }
 
@@ -312,12 +313,12 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(GiantShipExportsRoot, key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "giant_ship.json"), json);
-                SetStatus(string.Format(L("ui.ed.giantship.saved"), key, _design.Count, json.Length / 1024) + SaveWarnings());
+                Saved(string.Format(L("ui.ed.giantship.saved"), key, _design.Count, json.Length / 1024)); // with the save warnings
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[StructureEditor] Giant ship export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint"));
+                SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error);
             }
         }
 
@@ -445,6 +446,8 @@ namespace BlocksBeyondTheStars.Client
             _gsZones.AddRange(CopyZones(source.RuinZones));
             _gsMinGeneration = source.MinTerrainGeneration;
             _groundRow = source.GroundRow;
+            _loadedFrom = "giant_ship:" + (copy ? "copy:" : string.Empty) + source.Key;
+            OpenActiveSection();
             RebuildUi();
         }
     }

@@ -324,7 +324,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #3434: "OK", not "Back" — after an update the dialog opens on its own, and the player confirms having read it.
-            UiKit.AddButton(dlg, 570f, 846f, 260f, 52f, shell.L("ui.whatsnew.ok"), shell.CloseWhatsNew, "btn_exit");
+            UiKit.AddButton(dlg, 570f, 846f, 260f, 52f, shell.L("ui.whatsnew.ok"), shell.CloseWhatsNew, "btn_continue");
             return canvas.gameObject;
         }
 

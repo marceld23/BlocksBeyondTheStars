@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         // Base row layout (1920×1080 reference units). The speech line row grows with its measured
         // wrapped height; every row below it and the panel shift down by the same delta.
         private const float PanelW = 520f, PanelBaseH = 240f, RowW = 480f, LineBaseH = 44f;
-        private const float ItemsY = 96f, CountdownY = 126f, ButtonsY = 160f, HintY = 206f;
+        private const float ItemsY = 96f, CountdownY = 126f, ButtonsY = 158f, ButtonH = 44f, HintY = 208f;
 
         private void Update()
         {
@@ -78,8 +78,19 @@ namespace BlocksBeyondTheStars.Client
         private void LateUpdate()
         {
             // Cursor/modal arbitration (dock-request pattern): modal only on foot — in space the pilot
-            // keeps flying while deciding, and SpaceView owns the input scheme.
-            Game?.SetMenuOwner(this, _demand is not null && !Game.SpaceViewActive);
+            // keeps flying while deciding, and SpaceView owns the input scheme. #3662: except on a tablet or a pad — there the keys
+            // 1 / 2 do not exist and the touch layer's full-screen look pad (order 100) lay over these buttons (24), so the
+            // ultimatum ran out by itself. As a menu owner the touch layer steps aside for the two taps.
+            if (Game == null)
+            {
+                return;
+            }
+
+            // A pad likewise: in flight the 1 / 2 keys were its only answer, so a pad pilot could not answer at all — as a
+            // menu owner the cursor (pad focus) reaches the two buttons, and the ship holds while the pilot decides.
+            bool modal = !Game.SpaceViewActive || InputMap.ActiveDevice == InputDeviceKind.Touch
+                || InputMap.ActiveDevice == InputDeviceKind.Gamepad;
+            Game.SetMenuOwner(this, _demand is not null && modal);
         }
 
         private void OnDemand(BanditDemand m)
@@ -147,21 +158,35 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append(it.Count).Append("× ").Append(L($"item.{it.Item}.name"));
             }
 
-            _items.text = sb.ToString();
+            SetFitted(_items, sb.ToString(), 20);
 
             int remaining = Mathf.Max(0, Mathf.CeilToInt(_deadline - Time.unscaledTime));
-            _countdown.text = L("ui.bandit.countdown").Replace("{0}", remaining.ToString());
+            SetFitted(_countdown, L("ui.bandit.countdown").Replace("{0}", remaining.ToString()), 18);
             _countdown.color = remaining <= 8 ? new Color(1f, 0.35f, 0.3f) : UiKit.TextCol;
 
             bool armed = !_answered && Time.unscaledTime >= _unlockAt;
             _comply.interactable = armed;
             _refuse.interactable = armed;
-            _complyLabel.text = "[1] " + L("ui.bandit.comply");
-            _refuseLabel.text = "[2] " + L("ui.bandit.refuse");
-            _hint.text = _answered ? L("ui.bandit.waiting") : L("ui.bandit.hint");
+            _complyLabel.text = NpcDialogUi.KeyPrefix(1) + L("ui.bandit.comply"); // the number keys only while a keyboard is in hand
+            _refuseLabel.text = NpcDialogUi.KeyPrefix(2) + L("ui.bandit.refuse");
+            SetFitted(_hint, _answered ? L("ui.bandit.waiting") : L("ui.bandit.hint"), 14);
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        /// <summary>Sets a one-line row and keeps it inside the panel: the German countdown ("Antworte innerhalb von 30 s —
+        /// Schweigen gilt als Ablehnung.") and a long list of demanded goods ran past the 480-wide row. Measured only when
+        /// the text changes (the countdown: once a second).</summary>
+        private static void SetFitted(Text row, string text, int maxSize)
+        {
+            if (row.text == text)
+            {
+                return;
+            }
+
+            row.text = text;
+            UiKit.FitLabelSingleLine(row, RowW, 12, maxSize);
+        }
 
         /// <summary>
         /// Sizes the speech-line row to its wrapped height and shifts every row below it (and the panel
@@ -197,7 +222,9 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(_canvas.gameObject); // pad: stick walks Comply / Refuse, A picks (#1043) — 1/2 keys stay
             var root = _canvas.transform;
 
+            // Opaque like every text-carrying panel (#3662); no scrim and clear of VEGA's comms zone (bottom left).
             _panel = UiKit.AddCenteredPanel(root, "BanditPanel", PanelW, PanelBaseH, 60f);
+            _panel.GetComponent<Image>().sprite = UiKit.DialogSprite;
 
             var t = _panel.transform;
             _title = UiKit.AddText(t, 20f, 12f, RowW, 26f, string.Empty, 22, new Color(1f, 0.55f, 0.3f), TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -206,9 +233,10 @@ namespace BlocksBeyondTheStars.Client
             _items = UiKit.AddText(t, 20f, ItemsY, RowW, 26f, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _countdown = UiKit.AddText(t, 20f, CountdownY, RowW, 24f, string.Empty, 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            _comply = UiKit.AddButton(t, 20f, ButtonsY, 230f, 40f, string.Empty, () => Answer(true));
+            // 44 high: a finger's target (#3662). Comply first, so a pad lands on the answer that ends the hold-up peacefully.
+            _comply = UiKit.AddButton(t, 20f, ButtonsY, 230f, ButtonH, string.Empty, () => Answer(true));
             _complyLabel = _comply.GetComponentInChildren<Text>();
-            _refuse = UiKit.AddButton(t, 270f, ButtonsY, 230f, 40f, string.Empty, () => Answer(false));
+            _refuse = UiKit.AddButton(t, 270f, ButtonsY, 230f, ButtonH, string.Empty, () => Answer(false));
             _refuseLabel = _refuse.GetComponentInChildren<Text>();
 
             _hint = UiKit.AddText(t, 20f, HintY, RowW, 22f, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleCenter);

@@ -135,6 +135,20 @@ public static class StructurePorts
     /// </summary>
     public static List<PortRect> Collect(StructureTemplate t, List<string>? errors = null)
     {
+        var problems = errors is null ? null : new List<TemplateProblem>();
+        var result = CollectProblems(t, problems);
+        if (errors != null && problems != null)
+        {
+            errors.AddRange(TemplateProblem.Sentences(problems));
+        }
+
+        return result;
+    }
+
+    /// <summary><see cref="Collect"/> with the problems as codes the structure editor translates (#3692): the same rectangles,
+    /// the same checks, the same English sentences.</summary>
+    public static List<PortRect> CollectProblems(StructureTemplate t, List<TemplateProblem>? errors)
+    {
         var groups = new Dictionary<(PortFace Face, string Port), List<TemplateCell>>();
         var occupied = new HashSet<Vector3i>();
         foreach (var c in t.Cells)
@@ -154,20 +168,23 @@ public static class StructurePorts
 
             if (c.Kind != "block")
             {
-                errors?.Add($"port '{c.Port}' at ({c.X},{c.Y},{c.Z}): a port sits on a wall block, not on a marker");
+                errors?.Add(new TemplateProblem("port.on_marker", $"port '{c.Port}' at ({c.X},{c.Y},{c.Z}): a port sits on a wall block, not on a marker",
+                    c.Port, TemplateProblem.At(c.X, c.Y, c.Z)));
                 continue;
             }
 
             if (!TryParse(c.Port, out _, out _))
             {
-                errors?.Add($"port '{c.Port}' at ({c.X},{c.Y},{c.Z}): unknown port (use tag or tag:slide|energy|hinge|open)");
+                errors?.Add(new TemplateProblem("port.unknown", $"port '{c.Port}' at ({c.X},{c.Y},{c.Z}): unknown port (use tag or tag:slide|energy|hinge|open)",
+                    c.Port, TemplateProblem.At(c.X, c.Y, c.Z)));
                 continue;
             }
 
             var face = FaceOf(t, c.X, c.Y, c.Z);
             if (face is null)
             {
-                errors?.Add($"port '{c.Port}' at ({c.X},{c.Y},{c.Z}): a port must lie on exactly one outer face of the module");
+                errors?.Add(new TemplateProblem("port.face", $"port '{c.Port}' at ({c.X},{c.Y},{c.Z}): a port must lie on exactly one outer face of the module",
+                    c.Port, TemplateProblem.At(c.X, c.Y, c.Z)));
                 continue;
             }
 
@@ -241,7 +258,9 @@ public static class StructurePorts
 
                 if (rect.Cells.Count != rect.SizeA * rect.SizeB)
                 {
-                    errors?.Add($"port '{port}' on the {face} face at ({component[0].X},{component[0].Y},{component[0].Z}): the port cells must form a filled rectangle");
+                    errors?.Add(new TemplateProblem("port.not_rectangle",
+                        $"port '{port}' on the {face} face at ({component[0].X},{component[0].Y},{component[0].Z}): the port cells must form a filled rectangle",
+                        port, TemplateProblem.At(component[0].X, component[0].Y, component[0].Z)));
                 }
 
                 var inward = Outward(face) * -1;
@@ -249,7 +268,8 @@ public static class StructurePorts
                 {
                     if (occupied.Contains(c + inward))
                     {
-                        errors?.Add($"port '{port}' at ({c.X},{c.Y},{c.Z}): the cell behind a port must be air (the way in)");
+                        errors?.Add(new TemplateProblem("port.blocked", $"port '{port}' at ({c.X},{c.Y},{c.Z}): the cell behind a port must be air (the way in)",
+                            port, TemplateProblem.At(c.X, c.Y, c.Z)));
                         break;
                     }
                 }
@@ -299,10 +319,13 @@ public static class StructurePorts
     }
 
     /// <summary>Every port error of a template (empty = the ports are fine; a template without ports is fine too).</summary>
-    public static List<string> Validate(StructureTemplate t)
+    public static List<string> Validate(StructureTemplate t) => TemplateProblem.Sentences(ValidateProblems(t));
+
+    /// <summary><see cref="Validate"/> as codes the structure editor translates (#3692).</summary>
+    public static List<TemplateProblem> ValidateProblems(StructureTemplate t)
     {
-        var errors = new List<string>();
-        Collect(t, errors);
+        var errors = new List<TemplateProblem>();
+        CollectProblems(t, errors);
         return errors;
     }
 }

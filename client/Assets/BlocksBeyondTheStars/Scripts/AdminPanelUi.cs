@@ -31,6 +31,10 @@ namespace BlocksBeyondTheStars.Client
         private const float RefreshInterval = 0.5f; // the most often a tab's rows are rebuilt for model changes
 
         private static readonly string[] TabKeys = { "ui.admin.tab_players", "ui.admin.tab_log", "ui.admin.tab_chat", "ui.admin.tab_reports" };
+        private static readonly string[] TabIcons = { "btn_multiplayer", "cat_mission", "sys_comms", "btn_feedback" };
+
+        // The header's buttons and the tab row (#3672).
+        private const float CloseW = 190f, LeaveW = 300f, TabW = 300f, TabGap = 12f;
 
         /// <summary>The local player (wired by WorldRig): Follow steers its observer flight.</summary>
         public PlayerController Player;
@@ -39,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
         private Transform _panel;
         private Transform _tabRoot;
         private readonly Button[] _tabButtons = new Button[4];
+        private Button _leaveButton, _closeButton;
         private readonly Text[] _tabLabels = new Text[4];
         private readonly int[] _tabCounts = { -1, -1, -1, -1 };
         private System.Func<string, string> _loc;
@@ -235,18 +240,25 @@ namespace BlocksBeyondTheStars.Client
             var modeLine = UiKit.AddText(_panel, 28f, 62f, 1000f, 46f, mode, 16, Invisible ? UiKit.CyanDim : UiKit.Warn, TextAnchor.UpperLeft);
             UiKit.FitLabelLines(modeLine, 16, 14, 13);
 
-            UiKit.AddFitButton(_panel, W - 28f - 160f - 12f - 300f, 18f, 300f, 46f, L("ui.admin.leave"), LeaveAdminMode);
-            UiKit.AddFitButton(_panel, W - 28f - 160f, 18f, 160f, 46f, L("ui.admin.close"), Close);
+            // The template's header (#3672): Close top right (the cross, quiet), leaving the mode beside it. Both move behind
+            // the content (BuildTab): a pad's first focus is the first control in hierarchy order, and A on arrival must not
+            // leave admin mode — it lands on the open tab.
+            _leaveButton = AddTierFitButton(_panel, W - 28f - CloseW - 12f - LeaveW, 18f, LeaveW, 46f, L("ui.admin.leave"), LeaveAdminMode,
+                ButtonTier.Secondary);
+            _closeButton = AddTierFitButton(_panel, W - 28f - CloseW, 18f, CloseW, 46f, L("ui.admin.close"), Close, ButtonTier.Quiet, "btn_close");
 
+            // The tab row as a segmented bar: the open tab primary, the others quiet (StyleTabs).
             for (int i = 0; i < TabKeys.Length; i++)
             {
                 var tab = (Tab)i;
-                _tabButtons[i] = UiKit.AddFitButton(_panel, 28f + (i * 244f), 118f, 232f, 46f, L(TabKeys[i]), () => SwitchTab(tab));
+                _tabButtons[i] = UiKit.AddFitButton(_panel, 28f + (i * (TabW + TabGap)), 118f, TabW, 46f, L(TabKeys[i]), () => SwitchTab(tab),
+                    TabIcons[i]);
                 _tabLabels[i] = _tabButtons[i].GetComponentInChildren<Text>();
                 _tabCounts[i] = -1;
             }
 
             BuildTab();
+            UiNav.Prefer(Canvas.gameObject, _tabButtons[(int)_tab]);
         }
 
         private void SwitchTab(Tab tab)
@@ -280,6 +292,12 @@ namespace BlocksBeyondTheStars.Client
             root.transform.SetParent(_panel, false);
             UiKit.Place(root, ContentX, ContentY, ContentW, ContentH);
             _tabRoot = root.transform;
+            if (_leaveButton != null && _closeButton != null)
+            {
+                _leaveButton.transform.SetAsLastSibling(); // Leave and Close last (see BuildFrame)
+                _closeButton.transform.SetAsLastSibling();
+            }
+
             switch (_tab)
             {
                 case Tab.Players:
@@ -304,10 +322,7 @@ namespace BlocksBeyondTheStars.Client
         {
             for (int i = 0; i < _tabButtons.Length; i++)
             {
-                if (_tabButtons[i] != null)
-                {
-                    _tabButtons[i].GetComponent<Image>().color = i == (int)_tab ? new Color(0.55f, 0.88f, 1f) : UiKit.PanelFill;
-                }
+                UiKit.StyleTier(_tabButtons[i], i == (int)_tab ? ButtonTier.Primary : ButtonTier.Quiet); // no-op on a missing button
             }
         }
 
@@ -505,6 +520,16 @@ namespace BlocksBeyondTheStars.Client
         {
             var note = UiKit.AddText(list, 12f, 12f, ContentW - 40f, 40f, L(key), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.FitLabelLines(note, 18, 14, 13);
+        }
+
+        /// <summary>An editor-fitted button (<see cref="UiKit.AddFitButton"/>) in a template tier (#3672): Danger for the
+        /// destructive Kick, Primary for the one obvious action of a tab (Send), Secondary for the rest.</summary>
+        private static Button AddTierFitButton(Transform parent, float x, float y, float w, float h, string label, System.Action onClick,
+            ButtonTier tier, string icon = null)
+        {
+            var button = UiKit.AddFitButton(parent, x, y, w, h, label, onClick, icon);
+            UiKit.StyleTier(button, tier);
+            return button;
         }
 
         /// <summary>A data line (a name, a chat line): plain text, never rich text, wrapped into its box.</summary>

@@ -21,26 +21,34 @@ Last updated: 2026-10-04.
 - Launch the client. **Windows:** `BlocksBeyondTheStars.Launcher.exe` (shows a loading splash then starts the game)
   or `BlocksBeyondTheStars.exe` directly. **Linux:** `./BlocksBeyondTheStars.Launcher.Console` (prints "Loading..."
   to the terminal then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
-  From the main menu: **Singleplayer** → pick an existing save (newest first; a long list scrolls with the mouse
-  wheel, the scrollbar or the gamepad; **✕** deletes a save after a confirmation) or
-  start a **New world**: type a name and press **Create / Play**, or press **Random world** for a surprise
-  world — under the name you typed, or as `world_<number>` when the name box is empty, still says
-  `new_world` or holds the name of a world you already have. The world picker opens at once even with hundreds of
-  saves; if the list is still being read, the left side shows a spinner and **Loading worlds…**, and *Create / Play*
-  and *Random world* wait until it is there (they check your name against it). While a world starts, the loading
+  **The main menu** (#3663): your **player name** sits in the box at the top right — every way into the game uses it,
+  so type it once. On the left, the big **Continue** button starts the world you played last (it names the world, its
+  mode and when you played it); under it **Singleplayer**, **Multiplayer** and **Editors**, and a small row with
+  **Settings**, **Credits** and **Quit**. On the right, **What's new?** shows the newest update (*Read more* opens the
+  full notes) and, when a festival is near, the festival card. Every menu screen works the same way: **Back** is at the
+  top left (or press **Esc** / pad **B**), the filled button is the next step.
+  **Singleplayer → My worlds:** your saves are listed on the left (newest first, with mode, when you last played and how
+  long; a long list scrolls with the mouse wheel, the scrollbar or the gamepad). Click one to see it on the right, then
+  **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
+  type a name, pick the mode (**Explorer**, **Creative** or **Sandbox** — each card says what it means), optionally open
+  **World options…**, then **Create & play** — or press the dice button **Random** for a surprise world, under the name
+  you typed, or as `world_<number>` when the name box is empty, still says `new_world` or holds the name of a world you
+  already have. The screen opens at once even with hundreds of saves; while the list is still being read, the left side
+  shows a spinner and **Loading worlds…**, and *Create & play* and *Random* wait until it is there (they check your name
+  against it). While a world starts, the loading
   screen's bottom line says what is happening right now — e.g. *Searching for landing sites…*, *Building
   settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. Then the screen goes dark
   with the planet's name, and under the spinner a short story steps along, one line every one and a half seconds while
   the world loads — *The Sounders come and go…*, *Humans travel into space…*, *Settlements are built in space…*,
   *Everything begins…*, *Everything ends…* — and *You awaken!* the moment the world is ready (#3450/#3460, Justus'
   idea). A fast world shows only the first lines; nothing waits for the story. Landings and boarding a station show
-  the plain *Loading world…* / *Entering station…* there instead. **Host Game** → host a world for friends, **Join Server**, or
-  **Official Worlds** → online multiplayer on the official servers (see below).
-- **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
-  can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
-  and an optional **join password**. The host bar also shows **your address** (`ip:port`) with a **Copy**
-  button — read it out or paste it to your friends while the world is still loading; it is the address
-  they type into *Join Server*. The game starts the bundled server locally and you join immediately;
+  the plain *Loading world…* / *Entering station…* there instead. **Multiplayer** opens one screen with three tabs:
+  **Official worlds** (online play on the official servers, see below), **Join a server** and **Host on your network**.
+- **Hosting a world for friends (in-game multiplayer hosting):** in **My worlds**, switch on **Open to friends (on your
+  home network)** under the world — *any* saved world can be hosted ("open to LAN" style), and a new one too. The switch
+  shows **max players** (2–16), an optional **join password** and **your address** (`ip:port`) with a **Copy** button —
+  read it out or paste it to your friends while the world is still loading; it is the address they type into *Join a
+  server*. (Multiplayer → *Host on your network* takes you there with the switch already on.) The game starts the bundled server locally and you join immediately;
   you are the world's admin (the very first player of a fresh world is its **WorldAdmin**; the host's
   name is additionally passed as a server admin). The same address is announced again in chat and as a
   HUD toast once you are in ("Hosting — friends can join at ip:port"). The session ends (and the world
@@ -58,19 +66,20 @@ Last updated: 2026-10-04.
   name once if it does not know one yet, and recognises the saved world's player when you come back on
   another device. **New world…** next to *Singleplayer* deletes that world after a confirmation and starts
   over; your name and settings stay.
-- **Official Worlds (online multiplayer, beta):** the in-game portal for hosted worlds on the official
+- **Official Worlds (online multiplayer, beta; Multiplayer → *Official worlds*):** the in-game portal for hosted worlds on the official
   servers — the same site, [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de), further down.
   Create a free account (no email needed), then create your own world. There are **no open public
   servers** — every world belongs to a player. To play with friends: set a **join password**, then
   **list the world publicly** (world's **Manage** dialog → *"List publicly"*; only password-protected
-  worlds can be listed). Friends find it under *Official Worlds → Public worlds* and join with your
+  worlds can be listed). Friends find it under *Multiplayer → Official worlds → Public worlds* and join with your
   password. Worlds are private by default and only visible to their owner until listed. On an official
   world **the owner is its world admin** — a friend who happens to arrive first is a normal player. The shared
   **glitch.fun arcade worlds** have no player admins at all; the game's operators look after them. A world
   marked **"needs a server update"** (amber) was saved by a newer version of the game than the official
   servers run — it opens again once they are updated.
-- **Join Server:** enter your **player name**, the server address, port and (if the server has one) the
-  password. **Name verification:** the first join under a name claims it for your installation — later
+- **Join a server** (Multiplayer → *Join a server*): enter the server address, port and (if the server has one) the
+  password — your player name comes from the main menu. The servers you joined before are listed on the right under
+  **Recently joined**: one click on *Connect* joins again, the bin button forgets one. **Name verification:** the first join under a name claims it for your installation — later
   joins under that name from other machines are rejected ("name belongs to another player"), and a name
   that is currently online can't join twice. So pick your name once and keep it; it also keys your
   inventory/progress on each server.
@@ -107,10 +116,13 @@ Last updated: 2026-10-04.
   it on does not. Everyone online reads a short line about the switch. A world that never had VEGA starts it from the
   beginning. Official (hosted) worlds always start with VEGA and the tutorial on Auto.
 - The **Editors** submenu (main menu) holds the creation tools — see §6.
-- **Window mode** (Settings → Graphics — from the main menu or the pause menu): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
+- **Window mode** (Settings → Display & HUD — from the main menu or the pause menu): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
   Exclusive** and applies immediately. The default is **Windowed** (a normal movable, maximizable window);
   Borderless fills whichever monitor the window currently sits on; Exclusive is classic full-screen.
-- **Language** (the language button at the bottom of Settings): switch the whole game between **14 languages** — English, German, French,
+- **Reset this category** (at the bottom of every settings category) asks first, then puts only that category back to
+  its defaults. In the browser game the settings leave out what a browser cannot do (window mode, updates, voice chat —
+  the list of muted players stays).
+- **Language** (Settings → Language, the last category): switch the whole game between **14 languages** — English, German, French,
   Spanish, Italian, Portuguese, Dutch, Polish, Turkish, Russian, Ukrainian, Chinese, Japanese and Korean.
   A language appears in the picker once its translation clears **45 % coverage**; a text a language does
   not have yet is shown in English (want to help? See `docs/developer/TRANSLATION_GUIDE.md` in the
@@ -169,7 +181,7 @@ Last updated: 2026-10-04.
   the graphics driver, RAM/XMP, power or heat. What helps us: the **stop code** from *Event Viewer → Windows
   Logs → System*, source **BugCheck** (event **1001**); the newest `C:\Windows\Minidump\*.dmp`; your **GPU
   model and driver version** (updating the driver is the first thing to try); and whether it happens at a
-  particular moment (loading, mining, flying). If you have turned **VSync off** in Settings → Graphics, set a
+  particular moment (loading, mining, flying). If you have turned **VSync off** in Settings → Display & HUD, set a
   **frame-rate cap** (e.g. 120) there — uncapped, the GPU runs at 100 % even in light scenes, which is exactly
   the load that exposes a flaky driver or power supply.
 
@@ -206,10 +218,10 @@ Last updated: 2026-10-04.
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
-| **Tab** | Open / close the gameplay menu (Inventory, Crafting, Blueprints, Ship, Map, Missions, Journal, …, Character); also closes full-screen menu screens such as the Codex |
+| **Tab** | Open / close the on-board console (Inventory, Crafting, Blueprints, Ship, Map, Logbook, Knowledge, Me); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
-| **Enter** | Open the chat window in the middle of the screen (Enter sends, Esc closes; after a `/` command it stays open — see §7 → Chat) |
-| **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
+| **Enter** | Open the chat — it opens at the bottom left, where its lines show, above VEGA (Enter sends, Esc closes; after a `/` command it stays open — see §7 → Chat) |
+| **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Display & HUD → Chat display) |
 | **Caps Lock** (hold) | Push-to-talk voice (if the server enabled voice; needs a **worn** radio; key is configurable — see §7 → Voice chat) |
 | **Esc** | Close the current screen; if no game screen is open, open the pause menu (Resume · Settings · **Back to my ship** while on foot · Quit) |
 
@@ -256,8 +268,11 @@ While a pad is in your hands every menu shows a **hint strip along its bottom ed
 back", "type" when a text box is selected, and whatever else that screen offers — in the button names you
 picked in *Settings → Controller*. The selected control wears a **cyan frame** and moving the cursor
 clicks, long lists **scroll along with the cursor**, the **right stick** (or the d-pad) scrolls any page by hand — the credits, *What's new*, a story page — and in the gameplay menu **LB / RB** step through the
-tabs. In the slot-action pie the stick walks the four wedges (up = Swap, left = Colour, right = Form, down =
-Close).
+tabs (on the *Multiplayer* screen too). In the slot-action pie the stick walks the four wedges (up = Swap, left = Colour, right = Form, down =
+Close). A **value with arrows** (`‹ Medium ›`) or a −/+ number changes with **left / right** while it is selected. When a
+question or dialog opens, the cursor jumps into it (a "delete?" question starts on *Cancel*) and comes back to where you
+were when it closes. **(B)** always closes the topmost layer first — a dialog, the world options, the New-world form, the
+Codex page (back to the console) — and only then leaves the screen.
 
 **Typing without a keyboard.** Move to a text box and press **(A)**: an on-screen keyboard opens, and you
 pick letters with the stick and **(A)**. **ABC/abc** switches upper and lower case, **?123** shows the
@@ -460,7 +475,23 @@ separate unlock; admins can still disable it through server world rules.
 
 ## 4. Menus & HUD
 
-- **Tab menu** — tabs for Inventory, Crafting, Blueprints (research), Ship (modules/build), Map, Missions,
+- **Where things are on screen (#3668):** your **status** (location, health, oxygen, energy, hunger — aboard also hull
+  and shield, in flight too) is at the top left; **messages** pop up at the top centre; the **compass and clock** (in
+  space the **radar**) are at the top right, your **objectives** right under them and a **scan result**, the **planet
+  card** or a **wreck to repair** under those. **VEGA** speaks from the bottom left, and the **chat** shows (and opens)
+  right above her. The **hotbar** is at the bottom centre (in flight with the speed line above the systems bar), and a
+  short line at the bottom right names **four keys** for what you are doing — when something only works right now
+  (flying in a Creative world, turning a held block, the slot actions), it takes the last of the four places.
+  *Settings → Display & HUD → Controls line* switches it to the old full line of every key, or off. The centre of the
+  screen stays free.
+- **On-board console (Tab)** — eight tabs along the top: **Inventory**, **Crafting**, **Blueprints** (research),
+  **Ship** (modules/build), **Map**, **Logbook** (*Missions · Journal · Achievements*), **Knowledge** (*Codex · Creatures ·
+  DataQubes*) and **Me** (*Character · Photos · Alliances*); a tab with several pages shows them as a bar under the
+  tabs. On a gamepad **LB/RB** switch tabs. **Pause** and **Close** are the two buttons at the top right. The console
+  covers the game completely; VEGA's objective line steps aside while it is open, and a line VEGA says meanwhile
+  shows above the console. The **Inventory** shows its pages (*Backpack · Suit · Cargo hold · Samples*) as a bar at the
+  top; while no item is picked, the right column shows an **overview** (backpack and cargo fill, what you wear, your
+  samples). Inside the tabs: Missions,
   plus **Journal** (your **stories** — the basic training, VEGA's story and any other story of the world, see
   "The Journal" in §5 — then **VEGA's notes**, and a **Notes** category: up to 20 titled notes of your own,
   saved with your character — the buttons above the text make it **bold** (B), give it one of **eight colours** or
@@ -522,7 +553,7 @@ separate unlock; admins can still disable it through server world rules.
   reach, on foot or in your ship — carries a green **✓ met**, and the head counts them. A first meeting says so
   (*First met: …*). The numbers are the game's own (`data/enemies.json`), so they are always right.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
-  **< Menu** returns from the full-screen screen to the normal Tab menu.
+  **Back** (top left) returns from the full-screen screen to the console. The Codex lists its chapters on the left.
 
 ### Quality preset (Settings → Graphics)
 
@@ -599,16 +630,16 @@ separate unlock; admins can still disable it through server world rules.
 - **Other players** see your shots, swings, drilling and scans, and you see theirs. Their arm really swings (a
   blade's chop, a punch, both arms for the shock gloves) and you hear the swing where they stand. Gadgets (medkit,
   stasis, blaster, terrain scanner) only show their effect once the game has accepted the use.
-- **Comfort settings:**
-  - **Settings → Comfort → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
-    **Settings → Comfort → Camera motion** off still stops all of it.
-  - **Settings → Comfort → Reduce flashes** turns big full-screen flashes into a soft wash, for light-sensitive eyes.
+- **Accessibility settings:**
+  - **Settings → Accessibility → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
+    **Settings → Accessibility → Camera motion** off still stops all of it.
+  - **Settings → Accessibility → Reduce flashes** turns big full-screen flashes into a soft wash, for light-sensitive eyes.
     That includes lightning in a storm (the screen and the landscape only brighten softly), and flickering lamps —
     the red emergency light of a badly damaged ship, engine and wormhole light — glow steadily instead.
-  - **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects; it applies at once,
+  - **Settings → Accessibility → Reduced effects** draws fewer particles and calmer screen effects; it applies at once,
     also from the pause menu.
   - **Mute alarm sirens** (Settings → Audio) silences the Crystal Net sirens and your ship's hull alarm.
-  - **Settings → Comfort → Story text: wait for me** (on by default): the texts of story scenes wait until you turn the
+  - **Settings → Accessibility → Story text: wait for me** (on by default): the texts of story scenes wait until you turn the
     page — **N** (pad **Back**), the **Continue** button, or a tap on the text box. Off, they turn the page by themselves
     after a reading time — and **N** (or a tap on the text) still skips ahead to the next page. Either way, once you have
     read a scene's text, the picture moves on about a second later instead of making you wait. Titles always run on
@@ -835,11 +866,11 @@ round.
   click-to-set waypoints. The map **remembers where you have been**: ground you explored earlier — even in a
   previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour. The info box
   names where you stand in the world's own block coordinates (**X · Y · Z**, the numbers the Quantum Teleporter takes,
-  #2993); **Settings → Comfort & wellbeing → Show coordinates** (off by default) adds the same line right under your health, oxygen,
+  #2993); **Settings → Display & HUD → Show coordinates** (off by default) adds the same line right under your health, oxygen,
   energy and hunger bars (#3033), and typing
   **`/pos`** in the chat prints it too. Coordinates exist on a surface only — not aboard, in a station or in space.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
-  wreck panel (right) when near a repairable wreck. With **Settings → Comfort & wellbeing → Show coordinates** a line
+  wreck panel (right) when near a repairable wreck. With **Settings → Display & HUD → Show coordinates** a line
   **X · Y · Z** sits right under the health/oxygen/energy/hunger bars and changes with every block you step (#3033).
 - **Compass** (bottom-right, on foot) — a heading-up dial: the top is the way you look, and the **N** that
   moves around the dial marks north (the map is north-up, so the two agree). A blue **arrow on the rim** points
@@ -1012,6 +1043,11 @@ round.
   tank. Press **E** on a placed bed to make it your **home spawn** (same death choice as the tank), and
   resting near it slowly mends your health — but a bed never feeds you and never recharges the suit;
   those stay the heal tank's job. A bed is **two cells long**: the foot half lands on the cell you are facing.
+- **Abandoned beds.** In a world created with this version or later, the beds in ruins and wrecks — a fallen
+  village, the buried G.D.S. ruins, a giant ship wreck on a planet or in space — are **abandoned beds**: they look
+  like any bed, but nobody lives there any more. You cannot lie down in one or make it your home spawn, it does not
+  mend your health, and it never brings a settler to a base built around it. Mine one and you get a normal bed to
+  put up at home. (Older worlds keep the beds their ruins and wrecks already have.)
 - **Crew bunk** (crafted at the workshop from metal panels + plant fibre): a **one-cell** wall bunk for places
   where a bed does not fit — a narrow cabin, a corridor niche. It counts as a bed: **E** makes it your home
   spawn and resting nearby mends your health. Your **starter ship's cabin** has one; roomier ships (hammerhead,
@@ -1455,7 +1491,7 @@ players.
   **◀ category ▶** filter that steps through *All categories* and the categories in your hold, and an **order** button
   (as stored → category → A–Z → amount). The **backpack** has the same search and filter: the slots stay where they are,
   the ones that don't match are dimmed.
-- **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
+- **Auto-stow (optional):** turn on *Settings → Game → "Auto-stow into cargo on boarding"* to have loose
   materials moved into the hold automatically each time you board (it says what it stowed, and nothing when
   there was nothing to stow). Off by default.
 - **Sandbox: All items.** In a Sandbox world (or while an admin gave you the Creative mode) the Inventory has an
@@ -1493,7 +1529,7 @@ players.
 - **Switching takes a moment to look at, never to use:** when you pick another quick-bar slot, the old item goes down
   and the new one comes up into your hand (a quiet sound plays). Scrolling quickly through the slots only takes out the
   last one. Using the item while it is coming up skips the rest of the animation — nothing ever waits for it. With
-  *Reduced effects* (Settings → Comfort) the item changes at once.
+  *Reduced effects* (Settings → Accessibility) the item changes at once.
 - **A little show once it is in your hand:** a **drill** you take out does a short test spin (its bit whirrs up and
   winds down), a **gun** is tipped and your free hand comes up and racks it once (just for the look — there is no ammunition), and a **blade** is
   twirled — now and then also while you simply stand holding it. The drill's bit also **spins while you mine**. It is
@@ -1952,7 +1988,7 @@ players.
 ### Aiming & enemy health bars
 - Damaged enemies (and the one under your crosshair) show a small **health bar** that ramps
   green → amber → red; tamed companions show a friendly cyan bar. Turn bars off under
-  **Settings → Comfort → "Enemy health bars"**.
+  **Settings → Display & HUD → "Enemy health bars"**.
 - Health bars, nameplates, the sleepers' *z z z* and the little "press to use" hints only show where you could
   actually **see** the thing: a hill, a cave wall or a house wall hides them (glass, water and leaves don't).
   Things that are *meant* to show through walls — beacons, thermal-vision contacts, ore-scan markers and other
@@ -3385,7 +3421,7 @@ worlds created with a game version that has generation 43 have them; an older wo
   on food asks for a delivery, and a friend may pass along a **story rumour**. The most recent calls are
   also listed at the top of **Tab → Missions**, so nothing drowns in chat. Calls need a **radio you wear** in a
   module slot of your suit (comm = same world, system = same system, galaxy = anywhere), come at most every few minutes, and never
-  repeat themselves. The **Settings → Comfort → NPC radio calls** option switches them to *missions only*
+  repeat themselves. The **Settings → Game → NPC radio calls** option switches them to *missions only*
   or *off*.
 - **News from home without a radio.** News from **your own base** never gets lost: when your radio doesn't reach (or
   you wear none), **VEGA** passes it on — a new resident moved in (only the first time), a trader ship landed near your
@@ -3529,7 +3565,7 @@ called **stories**:
   system, then the story you **track** (pin one in the Journal), the basic training, VEGA's story, a short course or a
   mission, other stories. VEGA's story goal hides when you switch the **VEGA hints** off; the training, the finale and a
   mission always show.
-- **Show all objectives** (Character tab, also in the pause menu's Settings under Comfort): up to three goals — one per story —
+- **Show all objectives** (Character tab, also in the pause menu's Settings under Display & HUD): up to three goals — one per story —
   instead of one; the extra lines hide while you type in the chat.
 
 ### Story: how VEGA's story starts
@@ -3748,7 +3784,10 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
 over what the skipped part would have given you (the Song Spindle and the first disc, the later discs, the two blueprints,
 the Resonance Blaster and the obsidian chest piece) and says so; skipped discs count as decoded, so their letters are in
 your note table, and a skipped Song of Return still puts Ornemis on your star chart. Nothing comes twice if you played the
-part yourself, and the Soundi only joins you if you win the sing duel.
+part yourself, and the Soundi only joins you if you win the sing duel. If your backpack is full, VEGA keeps the things for
+you and asks you to make room — they always go into your backpack, never onto the ground. And if the next step needs
+something you no longer have — the Song Spindle, the first disc or the **Hearing** disc (for the chest piece's socket and
+the Echoes) — VEGA packs you a new one.
 
 **The melody bar.** Whenever you play a tune (a shrine, a spindle, an Echo, the tower, a Soundi) the melody bar opens at
 the bottom of the screen: eight tones, each with its own colour and sign. Play them with the number keys **1–8** (the
@@ -3769,7 +3808,7 @@ controls line at the bottom leaves out the quick-bar keys.
 - **My festivals:** you choose which festivals you celebrate. By default these are the **big world festivals** (New Year,
   Lunar New Year, Carnival, Holi, Eid al-Fitr, Easter, Hanami, Midsummer, the Mid-Autumn Festival, Halloween, Día de los
   Muertos, Diwali, Hanukkah, Christmas) **plus the festivals of your language**. You can pick **All**, **Only my language**,
-  **None**, or tick festivals one by one: **More festivals** on the menu card (or **Settings → Comfort → Choose festivals…**)
+  **None**, or tick festivals one by one: **More festivals** on the menu card (or **Settings → Game → Choose festivals…**)
   lists every festival with its explanation and a **Celebrate** switch. The choice holds for every world you play, takes
   effect at once, and decides the card, the chip, the mood, VEGA's greeting, the challenges and the pumpkins around you.
 - **Where you see it:** the **main menu card** ("Today: ✦ Halloween" or "In 3 days: ✧ Diwali", with the explanation), a
@@ -3784,7 +3823,7 @@ controls line at the bottom leaves out the quick-bar keys.
   `data/festivals.json` (`halloween`, `diwali`, `lunar_new_year`, `hanami`, …). A festival switched on this way is for
   **everybody** on the world, whatever they chose under My festivals, and shows its mood every day. The Character tab's world
   rules have the same **Festivals** switch.
-- **Settings → Comfort:** **My festivals** cycles the four choices (big festivals + my language, all, only my language, none),
+- **Settings → Game:** **My festivals** cycles the four choices (big festivals + my language, all, only my language, none),
   **Choose festivals…** opens the list; **Festival mood** switches off the cosmetic side on this client only. A world's
   own rule (the admin's switch) stands above your choice.
 - **Dedicated servers:** `--festivals off` or a festival key as the operator's override, see
@@ -4904,7 +4943,7 @@ floor grid marks every cell with a brighter line every 8 cells. The palette on t
 placed as head **and** foot (removing one half removes both; refused where the foot would not fit), a campfire
 as a slab, a rug as a sheet, a flower pot as a pot, a ladder as a plate against the wall you clicked (a pole
 with no wall), stairs and the stretcher in their forms. *Cube* is an explicit choice. **Doors** are placed as
-door **markers** (Station / Town editor) or door **elements** (Ship editor): click the doorway's floor cell —
+door **markers** (Station / Village editor) or door **elements** (Ship editor): click the doorway's floor cell —
 the game finds the wall and the width. Door *blocks* are no longer in the block palette (they stamped as a
 solid wall); only the Station editor keeps them as **hull airlock** blocks, the airtight block in a station's
 outer hull.
@@ -4954,7 +4993,7 @@ All three work with a **gamepad**: the stick moves a cell cursor, **(A)** paints
 **(Y)** picks a colour, the **d-pad up / down** walks layers or frames, **RB** undoes, **Start** switches
 between the canvas and the buttons, **(B)** steps back.
 
-**LOAD — start from an existing design.** The LOAD button in the Ship, Station and Town editors opens a
+**LOAD — start from an existing design.** The LOAD button in the Ship, Station and Village editors opens a
 sectioned list: **Built-in ships** (every shipped ship type that has a layout — scout, corvette, courier,
 hauler, thunderbolt, deathblock, hammerhead; the starter is a code-built box and is not listed) or
 **Built-in templates** (the shipped stations / settlements), **Your templates** (what you already saved to the
@@ -4968,20 +5007,20 @@ status line instead of vanishing.
 floors and roofs. Set its width / length / height with the *Interior* steppers; wings, engines, nav lights
 and antennae may sit anywhere outside the box (that is how the shipped ships are built).
 
-**Station / Town editor — procedural starting point.** Pick a size tier (stations up to *Colossal*; the line
+**Station / Village editor — procedural starting point.** Pick a size tier (stations up to *Colossal*; the line
 under the stepper tells you how big the game's own generator builds that tier), set a **Seed** (or **Reroll**)
 and press **Generate**: the same generator the world uses builds a station / settlement of that tier into the
 room, markers included, ready to edit and save as a template. Villages use the **Surface block** field as their
 material (e.g. `grass`, `sand`, `stone`). The **…** button next to *Generator* lets you pick **any** of the game's
 structure generators instead — a bandit camp, a lodge, a monument, a wreck, a vault, a ruin, a derelict station and
-many more (the Town editor offers what stands on or under a planet, the Station editor what floats in space). Each one
+many more (the Village editor offers what stands on or under a planet, the Station editor what floats in space). Each one
 shows its own settings (a size, a style, a switch …); where a generator can build its structure both whole and worn,
 **☑ As in the world** shows it decayed the way the world builds it, unticked it comes out intact. Everything it builds
 can be edited and saved like your own design.
 
-**Station / Town editor — generator entries.** *Use as → Generator entry* saves no blocks at all: it saves a generator
+**Station / Village editor — generator entries.** *Use as → Generator entry* saves no blocks at all: it saves a generator
 with its settings, weight, pack and planet types. In every new world it builds a fresh structure with that world's own
-seed, so no two look the same. Pick the **Pool** it joins (the Town editor: *Settlements*, *Underground* or
+seed, so no two look the same. Pick the **Pool** it joins (the Village editor: *Settlements*, *Underground* or
 *Landmarks*; the Station editor: *Stations*); the room shows what the generator builds with the seed of the form
 (**Update the preview**, or **Reroll**). Changing a setting does not rebuild the preview — press **Update the preview**
 when you want to see it; the camera stays where you put it. A *Landmarks* entry also has the landmark switches (*needs
@@ -4990,7 +5029,7 @@ can't share a name: if one of the other kind already uses the key, *Save* says s
 An entry whose generator this version doesn't know (or that doesn't fit its pool) says so when you load it; pick a
 generator with **…** before you save it.
 
-**Station / Town editor — preview and stamping.** **Quarter turn ↻** shows your design turned the way the game may turn
+**Station / Village editor — preview and stamping.** **Quarter turn ↻** shows your design turned the way the game may turn
 it in a world (four turns bring it back), **Show materials** shows the planet materials (*Wall*, *Roof* …) as the blocks
 they become with your surface block, and **Show as a ruin** — for a whole settlement and a landmark — shows how the
 game would let it fall. Nothing can be changed while a preview shows; *Back to the design* brings it back.
@@ -5007,7 +5046,7 @@ it says which — an inhabited settlement and a station are protected, a ruin an
 landmark is protected while it stands intact), *Protected* means nobody but an admin can mine or build there, *Open*
 means everyone can. It applies in worlds created since generation 39; the stamping list shows it.
 
-**Town editor — whole settlement or building module (Use as).** Every settlement template is either a **whole
+**Village editor — whole settlement or building module (Use as).** Every settlement template is either a **whole
 structure** (the default: world-gen may drop the complete settlement onto a planet exactly as you built it) or a
 **building module**: set **Use as** to *House*, *Market*, *Mission board* or *Greenhouse* and the procedural
 settlement builder uses your building for one plot of that kind — in hamlets and villages when the tier is
@@ -5023,7 +5062,7 @@ layout it was created with. The option is the **share of hand-built settlements*
 *Rare* 15 %, *Normal* 40 %, *Frequent* 75 % — every other settlement is put together from a kit (*Station templates*
 works the same way for stations).
 
-**Town editor — Underground.** A whole settlement has the toggle **☐ Underground (never on the surface)** under the
+**Village editor — Underground.** A whole settlement has the toggle **☐ Underground (never on the surface)** under the
 planet types, and the **Kits…** panel has **☐ Underground** for settlement and city kits. An underground structure is
 never placed on the surface: on worlds created since generation 35 it may turn up **buried** instead — rarely, on the
 planet types you chose (the world option *Vaults* scales how often; *Off* = never). The game carves a sealed cave around
@@ -5032,7 +5071,7 @@ player can find the way down. It is built exactly as you made it — doors, crat
 nobody lives there: an underground structure is a find, like a ruin, and every block is free to mine. The buried G.D.S.
 ruins (see *Buried G.D.S. ruins & Ressaw*) are the game's own underground kit. Stations cannot be underground.
 
-**Town editor — Landmark (Use as).** The third value of **Use as** is *Landmark*: one giant building that stands on a
+**Village editor — Landmark (Use as).** The third value of **Use as** is *Landmark*: one giant building that stands on a
 planet on its own. The room is **256 blocks** a side. The form sets whether it **stands as a ruin** (and how: walls and
 towers, lattice work, or a mine with cave-ins; how strongly), where it may stand (*only on planets with air*, *only on
 inhabited planets*), the **ground row** (the row that lies on the ground — everything below it is dug into the rock)
@@ -5052,7 +5091,7 @@ click a chest, a vendor, a sound or a den with it to set what is in the chest (f
 random pick from a loot list, the chance that the chest is there, hidden under a stone), what the vendor sells, how far
 the sound carries, and which animals live there. *Save* writes one file; it can appear in your next new world.
 
-**Station / Town editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
+**Station / Village editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
 modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and pick the **Function** (**…**): a
 station module is a *Hub*, *Corridor*, *Crew cabins*, *Canteen*, *Bar*, *Market hall*, *Mission office*,
 *Medbay*, *Hydroponics*, *Storage*, *Hangar* or plain *Room*; a town module takes the plot / district roles
@@ -5067,7 +5106,7 @@ the inside turns red — a station module with a leak or a broken port is never 
 composer with the kit named in the field and the current **Seed** and loads the result as a whole structure to
 walk through (your own templates are included), so you can see how the pieces fit before you start a new world.
 
-**Town editor — planet materials, style, taverns and workshops.** The *Planet materials* section of the palette holds
+**Village editor — planet materials, style, taverns and workshops.** The *Planet materials* section of the palette holds
 *Wall*, *Accent*, *Roof*, *Floor* and *Path*: build with them and the game puts the planet's own material there when the
 module is stamped — a village wall becomes sand, ice or grass, a town wall iron; the accent is crystal for aliens. With
 *Use as* on *Kit module*, the **Built for** stepper marks a module for *Humans* or *Aliens*; a kit only puts the
@@ -5095,7 +5134,7 @@ runs the wall along the outline and grows a suburb from the **Suburb kit** outsi
 
 The **Function** of a kit module is a pick list (**…**), and the farm functions *Field*, *Garden* and *Pen* join it
 (they take a house plot in a plot grid and go to the edge of a grown village). A module without a door marks the side
-that should face the road with the **Entrance** marker. In the town editor's *Generate*, the settlement source previews
+that should face the road with the **Entrance** marker. In the village editor's *Generate*, the settlement source previews
 a grown kit on **Ground** *Flat*, *Slope* or *Hills* and in a **Village form** of your choice. **Save kit** writes it to the user-content folder (live in the next
 new world, drawn from the same weighted table as the complete templates) and an export bundle for
 `tools/merge_structure.py`. Saved worlds keep the exact composition they were created with — reloading never
@@ -5104,7 +5143,7 @@ rebuilds a station, village or city differently.
 **Textures.** Placed blocks show their real block textures (dye and glow tint them like in-game); station tiles,
 ship elements and interaction markers are drawn as plain colour swatches so they stand out.
 
-**Submit — your ship, station, town or skin for the game.** Next to *Save* in the Ship, Station and Town editors
+**Submit — your ship, station, town or skin for the game.** Next to *Save* in the Ship, Station and Village editors
 (and next to *Export skin* in the Avatar Designer) sits **Submit**. It sends what you built to the developers together
 with a picture the editor takes of it, in the same dialog as the texture editor's *Submit to the developers*: a name, a
 **nickname** (please not your real name — or *No name*), an optional note and three boxes to tick (you made it yourself,
@@ -5114,7 +5153,7 @@ kit module, its kit; a skin's colours, face and paintings), the picture, its nam
 and description, signs and device labels), your nickname, your note, the game version and an anonymous id for the
 answer — **no e-mail, no location**. A person looks at every submission by hand before anything goes into the game; the
 answer reaches you **in the game**, and a submission that is not adopted is deleted after twelve months at the latest.
-The Station / Town editor first runs the same checks as *Save* (ports, seal, door lanes) and does not send a module of
+The Station / Village editor first runs the same checks as *Save* (ports, seal, door lanes) and does not send a module of
 more than 60 000 cells; a design that is still too big after packing is refused with a message too. Without a
 connection the submission waits and goes out the next time you start the game.
 
@@ -5122,7 +5161,7 @@ connection the submission waits and goes out the next time you start the game.
 |---|---|---|
 | **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py`; Save also writes `usercontent/ship_types/<key>.json`, so your ship can fly past as a trader or a pirate in your own worlds (see below) |
 | **Station Editor** | Space stations or station kit modules (hull/glass/light + hangar/vendor/mission/heal/quarters/console/cabin/lounge markers, docking ports) and station kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
-| **Town Editor** | Settlements/villages or their modules (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) and settlement / city kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
+| **Village Editor** | Settlements/villages or their modules (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) and settlement / city kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
 | **Avatar Editor** | Player skin (per-part colours, pixel face, body paintings + gear preview) and up to eight saved **outfits** | `skin.json` (the whole look) → `tools/gen_pioneer_skins.py --from-skin` — an adopted skin becomes a pioneer's look (Apply also saves locally) |
 | **Item & Recipe Editor** | Items (stats, tool/weapon properties, worn + eaten effects) + recipes (station, inputs, market vendor theme) + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
 | **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), palette section, dyeable/shapeable, look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
@@ -5180,7 +5219,7 @@ reminds you.
 - **Incoming lines** show in a small column at the left edge while the window is closed, and **fade out on their
   own** a few seconds after the last line (lines you already read in the window do not come back there). When a
   long answer does not fit, a dim ▲ row says so — press Enter to read it all in the window. Prefer the column always
-  visible — or never? **Settings → Comfort → Chat display** offers *Fade out / Always on / Off*, and **J**
+  visible — or never? **Settings → Display & HUD → Chat display** offers *Fade out / Always on / Off*, and **J**
   hides/shows it on the spot for the session.
 - **With a gamepad** (d-pad ▲) the on-screen keyboard opens and the chat window sits above it, showing the latest
   lines; after a command the keyboard comes back for the next one, **(B)** closes both. **On a touch screen** the
