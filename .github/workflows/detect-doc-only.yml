@@ -20,11 +20,13 @@
 #   docs     — nothing but documentation/images (`nondocs` is false)
 #   locales  — every non-doc file is under data/locales/
 #   whatsnew — every non-doc file is data/whatsnew.json or under data-online/whatsnew/
-#   full     — anything else, INCLUDING a diff that mixes locales and What's-new files
-# On `locales` and `whatsnew` ci.yml replaces the sharded matrix with the narrow `lane-tests` job,
-# because only a known handful of test classes can observe such a change (see ci.yml's NARROW
-# LANES header for why that is safe). `nondocs` stays true on both — lint.yml and codeql.yml are
-# unaffected and keep running. A new narrow lane is one more `case` arm and one more value here,
+#   client   — every non-doc file is on the client side: client/, src/…Client.Core/,
+#              tests/…Client.Tests/ or the code-health baseline
+#   full     — anything else, INCLUDING a diff that mixes two of the narrow groups
+# On a narrow lane (`locales`, `whatsnew`, `client`) ci.yml replaces the sharded matrix with the
+# `lane-tests` job, because only a known set of test classes can observe such a change (see ci.yml's
+# NARROW LANES header for why that is safe). `nondocs` stays true on all of them — lint.yml and
+# codeql.yml are unaffected and keep running. A new narrow lane is one more `case` arm and one more value here,
 # plus its filter in ci.yml's `lane-tests`; an unknown value there fails the job rather than
 # running nothing.
 name: Detect doc-only changes
@@ -36,7 +38,7 @@ on:
         description: "true if the PR diff contains any non-doc, non-image file"
         value: ${{ jobs.detect.outputs.nondocs }}
       lane:
-        description: "docs | locales | whatsnew | full — the test gate this PR diff needs (empty outside pull requests)"
+        description: "docs | locales | whatsnew | client | full — the test gate this PR diff needs (empty outside pull requests)"
         value: ${{ jobs.detect.outputs.lane }}
 
 permissions:
@@ -65,6 +67,7 @@ jobs:
           files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[] | .filename, (.previous_filename // empty)')"
           haslocales=false
           haswhatsnew=false
+          hasclient=false
           hascode=false
           while IFS= read -r f; do
             [ -z "$f" ] && continue
@@ -90,20 +93,33 @@ jobs:
               # other file type there and any future kind of online content.
               data-online/whatsnew/*/*) hascode=true; break ;;
               data/whatsnew.json|data-online/whatsnew/*.json) haswhatsnew=true ;;
+              # The client side: the Unity project, the Unity-free client library and its test
+              # suite. The server test project references none of it, so its compiled inputs
+              # are unchanged; the lane runs the whole Client.Tests suite plus the server
+              # classes that read repository files. The code-health baseline belongs here
+              # because a client refactor moves it (CodeHealthRatchetTests is in the lane).
+              # Images under client/ never get this far — the image arm above already took
+              # them, as it did before this lane existed.
+              client/*|src/BlocksBeyondTheStars.Client.Core/*|tests/BlocksBeyondTheStars.Client.Tests/*) hasclient=true ;;
+              tests/BlocksBeyondTheStars.Tests/Fixtures/code_health_baseline.json) hasclient=true ;;
               *) hascode=true; break ;;
             esac
           done <<< "$files"
-          # A diff that mixes the two narrow groups takes the full matrix: the lanes are not
-          # combined (rare, and a union of two filters is one more path that can under-select).
+          # A diff that mixes two narrow groups takes the full matrix: the lanes are not
+          # combined (a union of filters is one more path that can under-select).
+          narrow=0
+          for has in "$haslocales" "$haswhatsnew" "$hasclient"; do
+            if [ "$has" = true ]; then narrow=$((narrow + 1)); fi
+          done
           nondocs=true
-          if [ "$hascode" = true ]; then
-            lane=full
-          elif [ "$haslocales" = true ] && [ "$haswhatsnew" = true ]; then
+          if [ "$hascode" = true ] || [ "$narrow" -gt 1 ]; then
             lane=full
           elif [ "$haslocales" = true ]; then
             lane=locales
           elif [ "$haswhatsnew" = true ]; then
             lane=whatsnew
+          elif [ "$hasclient" = true ]; then
+            lane=client
           else
             lane=docs
             nondocs=false

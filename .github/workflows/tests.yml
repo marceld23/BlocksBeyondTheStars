@@ -153,9 +153,10 @@ jobs:
           python3 scripts/partition-tests.py verify --shards ${{ strategy.job-total }} --tier ${{ inputs.tier }} --list-file listed-tests.txt $DRIFT
 
       # The narrow lanes of ci.yml (`lane-tests`) verify their own filters — but a lane only ever runs
-      # on a PR that touches nothing except its data files, while whatever breaks a filter (a guarding
-      # class renamed, a Client.Tests file that starts reading a lane's files) arrives in an ordinary
-      # code PR. Checked there, it would merge green and turn the NEXT translation or release PR red
+      # on a PR that touches nothing except its own files, while whatever breaks a filter (a guarding
+      # class renamed, a Client.Tests file that starts reading a lane's files, a new test helper that
+      # reads repository files, a project reference to Client.Core) arrives in an ordinary code PR.
+      # Checked there, it would merge green and turn the NEXT translation, release or client PR red
       # for a reason outside its diff. So the same `verify` runs here, on the PR that causes it. Needs
       # no build (a source scan), shard 1 only, PR gate only.
       - name: Verify the narrow-lane test filters
@@ -163,6 +164,7 @@ jobs:
         run: |
           python3 scripts/locale-test-filter.py verify
           python3 scripts/lane-test-filter.py whatsnew verify
+          python3 scripts/lane-test-filter.py client verify
 
       # Two-tier test gate: the fast tier skips the tests marked [Trait("Category", "Slow")] — the
       # statistical worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still

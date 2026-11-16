@@ -12,8 +12,9 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 12-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~10–11 min (ten shards on stale weights ran 9–17.5 min once the fast tier reached ~21 300 test-seconds; widened and re-packed 2026-11-14). The weights decay as test classes are added, so
 shard 1's verify step fails a PR once >5 % of the predicted load is guesswork (`--weight-drift-guard`) — that is the cue to refresh them (see docs/developer/DEVELOPER.md).
-Two kinds of PR run a single narrow `lane-tests` job instead of the matrix: nothing but `data/locales/*.json` (`scripts/locale-test-filter.py`), and nothing but
-the What's-new files `data/whatsnew.json` / `data-online/whatsnew/*.json` (`scripts/lane-test-filter.py whatsnew`) — see docs/developer/DEVELOPER.md § CI.
+Three kinds of PR run narrow lane jobs instead of the matrix: nothing but `data/locales/*.json` (`scripts/locale-test-filter.py`), nothing but
+the What's-new files `data/whatsnew.json` / `data-online/whatsnew/*.json`, and nothing but the client side (`client/`, `Client.Core`, `Client.Tests`;
+`scripts/lane-test-filter.py whatsnew|client`) — see docs/developer/DEVELOPER.md § CI.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
 FR/ES/PT/PL/TR/NL/RU/UK/ZH/JA/KO machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -25,7 +26,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛤️ CI: a narrow lane for What's-new PRs (2026-11-16) — branch ci/whatsnew-lane — ✅
+### 🛤️ CI: a narrow lane for client-side PRs (2026-11-17) — branch ci/client-lane — ✅
+
+- ✅ **What.** A PR whose whole non-doc diff is `client/**`, `src/BlocksBeyondTheStars.Client.Core/**`,
+  `tests/BlocksBeyondTheStars.Client.Tests/**` or the code-health baseline is lane `client`: instead of the 12-shard
+  matrix it runs `lane-tests` (57 server classes: those that read anything outside `data/`, and those that borrow a
+  static member from one — ~930 fast-tier test-seconds of ~24 500) and, beside it, `lane-client-tests` (the whole Client.Tests suite). `format` runs as usual. A diff that also touches
+  locales, the What's-new files or anything else stays on the full matrix. About 30 of the last 300 commits on `main`
+  were of that kind (falling: 30 % of the commits in June, 5 % in November).
+- ✅ **Why it holds.** The server test project does not reference `Client.Core`, so its binary is unchanged; a server
+  test can only notice by reading repository files, and every route to the repository root is a marker
+  (`scripts/lane-test-filter.py client`). `verify` fails when the project graph gains that reference and when a
+  marker-matching helper file (no test of its own) is not listed under `known_helpers` with the reason its users are
+  covered. A class that uses a static member of a marker-matching test class joins by itself
+  (`StoryPackValidationTests.Context` checks packs against `client/Music` and the audio clips for twelve other classes).
+  `verify` runs on shard 1 of every PR, like the other lanes' checks.
+- ⚠ **Not checked by a corruption run** (the What's-new lane was) — decided 2026-11-16. A reader the marker cannot see
+  would show as a red `main` after a client PR; it cannot reach a release.
+- 📋 The lane cannot run on its own PR — the next client-only PR is its first real run. Unity is still not built in PR
+  CI; the local `build-client` run stays mandatory.
+- 📋 Noticed on the way, not changed: images under `client/` (textures, icons) count as documentation, so a PR that
+  changes nothing but PNGs runs no test at all — although `BiomePaletteTests`, `BlockFaceTextureTests`,
+  `IconCoverageTests` and others read those folders.
+
+### 🛤️ CI: a narrow lane for What's-new PRs (2026-11-16) — #3733, `576d8697` — ✅
 
 - ✅ **Why.** Every release opens two PRs that touch nothing but the What's-new files — the release PR
   (`data/whatsnew.json` beside the changelog) and the release notes in the twelve community languages
