@@ -42,8 +42,9 @@
 # and GitHub counts its skip as a pass, as before).
 #
 # NARROW LANES (#922): when the whole non-doc diff of a PR stays inside a small set of files that only
-# a known handful of test classes can observe, the sharded matrix and `format` are skipped and the
-# single `lane-tests` job runs exactly those classes. detect-doc-only.yml names the lane:
+# a known set of test classes can observe, the sharded matrix is skipped and the `lane-tests` job runs
+# exactly those classes (`format` is skipped too where the diff cannot hold C# of the solution).
+# detect-doc-only.yml names the lane:
 #   * locales  — nothing but data/locales/*.json (a translation PR). The classes come from
 #     scripts/locale-test-filter.py: a marker scan for direct locale-table readers plus hand-listed
 #     indirect consumers, found by mutating every locale value and collecting the failing classes.
@@ -53,8 +54,16 @@
 #     data/, never the folder itself), so only the tests that open them can notice:
 #     scripts/lane-test-filter.py, a marker scan checked by overwriting the files with invalid
 #     content and collecting the failing classes.
-# `tests-passed` requires lane-tests' success on such a PR, and the job fails rather than passing on
-# an unknown lane or on a filter that matched no test. Safety: an under-selected filter cannot reach
+#   * client   — nothing but the client side: client/**, src/BlocksBeyondTheStars.Client.Core/**,
+#     tests/BlocksBeyondTheStars.Client.Tests/** and the code-health baseline. The server test
+#     project does not reference Client.Core, so its binary is the one main already tested; a
+#     server test can only notice by reading repository files. `lane-tests` runs every server class
+#     that reads anything outside data/ (same script: a marker for each route to the repository
+#     root, a rule for helper files, and a check of the project graph), `lane-client-tests` runs the
+#     WHOLE Client.Tests suite beside it, and `format` runs as usual (the diff can hold C# of the
+#     solution). Not checked by a corruption run. Unity itself is not built here, as on every PR.
+# `tests-passed` requires the lane jobs' success on such a PR, and they fail rather than pass on an
+# unknown lane or on a filter that matched no test. Safety: an under-selected filter cannot reach
 # a release — the push to main after merge runs the COMPLETE suite, and release.yml re-runs it on
 # the tagged commit; the worst case is a red main.
 
@@ -142,9 +151,9 @@ jobs:
               python3 scripts/locale-test-filter.py verify
               FILTER="$(python3 scripts/locale-test-filter.py)"
               ;;
-            whatsnew)
-              python3 scripts/lane-test-filter.py whatsnew verify
-              FILTER="$(python3 scripts/lane-test-filter.py whatsnew)"
+            whatsnew|client)
+              python3 scripts/lane-test-filter.py "$LANE" verify
+              FILTER="$(python3 scripts/lane-test-filter.py "$LANE")"
               ;;
             *)
               echo "::error::Unknown lane '$LANE' — add its filter to ci.yml's lane-tests job."
@@ -162,19 +171,60 @@ jobs:
           path: TestResults/*.trx
           if-no-files-found: ignore
 
+  # The `client` lane's second half: the WHOLE Client.Tests suite (real NetworkClient against an
+  # in-process GameServer, plus the source guards over the Unity scripts) — nothing is selected, so
+  # nothing can be missed. On the matrix this suite rides on shard 1; here it gets its own runner so
+  # it runs beside `lane-tests` instead of after it. Same tier filter as the PR matrix
+  # (Category!=Slow), same Release + -warnaserror build, and the same refusal of an empty run.
+  lane-client-tests:
+    name: Lane guard tests (client suite)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.lane == 'client'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore + build (treat warnings as errors)
+        run: |
+          dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
+          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release -warnaserror
+
+      - name: Run the client suite
+        run: |
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --filter "Category!=Slow" --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          python3 scripts/lane-test-filter.py ran TestResults/clientcore.trx
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-lane-client
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+
   # Fan-in for branch protection: the ONE required check standing in for the whole test matrix.
   # Required checks must not point at matrix jobs directly (names carry the shard index, and a
   # docs-only PR would leave them "Expected — Waiting for status" forever). Passing states:
   # `changes` must have succeeded in every case, so a cancelled/failed upstream can't sneak through.
   # What counts as a pass then depends on the lane it named — each lane has exactly ONE passing
-  # combination, so nothing passes vacuously (e.g. with both test jobs skipped):
+  # combination, so nothing passes vacuously (e.g. with every test job skipped):
   #   * full, or no lane at all (a push to main) → build-test == success: every shard green.
-  #   * docs (the `changes` job said nondocs=false) → both test jobs skipped.
-  #   * a narrow lane (locales, whatsnew) → lane-tests == success AND the matrix skipped.
+  #   * docs (the `changes` job said nondocs=false) → every test job skipped.
+  #   * locales, whatsnew → lane-tests == success AND the matrix skipped.
+  #   * client → lane-tests AND lane-client-tests == success AND the matrix skipped.
   #   * any other value fails: a lane detect-doc-only.yml learned without this job is not a pass.
   tests-passed:
     name: Tests passed
-    needs: [changes, build-test, lane-tests]
+    needs: [changes, build-test, lane-tests, lane-client-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -183,19 +233,23 @@ jobs:
           CHANGES: ${{ needs.changes.result }}
           MATRIX: ${{ needs.build-test.result }}
           LANE_TESTS: ${{ needs.lane-tests.result }}
+          LANE_CLIENT: ${{ needs.lane-client-tests.result }}
           LANE: ${{ needs.changes.outputs.lane }}
         run: |
-          echo "changes: $CHANGES / lane: '$LANE' / build-test: $MATRIX / lane-tests: $LANE_TESTS"
+          echo "changes: $CHANGES / lane: '$LANE' / build-test: $MATRIX / lane-tests: $LANE_TESTS / lane-client-tests: $LANE_CLIENT"
           if [ "$CHANGES" != "success" ]; then exit 1; fi
           case "$LANE" in
             full|"")
-              if [ "$MATRIX" != "success" ] || [ "$LANE_TESTS" != "skipped" ]; then exit 1; fi
+              if [ "$MATRIX" != "success" ] || [ "$LANE_TESTS" != "skipped" ] || [ "$LANE_CLIENT" != "skipped" ]; then exit 1; fi
               ;;
             docs)
-              if [ "$MATRIX" != "skipped" ] || [ "$LANE_TESTS" != "skipped" ]; then exit 1; fi
+              if [ "$MATRIX" != "skipped" ] || [ "$LANE_TESTS" != "skipped" ] || [ "$LANE_CLIENT" != "skipped" ]; then exit 1; fi
               ;;
             locales|whatsnew)
-              if [ "$LANE_TESTS" != "success" ] || [ "$MATRIX" != "skipped" ]; then exit 1; fi
+              if [ "$LANE_TESTS" != "success" ] || [ "$MATRIX" != "skipped" ] || [ "$LANE_CLIENT" != "skipped" ]; then exit 1; fi
+              ;;
+            client)
+              if [ "$LANE_TESTS" != "success" ] || [ "$LANE_CLIENT" != "success" ] || [ "$MATRIX" != "skipped" ]; then exit 1; fi
               ;;
             *)
               echo "::error::Unknown lane '$LANE'."
@@ -211,9 +265,10 @@ jobs:
   format:
     name: Format (dotnet format)
     needs: changes
-    # PRs on a narrow lane skip this too: dotnet format checks the C# projects in CI.slnf, which
-    # cannot be affected by a diff of JSON data files (and a skipped required job counts as a pass).
-    if: github.event_name != 'pull_request' || (needs.changes.outputs.nondocs == 'true' && needs.changes.outputs.lane == 'full')
+    # PRs on a data-only lane (locales, whatsnew) skip this too: dotnet format checks the C# projects
+    # in CI.slnf, which cannot be affected by a diff of JSON data files (and a skipped required job
+    # counts as a pass). The `client` lane keeps it: Client.Core and Client.Tests are in the solution.
+    if: github.event_name != 'pull_request' || (needs.changes.outputs.nondocs == 'true' && (needs.changes.outputs.lane == 'full' || needs.changes.outputs.lane == 'client'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
