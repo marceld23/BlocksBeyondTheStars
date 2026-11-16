@@ -2,10 +2,11 @@
 # Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-"""Emits the vstest --filter for the locale guard job (ci.yml `locale-tests`).
+"""Emits the vstest --filter for the `locales` lane of the narrow guard job (ci.yml `lane-tests`).
 
-When a PR touches NOTHING but data/locales/*.json, ci.yml skips the 4-shard test matrix and
+When a PR touches NOTHING but data/locales/*.json, ci.yml skips the sharded test matrix and
 runs only the test classes that can actually observe a locale edit. This script owns that set.
+(The other narrow lanes live in scripts/lane-test-filter.py.)
 
 The set is the union of two sources:
   * A marker scan: every test class in a file that reads the locale tables directly

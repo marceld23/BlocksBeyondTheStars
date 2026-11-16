@@ -84,8 +84,8 @@ runs (`WorldHostApp.Create` / `ReportHostApp.Create`) in-process on a loopback p
   #2885, #2781). Need more?
   Add the member to the shared class when a second test could want it; put a one-off query into a
   `file static class` of extension methods at the bottom of your test file (see `Leaks()` in `BaseAirLeakTests`).
-  `Helpers/` holds fakes only, never a test class (`scripts/partition-tests.py` and `scripts/locale-test-filter.py`
-  discover test classes in the project root only). Fixtures bound to one unit under test (the `Grid` builders of
+  `Helpers/` holds fakes only, never a test class (`scripts/partition-tests.py`, `scripts/locale-test-filter.py` and
+  `scripts/lane-test-filter.py` discover test classes in the project root only). Fixtures bound to one unit under test (the `Grid` builders of
   the door, water and climb tests) stay nested — they are not copies.
 - **`SettlementTestWorlds`** ([SettlementTestWorlds.cs](../../tests/BlocksBeyondTheStars.Tests/SettlementTestWorlds.cs))
   boots settlement-only servers: settlements and landing pads exactly as on a full world, without the

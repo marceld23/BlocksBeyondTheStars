@@ -12,7 +12,8 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 12-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~10–11 min (ten shards on stale weights ran 9–17.5 min once the fast tier reached ~21 300 test-seconds; widened and re-packed 2026-11-14). The weights decay as test classes are added, so
 shard 1's verify step fails a PR once >5 % of the predicted load is guesswork (`--weight-drift-guard`) — that is the cue to refresh them (see docs/developer/DEVELOPER.md).
-A PR touching nothing but `data/locales/*.json` runs a single narrow `locale-tests` job instead of the matrix (`scripts/locale-test-filter.py`, ~140 tests).
+Two kinds of PR run a single narrow `lane-tests` job instead of the matrix: nothing but `data/locales/*.json` (`scripts/locale-test-filter.py`), and nothing but
+the What's-new files `data/whatsnew.json` / `data-online/whatsnew/*.json` (`scripts/lane-test-filter.py whatsnew`) — see docs/developer/DEVELOPER.md § CI.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
 FR/ES/PT/PL/TR/NL/RU/UK/ZH/JA/KO machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -23,6 +24,27 @@ code (no scene authoring). One shared world; MessagePack networking for native c
 envelope at the WebSocket edge; deterministic seed world-gen; SQLite default persistence with opt-in PostgreSQL.
 
 ---
+
+### 🛤️ CI: a narrow lane for What's-new PRs (2026-11-16) — branch ci/whatsnew-lane — ✅
+
+- ✅ **Why.** Every release opens two PRs that touch nothing but the What's-new files — the release PR
+  (`data/whatsnew.json` beside the changelog) and the release notes in the twelve community languages
+  (`data-online/whatsnew/*.json`). 78 of the last 300 commits on `main` were of that kind, and each waited ~12 min for
+  the 12-shard matrix although the game server never loads either file.
+- ✅ **What.** `detect-doc-only.yml` now names a `lane` (`docs` / `locales` / `whatsnew` / `full`; it replaces the
+  `localesonly` flag). On `whatsnew` the matrix and `format` are skipped and the `lane-tests` job (the former
+  `locale-tests`, now shared by both narrow lanes) runs the classes `scripts/lane-test-filter.py whatsnew` finds by
+  marker scan — `WhatsNewContentTests` today. A diff that mixes locales and What's-new files stays on the full matrix.
+- ✅ **Fail closed.** `Tests passed` accepts exactly one job combination per lane, `lane-tests` fails on an unknown lane
+  and on a filter that matched no test, and the script's `verify` fails when a Client.Tests file starts reading the
+  feed (the lane runs the server suite only). Both lanes' `verify` also run on shard 1 of every PR's matrix, so the PR
+  that breaks a filter goes red, not the next release PR. A renamed file now counts under both its paths (moving a
+  content file into `docs/` used to read as docs-only). The push to `main` and the release gate still run the whole suite.
+- 📋 The lane cannot run on its own PR (workflow files are on the full matrix) — the next What's-new PR is its first
+  real run.
+- 📋 Noticed on the way, not changed: the `locales` lane's marker scan now matches 96 classes (~3 700 fast-tier
+  test-seconds; its job took 6.5 min on 2026-09-25 and 10 min on 2026-10-09, #2421), so on one runner it is about as
+  slow as the matrix by now. One locales-only PR in the last 300 commits.
 
 ### 💬 Main menu: Feedback button, community row flush with the column (2026-11-16) — #3715 #3716, branch feat/menu-feedback-button — ✅ (⚠ playtest open; client only, no protocol or save change)
 

@@ -57,6 +57,10 @@ on:
         description: "Fail when too much of the shard partition is guesswork (stale weights). PR gate only — a release must not be blocked by bookkeeping."
         type: boolean
         default: false
+      lane-filter-guard:
+        description: "Fail when a narrow lane's test filter (ci.yml lane-tests) can no longer be trusted. PR gate only, like the drift guard."
+        type: boolean
+        default: false
       artifact-prefix:
         description: "Upload each shard's .trx as <prefix>-<shard>."
         type: string
@@ -147,6 +151,18 @@ jobs:
         run: |
           dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --list-tests > listed-tests.txt
           python3 scripts/partition-tests.py verify --shards ${{ strategy.job-total }} --tier ${{ inputs.tier }} --list-file listed-tests.txt $DRIFT
+
+      # The narrow lanes of ci.yml (`lane-tests`) verify their own filters — but a lane only ever runs
+      # on a PR that touches nothing except its data files, while whatever breaks a filter (a guarding
+      # class renamed, a Client.Tests file that starts reading a lane's files) arrives in an ordinary
+      # code PR. Checked there, it would merge green and turn the NEXT translation or release PR red
+      # for a reason outside its diff. So the same `verify` runs here, on the PR that causes it. Needs
+      # no build (a source scan), shard 1 only, PR gate only.
+      - name: Verify the narrow-lane test filters
+        if: matrix.shard == 1 && inputs.lane-filter-guard
+        run: |
+          python3 scripts/locale-test-filter.py verify
+          python3 scripts/lane-test-filter.py whatsnew verify
 
       # Two-tier test gate: the fast tier skips the tests marked [Trait("Category", "Slow")] — the
       # statistical worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still
