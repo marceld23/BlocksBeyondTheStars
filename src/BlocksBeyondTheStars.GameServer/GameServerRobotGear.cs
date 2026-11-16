@@ -111,7 +111,9 @@ public sealed partial class GameServer
         entity.RobotPerched &= entity.RobotJetpack;
     }
 
-    /// <summary>The weapon a robot entity fights with, or null.</summary>
+    /// <summary>The definition of the weapon a robot entity fights with, or null. The robot keeps the full key of the item it
+    /// was given (<see cref="CombatEntity.RobotWeapon"/>, lab change included), and its damage and reach are read through
+    /// that key (<see cref="RobotGear.WeaponValues"/>, #3730) — never from this definition alone.</summary>
     private ItemDefinition? RobotWeaponOf(CombatEntity robot)
         => robot.RobotWeapon.Length > 0 ? _content.GetItem(robot.RobotWeapon) : null;
 
@@ -384,7 +386,9 @@ public sealed partial class GameServer
     /// <summary>Test seam: the robot's damage per shot, reach and tracer colour with the weapon it carries now.</summary>
     public (float Damage, float Reach, int TracerRgb) RobotWeaponStatsForTest(string playerId)
     {
-        var weapon = RobotEntityForTest(playerId) is { } robot ? RobotWeaponOf(robot) : null;
-        return (RobotGear.ShotDamage(weapon, RobotShotDamage), RobotGear.Reach(weapon, SentryRange), RobotGear.TracerRgb(weapon));
+        var robot = RobotEntityForTest(playerId);
+        var weapon = robot is null ? null : RobotWeaponOf(robot);
+        string? key = robot?.RobotWeapon;
+        return (RobotGear.ShotDamage(weapon, RobotShotDamage, key), RobotGear.Reach(weapon, SentryRange, key), RobotGear.TracerRgb(weapon));
     }
 }

@@ -46,6 +46,39 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   test-seconds; its job took 6.5 min on 2026-09-25 and 10 min on 2026-10-09, #2421), so on one runner it is about as
   slow as the matrix by now. One locales-only PR in the last 300 commits.
 
+### 🔧 Bio lab follow-ups: effects that did not act everywhere, trading samples (2026-11-16) — epic #3723 (#3724–#3732), branch feat/bio-symbols — ✅ (⚠ playtest open; server + client, no protocol change, saves stay compatible)
+
+Two code reads done with the symbol package ("does everything the lab shows really act?", "can samples be traded?").
+- ✅ **#3724 Range on blades.** A melee swing always reaches at least 6 blocks and every blade's range is 3–4.5, so a lab
+  "Range" change never acted there — worthless as a gain, free as a drawback. One shared rule
+  (`ItemModRules.HasChangeableRange`) for the server's change and the client's preview: only guns get Range.
+- ✅ **#3725 Mining on space structures.** The Mining effect now counts on asteroids, derelicts and stations too
+  (`SwingMiningPower`, one rule for the planet and the structure path).
+- ✅ **#3726 Coupled second effect.** When it finds no room (three effects running, or a stronger one of its kind) the
+  player is told (`srv.bio.second_effect_no_room`); the main effect still starts.
+- ✅ **#3727 Refresh.** An equally strong preparation keeps the longer of the two remaining times instead of replacing
+  them with its own; a stronger one still replaces, a weaker one is still refused.
+- ✅ **#3728 Ressaw lamp.** Lighting it no longer wipes out a night-sight preparation: the lamp covers the weaker effect
+  (`ActiveEffect.Under`, saved with the player), it counts down underneath and is back when the lamp goes off.
+- ✅ **#3729 Bandits.** A fighting bandit lets go of a player under a stealth preparation (it tested only the cloak).
+- ✅ **#3730 Hunter robot.** It fights with the values of the weapon it really carries, a lab change included.
+- ✅ **#3731 Trading samples.** The trade window lists the sample case ("Your samples"); samples are offered like items,
+  validated against the case and the species register, moved case to case on confirm (all or nothing, room checked on
+  both sides). The receiver gets the species entry; "analysed" stays per player. Trading a deposit's sample away does
+  not re-arm "the first block always yields a sample".
+- ✅ **#3732 Species of arriving items.** A seedling out of a trade or a crate brings its species entry — it no longer
+  reads as a plain "Seedling" until the next join.
+- ✅ Deliberately unchanged (noted in #3723): shield and Armor change cover physical hits only; Reflex needs a cooldown
+  to scale; the armour cap; the exposure steps of timed-exposure worlds.
+- ✅ Tests: `BioLabAuditFixTests` (16), `SampleTradeTests` (12). Docs: BIO_LAB.md §5, §6, §9, §10, §15, §16;
+  USER_MANUAL.md (bio lab, player trade). 4 new texts in all 14 languages.
+- 📋 Playtest: trade samples both ways with a full case on one side; a seedling through a crate; the lamp over a drunk
+  night sight; a blade and a gun on the Change page with a magnetic material; a Mining injector on an asteroid.
+- 📋 Open decisions for the maintainer: an equal preparation with a shorter time is still used up (it only refreshes the
+  catch); the side effect of a night sight covered by the lamp pauses while the lamp is lit; a blade changed before
+  #3724 keeps its inert Range entry (it does move the hunter robot's reach a little); an offered seedling is named
+  only once it arrives.
+
 ### 🧪 Bio lab symbols: an icon per effect, five family colours, row cards, a reaction chart (2026-11-16) — epic #3717 (#3718–#3721), branch feat/bio-symbols — ✅ (⚠ playtest open; client only, no protocol or save change)
 
 - ✅ **#3718 The icon set.** `tools/ai-assets/gen_bio_icons.py`: 20 pictograms from the OpenAI image API (bold filled white

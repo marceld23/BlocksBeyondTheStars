@@ -3519,6 +3519,12 @@ worlds created with a game version that has generation 43 have them; an older wo
   *not enough room* — nothing moves, the window stays open and you both confirm again after making space. Only what
   is in your backpack (and, aboard, your cargo hold) can be traded — the gear you wear never is. You can have one
   trade and one open trade request at a time; a second request to someone who already has one is refused as busy.
+  **Samples** can be traded too: under your inventory the window lists **Your samples** — every kind in your sample
+  case with its `−` / `+` — and they go straight from your **sample case** into your partner's (a kind stacks to
+  20, a case holds 24 kinds). If a case has no room for them, nothing is traded at all and you are both told whose
+  case is full. What you found out about a species in the bio lab is not traded — your partner analyses the sample
+  for themselves. A deposit whose mineral sample you traded away stays known to you: its next block is not a
+  "first block" with a guaranteed sample again.
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
   again) to open that vendor's **trade screen** (*you give → you get*). A vendor's themed goods only trade while that
   vendor stands right beside you (the grocer only inside his shop). Barter trades there swap your raw resources for
@@ -4571,7 +4577,8 @@ look up: what a mix does follows from what goes in, and the same things always g
     once what kind of material works. If your backpack holds nothing changeable but you **wear** a changeable piece,
     the tab says to take it off first. The material's traits decide *what* changes — hard
     makes a drill hit harder or armour tougher, conductive saves energy, light speeds a tool up, magnetic adds
-    reach or grip — and the purity of the deposit and the coating decide *how much*. A big change always has a
+    reach or grip (reach only on guns: a blade's swing reach is fixed, so the lab offers it no Range) — and the
+    purity of the deposit and the coating decide *how much*. A big change always has a
     **price**: the tool gets a bit slower or hungrier, gear gets a bit heavier (unless the material is light). The
     lab never changes a tool's **tier** or its mining radius. Nothing wears off; you can change the item again or
     **wash it off** for free. A changed item carries "changed" in its name and shows its new values in the tooltip.
@@ -4585,7 +4592,10 @@ look up: what a mix does follows from what goes in, and the same things always g
   press **Take** on its card in the inventory. Every running effect is listed in the vitals panel under your bars
   with its icon, its strength, the time it has left and its catch; a shield shows as "+n Shield" behind your health. You can
   run **three effects at once**; taking the same effect again refreshes it, and a weaker one is refused (and not
-  used up). In a list a preparation reads like "Injector · Speed III". The effects:
+  used up). A refresh never shortens what is running: an equally strong one keeps the longer of the two remaining
+  times; a stronger one starts its own. A preparation with a **second effect** starts it only when there is room
+  for it — if not, a message says so and the main effect still starts. A Mining preparation also counts
+  on asteroids and derelicts. In a list a preparation reads like "Injector · Speed III". The effects:
 
   | Effect | What it does (at most) |
   |---|---|

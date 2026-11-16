@@ -905,7 +905,7 @@ public sealed partial class GameServer
                 }
 
                 float hardness = System.Math.Max(0.2f, def.Hardness);
-                float power = tool.MiningPower > 0f ? tool.MiningPower : 1f;
+                float power = SwingMiningPower(p, tool); // #3725: with the mining preparation, as on a planet
                 float prior = _structureMiningProgress.TryGetValue((s.Id, pos), out var prev) && prev.Block == existing.Value
                     ? prev.Progress
                     : 0f;

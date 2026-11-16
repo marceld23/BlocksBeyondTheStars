@@ -244,7 +244,7 @@ public sealed partial class GameServer
     {
         var muzzle = new Vector3f(robot.Position.X, robot.Position.Y + RobotMuzzleHeight, robot.Position.Z);
         var weapon = RobotWeaponOf(robot);
-        if (NearestSentryTarget(muzzle, RobotGear.Reach(weapon, SentryRange)) is not { } target)
+        if (NearestSentryTarget(muzzle, RobotGear.Reach(weapon, SentryRange, robot.RobotWeapon)) is not { } target) // #3730: this very item
         {
             return (false, false);
         }
@@ -258,7 +258,7 @@ public sealed partial class GameServer
             TargetId = target.Id,
             ColorRgb = RobotGear.TracerRgb(weapon),
         });
-        target.Hull -= RobotGear.ShotDamage(weapon, RobotShotDamage);
+        target.Hull -= RobotGear.ShotDamage(weapon, RobotShotDamage, robot.RobotWeapon);
         robot.RobotTargetId = target.Id;
         robot.RobotLastShotAt = _uptime;
         robot.RobotLastFightAt = _uptime;

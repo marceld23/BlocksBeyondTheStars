@@ -1052,7 +1052,7 @@ namespace BlocksBeyondTheStars.Client
         private static ItemMods ModsFor(ItemDefinition def, MaterialProfile material, Compound coating)
         {
             var tool = def.Tool;
-            return ItemModRules.Compute(tool != null, tool is { CooldownSeconds: > 0f }, tool is { Range: > 0f },
+            return ItemModRules.Compute(tool != null, tool is { CooldownSeconds: > 0f }, ItemModRules.HasChangeableRange(tool),
                 tool is { EnergyPerUse: > 0f }, material, coating);
         }
 

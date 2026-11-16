@@ -4326,6 +4326,7 @@ public sealed partial class GameServer
         BackfillScanSites(session); // pre-#1843 saves: derive WHERE for place/monument keys from the body id
         SendDiscoveryLog(session); // the first-scan ledger, for the Codex "Discoveries" chapter (#484)
         SendBioBook(session);      // #2203: the research book — species held or analysed, mixes tried
+        SendHeldSpecies(session);  // #3732: …and the species of what lies in the hold, which the book leaves out
 
         // Achievements: settle anything that came due while a reward had nowhere to go, retro-award entries that
         // were added to the data file since this save was made, and send the list with live progress.
@@ -5213,8 +5214,7 @@ public sealed partial class GameServer
         // Harder blocks need more drill effort; stronger drills apply more per hit. Soft blocks
         // (mud/dirt) break in one hit; hard ones (stone/metal/ore) take several. Accumulate until break.
         float hardness = System.Math.Max(0.2f, def.Hardness);
-        float power = (tool.MiningPower > 0f ? tool.MiningPower : 1f)
-            * Shared.Bio.PlayerEffects.MiningFactor(session.State.Effects); // #2202: a mining preparation bites harder
+        float power = SwingMiningPower(session.State, tool); // #2202: a mining preparation bites harder (GameServerSwing)
         // Only keep prior progress if it was for THIS same block (else a replaced block starts fresh — B52).
         float prior = _miningProgress.TryGetValue(pos, out var prev) && prev.Block == current.Value ? prev.Progress : 0f;
         float progress = prior + power;
@@ -7307,6 +7307,10 @@ public sealed partial class GameServer
     private void SendInventory(PlayerSession session)
     {
         NoteInventoryChangedForRewards(session); // #3082: a reward waiting for room gets another try next tick
+        if (!session.InJoinPlacement)
+        {
+            SendHeldSpecies(session); // #3732: name what arrives — during the join the full book does that
+        }
 
         // #1535: the unlocked set rides only when it changed since this session's last update (a signature over
         // the set, so scan unlocks / achievement rewards / creative grants all count, not just HandleUnlock).

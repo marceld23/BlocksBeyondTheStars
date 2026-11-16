@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
     /// (T is the target key there). #2725: as a guest in a docked friend's ship <b>U</b> goes back to the own ship, the
     /// host's <b>U</b> sends the guest home (it undocks), and <b>T</b> trades while docked.
     /// </summary>
-    public sealed class PlayerInteractions : MonoBehaviour
+    public sealed partial class PlayerInteractions : MonoBehaviour
     {
         public GameBootstrap Game;
         public RemotePlayers Remotes;
@@ -562,7 +562,8 @@ namespace BlocksBeyondTheStars.Client
         {
             var trade = Game.Trade;
             var personal = Game.Personal;
-            if (ReferenceEquals(trade, _renderedTrade) && ReferenceEquals(personal, _renderedPersonal) && ReferenceEquals(loc, _renderedLoc))
+            if (ReferenceEquals(trade, _renderedTrade) && ReferenceEquals(personal, _renderedPersonal) && ReferenceEquals(loc, _renderedLoc)
+                && _renderedBioRevision == Game.Bio.Revision) // #3731: the sample case and the species names
             {
                 RefreshFootHint(loc); // the active input device can change without any trade traffic
                 return;
@@ -571,6 +572,7 @@ namespace BlocksBeyondTheStars.Client
             _renderedTrade = trade;
             _renderedPersonal = personal;
             _renderedLoc = loc;
+            _renderedBioRevision = Game.Bio.Revision;
 
             _tradeTitle.text = loc.Get("ui.trade.with").Replace("{0}", trade.Partner);
             _getTitle.text = loc.Get("ui.trade.you_get").Replace("{0}", trade.Partner);
@@ -608,6 +610,11 @@ namespace BlocksBeyondTheStars.Client
             int i = 0;
             foreach (var s in personal)
             {
+                if (IsSampleKey(s.Item))
+                {
+                    continue; // #3731: a sample trades out of the sample case only — it has its row in the Samples section
+                }
+
                 var row = InvRowAt(i++);
                 row.Item = s.Item;
                 int give = offered.TryGetValue(s.Item, out var o) ? o : 0;
@@ -620,12 +627,15 @@ namespace BlocksBeyondTheStars.Client
                 row.Go.SetActive(true);
             }
 
+            int shown = i;
             for (; i < _invRows.Count; i++)
             {
                 _invRows[i].Go.SetActive(false);
             }
 
-            _invEmpty.gameObject.SetActive(personal.Length == 0);
+            // #3731: under the backpack rows, the kinds in the sample case — offered with the same −/+ control.
+            int sampleKinds = FillSampleRows(loc, offered);
+            _invEmpty.gameObject.SetActive(shown == 0 && sampleKinds == 0);
 
             // Right: my offer and theirs, read-only.
             FillOffer(_giveRows, _giveContent, trade.MyOffer, loc);
@@ -660,7 +670,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var row = OfferRowAt(rows, content, j++);
                 SetIcon(row.Icon, it.Item);
-                row.Name.text = ItemName(loc, it.Item);
+                row.Name.text = OfferName(loc, it.Item); // #3731: a sample by its species or material
                 row.Count.text = $"×{it.Count}";
                 row.Go.SetActive(true);
             }

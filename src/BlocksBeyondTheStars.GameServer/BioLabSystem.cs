@@ -24,6 +24,9 @@ internal interface IBioLabHost : IServerHost
     // VEGA
     void ShipAiHintOnce(PlayerSession session, string hintId);
 
+    /// <summary>A name in a player's language for the argument of a notice (the server's <c>LocalizedName</c>).</summary>
+    string LocalizedName(string localeCode, string? nameKey, string fallbackKey);
+
     // Where the player stands
     bool IsVisitingShip(string playerId);
 
@@ -441,8 +444,8 @@ internal sealed class BioLabSystem
         }
 
         var tool = def!.Tool;
-        var mods = ItemModRules.Compute(tool is not null, tool is { CooldownSeconds: > 0f }, tool is { Range: > 0f },
-            tool is { EnergyPerUse: > 0f }, materialProfile, coating);
+        var mods = ItemModRules.Compute(tool is not null, tool is { CooldownSeconds: > 0f }, ItemModRules.HasChangeableRange(tool),
+            tool is { EnergyPerUse: > 0f }, materialProfile, coating); // #3724: a melee weapon has no range to change
         string changed = mods.ApplyTo(intent.TargetItem);
         if (mods.IsEmpty || changed == intent.TargetItem)
         {
@@ -602,17 +605,9 @@ internal sealed class BioLabSystem
             Thermal = compound.Thermal,
         });
 
-        // A coupled second effect joins when there is room for it; it carries no catch of its own.
-        if (compound.Secondary != BioEffect.None
-            && PlayerEffects.Check(p.Effects, compound.Secondary, compound.SecondaryLevel) is EffectAddResult.Applied or EffectAddResult.Refreshed)
+        if (compound.Secondary != BioEffect.None)
         {
-            StartEffect(p, new ActiveEffect
-            {
-                Effect = compound.Secondary,
-                Level = compound.SecondaryLevel,
-                SecondsLeft = compound.DurationSeconds,
-                Thermal = compound.Thermal,
-            });
+            StartCoupledEffect(session, compound);
         }
 
         // A bar also feeds, like any food.
@@ -626,6 +621,31 @@ internal sealed class BioLabSystem
         _host.SendInventory(session);
         _host.SendPlayerState(session);
         return true;
+    }
+
+    /// <summary>The coupled second effect of a preparation: it joins when there is room for it and carries no catch of
+    /// its own. With three effects running, or a stronger one of its kind, it does not start — the main effect runs and
+    /// the preparation is used up all the same, so the player is told which effect found no room (#3726) instead of
+    /// being left to wonder where it went. The effect's name goes out in the player's language, as the notice's
+    /// <c>{name}</c>.</summary>
+    private void StartCoupledEffect(PlayerSession session, Compound compound)
+    {
+        var p = session.State;
+        if (PlayerEffects.Check(p.Effects, compound.Secondary, compound.SecondaryLevel) is EffectAddResult.Applied or EffectAddResult.Refreshed)
+        {
+            StartEffect(p, new ActiveEffect
+            {
+                Effect = compound.Secondary,
+                Level = compound.SecondaryLevel,
+                SecondsLeft = compound.DurationSeconds,
+                Thermal = compound.Thermal,
+            });
+            return;
+        }
+
+        string effect = compound.Secondary.ToString();
+        string name = _host.LocalizedName(session.Locale, "bio.effect." + effect.ToLowerInvariant(), effect);
+        _host.Send(session, new ServerMessage { Text = "@srv.bio.second_effect_no_room:" + name });
     }
 
     internal static void StartEffect(PlayerState p, ActiveEffect effect)

@@ -169,7 +169,7 @@ namespace BlocksBeyondTheStars.Client
             if (badge.Effect == effect) return;
             badge.Effect = effect;
             badge.Glyph.sprite = Find(BioSymbols.EffectIcon(effect)) ?? UiKit.DiscSprite;
-            badge.Glyph.color = EffectColor(effect);
+            badge.Glyph.color = Color.Lerp(EffectColor(effect), Color.white, 0.4f); // lighter than the tint: it sits on the dark disc
         }
 
         /// <summary>Forgets the cached preparation effects — with the icon caches, on leaving a session.</summary>

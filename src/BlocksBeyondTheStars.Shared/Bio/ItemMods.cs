@@ -294,9 +294,19 @@ public static class ItemModRules
     };
 
     /// <summary>
+    /// Whether a change of the range means anything on this tool (#3724) — the <c>hasRange</c> of <see cref="Compute"/>, one
+    /// rule for the server's change and the client's preview. Only a tool that reaches further than the default swing
+    /// (<see cref="MeleeRules.MeleeReach"/>) has a range to change: every hit reaches at least that far, so the 3–4.5
+    /// blocks of a blade, a club or a spear never act — a longer blade would be a gain worth nothing, a shorter one a
+    /// drawback that costs nothing. A gun's range does act, and a drill has none.
+    /// </summary>
+    public static bool HasChangeableRange(ToolProperties? tool) => tool is not null && tool.Range > MeleeRules.MeleeReach;
+
+    /// <summary>
     /// Computes the changes. Returns an empty set when the material has no trait that means anything for the item.
     /// <paramref name="tool"/> is true for tools and weapons, false for worn gear; <paramref name="hasCooldown"/> and
-    /// <paramref name="hasRange"/> say whether the tool has those values at all (a laser has no cooldown to shorten).
+    /// <paramref name="hasRange"/> say whether the tool has those values at all (a laser has no cooldown to shorten; for
+    /// the range ask <see cref="HasChangeableRange"/>).
     /// </summary>
     public static ItemMods Compute(bool tool, bool hasCooldown, bool hasRange, bool usesEnergy, MaterialProfile material, Compound? coating)
     {
