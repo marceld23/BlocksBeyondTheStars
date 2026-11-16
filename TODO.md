@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛤️ CI: a narrow lane for client-side PRs (2026-11-17) — branch ci/client-lane — ✅
+### 🛤️ CI: a narrow lane for client-side PRs (2026-11-17) — PR #3735 (`1c3e19a5`) — ✅ released in v2026.11.20
 
 - ✅ **What.** A PR whose whole non-doc diff is `client/**`, `src/BlocksBeyondTheStars.Client.Core/**`,
   `tests/BlocksBeyondTheStars.Client.Tests/**` or the code-health baseline is lane `client`: instead of the 12-shard
@@ -49,7 +49,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   changes nothing but PNGs runs no test at all — although `BiomePaletteTests`, `BlockFaceTextureTests`,
   `IconCoverageTests` and others read those folders.
 
-### 🛤️ CI: a narrow lane for What's-new PRs (2026-11-16) — #3733, `576d8697` — ✅
+### 🛤️ CI: a narrow lane for What's-new PRs (2026-11-16) — PR #3733 (`576d8697`) — ✅ released in v2026.11.20
 
 - ✅ **Why.** Every release opens two PRs that touch nothing but the What's-new files — the release PR
   (`data/whatsnew.json` beside the changelog) and the release notes in the twelve community languages
@@ -70,7 +70,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   test-seconds; its job took 6.5 min on 2026-09-25 and 10 min on 2026-10-09, #2421), so on one runner it is about as
   slow as the matrix by now. One locales-only PR in the last 300 commits.
 
-### 🔧 Bio lab follow-ups: effects that did not act everywhere, trading samples (2026-11-16) — epic #3723 (#3724–#3732), branch feat/bio-symbols — ✅ (⚠ playtest open; server + client, no protocol change, saves stay compatible)
+### 🔧 Bio lab follow-ups: effects that did not act everywhere, trading samples (2026-11-16) — epic #3723 (#3724–#3732), PR #3734 (`4a270b5d`) — ✅ released in v2026.11.20 (⚠ playtest open; server + client, no protocol change, saves stay compatible)
 
 Two code reads done with the symbol package ("does everything the lab shows really act?", "can samples be traded?").
 - ✅ **#3724 Range on blades.** A melee swing always reaches at least 6 blocks and every blade's range is 3–4.5, so a lab
@@ -103,7 +103,7 @@ Two code reads done with the symbol package ("does everything the lab shows real
   #3724 keeps its inert Range entry (it does move the hunter robot's reach a little); an offered seedling is named
   only once it arrives.
 
-### 🧪 Bio lab symbols: an icon per effect, five family colours, row cards, a reaction chart (2026-11-16) — epic #3717 (#3718–#3721), branch feat/bio-symbols — ✅ (⚠ playtest open; client only, no protocol or save change)
+### 🧪 Bio lab symbols: an icon per effect, five family colours, row cards, a reaction chart (2026-11-16) — epic #3717 (#3718–#3721), PR #3734 (`4a270b5d`) — ✅ released in v2026.11.20 (⚠ playtest open; client only, no protocol or save change)
 
 - ✅ **#3718 The icon set.** `tools/ai-assets/gen_bio_icons.py`: 20 pictograms from the OpenAI image API (bold filled white
   ink like the map markers, cropped to the ink) and 14 marks drawn with Pillow (eight substance groups, five reactions,
@@ -133,7 +133,7 @@ Two code reads done with the symbol package ("does everything the lab shows real
   preparations of one family side by side in the hotbar; the chart after a few mixes; the long languages (ru, tr) on
   the cards.
 
-### 💬 Main menu: Feedback button, community row flush with the column (2026-11-16) — #3715 #3716, branch feat/menu-feedback-button — ✅ (⚠ playtest open; client only, no protocol or save change)
+### 💬 Main menu: Feedback button, community row flush with the column (2026-11-16) — #3715 #3716, PR #3722 (`758f7f9c`) — ✅ released in v2026.11.20 (⚠ playtest open; client only, no protocol or save change)
 
 - ✅ **#3715 Feedback button.** The main menu's Community row starts with **Feedback** (`btn_feedback` icon): it opens the
   shell's own feedback form through `FeedbackUi.OpenFromMenu`, the form the feedback key already opened on the menu
