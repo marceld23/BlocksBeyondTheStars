@@ -114,16 +114,54 @@ More on our YouTube channel:
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/en/start_screen.png" width="100%" alt="Main menu"><br><sub>Main menu</sub></td>
-    <td width="50%"><img src="docs/screenshots/en/planet_surface.png" width="100%" alt="On a planet surface"><br><sub>On a planet surface</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/start_screen.png" width="100%" alt="Main menu — continue where you left off"><br><sub>Main menu — continue where you left off</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/vega_guardian_giant.png" width="100%" alt="VEGA spots a fallen guardian giant"><br><sub>VEGA spots a fallen guardian giant</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/en/space_flight.png" width="100%" alt="Space flight"><br><sub>Space flight between worlds</sub></td>
-    <td width="50%"><img src="docs/screenshots/en/cockpit_hud.png" width="100%" alt="Ship cockpit"><br><sub>The ship cockpit</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/boss_guardian_giant.png" width="100%" alt="Boss fight: a guardian giant wakes up"><br><sub>Boss fight: a guardian giant wakes up</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/on_foot.png" width="100%" alt="Out on a planet"><br><sub>Out on a planet</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/en/cockpit_menu.png" width="100%" alt="In-game menu"><br><sub>The in-game menu (crafting, tech, ship, map…)</sub></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/screenshots/en/space_flight.png" width="100%" alt="Space flight between worlds"><br><sub>Space flight between worlds</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/cockpit_menu.png" width="100%" alt="The ship console: inventory, crafting, ship, map…"><br><sub>The ship console: inventory, crafting, ship, map…</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/en/my_worlds.png" width="100%" alt="My worlds — with a picture of where you last played"><br><sub>My worlds — with a picture of where you last played</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/vega_labyrinth.png" width="100%" alt="VEGA at the Labyrinth Builders' maze"><br><sub>VEGA at the Labyrinth Builders' maze</sub></td>
+  </tr>
+</table>
+
+**Build your own** — ships, villages, stations, your avatar and the block textures, each with undo and automatic drafts:
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/en/editor_ship.png" width="100%" alt="Ship editor"><br><sub>Ship editor</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/editor_village.png" width="100%" alt="Village editor"><br><sub>Village editor</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/editor_avatar.png" width="100%" alt="Avatar designer"><br><sub>Avatar designer</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/editor_texture.png" width="100%" alt="Texture editor"><br><sub>Texture editor</sub></td>
+  </tr>
+</table>
+
+**Things to discover** — giant ship wrecks, guardian giants, the Sounders' home world and the giant buildings designed by a school club:
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/world_giantwreck_carrier.jpg" width="100%" alt="A crashed giant carrier"><br><sub>A crashed giant carrier</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_giantwreck_liner.jpg" width="100%" alt="A cruise liner wreck in the desert"><br><sub>A cruise liner wreck in the desert</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_giantwreck_liner_deck.jpg" width="100%" alt="On the liner's deck"><br><sub>On the liner's deck</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_guardian_giant_awake.jpg" width="100%" alt="A guardian giant stands up"><br><sub>A guardian giant stands up</sub></td>
+  </tr>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/world_soaniri_castle.jpg" width="100%" alt="The castle of Soaniri, home of the Sounders"><br><sub>The castle of Soaniri, home of the Sounders</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_soaniri_singer_statue.jpg" width="100%" alt="Soaniri's Singer Statue"><br><sub>Soaniri's Singer Statue</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_landmark_blocks_king.jpg" width="100%" alt="Blocks King"><br><sub>Blocks King</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_landmark_eifelnyde.jpg" width="100%" alt="The Eifelnyde"><br><sub>The Eifelnyde</sub></td>
+  </tr>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/world_landmark_leaning_tower.jpg" width="100%" alt="The Leaning Tower"><br><sub>The Leaning Tower</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_landmark_bridge.jpg" width="100%" alt="The suspension bridge"><br><sub>The suspension bridge</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_landmark_golden_bird_gate.jpg" width="100%" alt="The Golden Bird Gate"><br><sub>The Golden Bird Gate</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_landmark_porta_nigra.jpg" width="100%" alt="The Porta Nigra"><br><sub>The Porta Nigra</sub></td>
   </tr>
 </table>
 

@@ -22,11 +22,11 @@ Gallery shows the English set (`en/`); a matching German set lives in `de/`.
 
 <table>
   <tr>
-    <td width="50%"><img src="en/start_screen.png" width="100%" alt="Main menu"><br><sub><b>start_screen.png</b> — Main menu (title, planet, ship, nebula)</sub></td>
+    <td width="50%"><img src="en/start_screen.png" width="100%" alt="Main menu"><br><sub><b>start_screen.png</b> — Main menu with the Continue card (2026-11: the dev build's version label bottom right painted out)</sub></td>
     <td width="50%"><img src="en/cockpit_hud.png" width="100%" alt="Cockpit HUD"><br><sub><b>cockpit_hud.png</b> — The ship cockpit with the in-game HUD</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="en/cockpit_menu.png" width="100%" alt="Cockpit menu"><br><sub><b>cockpit_menu.png</b> — The in-game Tab menu open over the cockpit</sub></td>
+    <td width="50%"><img src="en/cockpit_menu.png" width="100%" alt="Cockpit menu"><br><sub><b>cockpit_menu.png</b> — The ship console (Tab), eight tabs since v2026.11.19</sub></td>
     <td width="50%"><img src="en/space_flight.png" width="100%" alt="Space flight"><br><sub><b>space_flight.png</b> — Space flight: ship + flight HUD, asteroids and a planet behind</sub></td>
   </tr>
   <tr>
@@ -37,6 +37,22 @@ Gallery shows the English set (`en/`); a matching German set lives in `de/`.
 
 `planet_surface.png` stands at the best view near the landed ship (the `vista` pose, see below) in
 morning light, with the block selection frame and the first-person hand hidden (#2765).
+
+## The 2026-11 additions (v2026.11.19)
+
+The README's first gallery was refreshed on 2026-11-16 from a v2026.11.19 build (English UI): `start_screen.png`
+(also `de/`), `space_flight.png` and `cockpit_menu.png` (also `de/`) were re-shot with the new HUD, and these were added:
+
+| File | What it shows | Made with |
+|------|---------------|-----------|
+| `en/vega_guardian_giant.png`, `en/vega_labyrinth.png` | VEGA speaking at a fallen guardian giant / at a Labyrinth Builders' maze | a clip still with the HUD on and a scripted VEGA line |
+| `en/boss_guardian_giant.png` | An awake guardian giant with the boss bar | a clip still, planet enemies on, `godmode` |
+| `en/on_foot.png`, `en/my_worlds.png`, `en/multiplayer.png`, `en/settings.png`, `en/editors_menu.png` | The on-foot HUD and the redesigned menus | a menu walk over one played world |
+| `en/editor_*.png` | Ship, village, station, avatar and texture editor | `-captureEditors -lang en` |
+| `world/world_giantwreck_*.jpg`, `world/world_guardian_giant_awake.jpg`, `world/world_soaniri_*.jpg`, `world/world_landmark_*.jpg` | Giant wrecks, a guardian giant, Soaniri, six of the school club's giant buildings | clip stills with a `poi` jump (`/tp giantwreck`, `giant`, `landmark`) on seeds found by a seed search |
+
+The VEGA line, the planet-enemies switch and the menu walk are capture tooling that is not merged yet (see TODO.md);
+the stills and the editor shots use the tooling described below.
 
 ## The world set
 
