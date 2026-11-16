@@ -46,6 +46,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   test-seconds; its job took 6.5 min on 2026-09-25 and 10 min on 2026-10-09, #2421), so on one runner it is about as
   slow as the matrix by now. One locales-only PR in the last 300 commits.
 
+### 🧪 Bio lab symbols: an icon per effect, five family colours, row cards, a reaction chart (2026-11-16) — epic #3717 (#3718–#3721), branch feat/bio-symbols — ✅ (⚠ playtest open; client only, no protocol or save change)
+
+- ✅ **#3718 The icon set.** `tools/ai-assets/gen_bio_icons.py`: 20 pictograms from the OpenAI image API (bold filled white
+  ink like the map markers, cropped to the ink) and 14 marks drawn with Pillow (eight substance groups, five reactions,
+  the hexagon plate) → `client/Assets/Resources/icons/bio_*.png`. Five effects reuse the vitals' icons they act on.
+- ✅ **#3719 Effects.** Every effect has an icon; the colour is the **family's** now (Movement blue, Protection red, Work
+  yellow, Survival green, Senses violet — five instead of nineteen). A side effect wears the icon of the effect it undoes,
+  in amber. A preparation carries its effect's icon as a badge (hotbar, backpack grid, crate, inventory cards). HUD effect
+  rows, the sample lists and the Codex's Substances chapter show the icons; the lists' kind headings carry a kind icon.
+- ✅ **#3720 Row cards.** `BioCard` replaces the text paragraph in the lab (Analyse, Mix preview, Change) and in the
+  inventory's detail pane: a strength bar (5 tiers × 3 steps, each tier in its rarity colour — the label only ever showed
+  the tier I–V), trait chips on a hexagon with one pip per level, changed values with their icons. Three rules the lab
+  acted on are shown for the first time: *Made of … — steadiest as …* (the carrier's preferred form), *Stabiliser against
+  it* (the trait that removes a catch or steadies a heat-/cold-sensitive substance) and *Fits how it lives* (the context
+  tags that pull the effect).
+- ✅ **#3721 Groups and reactions.** A mark per substance group and per reaction; a **reaction chart** (lab page
+  *Reactions*, Codex chapter Mixes) that fills in as the player mixes two analysed samples of two groups — derived on the
+  client from the research book's tried mixes (`ReactionChart`). The Mix page names the reaction of the two chosen
+  samples' groups once that pair is on the chart, also for species never mixed with each other.
+- ✅ 47 new texts in all 14 languages (machine pass + hand check: ja/zh "lives by lava" read as "lives off lava", uk
+  "hangs from above" read as "hangs itself", pt lost a cedilla, the "toxic world" tag came back as a proper name in nine
+  languages). The Codex article said "strength from I to XV" in every language — the label shows I to V; corrected.
+- ✅ Tests: `BioSymbolsTests` (every property has a symbol, every symbol a file with its `.meta`; a side effect's
+  counterpart; family colours apart from each other and from the warning amber; the bar's segments = the rarity bands;
+  the reasons of an effect; the reaction chart; `Synthesis.TryParseSignature` round trip; the new texts in en + de).
+  Docs: BIO_LAB.md §18, USER_MANUAL.md § The bio lab.
+- 📋 Playtest: the lab's four pages with a full sample case; the HUD rows with three effects and a catch; two
+  preparations of one family side by side in the hotbar; the chart after a few mixes; the long languages (ru, tr) on
+  the cards.
+
 ### 💬 Main menu: Feedback button, community row flush with the column (2026-11-16) — #3715 #3716, branch feat/menu-feedback-button — ✅ (⚠ playtest open; client only, no protocol or save change)
 
 - ✅ **#3715 Feedback button.** The main menu's Community row starts with **Feedback** (`btn_feedback` icon): it opens the

@@ -72,13 +72,14 @@ namespace BlocksBeyondTheStars.Client
                 if (i == 0 || shown[i - 1].Kind != entry.Kind)
                 {
                     int n = shown.Count(e => e.Kind == entry.Kind);
-                    UiKit.AddText(_listContent, 8, y, 752, 30, BioLabUi.KindLabel(Game, entry.Kind) + "  (" + n + ")", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    BioIcons.Add(_listContent, 8, y + 4, 22, BioSymbols.KindIcon(entry.Kind), UiKit.Cyan);
+                    UiKit.AddText(_listContent, 38, y, 722, 30, BioLabUi.KindLabel(Game, entry.Kind) + "  (" + n + ")", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
                     y += 36f;
                 }
 
                 string key = entry.Item;
                 string origin = entry.Species?.OriginBodyName ?? string.Empty;
-                // The effect in its colour (the lab's square, as rich text), what a deposit is, or "Not analysed".
+                // The effect in its family's colour (as rich text), what a deposit is, or "Not analysed".
                 string detail = BioLabUi.SampleDetail(Game, entry);
                 if (entry.Effect != BlocksBeyondTheStars.Shared.Bio.BioEffect.None)
                 {
@@ -125,12 +126,15 @@ namespace BlocksBeyondTheStars.Client
             var material = analysed && mineral ? BioLabUi.MaterialOf(Game, seed) : null;
             if (profile != null)
             {
-                y = AddEffectHeadline(y, profile.Effect, profile.Level);
-                y = AddDetailPara(y, BioLabUi.ProfileText(Game, profile, species), UiKit.TextCol);
+                var card = new BioCard(Game, _detail, 8, y, 620);
+                card.Profile(profile, species);
+                y = card.Y;
             }
             else if (material != null)
             {
-                y = AddDetailPara(y, BioLabUi.MaterialText(Game, material, "\n"), UiKit.TextCol);
+                var card = new BioCard(Game, _detail, 8, y, 620);
+                card.Material(material);
+                y = card.Y;
             }
             else
             {
@@ -194,27 +198,22 @@ namespace BlocksBeyondTheStars.Client
         {
             if (BlocksBeyondTheStars.Shared.Bio.BioItems.CompoundOf(item) is { } compound)
             {
-                y = AddEffectHeadline(y, compound.Effect, compound.Level);
-                return AddDetailPara(y, BioLabUi.CompoundText(Game, compound, true), UiKit.TextCol) + 8f;
+                var card = new BioCard(Game, _detail, 8, y, 620);
+                card.Headline(BioLabUi.EffectLabel(Game, compound.Effect, compound.Level), compound.Effect, compound.Level);
+                card.Preparation(compound, true, false);
+                return card.Y + 8f;
             }
 
             var mods = BlocksBeyondTheStars.Shared.Bio.ItemMods.Of(item);
             if (!mods.IsEmpty)
             {
                 UiKit.AddText(_detail, 8, y, 620, 26, L("ui.bio.changed"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
-                y += 30f;
-                return AddDetailPara(y, BioLabUi.ModsText(Game, mods, true, "\n"), UiKit.TextCol) + 8f;
+                var card = new BioCard(Game, _detail, 8, y + 30f, 620);
+                card.Mods(mods);
+                return card.Y + 8f;
             }
 
             return y;
-        }
-
-        /// <summary>An effect's colour as a small square (there are no effect icons) and its name with the level.</summary>
-        private float AddEffectHeadline(float y, BlocksBeyondTheStars.Shared.Bio.BioEffect effect, int level)
-        {
-            UiKit.AddImage(_detail, 8, y + 6, 18, 18, UiKit.SolidSprite, BioLabUi.EffectColor(effect));
-            UiKit.AddText(_detail, 36, y, 592, 30, BioLabUi.EffectLabel(Game, effect, level), 22, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
-            return y + 36f;
         }
 
         /// <summary>A wrapped block of rich text in the detail pane; returns the y under it.</summary>

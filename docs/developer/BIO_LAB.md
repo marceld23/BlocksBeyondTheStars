@@ -62,7 +62,9 @@ protection comes from what survives beside a lava lake.
 | `Networking/Messages/BioMessages.cs` | `BioBook`, `BioLabIntent`, `BioLabResult`, `DiscardSampleIntent`, `NetEffect`, `NetBioSpecies` |
 | `Client.Core/BioClientState.cs` | the client's mirror: sample case, effects, book; derives profiles locally |
 | `Client.Core/SampleCaseView.cs` | the sample case as every list shows it: order, kind and effect filters, the session filter (#2299/#2300) |
-| `client/…/Scripts/BioLabUi.cs`, `BioSenses.cs` | the lab screen; night sight and perception |
+| `Client.Core/BioSymbols.cs` | the symbol language (§18): which icon and colour stand for an effect, a side effect, a trait, a tool value, a group, a reaction; the strength bar; why a species carries its effect; `ReactionChart` |
+| `client/…/Scripts/BioLabUi.cs` (+ `.Text.cs`, `.Symbols.cs`), `BioSenses.cs` | the lab screen (its shared text helpers, its symbol side); night sight and perception |
+| `client/…/Scripts/BioIcons.cs`, `BioBadge.cs`, `BioCard.cs`, `BioChartView.cs` | drawing the symbols: icons, trait chips, the strength bar, the preparation badge; the row cards; the reaction chart |
 
 ## 4. Seeds
 
@@ -390,7 +392,7 @@ locale keys — and the place in the server where it acts.
 
 ## 16. Client notes
 
-- **`BioLabUi`** — a modal panel (sample case on the left; pages Analyse, Mix, Change). Previews are computed locally
+- **`BioLabUi`** — a modal panel (sample case on the left; pages Analyse, Mix, Change, Reactions). Previews are computed locally
   with the same `Shared` code (`Synthesis.Compute`, `ItemModRules.Compute`). A mix preview is shown only for a
   signature the book already holds (or for a plain extract of an analysed species) — anything else reads "reaction
   unknown"; the Change preview is always shown. The panel opens on
@@ -399,7 +401,7 @@ locale keys — and the place in the server where it acts.
 - **The sample case lists** (#2299/#2300) — the lab's case, its slot pickers and *Inventory → Samples* all read
   `SampleCaseView`: Plants / Animals / Deposits under headings, the unanalysed first, then by `BioEffectFamily`
   (Movement, Protection & healing, Strength & work, Survival, Senses), effect and level. A row shows an analysed
-  plant's or animal's effect, a deposit's strongest traits, else "Not analysed" — an unanalysed effect is never shown,
+  plant's or animal's effect behind its icon, a deposit's traits as chips, else "Not analysed" — an unanalysed effect is never shown,
   although the client could derive it. The filter (kind chips with counts + an Effect button that cycles the families
   and "Not analysed") is static in `SampleCaseView`: one for the lab and the inventory, for the session only. The
   Change page lists deposits only and marks those that would change the chosen piece. The Codex *Substances*
@@ -416,11 +418,12 @@ locale keys — and the place in the server where it acts.
   chosen piece (`WorkingMaterialsLine`, the same `ItemModRules.Compute` as the server). A missing material is
   `srv.bio.no_material` (it used to read "this sample is not in your case"). The Codex has an article *Improving
   Items* (`item-tuning`) that ties *improve* / *Change* / *Lab Tuning* together.
-- **HUD** — pooled effect rows inside the vitals panel (label, time, side effect); the shield as a suffix of the
-  health row. Rows are relabelled only when what they show changed.
+- **HUD** — pooled effect rows inside the vitals panel (the effect's icon in its family's colour, label, time, and
+  the side effect behind the icon of the effect it undoes); the shield as a suffix of the health row. Rows are
+  relabelled only when what they show changed.
 - **Inventory** — a "samples" category for the sample case; a preparation's card shows its effect and a **Take**
   button; a changed item shows its gains and its drawback. `IconResolver` looks the lab's items up by base key and
-  tints a preparation by its effect.
+  tints a preparation in its effect's family colour; `BioIcons.SyncBadge` puts the effect's icon on it (§18).
 - **Movement** — `PlayerController` multiplies the walk vector by `BioClientState.MoveFactor(gearWeight)`, the jump
   by `sqrt(JumpFactor)`, adds the grip bonus under the climbing cap, and reads tool values through
   `ToolMods.Effective`.
@@ -465,3 +468,51 @@ The two blocks of this feature made an older gap visible; it is closed in genera
   change that adds or removes a block must raise `CurrentSaveVersion` and add its row there.
 
 Details: [DEVELOPER.md](DEVELOPER.md) § "Adding or removing a block", [SELF_HOSTING.md](SELF_HOSTING.md) (backups).
+
+## 18. Symbols (#3717)
+
+Until 2026-11 the client showed a profile as a paragraph of text and an effect as a colour square — one colour per
+effect, nineteen of them, several alike. Four rules acted in the lab without being shown anywhere: the sample's carrier
+class and its preferred form (§8, +8 stability), the stabiliser trait that removes a side effect (`BioRules.Counter`),
+the group reaction table, and the context tags that explain an effect (§7). The symbol package gives every property a
+symbol and shows those rules. It is **presentation only**: no server code, no message, no save changed.
+
+**The grammar** (`Client.Core/BioSymbols.cs`, pinned by `BioSymbolsTests`):
+
+| Carrier | Says | Rule |
+|---|---|---|
+| the icon | the theme | one pictogram per theme, shared wherever the theme returns: the flame is the effect *heat ward*, the trait *heat-proof* and the weakness *heat-sensitive*. Five effects reuse the vitals' icons they act on (shield, health, oxygen, hunger, energy) |
+| the colour | the class | an effect takes its **family's** colour (`FamilyRgb`: Movement blue, Protection red, Work yellow, Survival green, Senses violet); a side effect and a weakness are amber; a gain is green |
+| amber + down marks | a catch | a side effect wears the icon of the effect it undoes (`Undoes`): hungry ↔ satiety, breathless ↔ breath, sluggish ↔ speed, leaden ↔ jump, tired ↔ regeneration, slow reflexes ↔ reflex |
+| the hexagon plate | a material trait | with one pip per level; a trace trait on a dimmer plate |
+| the bar | the strength | five segments × three steps = the fifteen levels, cut where `RarityOfLevel` cuts them, each segment in its tier's colour (`RarityRgb`). The label names the tier (`BioItems.Roman`: I–V); the bar shows the step inside it |
+| eight plain shapes | the substance group | `GroupIcon(0..7)` |
+| five marks | the reaction | `ReactionIcon` |
+
+Colour is never the only carrier of a meaning: two effects of one family differ by icon, and a preparation — tinted in
+its family's colour — carries its effect's icon as a **badge** (`BioIcons.SyncBadge`, on the hotbar, the backpack
+grid, the crate and the inventory cards).
+
+**Where it shows.** `BioCard` builds the cards of the lab (Analyse, the Mix preview, Change) and of the inventory's
+detail pane from rows — one property per row, its symbol in a column on the left. A card of an analysed species also
+names: *Fits how it lives* (`BioSymbols.Reasons`: the tags of this species with an affinity to exactly this effect, the
+strongest first, at most three; nothing for a cross or for the seed's surprise), *Made of … — steadiest as …*
+(`BioRules.PreferredForm`), and *Stabiliser against it* under a side effect (`BioRules.Counter`) and under a heat- or
+cold-sensitive substance (`BioSymbols.ThermalCounter`). The Codex's Substances chapter draws each line behind its
+effect's icon.
+
+**The reaction chart** (`ReactionChart`, `BioChartView`). The 8×8 table of §8 is fixed; what a player knows of it is
+derived on the client from the research book's tried mixes (`BioBook.Reactions`): a pair of groups counts once two
+samples the book can read were mixed, whatever came of it — washed, failed or in whichever form. The lab's Reactions
+page and the Codex's Mixes chapter draw it; the Mix page's group line uses it to name the reaction of the two chosen
+samples' groups also for two species that were never mixed with each other. The exact result of an untried mix still
+reads "reaction unknown". `Synthesis.TryParseSignature` is the inverse of `Synthesis.Signature`.
+
+**The art** (`tools/ai-assets/gen_bio_icons.py`): 20 pictograms from the OpenAI image API in the world-map markers'
+look (bold filled white ink, 128 px, every pixel forced to white, cropped to the ink and centred) and 14 marks drawn
+with Pillow (the group and reaction marks, the hexagon plate). All tinted at runtime. `BioSymbols.AllIcons()` is the
+list a test checks against `client/Assets/Resources/icons`.
+
+**Adding to it.** A new effect needs its icon in `BioSymbols.EffectIcon` (the test fails without it) and, when it is a
+new theme, a pictogram in the generator's manifest; a new family needs a colour that stays clear of the warning amber
+(tested). A new context tag with an affinity needs its phrase `bio.tag.<name>` in every language.

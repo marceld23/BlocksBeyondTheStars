@@ -385,6 +385,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             raw.color = IconResolver.Tint(item, game);
+            BioIcons.SyncBadge(raw, item); // a preparation carries its effect's icon (#3719)
             if (count > 1)
             {
                 var cnt = UiKit.AddText(b.transform, 4f, 2f, Cell - 8f, 18f, count.ToString(), 13, UiKit.TextCol, TextAnchor.UpperRight, FontStyle.Bold);
