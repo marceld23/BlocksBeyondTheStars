@@ -31,6 +31,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   8-tab console with the new HUD, My worlds with the last-played picture; new galleries **Build your own** (ship, village,
   avatar, texture editor) and **Things to discover** (giant wrecks, a guardian giant, Soaniri, six school-club buildings).
   Details: docs/screenshots/README.md § "The 2026-11 additions".
+- ✅ glitch.fun store refreshed (2026-11-16, English): main image = the poster, banner = the carrier wreck, gallery =
+  trailer + 20 new shots + 6 older world stills; store copy (`tools/glitch-media/deep_dive.json`, `instructions.md`) brought
+  up to v2026.11.19 — giant wrecks, lost civilizations, guardian giants, Soaniri, the editors, Shift sprint, T target.
 - 📋 Capture tooling still on the local branch `chore/screenshots-2026-11` (worktree `../SpaceCraft-shots`, not merged):
   `-captureMenus` (menu walk), clip fields `vegaLine` / `vegaSeconds` / `planetEnemies`, two shot manifests — needs tests,
   the code-health ratchet (ClipDirector.cs > 1000 lines) and a mask for the LAN address on the host tab before a PR.
