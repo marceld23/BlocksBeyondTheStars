@@ -188,6 +188,32 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.IsFalse(participate.activeSelf, "its Back button closes it again");
         }
 
+        [Test]
+        public void CommunityRow_IsFlushWithTheSideRowAboveIt()
+        {
+            // #3716: Feedback / Join in / Website sit on the grid of Settings / Credits / Quit — the same left edges and the
+            // same widths, so the row ends where the button column ends (it used to run 114 px past it).
+            var root = BuildMenu();
+            string[] above = { "ui.menu.settings", "ui.menu.credits", "ui.menu.quit" };
+            string[] row = { "ui.menu.feedback", "ui.menu.contribute", "ui.menu.website" };
+            for (int i = 0; i < row.Length; i++)
+            {
+                var upper = (RectTransform)ButtonIn(root, above[i]).transform;
+                var lower = (RectTransform)ButtonIn(root, row[i]).transform;
+                Assert.AreEqual(upper.anchoredPosition.x, lower.anchoredPosition.x, 0.01f, $"'{row[i]}' starts where '{above[i]}' starts");
+                Assert.AreEqual(upper.sizeDelta.x, lower.sizeDelta.x, 0.01f, $"'{row[i]}' is as wide as '{above[i]}'");
+            }
+        }
+
+        [Test]
+        public void FeedbackButton_WithoutTheShellsForm_DoesNothing()
+        {
+            // #3715: the button hands over to the shell's own FeedbackUi (FeedbackUi.OpenFromMenu). The menu under test has
+            // none — its shell never ran Awake — so the click must be a quiet no-op, not a null reference.
+            var root = BuildMenu();
+            Assert.DoesNotThrow(() => Click(ButtonIn(root, "ui.menu.feedback")));
+        }
+
         /// <summary>Settings without a last world: whether a save of that name exists on this machine must not change the
         /// menu under test (Continue shows only for an existing save, #3663).</summary>
         private static ClientSettings NoLastWorld() => new ClientSettings { LastWorld = "" };

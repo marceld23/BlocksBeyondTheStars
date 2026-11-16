@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💬 Main menu: Feedback button, community row flush with the column (2026-11-16) — #3715 #3716, branch feat/menu-feedback-button — ✅ (⚠ playtest open; client only, no protocol or save change)
+
+- ✅ **#3715 Feedback button.** The main menu's Community row starts with **Feedback** (`btn_feedback` icon): it opens the
+  shell's own feedback form through `FeedbackUi.OpenFromMenu`, the form the feedback key already opened on the menu
+  screens (#2523). Desktop and browser menu share the row. The menu's form — and only it — carries one more line under
+  its title (`ui.feedback.menu_tip`): feedback can also be sent while playing, with the key the platform uses
+  (`{feedback_key}`: F1, F2 in the browser). The in-world form is unchanged.
+- ✅ **#3716 Community row flush.** The row ran 114 px past the button column (label + two 230 px buttons, ending at
+  x 764 against the column's 650). Now the label sits on its own line above three buttons on the grid of Settings /
+  Credits / Quit (one shared `SideW` / `SideGap`), so every edge lines up. The website button reads "Website" in the menu
+  (`ui.menu.website`); the "Join in" dialog keeps "Our website".
+- ✅ Texts in all 14 languages (machine pass + hand check: fr "Retour" read as "Back" → "Ton avis"; ru/uk shortened to the
+  locale's own words). Tests: `MainMenuHierarchy.golden.txt` re-baked, two EditMode tests (row flush, button no-op without
+  a shell form), `MenuFeedbackButtonTests` (wiring, tip only in the menu form, placeholder in every language).
+- 📋 Playtest: click the button with mouse and pad; check the labels of the narrow row in the long languages (ru, tr).
+
 ### 📸 README screenshots refreshed (2026-11-16) — ✅
 
 - ✅ New first gallery from a v2026.11.19 build: main menu with Continue (EN + DE, dev version label painted out), VEGA at a

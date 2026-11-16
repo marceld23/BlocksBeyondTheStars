@@ -37,13 +37,16 @@ MainMenuUI active=True comps=RectTransform,Canvas,CanvasScaler,GraphicRaycaster,
     Link active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(24.00, -242.00) size=(300.00, 44.00) color=00000000
       Text active=True comps=RectTransform,CanvasRenderer,Text pos=(0.00, 0.00) size=(300.00, 44.00) color=73DBFFFF font=18 text="ui.menu.whatsnew_more"
       Image active=True comps=RectTransform,CanvasRenderer,Image pos=(0.00, -31.90) size=(179.00, 1.50) color=73DBFFBF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(90.00, -1013.00) size=(190.00, 24.00) color=66D1FFFF font=16 text="UI.MENU.COMMUNITY"
-  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(290.00, -1000.00) size=(230.00, 50.00) color=FFFFFFFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(90.00, -968.00) size=(560.00, 24.00) color=66D1FFFF font=16 text="UI.MENU.COMMUNITY"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
     Image active=True comps=RectTransform,CanvasRenderer,Image pos=(14.00, -10.00) size=(30.00, 30.00) color=FFFFFFFF
-    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(164.00, 50.00) color=CCE0F5FF font=22 text="ui.menu.contribute"
-  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(534.00, -1000.00) size=(230.00, 50.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(112.67, 50.00) color=CCE0F5FF font=22 text="ui.menu.feedback"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(280.67, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
     Image active=True comps=RectTransform,CanvasRenderer,Image pos=(14.00, -10.00) size=(30.00, 30.00) color=FFFFFFFF
-    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(164.00, 50.00) color=CCE0F5FF font=22 text="ui.contribute.website"
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(112.67, 50.00) color=CCE0F5FF font=22 text="ui.menu.contribute"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(471.33, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
+    Image active=True comps=RectTransform,CanvasRenderer,Image pos=(14.00, -10.00) size=(30.00, 30.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(112.67, 50.00) color=CCE0F5FF font=22 text="ui.menu.website"
   Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1300.00, -1000.00) size=(530.00, 50.00) color=4C8CB8FF font=15 text="VER. <ver>"
   Image active=False comps=RectTransform,CanvasRenderer,Image,UiModalScope pos=(0.00, 0.00) size=(1920.00, 1080.00) color=000000C7
     DialogPanel active=True comps=RectTransform,CanvasRenderer,Image pos=(560.00, -250.00) size=(800.00, 580.00) color=FFFFFFFF
