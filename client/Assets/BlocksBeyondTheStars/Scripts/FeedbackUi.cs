@@ -54,6 +54,11 @@ namespace BlocksBeyondTheStars.Client
     /// game stats in the report. It shows developer replies in the menu too; the world's own instance polls
     /// separately once a world is loaded (the shell one sleeps then), and both read the same
     /// <see cref="SentReportsLog"/>. The in-world instance is unchanged.
+    ///
+    /// <b>The menu's button (#3715).</b> The main menu's Feedback button opens the shell instance's form through
+    /// <see cref="OpenFromMenu"/> — a player who does not know the hotkey finds it there. Only that form carries one more
+    /// line under its title: the key that sends feedback while playing. The in-world form does not — there the player
+    /// has just pressed it.
     /// </summary>
     public sealed class FeedbackUi : MonoBehaviour
     {
@@ -460,6 +465,24 @@ namespace BlocksBeyondTheStars.Client
             HoldWorld(WorldHoldArbiter.Feedback);
         }
 
+        /// <summary>
+        /// The main menu's Feedback button (#3715): opens the shell instance's form, exactly as the hotkey does on a menu
+        /// screen. Nothing happens without a shell instance, while a world is loaded, or while the form or a developer
+        /// reply is already on screen. The typing and key-capture guards of the hotkey do not apply — a click is no key
+        /// that could have been meant for a text field.
+        /// </summary>
+        public static void OpenFromMenu()
+        {
+            var menu = _shellInstance;
+            if (menu == null || menu._replyOpen || menu.Shell == null || menu.Shell.CurrentBoot != null
+                || !IsShellFeedbackScreen(menu.Shell.Phase))
+            {
+                return;
+            }
+
+            menu.Open();
+        }
+
         private void Close()
         {
             CancelInvoke(nameof(Close));
@@ -588,36 +611,57 @@ namespace BlocksBeyondTheStars.Client
             var dim = UiKit.AddModalDim(_dialogCanvas.transform);
             _dialog = dim.gameObject;
 
-            const float pw = 760f, ph = 648f;
+            // The menu's form is taller by one block under the title: the tip about the in-game key (#3715).
+            float tip = ShellMode ? MenuTipH + 8f : 0f;
+            const float pw = 760f;
+            float ph = 648f + tip;
             var panel = UiKit.AddDialogPanel(_dialog.transform, (W - pw) / 2f, (H - ph) / 2f, pw, ph);
             const float m = 36f, innerW = pw - 2f * m;
 
             UiKit.AddText(panel, m, 22, innerW, 34, L("ui.feedback.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            if (ShellMode)
+            {
+                AddMenuTip(panel, m, 62f, innerW);
+            }
 
-            UiKit.AddText(panel, m, 74, innerW, 20, L("ui.feedback.title_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _titleInput = UiKit.AddInput(panel, m, 96, innerW, 40, string.Empty, null, L("ui.feedback.title_placeholder"), 80);
+            UiKit.AddText(panel, m, 74 + tip, innerW, 20, L("ui.feedback.title_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _titleInput = UiKit.AddInput(panel, m, 96 + tip, innerW, 40, string.Empty, null, L("ui.feedback.title_placeholder"), 80);
 
-            UiKit.AddText(panel, m, 146, innerW, 20, L("ui.feedback.desc_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _descCounter = UiKit.AddText(panel, m, 146, innerW, 20, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleRight);
-            _descInput = UiKit.AddInput(panel, m, 168, innerW, 150, string.Empty, UpdateDescCounter, L("ui.feedback.desc_placeholder"), DescLimit);
+            UiKit.AddText(panel, m, 146 + tip, innerW, 20, L("ui.feedback.desc_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _descCounter = UiKit.AddText(panel, m, 146 + tip, innerW, 20, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleRight);
+            _descInput = UiKit.AddInput(panel, m, 168 + tip, innerW, 150, string.Empty, UpdateDescCounter, L("ui.feedback.desc_placeholder"), DescLimit);
             UpdateDescCounter(string.Empty);
             _descInput.lineType = InputField.LineType.MultiLineNewline;
             if (_descInput.textComponent != null) _descInput.textComponent.alignment = TextAnchor.UpperLeft;
 
-            UiKit.AddText(panel, m, 330, innerW, 20, L("ui.feedback.email_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _emailInput = UiKit.AddInput(panel, m, 352, innerW, 40, string.Empty, null, L("ui.feedback.email_placeholder"), 120);
+            UiKit.AddText(panel, m, 330 + tip, innerW, 20, L("ui.feedback.email_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _emailInput = UiKit.AddInput(panel, m, 352 + tip, innerW, 40, string.Empty, null, L("ui.feedback.email_placeholder"), 120);
 
             // The menu form sends no game data — its note says what it does send (#2523).
-            var hint = UiKit.AddText(panel, m, 404, innerW, 116, L(ShellMode ? "ui.feedback.hint_menu" : "ui.feedback.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            var hint = UiKit.AddText(panel, m, 404 + tip, innerW, 116, L(ShellMode ? "ui.feedback.hint_menu" : "ui.feedback.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
             hint.horizontalOverflow = HorizontalWrapMode.Wrap;
             hint.verticalOverflow = VerticalWrapMode.Truncate;
 
-            _status = UiKit.AddText(panel, m, 524, innerW, 24, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _status = UiKit.AddText(panel, m, 524 + tip, innerW, 24, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            _sendBtn = UiKit.AddButton(panel, m, 560, 330, 56, L("ui.feedback.send"), OnSendClicked, "btn_feedback");
-            _cancelBtn = UiKit.AddButton(panel, m + 358, 560, 330, 56, L("ui.menu.back"), Close, "btn_back");
+            _sendBtn = UiKit.AddButton(panel, m, 560 + tip, 330, 56, L("ui.feedback.send"), OnSendClicked, "btn_feedback");
+            _cancelBtn = UiKit.AddButton(panel, m + 358, 560 + tip, 330, 56, L("ui.menu.back"), Close, "btn_back");
 
             _dialog.SetActive(false);
+        }
+
+        /// <summary>Height of the menu form's tip block: two lines, for the languages that need them.</summary>
+        private const float MenuTipH = 40f;
+
+        /// <summary>
+        /// The menu form's one extra line (#3715): feedback can also be sent while playing, with the feedback key — and
+        /// then the picture shows the game, not the menu. Shrinks before it would run past its two lines.
+        /// </summary>
+        private void AddMenuTip(Transform panel, float x, float y, float w)
+        {
+            var tip = UiKit.AddText(panel, x, y, w, MenuTipH, L("ui.feedback.menu_tip").Replace("{feedback_key}", HotkeyName), 15, UiKit.Ok,
+                TextAnchor.MiddleCenter);
+            UiKit.FitLabel(tip, 11, 15);
         }
 
         // --- Send ------------------------------------------------------------------------------------------

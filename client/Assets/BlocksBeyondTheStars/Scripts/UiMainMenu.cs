@@ -15,6 +15,7 @@ namespace BlocksBeyondTheStars.Client
     /// The player name is a profile chip top right that every play mode uses. The right column carries real content —
     /// the newest "What's new?" release and the festival card — where a decorative SYSTEM CHECK and a static
     /// "world / server info" panel (which always claimed a "Survival" mode the game does not offer) used to be.
+    /// The community row at the bottom — Feedback (#3715), Join in, Website — sits on the grid of the small row above it.
     /// Shown over the animated <see cref="MenuBackground"/>; AppShell spawns it on the MainMenu phase.
     /// <para>
     /// The screen is assembled by the nested <see cref="Builder"/> — one method per visual sub-block, called by
@@ -73,6 +74,10 @@ namespace BlocksBeyondTheStars.Client
 
             // --- The native column (#3663): left edge, width, the big Continue row and the entries under it.
             private const float ColX = UiKit.MenuLeft, ColW = 560f, ContinueH = 108f, EntryH = 78f, EntryPitch = 90f;
+
+            // --- The column's two rows of three small buttons — Settings / Credits / Quit and the community row at the
+            // bottom — share one grid, so their edges line up (#3716).
+            private const float SideGap = 12f, SideW = (ColW - 2f * SideGap) / 3f;
 
             // --- The right column: the What's-new card on top, the festival card (UiFestivalCard) under it.
             private const float CardX = 1300f, CardW = 530f;
@@ -136,14 +141,17 @@ namespace BlocksBeyondTheStars.Client
                 card.gameObject.AddComponent<WhatsNewTeaser>().Init(_shell, kicker, title, teaser, CardW - 48f);
             }
 
-            // --- Bottom bar: the community links as real buttons (#3663) ---
+            // --- Bottom bar: the community links as real buttons (#3663), on the grid of the Settings / Credits / Quit row
+            // so the row ends where the column ends (#3716) — the label sits on its own line above the buttons. Feedback
+            // comes first (#3715): the menu's visible way into the form the feedback hotkey opens. ---
             public void BuildBottomBar()
             {
                 const float y = 1000f, h = 50f;
-                UiKit.AddKicker(_root, ColX, y + 13f, 190f, _shell.L("ui.menu.community"));
-                UiKit.AddTierButton(_root, ColX + 200f, y, 230f, h, _shell.L("ui.menu.contribute"),
+                UiKit.AddKicker(_root, ColX, y - 32f, ColW, _shell.L("ui.menu.community"));
+                UiKit.AddTierButton(_root, ColX, y, SideW, h, _shell.L("ui.menu.feedback"), FeedbackUi.OpenFromMenu, ButtonTier.Quiet, "btn_feedback");
+                UiKit.AddTierButton(_root, ColX + SideW + SideGap, y, SideW, h, _shell.L("ui.menu.contribute"),
                     () => { if (_participate != null) _participate.SetActive(true); }, ButtonTier.Quiet, "btn_multiplayer");
-                UiKit.AddTierButton(_root, ColX + 444f, y, 230f, h, _shell.L("ui.contribute.website"), OpenWebsite, ButtonTier.Quiet, "btn_singleplayer");
+                UiKit.AddTierButton(_root, ColX + 2f * (SideW + SideGap), y, SideW, h, _shell.L("ui.menu.website"), OpenWebsite, ButtonTier.Quiet, "btn_singleplayer");
                 UiKit.AddText(_root, CardX, y, CardW, h, "VER. " + AppShell.Version, 15, UiKit.CyanDim, TextAnchor.MiddleRight);
             }
 
@@ -548,10 +556,9 @@ namespace BlocksBeyondTheStars.Client
                 // Settings / Credits / Quit: side actions, smaller and quieter — the power icon belongs to Quit alone.
                 UiKit.AddImage(_root, ColX, y, ColW, 1.5f, UiKit.SolidSprite, new Color(UiKit.CyanDim.r, UiKit.CyanDim.g, UiKit.CyanDim.b, 0.6f));
                 y += 16f;
-                float sw = (ColW - 24f) / 3f;
-                UiKit.AddTierButton(_root, ColX, y, sw, 56f, _shell.L("ui.menu.settings"), _shell.OpenSettings, ButtonTier.Quiet, "btn_settings");
-                UiKit.AddTierButton(_root, ColX + sw + 12f, y, sw, 56f, _shell.L("ui.menu.credits"), () => _shell.GoTo(ShellPhase.Credits), ButtonTier.Quiet, "btn_credits");
-                UiKit.AddTierButton(_root, ColX + 2f * (sw + 12f), y, sw, 56f, _shell.L("ui.menu.quit"), _shell.Quit, ButtonTier.Quiet, "btn_exit");
+                UiKit.AddTierButton(_root, ColX, y, SideW, 56f, _shell.L("ui.menu.settings"), _shell.OpenSettings, ButtonTier.Quiet, "btn_settings");
+                UiKit.AddTierButton(_root, ColX + SideW + SideGap, y, SideW, 56f, _shell.L("ui.menu.credits"), () => _shell.GoTo(ShellPhase.Credits), ButtonTier.Quiet, "btn_credits");
+                UiKit.AddTierButton(_root, ColX + 2f * (SideW + SideGap), y, SideW, 56f, _shell.L("ui.menu.quit"), _shell.Quit, ButtonTier.Quiet, "btn_exit");
             }
 
             // A two-line menu entry: the action in big letters, what it leads to under it; a larger icon on the left — or, when

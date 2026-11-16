@@ -5326,6 +5326,11 @@ with none at all that you need one.
   data, because there is no world yet. It does not open while you are typing in a text field or while
   Settings waits for you to press a key. A report queued offline from the menu goes out with your next
   world. (Not in the editors themselves — their keys are busy.)
+- **The main menu also has a Feedback button** — the first one in the **Community** row at the bottom left,
+  next to **Join in** and **Website**. It opens the same menu form as the key, so nobody has to know the
+  key to report something. Under its title, the menu form reminds you that you can also send feedback
+  while playing with **F1** (F2 in the browser) — then the picture shows what you are looking at in the
+  game. That reminder appears only in the menu's form, not in the one you open during play.
 - **The developers can answer you in the game.** When they reply to one of your reports, a line shows
   on the HUD and a window opens with the conversation — what you reported, their answer, and
   "Fixed in version …" when the fix has shipped. **OK** (or Esc) closes it; you see each answer once.
