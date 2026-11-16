@@ -142,13 +142,38 @@ These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. T
   `CommunityLocaleTests` guards for contributed locales such as `it.json`).
   (The detection is an explicit `case` match, not `dorny/paths-filter` — that action's `some`-glob semantics
   made a `**/*` + `!doc` list evaluate true for every diff, so docs PRs never actually skipped.)
+- **Narrow lanes: a few kinds of PR run a handful of test classes instead of the matrix.** The same `changes`
+  job names a `lane`. When the whole non-doc diff stays inside files that only a known set of test classes can
+  observe, the matrix and `format` are skipped and the single `lane-tests` job builds the server test project
+  and runs just those classes:
+
+  | Lane | The diff is nothing but | Classes come from |
+  |---|---|---|
+  | `locales` | `data/locales/*.json` | `scripts/locale-test-filter.py` |
+  | `whatsnew` | `data/whatsnew.json`, `data-online/whatsnew/*.json` (the two PRs of every release) | `scripts/lane-test-filter.py whatsnew` |
+
+  Everything else — including a diff that mixes the two, and a file renamed into or out of a lane's folder
+  (a rename counts under both its paths) — is lane `full`. Each filter script is a marker scan over the test
+  sources (the path fragment a reader normally writes) plus a hand list for consumers a scan cannot see, e.g.
+  a class that reaches the files through a shared helper. Its `verify` mode runs first in the lane job **and**
+  on shard 1 of every PR's matrix, so the PR that breaks a filter is the one that goes red, not the next
+  release PR. The lane job also fails on a lane it does not know and on a filter that matched no test. A lane
+  is only as good as the claim "nothing else reads these files": check it once by overwriting the lane's files
+  with invalid content in a throw-away commit of a PR that runs the full matrix — every class that turns red
+  belongs in the lane (a test that only reacts to a file appearing or vanishing needs the same with a file
+  added and one removed). An under-selected lane cannot reach a release (the push to `main` and the release
+  gate run the whole suite), but it can redden `main` after the merge. To add a lane: one `case` arm and one
+  value in `detect-doc-only.yml`, its filter in `lane-tests`, its `verify` in `tests.yml`, its name in the
+  `Tests passed` fan-in.
 
 It is **safe as a required status check** via the `Tests passed` fan-in job: the build-test shards are a
 matrix (names carry the shard index, so they can't serve as required checks themselves), and `Tests passed`
-runs `if: always()`, passing exactly when all shards succeeded or were skipped as docs-only (with the
-`changes` helper itself green) — so a docs-only PR is never left waiting on a missing status, the usual
-failure mode of a plain `paths-ignore` skip. (Require `Tests passed`, **not** the shard jobs or the
-`Detect code changes` helper.)
+runs `if: always()` and accepts exactly one combination per lane — all shards green on `full` (and on a push
+to `main`), both test jobs skipped on a docs-only PR, `lane-tests` green with the matrix skipped on a narrow
+lane — always with the `changes` helper itself green. So a docs-only PR is never left waiting on a missing
+status, the usual failure mode of a plain `paths-ignore` skip, and no PR with a code or content change
+passes without its tests having run. (Require
+`Tests passed`, **not** the shard jobs or the `Detect code changes` helper.)
 
 The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need the Editor and stay local/opt-in
 (run them with `./scripts/run-tests.ps1 -Suites All` before a client-affecting change). The release build

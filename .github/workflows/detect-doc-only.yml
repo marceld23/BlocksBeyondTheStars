@@ -16,11 +16,17 @@
 # doc-only, edit the `case` below here — do not re-add per-workflow copies. `data/**` is
 # deliberately NOT skipped: it feeds the headless tests (e.g. the en/de locale-parity test).
 #
-# Second output `localesonly` (#922): "true" when the diff's non-doc files are ALL under
-# data/locales/. ci.yml then replaces the sharded matrix with the narrow `locale-tests` job
-# (scripts/locale-test-filter.py), because only the classes that read the locale tables can
-# observe such a change. `nondocs` stays true in that case — lint.yml and codeql.yml are
-# unaffected and keep running.
+# Second output `lane` (#922, widened for the What's-new feed): which test gate the PR needs.
+#   docs     — nothing but documentation/images (`nondocs` is false)
+#   locales  — every non-doc file is under data/locales/
+#   whatsnew — every non-doc file is data/whatsnew.json or under data-online/whatsnew/
+#   full     — anything else, INCLUDING a diff that mixes locales and What's-new files
+# On `locales` and `whatsnew` ci.yml replaces the sharded matrix with the narrow `lane-tests` job,
+# because only a known handful of test classes can observe such a change (see ci.yml's NARROW
+# LANES header for why that is safe). `nondocs` stays true on both — lint.yml and codeql.yml are
+# unaffected and keep running. A new narrow lane is one more `case` arm and one more value here,
+# plus its filter in ci.yml's `lane-tests`; an unknown value there fails the job rather than
+# running nothing.
 name: Detect doc-only changes
 
 on:
@@ -29,9 +35,9 @@ on:
       nondocs:
         description: "true if the PR diff contains any non-doc, non-image file"
         value: ${{ jobs.detect.outputs.nondocs }}
-      localesonly:
-        description: "true if every non-doc file in the PR diff is under data/locales/"
-        value: ${{ jobs.detect.outputs.localesonly }}
+      lane:
+        description: "docs | locales | whatsnew | full — the test gate this PR diff needs (empty outside pull requests)"
+        value: ${{ jobs.detect.outputs.lane }}
 
 permissions:
   contents: read
@@ -42,19 +48,23 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       nondocs: ${{ steps.detect.outputs.nondocs }}
-      localesonly: ${{ steps.detect.outputs.localesonly }}
+      lane: ${{ steps.detect.outputs.lane }}
     steps:
       # Lists the PR's changed files via the API (no checkout needed) and sets nondocs=true if ANY file
       # is neither documentation nor an image. (Explicit case match rather than dorny/paths-filter, whose
       # `some` glob semantics made a `**/*` + `!doc` list always true.)
+      # A renamed file counts under BOTH its paths (the API lists a rename once, new name in
+      # `filename`, old one in `previous_filename`): moving a content file into docs/ or into a
+      # narrow lane's folder takes it away from the code that read it, which is a code change.
       - name: Detect non-doc changes
         id: detect
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')"
+          files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[] | .filename, (.previous_filename // empty)')"
           haslocales=false
+          haswhatsnew=false
           hascode=false
           while IFS= read -r f; do
             [ -z "$f" ] && continue
@@ -72,17 +82,32 @@ jobs:
               # Locale tables: non-doc (they feed the headless tests), but when the WHOLE diff
               # stays inside data/locales/ the caller may narrow the test matrix (see header).
               data/locales/*) haslocales=true ;;
+              # The in-game "What's new?" feed and its per-language files: non-doc as well (a
+              # content test guards their shape), but nothing else reads them — the game server
+              # never loads either. Deliberately narrow — the feed itself and the JSON files
+              # directly in the whatsnew folder: a `*` in a `case` pattern crosses slashes, so
+              # the first arm sends anything nested deeper to the full matrix, as does any
+              # other file type there and any future kind of online content.
+              data-online/whatsnew/*/*) hascode=true; break ;;
+              data/whatsnew.json|data-online/whatsnew/*.json) haswhatsnew=true ;;
               *) hascode=true; break ;;
             esac
           done <<< "$files"
-          nondocs=false
-          localesonly=false
+          # A diff that mixes the two narrow groups takes the full matrix: the lanes are not
+          # combined (rare, and a union of two filters is one more path that can under-select).
+          nondocs=true
           if [ "$hascode" = true ]; then
-            nondocs=true
+            lane=full
+          elif [ "$haslocales" = true ] && [ "$haswhatsnew" = true ]; then
+            lane=full
           elif [ "$haslocales" = true ]; then
-            nondocs=true
-            localesonly=true
+            lane=locales
+          elif [ "$haswhatsnew" = true ]; then
+            lane=whatsnew
+          else
+            lane=docs
+            nondocs=false
           fi
           echo "nondocs=$nondocs" >> "$GITHUB_OUTPUT"
-          echo "localesonly=$localesonly" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs localesonly=$localesonly"
+          echo "lane=$lane" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs lane=$lane"
