@@ -11,6 +11,56 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.20] — 2026-11-17
+
+The lab-symbols release. **The bio lab speaks in pictures now**: every effect has its own icon in the colour of its
+family, every preparation carries a badge, and a new **Reactions** page fills in as you mix. Seven places where a
+property the lab showed did not really act are fixed, and **samples can be traded**. The main menu gets a
+**Feedback** button.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 17**, the **terrain generation at 45** and the
+**network protocol at 12**. Every world gets the symbols, the fixes and sample trading.
+
+### 🧪 The bio lab in pictures (#3717–#3721)
+
+- **An icon for every effect**, in the colour of its family: **Movement** blue, **Protection & healing** red,
+  **Strength & work** yellow, **Survival** green and **Senses** violet — on the HUD's effect rows, in the sample lists,
+  on the cards and in the Codex. A **side effect wears the icon of the effect it undoes**, in amber.
+- **A badge on every preparation** in the hotbar, the backpack, crates and the inventory: two preparations of one
+  family share a colour.
+- **Clearer cards** in the lab and the inventory: a **strength bar**, the traits as small chips, and changed values with
+  their icons.
+- **Three rules the lab always used are shown for the first time:** what a substance is *made of* and how it is
+  steadiest, which *stabiliser* works against it, and what *fits how it lives*.
+- **Reactions:** a new lab page (and a Codex chapter) with a chart of the eight substance groups. A field fills in once
+  you have mixed two analysed samples of those two groups — and the rule then holds for every species of them.
+- The Codex promised strengths "from I to XV" — it is I to V, as the label always showed.
+
+### 🔧 Effects that act where you expect them (#3723–#3730, #3732)
+
+- **Range** can only be changed on guns now. On a blade it never did anything — no good as a gain, free as a drawback.
+- **The Mining effect** also counts on asteroids, derelicts and stations.
+- **A second effect that finds no room** is now named to you instead of vanishing silently.
+- **An equally strong preparation** keeps the longer remaining time instead of cutting the running effect short.
+- **The Ressaw lamp no longer wipes out a night-sight preparation:** the preparation keeps counting down underneath and
+  is back when the lamp goes off.
+- **A fighting bandit lets go** of a player under a stealth preparation.
+- **The hunter robot** fights with the values of the weapon it really carries, lab changes included.
+- **A seedling from a trade or a crate** knows its species right away instead of reading "Seedling" until the next join.
+
+### 🤝 Trading samples (#3731)
+
+- The trade window has a new section **Your samples**: offer samples from your sample case like items. They move from
+  case to case when both sides confirm — all or nothing, and only if there is room on both sides. What you have
+  analysed stays yours.
+
+### 💬 A Feedback button in the main menu (#3715, #3716)
+
+- The **Community** row in the main menu starts with **Feedback** and opens the feedback form — until now only the
+  feedback key (F1, F2 in the browser) opened it there. The form reminds you that you can send feedback while playing
+  too, with a picture of what you see.
+- The Community row now lines up with the buttons above it, and its website button reads **Website**.
+
 ## [2026.11.19] — 2026-11-16
 
 The fresh-look release. **Every menu, the HUD and every editor got a new layout**: one way to go back, one main
@@ -11002,7 +11052,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.19...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.20...HEAD
+[2026.11.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.19...v2026.11.20
 [2026.11.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.18...v2026.11.19
 [2026.11.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.17...v2026.11.18
 [2026.11.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.16...v2026.11.17
