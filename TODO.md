@@ -24,6 +24,19 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📸 README screenshots refreshed (2026-11-16) — ✅
+
+- ✅ New first gallery from a v2026.11.19 build: main menu with Continue (EN + DE, dev version label painted out), VEGA at a
+  fallen guardian giant and at a Labyrinth Builders' maze, the guardian giant boss fight, on foot, space flight and the
+  8-tab console with the new HUD, My worlds with the last-played picture; new galleries **Build your own** (ship, village,
+  avatar, texture editor) and **Things to discover** (giant wrecks, a guardian giant, Soaniri, six school-club buildings).
+  Details: docs/screenshots/README.md § "The 2026-11 additions".
+- 📋 Capture tooling still on the local branch `chore/screenshots-2026-11` (worktree `../SpaceCraft-shots`, not merged):
+  `-captureMenus` (menu walk), clip fields `vegaLine` / `vegaSeconds` / `planetEnemies`, two shot manifests — needs tests,
+  the code-health ratchet (ClipDirector.cs > 1000 lines) and a mask for the LAN address on the host tab before a PR.
+- 📋 Not reached: the Grand Technicians' sunken giant without HUD (water too murky), the Sounders' melody bar (needs a running
+  puzzle), the outside view of a giant wreck in space, a grown village along a road.
+
 ### 🧱 Windows Firewall — no dialog for singleplayer and joining, an in-game permission for hosting — #3707, #3708, ✅ 2026-11-15, PR #3709 (`ceda80a2`), released in v2026.11.19 (⚠ playtest open)
 
 Marcel 2026-11-15: "whenever I join a server or host a game, Windows asks about the port — is that really unavoidable?"
