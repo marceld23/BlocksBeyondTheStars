@@ -417,7 +417,7 @@ public sealed partial class GameServer
                     {
                         var prey = FindSessionByPlayerId(bandit.BanditTargetId);
                         if (prey is null || prey.CurrentLocationId != _world.LocationId || InSpace(prey.State.PlayerId)
-                            || prey.State.AboardShip || prey.State.Stealthed)
+                            || prey.State.AboardShip || HostilesIgnore(prey.State)) // #3729: the cloak, a stealth preparation, god mode, Sandbox
                         {
                             prey = NearestBanditPrey(bandit, targets);
                         }

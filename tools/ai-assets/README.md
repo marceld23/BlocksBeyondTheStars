@@ -144,6 +144,12 @@ track's prompt and its pool).
   black, drops specks and lowers the plant onto the bottom edge; `BlockTileAlphaTests` checks the result. A tile that
   shows one object on a flat *lighter* ground goes into `GROUND_KEY` instead (the darkness cut would invert it). The
   bake's previews land in `out/baked/`, never over the generated images in `out/textures/`.
+- **Bio lab symbols** (#3718): `uv run gen_bio_icons.py` makes the whole set — 20 pictograms from the image API (one
+  per theme; bold filled white ink, cropped to the ink and centred, so they fill their box alike at 16 px) and 14
+  marks drawn with Pillow (substance groups, reactions, the hexagon plate; `--marks-only` needs no API key).
+  `--install` copies them to `client/Assets/Resources/icons/bio_*.png` and writes the `.meta` files; `--sheet <png>`
+  writes a contact sheet. An existing `out/bio-icons/<id>.png` is kept — delete it to re-roll one icon. Which icon
+  stands for what is decided in `Client.Core/BioSymbols.cs`, and a test checks that every name it uses is a file.
 - **Energy fence tile** (#3085): the side of a fence segment — rails along the top and bottom edge, cyan beams across, all
   running off the left and right edges — drawn as a rigid cutout cube. Pipeline: `uv run gen_textures.py --only
   energy_fence` → `uv run bundle_textures.py --from-out --only energy_fence` → `uv run --no-project --with "pillow>=13"

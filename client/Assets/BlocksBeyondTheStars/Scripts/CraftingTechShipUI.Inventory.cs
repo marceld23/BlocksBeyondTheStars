@@ -309,6 +309,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             raw.color = IconResolver.Tint(item, Game);
+            BioIcons.SyncBadge(raw, item); // a preparation carries its effect's icon (#3719)
             if (count > 1)
             {
                 int countSize = cell >= 100f ? 17 : 13;

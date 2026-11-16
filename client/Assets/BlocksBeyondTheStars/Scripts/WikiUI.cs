@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using BlocksBeyondTheStars.Shared.Bio;
@@ -229,6 +228,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 y = RenderEnemies(content, textW, y); // #3032: each enemy beside its portrait
             }
+            else if (_chapter == "substances")
+            {
+                y = RenderSubstances(content, textW, y); // #3719: each substance behind its effect's icon
+            }
+            else if (_chapter == "compounds")
+            {
+                y = RenderCompounds(content, textW, y); // #3721: the reaction chart above the tried mixes
+            }
             else
             {
                 y = AddTextBlock(content, textW, y, BuildChapterText(_chapter));
@@ -350,215 +357,10 @@ namespace BlocksBeyondTheStars.Client
             "planets" => BuildEntries(L("ui.wiki.planets"), PlanetEntries()),
             "discoveries" => BuildDiscoveries(),
             "enemies" => Game?.Content == null ? string.Empty : EnemyCodexText.Build(Game.Content.Enemies, Game.EnemiesMet, L, k => L(Game.Content.GetItem(k)?.NameKey ?? k)),
-            "substances" => BuildSubstances(),
-            "compounds" => BuildCompounds(),
             "materials" => BuildMaterials(),
             "lore" => BuildLore(),
             _ => string.Empty,
         };
-
-        // ---------------- the bio lab's research book (#2203) ----------------
-        // Per-player progress like Discoveries. Nothing here is stored as text: a profile, a mix and a change are
-        // recomputed from the book with the rules the server used, so a balance change shows here too.
-
-        /// <summary>Every plant and animal species this player has analysed: the substance, what it does, its catch,
-        /// how rare it is and where it is from — under the headings of the effect families (#2300), the ones the
-        /// sample case filters by.</summary>
-        private string BuildSubstances()
-        {
-            var sb = new StringBuilder();
-            sb.Append("<b><size=24>").Append(L("ui.wiki.substances")).Append("</size></b>\n\n");
-
-            var byFamily = new Dictionary<BioEffectFamily, List<(string Name, string Line)>>();
-            int total = 0;
-            if (Game != null)
-            {
-                foreach (var species in Game.Bio.Species.Values)
-                {
-                    if (!species.Analysed || species.Kind == (int)BioKind.Mineral || !(Game.Bio.ProfileOf(species.Seed) is { } profile))
-                    {
-                        continue;
-                    }
-
-                    string name = BioLabUi.SpeciesLabel(Game, species, false);
-                    var line = new StringBuilder();
-                    line.Append("  • <b>").Append(name).Append("</b>  —  ").Append(profile.Substance)
-                        .Append(" · <b>").Append(BioLabUi.EffectLabel(Game, profile.Effect, profile.Level)).Append("</b>")
-                        .Append(" · ").Append(BioLabUi.SideText(Game, profile.Side, profile.SideLevel))
-                        .Append(" · ").Append(L("bio.rarity." + profile.Rarity));
-                    AppendOrigin(line, species.OriginBodyName);
-                    var family = BioRules.Family(profile.Effect);
-                    if (!byFamily.TryGetValue(family, out var lines))
-                    {
-                        byFamily[family] = lines = new List<(string Name, string Line)>();
-                    }
-
-                    lines.Add((name, line.ToString()));
-                    total++;
-                }
-            }
-
-            if (total == 0)
-            {
-                sb.Append(L("ui.wiki.substances.empty"));
-                return sb.ToString();
-            }
-
-            bool first = true;
-            foreach (var family in BioRules.Families)
-            {
-                if (!byFamily.TryGetValue(family, out var lines))
-                {
-                    continue;
-                }
-
-                if (!first)
-                {
-                    sb.Append('\n');
-                }
-
-                first = false;
-                sb.Append("<b>").Append(BioLabUi.FamilyLabel(Game, family)).Append(" (").Append(lines.Count).Append(")</b>\n");
-                AppendSorted(sb, lines);
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>The mixes this player has tried: "active substance + form (+ stabiliser, + modifier) → result", with
-        /// the stability — or the note that the mix fell apart. A mix a detoxifier washed is its own entry (#2216): it
-        /// is recomputed as washed and says so. A mix whose species the book no longer holds is left out: nothing
-        /// could be said about it — and so is a signature this version cannot read (there is no text for it).</summary>
-        private string BuildCompounds()
-        {
-            var sb = new StringBuilder();
-            sb.Append("<b><size=24>").Append(L("ui.wiki.compounds")).Append("</size></b>\n\n");
-
-            var lines = new List<(string Name, string Line)>();
-            if (Game != null)
-            {
-                foreach (string signature in Game.Bio.Reactions)
-                {
-                    if (!TryParseMix(signature, out uint active, out var form, out string stabiliserItem, out uint stabiliserSeed, out uint modifier, out bool washed)
-                        || !(BioLabUi.ComputeMix(Game, active, form, stabiliserSeed, stabiliserItem, modifier, washed) is { } compound))
-                    {
-                        continue;
-                    }
-
-                    string name = SeedName(active, false);
-                    var line = new StringBuilder();
-                    line.Append("  • <b>").Append(name).Append("</b> + ").Append(L("item." + BioItems.PreparationKey(form) + ".name"));
-                    if (stabiliserSeed != 0)
-                    {
-                        line.Append(" + ").Append(SeedName(stabiliserSeed, true));
-                    }
-                    else if (stabiliserItem.Length > 0)
-                    {
-                        line.Append(" + ").Append(L("item." + stabiliserItem + ".name"));
-                    }
-
-                    if (modifier != 0)
-                    {
-                        line.Append(" + ").Append(SeedName(modifier, false));
-                    }
-
-                    line.Append("  →  ");
-                    if (compound.Failed)
-                    {
-                        line.Append("<color=#9fb4c8>").Append(L("ui.bio.will_fail")).Append("</color>");
-                    }
-                    else
-                    {
-                        line.Append("<b>").Append(BioLabUi.EffectLabel(Game, compound.Effect, compound.Level)).Append("</b>");
-                    }
-
-                    line.Append("  (").Append(L("ui.bio.stability")).Append(' ').Append(compound.Stability).Append(" %)");
-                    if (washed)
-                    {
-                        line.Append("  ·  <color=#9fb4c8>").Append(L("ui.bio.washed")).Append("</color>");
-                    }
-
-                    lines.Add((name, line.ToString()));
-                }
-            }
-
-            if (lines.Count == 0)
-            {
-                sb.Append(L("ui.wiki.compounds.empty"));
-                return sb.ToString();
-            }
-
-            AppendSorted(sb, lines);
-            return sb.ToString();
-        }
-
-        /// <summary>The deposits this player has analysed (material, purity, traits, where from) and the tools and
-        /// pieces of gear they have changed in a bio lab, with what each change gave and what it cost.</summary>
-        private string BuildMaterials()
-        {
-            var sb = new StringBuilder();
-            sb.Append("<b><size=24>").Append(L("ui.wiki.materials")).Append("</size></b>\n\n");
-
-            var deposits = new List<(string Name, string Line)>();
-            var changes = new List<(string Name, string Line)>();
-            if (Game != null)
-            {
-                foreach (var species in Game.Bio.Species.Values)
-                {
-                    if (!species.Analysed || species.Kind != (int)BioKind.Mineral || !(BioLabUi.MaterialOf(Game, species.Seed) is { } material))
-                    {
-                        continue;
-                    }
-
-                    string name = BioLabUi.SpeciesLabel(Game, species, true);
-                    var line = new StringBuilder();
-                    line.Append("  • <b>").Append(name).Append("</b>  —  ").Append(BioLabUi.MaterialText(Game, material, " · "));
-                    AppendOrigin(line, species.OriginBodyName);
-                    deposits.Add((name, line.ToString()));
-                }
-
-                // A change is recorded as "base key|payload" — the item key the changed tool carries, in two parts.
-                foreach (string record in Game.Bio.Changes)
-                {
-                    int bar = record.IndexOf('|');
-                    if (bar <= 0)
-                    {
-                        continue;
-                    }
-
-                    string baseKey = record.Substring(0, bar);
-                    var mods = ItemMods.Of(baseKey + Shared.State.ItemKey.Separator + ItemMods.Tag + record.Substring(bar + 1));
-                    if (mods.IsEmpty)
-                    {
-                        continue;
-                    }
-
-                    string name = L("item." + baseKey + ".name");
-                    changes.Add((name, "  • <b>" + name + "</b>  —  " + BioLabUi.ModsText(Game, mods, false, " · ")));
-                }
-            }
-
-            if (deposits.Count == 0 && changes.Count == 0)
-            {
-                sb.Append(L("ui.wiki.materials.empty"));
-                return sb.ToString();
-            }
-
-            if (deposits.Count > 0)
-            {
-                sb.Append("<b>").Append(L("bio.kind.mineral")).Append(" (").Append(deposits.Count).Append(")</b>\n");
-                AppendSorted(sb, deposits);
-                sb.Append('\n');
-            }
-
-            if (changes.Count > 0)
-            {
-                sb.Append("<b>").Append(L("ui.bio.changed")).Append(" (").Append(changes.Count).Append(")</b>\n");
-                AppendSorted(sb, changes);
-            }
-
-            return sb.ToString();
-        }
 
         /// <summary>The name of a species (or a deposit) of the research book by its seed.</summary>
         private string SeedName(uint seed, bool mineral)
@@ -583,44 +385,6 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append(line).Append('\n');
             }
         }
-
-        /// <summary>Reads a mix signature back: "active/form/stabiliser item:stabiliser seed/modifier", the seeds as
-        /// eight hex digits, and "/w" at the end of a mix a detoxifier washed (<see cref="Synthesis.Signature"/>).
-        /// False for anything else — an entry of a newer version.</summary>
-        private static bool TryParseMix(string signature, out uint active, out BioForm form, out string stabiliserItem,
-            out uint stabiliserSeed, out uint modifier, out bool washed)
-        {
-            active = 0;
-            form = BioForm.Injector;
-            stabiliserItem = string.Empty;
-            stabiliserSeed = 0;
-            modifier = 0;
-
-            string[] parts = (signature ?? string.Empty).Split('/');
-            washed = parts.Length == 5 && parts[4] == "w";
-            if (parts.Length != 4 && !washed)
-            {
-                return false;
-            }
-
-            int colon = parts[2].LastIndexOf(':');
-            if (colon < 0
-                || !HexSeed(parts[0], out active)
-                || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int formId)
-                || formId < 0 || formId > (int)BioForm.Coating
-                || !HexSeed(parts[2].Substring(colon + 1), out stabiliserSeed)
-                || !HexSeed(parts[3], out modifier))
-            {
-                return false;
-            }
-
-            form = (BioForm)formId;
-            stabiliserItem = parts[2].Substring(0, colon);
-            return true;
-        }
-
-        private static bool HexSeed(string text, out uint seed)
-            => uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out seed);
 
         /// <summary>Found story texts (#1111): the save's net fragments, this player's memories and field
         /// records — full text for what was found, a sealed "???" line for what is still out there. Per-player

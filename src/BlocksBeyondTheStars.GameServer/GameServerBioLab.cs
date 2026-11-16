@@ -46,6 +46,8 @@ public sealed partial class GameServer : IBioLabHost
     // which would recurse).
     void IBioLabHost.ShipAiHintOnce(PlayerSession session, string hintId) => ShipAiHintOnce(session, hintId);
 
+    string IBioLabHost.LocalizedName(string localeCode, string? nameKey, string fallbackKey) => LocalizedName(localeCode, nameKey, fallbackKey);
+
     bool IBioLabHost.IsVisitingShip(string playerId) => IsVisitingShip(playerId);
 
     bool IBioLabHost.InShipInterior(string playerId) => InShipInterior(playerId);

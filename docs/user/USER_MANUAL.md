@@ -3519,6 +3519,12 @@ worlds created with a game version that has generation 43 have them; an older wo
   *not enough room* — nothing moves, the window stays open and you both confirm again after making space. Only what
   is in your backpack (and, aboard, your cargo hold) can be traded — the gear you wear never is. You can have one
   trade and one open trade request at a time; a second request to someone who already has one is refused as busy.
+  **Samples** can be traded too: under your inventory the window lists **Your samples** — every kind in your sample
+  case with its `−` / `+` — and they go straight from your **sample case** into your partner's (a kind stacks to
+  20, a case holds 24 kinds). If a case has no room for them, nothing is traded at all and you are both told whose
+  case is full. What you found out about a species in the bio lab is not traded — your partner analyses the sample
+  for themselves. A deposit whose mineral sample you traded away stays known to you: its next block is not a
+  "first block" with a guaranteed sample again.
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
   again) to open that vendor's **trade screen** (*you give → you get*). A vendor's themed goods only trade while that
   vendor stands right beside you (the grocer only inside his shop). Barter trades there swap your raw resources for
@@ -4503,7 +4509,7 @@ look up: what a mix does follows from what goes in, and the same things always g
   about it stays in the Codex.
 - **Keeping the overview.** The sample case lists **plants, animals and deposits** under their own headings — the
   ones you have not analysed yet first, then by effect. Every row shows what an analysed sample holds (an effect
-  like *Speed II* in its colour, a deposit its strongest traits) or *Not analysed*. Above the list sit the
+  like *Speed II* behind its icon, a deposit its traits as small chips with their levels) or *Not analysed*. Above the list sit the
   **filters**: one chip per kind (*All · Plants · Animals · Deposits*, with how many each holds) and the **Effect**
   button, which steps through the five **effect families** — *Movement* (speed, jump, feather fall, grip),
   *Protection & healing* (shield, regeneration, heat, cold and toxin ward), *Strength & work* (strength, mining,
@@ -4511,6 +4517,15 @@ look up: what a mix does follows from what goes in, and the same things always g
   *Not analysed*. The filter is the same in the bio lab and on *Inventory → Samples* and lasts until you quit the
   game. On the lab's *Change* page the case shows only deposits (nothing else changes a tool) and marks the ones
   that would change the chosen piece with **✓ works**.
+- **Reading the symbols.** Everything the lab knows has a symbol beside its words, and the symbols follow three
+  rules. **The icon is the thing**: a shoe is speed, a flame is heat, a feather is light or soft landing — the same
+  icon returns wherever the same idea returns. **The colour is the family**: an effect is drawn in the colour of its
+  family — *Movement* blue, *Protection & healing* red, *Strength & work* yellow, *Survival* green, *Senses*
+  violet — so a preparation in the hotbar takes its family's colour and carries its effect's icon as a small
+  **badge** in the corner. **Amber is a catch**: a side effect wears the icon of the effect it undoes, in amber
+  with down marks (*Hungry* is the bowl of *Satiety*, *Sluggish* the shoe of *Speed*). A material trait sits on a
+  **hexagon** with one dot per level; a strength shows as a **bar** of five segments — one per tier I to V, each
+  filling in three steps and coloured like its rarity — so two samples of the same tier can still be told apart.
 - **The sampler** (`bio_sampler`, workshop, comes with the bio lab blueprint): a **right-click** gadget that takes
   a sample from a **living** animal without hurting it — 6 blocks reach, 64 for a giant. A hostile animal
   must be held in stasis first — except a giant, which cannot be frozen: there the long reach is the hurdle.
@@ -4523,11 +4538,16 @@ look up: what a mix does follows from what goes in, and the same things always g
   module fitted, **Interact at your ship's workshop station** asks *Workshop or Bio lab?* (E keeps crafting one key
   press away) — in the parked ship and in its interior while it floats in space. It never works from the pilot seat,
   on a spacewalk or in somebody else's ship, and heat- or cold-sensitive effects feel the cabin air there. A lab
-  **block** built into a ship stays decoration; VEGA says so once and names the module. The lab has three pages:
+  **block** built into a ship stays decoration; VEGA says so once and names the module. The lab has four pages:
   - **Analyse.** Uses up one sample (in Sandbox nothing is used up, but a sample of the species must still be in
     your case) and shows what the species carries: its **substance** with one **effect**, a
-    **strength** from I to XV, a **rarity** (common → legendary), how long it lasts, whether it has a **catch**
-    (a side effect), whether it is **toxic** and whether it is **heat- or cold-sensitive**. The first analysis of a
+    **strength** in five tiers from I to V (the bar beside it shows the three steps inside a tier), a **rarity**
+    (common → legendary), how long it lasts, whether it has a **catch**
+    (a side effect), whether it is **toxic** and whether it is **heat- or cold-sensitive**. The card also says what
+    the lab works with later: **why** the species carries this effect (*Fits how it lives: lives by lava · hot
+    place*), which **substance group** it belongs to (its mark), what it is **made of** and the form a mix of it is
+    steadiest in (*Made of: Juice — steadiest as: Injector*), and under a catch or a weather weakness the
+    **stabiliser that takes it away** (*Stabiliser against it: Heat-proof*). The first analysis of a
     species pays **knowledge**. Until then the scanner only says "substance: unknown". For a mineral sample you see
     the material's **fixed traits** (copper conducts on every world) and the **origin values** of this world's
     deposit: its purity and what is a little stronger, weaker or extra here.
@@ -4540,7 +4560,9 @@ look up: what a mix does follows from what goes in, and the same things always g
       catch away for a bit of strength (the lab shows which trait it wants);
     - a **second sample** that reacts with the first: it can **amplify** it, **weaken** it, **add its own effect**
       as a second one, or **turn** the effect into a related one. Which groups do what to each other is the same in
-      every world — once you know that group A amplifies group B, that holds forever.
+      every world — once you know that group A amplifies group B, that holds forever. With two analysed samples
+      in the slots the page shows their two **group marks** and, if you have ever mixed those two groups, what they
+      do to each other — also for two species you never mixed with each other. The exact result stays an experiment.
 
     The lab shows the **stability** of a mix. A shaky mix can **fail**: everything you put in is gone and you get
     nothing — but your handbook remembers it, and a mix you have tried once is shown with its result *before* you
@@ -4555,17 +4577,25 @@ look up: what a mix does follows from what goes in, and the same things always g
     once what kind of material works. If your backpack holds nothing changeable but you **wear** a changeable piece,
     the tab says to take it off first. The material's traits decide *what* changes — hard
     makes a drill hit harder or armour tougher, conductive saves energy, light speeds a tool up, magnetic adds
-    reach or grip — and the purity of the deposit and the coating decide *how much*. A big change always has a
+    reach or grip (reach only on guns: a blade's swing reach is fixed, so the lab offers it no Range) — and the
+    purity of the deposit and the coating decide *how much*. A big change always has a
     **price**: the tool gets a bit slower or hungrier, gear gets a bit heavier (unless the material is light). The
     lab never changes a tool's **tier** or its mining radius. Nothing wears off; you can change the item again or
     **wash it off** for free. A changed item carries "changed" in its name and shows its new values in the tooltip.
     The item must lie as a single item in your **backpack**: take a suit piece off first and put it back on
     afterwards.
+  - **Reactions.** The chart of the eight substance groups against each other. A cell shows what two groups do to
+    each other — amplify, weaken, add a second effect, turn into another effect, or nothing — once you have mixed
+    two analysed samples of those groups; before that it shows a question mark. The count above it says how many
+    of the 36 pairs you have found. The same chart stands in the Codex, above your tried mixes.
 - **Taking a preparation.** Like food: hold it and **right-click**, pick **Take** in the hotbar slot actions, or
   press **Take** on its card in the inventory. Every running effect is listed in the vitals panel under your bars
-  with its strength, the time it has left and its catch; a shield shows as "+n Shield" behind your health. You can
+  with its icon, its strength, the time it has left and its catch; a shield shows as "+n Shield" behind your health. You can
   run **three effects at once**; taking the same effect again refreshes it, and a weaker one is refused (and not
-  used up). In a list a preparation reads like "Injector · Speed III". The effects:
+  used up). A refresh never shortens what is running: an equally strong one keeps the longer of the two remaining
+  times; a stronger one starts its own. A preparation with a **second effect** starts it only when there is room
+  for it — if not, a message says so and the main effect still starts. A Mining preparation also counts
+  on asteroids and derelicts. In a list a preparation reads like "Injector · Speed III". The effects:
 
   | Effect | What it does (at most) |
   |---|---|
@@ -4586,7 +4616,7 @@ look up: what a mix does follows from what goes in, and the same things always g
   cold-sensitive one below −5 °C — judged by the air you are really in: aboard your ship or a station that is a
   comfortable 22 °C, outdoors the real temperature, in every game mode.
 - **Your handbook** is in the Codex: the chapters **Substances** (every species you analysed, grouped by effect
-  family), **Compounds** (every
+  family, each behind its effect's icon), **Compounds** (the reaction chart and every
   mix you tried, also the failed ones) and **Materials** (every deposit you analysed and every item you changed).
   In the lab, the sample case is on the left; a click on a sample puts it into the fitting slot of the open page.
 - **In Sandbox** nothing is used up and no blueprint is needed — but samples still have to be collected: the

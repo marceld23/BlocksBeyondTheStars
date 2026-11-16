@@ -174,9 +174,10 @@ public sealed partial class GameServer
             .Select(g => new ItemAmount(g.Key, (int)System.Math.Min(g.Sum(i => (long)i.Count), int.MaxValue)))
             .ToList();
         // Validate against the offering player's OWN ship cargo, not the ship cursor (`_ship`) — see TradePool. #3201: and
-        // never against the worn gear, which the trade window does not list either.
-        var pool = TradePool(s);
-        if (!pool.Has(offer))
+        // never against the worn gear, which the trade window does not list either. #3731: a sample line is counted
+        // against the sample case instead — a sample key in the backpack is no trade goods.
+        var lot = new TradeLot(offer);
+        if (!TradePool(s).Has(lot.Goods) || !HoldsTradeSamples(s.State, lot.Samples))
         {
             Reject(s, "trade", "@srv.trade.missing_items");
             return;
@@ -185,6 +186,7 @@ public sealed partial class GameServer
         var target = session.OfferOf(player);
         target.Clear();
         target.AddRange(offer);
+        SendOfferedSpecies(session, player, lot.Samples); // #3731: before the update, so the partner's window can name them
 
         // Any change to an offer voids both ready states.
         session.ConfirmA = false;
@@ -265,9 +267,12 @@ public sealed partial class GameServer
 
         var poolA = TradePool(sa);
         var poolB = TradePool(sb);
+        var lotA = new TradeLot(session.OfferA); // #3731: goods live in the pool, samples in the sample case
+        var lotB = new TradeLot(session.OfferB);
 
         // Re-validate both sides still hold their offers (they could have used items meanwhile).
-        if (!poolA.Has(session.OfferA) || !poolB.Has(session.OfferB))
+        if (!poolA.Has(lotA.Goods) || !poolB.Has(lotB.Goods)
+            || !HoldsTradeSamples(sa.State, lotA.Samples) || !HoldsTradeSamples(sb.State, lotB.Samples))
         {
             _trades.Remove(session);
             CloseTrade(session, completed: false, "@srv.trade.items_gone");
@@ -278,18 +283,22 @@ public sealed partial class GameServer
         // take both offers and hand back whatever did not fit, ignoring what the hand-back itself could not store: with
         // two full backpacks the partner's goods filled the very slot the giver had just freed, and the rest vanished
         // while both players read "Trade complete". A side without room now refuses; the trade stays open to adjust.
-        bool roomA = poolA.CanExchange(session.OfferA, session.OfferB);
-        bool roomB = poolB.CanExchange(session.OfferB, session.OfferA);
-        if (!roomA || !roomB)
+        // #3731: the same for the two sample cases — one full case and nothing moves, goods included.
+        bool roomA = poolA.CanExchange(lotA.Goods, lotB.Goods);
+        bool roomB = poolB.CanExchange(lotB.Goods, lotA.Goods);
+        bool caseA = SampleCaseCanExchange(sa.State, lotA.Samples, lotB.Samples);
+        bool caseB = SampleCaseCanExchange(sb.State, lotB.Samples, lotA.Samples);
+        if (!roomA || !roomB || !caseA || !caseB)
         {
-            RefuseTradeForRoom(session, sa, sb, roomA, roomB);
+            RefuseTradeForRoom(session, sa, sb, (roomA, roomB), (caseA, caseB));
             return;
         }
 
-        poolA.Remove(session.OfferA);
-        poolB.Remove(session.OfferB);
-        HandOverTradeGoods(sb, poolB, session.OfferA);
-        HandOverTradeGoods(sa, poolA, session.OfferB);
+        poolA.Remove(lotA.Goods);
+        poolB.Remove(lotB.Goods);
+        HandOverTradeGoods(sb, poolB, lotA.Goods);
+        HandOverTradeGoods(sa, poolA, lotB.Goods);
+        SwapTradeSamples(sa, sb, lotA.Samples, lotB.Samples);
         TransferTradeKnowledge(session, sa, sb);
 
         _trades.Remove(session);
@@ -309,13 +318,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>#3191: a trade a side has no room for is refused before anything moves. Both ready flags reset, so the two
-    /// can change their offers (or make room) and confirm again; the side without room is told so, the partner why.</summary>
-    private void RefuseTradeForRoom(TradeSession session, PlayerSession sa, PlayerSession sb, bool roomA, bool roomB)
+    /// can change their offers (or make room) and confirm again; the side without room is told so, the partner why.
+    /// #3731: <paramref name="sampleCase"/> says the same of the two sample cases, with lines of their own.</summary>
+    private void RefuseTradeForRoom(TradeSession session, PlayerSession sa, PlayerSession sb, (bool A, bool B) room, (bool A, bool B) sampleCase)
     {
         session.ConfirmA = false;
         session.ConfirmB = false;
-        TellTradeRoom(sa, sb, roomA, roomB);
-        TellTradeRoom(sb, sa, roomB, roomA);
+        TellTradeRoom(sa, sb, room.A, room.B);
+        TellTradeRoom(sb, sa, room.B, room.A);
+        TellTradeSampleCase(sa, sb, sampleCase.A, sampleCase.B);
+        TellTradeSampleCase(sb, sa, sampleCase.B, sampleCase.A);
         SendTradeUpdate(session);
     }
 

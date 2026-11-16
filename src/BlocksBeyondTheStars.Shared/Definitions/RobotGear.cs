@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using BlocksBeyondTheStars.Shared.Bio;
 
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
@@ -59,14 +60,23 @@ public static class RobotGear
     public static bool IsPiece(string? piece) => piece is WeaponPiece or JetpackPiece;
 
     /// <summary>The robot's damage per shot with <paramref name="weapon"/>: <see cref="WeaponDamageShare"/> of the weapon's
-    /// damage, never below <paramref name="baseDamage"/> (its own shot without a weapon).</summary>
-    public static float ShotDamage(ItemDefinition? weapon, float baseDamage)
-        => weapon?.Tool is { Kind: ToolKind.Weapon } tool ? Math.Max(baseDamage, WeaponDamageShare * tool.Damage) : baseDamage;
+    /// damage, never below <paramref name="baseDamage"/> (its own shot without a weapon). <paramref name="itemKey"/> is the
+    /// key of the very item the robot carries (see <see cref="WeaponValues"/>).</summary>
+    public static float ShotDamage(ItemDefinition? weapon, float baseDamage, string? itemKey = null)
+        => WeaponValues(weapon, itemKey) is { } tool ? Math.Max(baseDamage, WeaponDamageShare * tool.Damage) : baseDamage;
 
     /// <summary>The robot's reach with <paramref name="weapon"/>: the weapon's range clamped to <see cref="MinReach"/> ..
-    /// <see cref="MaxReach"/>; <paramref name="baseReach"/> without one.</summary>
-    public static float Reach(ItemDefinition? weapon, float baseReach)
-        => weapon?.Tool is { Kind: ToolKind.Weapon } tool ? Math.Min(MaxReach, Math.Max(MinReach, tool.Range)) : baseReach;
+    /// <see cref="MaxReach"/>; <paramref name="baseReach"/> without one. <paramref name="itemKey"/> as in
+    /// <see cref="ShotDamage"/>.</summary>
+    public static float Reach(ItemDefinition? weapon, float baseReach, string? itemKey = null)
+        => WeaponValues(weapon, itemKey) is { } tool ? Math.Min(MaxReach, Math.Max(MinReach, tool.Range)) : baseReach;
+
+    /// <summary>The values of the weapon the robot carries, or null when the item is no weapon. With the item's key these
+    /// are the values of that very item (#3730): what the bio lab changed on it rides in the key
+    /// (<see cref="ToolMods.Effective"/>), so a sharpened laser hits harder in the robot's hand too. Without a key — or
+    /// with a plain one, as every robot of an older save carries — they are the definition's own.</summary>
+    public static ToolProperties? WeaponValues(ItemDefinition? weapon, string? itemKey = null)
+        => weapon?.Tool is { Kind: ToolKind.Weapon } ? ToolMods.Effective(weapon, itemKey) : null;
 
     /// <summary>The tracer colour of the robot's shot with <paramref name="weapon"/> (0xRRGGBB, the weapon's FX colour); 0 =
     /// the robot's own light cyan.</summary>

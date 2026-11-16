@@ -149,6 +149,7 @@ namespace BlocksBeyondTheStars.Client
                 if (string.IsNullOrEmpty(item))
                 {
                     s.Icon.enabled = false;
+                    BioIcons.SyncBadge(s.Icon, null);
                     s.Name.text = string.Empty;
                     s.Count.text = string.Empty;
                     continue;
@@ -213,6 +214,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 s.Icon.color = IconResolver.Tint(item, Game); // toxic consumables read green
+                BioIcons.SyncBadge(s.Icon, item);             // a preparation carries its effect's icon (#3719)
                 s.Icon.enabled = true;
                 // The held slot shows its full name (brighter); the rest stay short so the row reads at a
                 // glance. Resolved through the shared helper — a dyed/shaped/painted stack carries its

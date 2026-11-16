@@ -85,4 +85,10 @@ public sealed partial class GameServer
             : MeleeRules.FistDamage;
         return MeleeRules.IsRanged(tool) ? damage : damage * Shared.Bio.PlayerEffects.MeleeFactor(p.Effects);
     }
+
+    /// <summary>The effort one swing of the held tool puts into a block: the tool's mining power (1 for a tool without
+    /// one) times the player's mining preparation (#2202). One rule for a block of a planet and for asteroid ore or a
+    /// derelict's hull (#3725) — the structure path used to read the tool alone, so the preparation did nothing in space.</summary>
+    private static float SwingMiningPower(PlayerState p, ToolProperties tool)
+        => (tool.MiningPower > 0f ? tool.MiningPower : 1f) * Shared.Bio.PlayerEffects.MiningFactor(p.Effects);
 }

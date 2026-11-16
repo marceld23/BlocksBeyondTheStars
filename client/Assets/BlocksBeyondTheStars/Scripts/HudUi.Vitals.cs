@@ -64,12 +64,13 @@ namespace BlocksBeyondTheStars.Client
         private bool _vitalsWarnedAtHome; // #2824: whether the last warning pass ran at home (to spot coming home)
 
         // Running effects of the bio lab's preparations (#2202): one small row per effect inside the vitals panel,
-        // under its last bar — a dot in the effect's colour, "Speed III", the time left as m:ss, and the catch in
-        // amber to the right of the panel. Pooled like the pickup feed; the panel grows by the rows it shows.
+        // under its last bar — the effect's icon in its family's colour (#3719), "Speed III", the time left as m:ss,
+        // and the catch in amber to the right of the panel, behind the icon of the effect it undoes. Pooled like the
+        // pickup feed; the panel grows by the rows it shows.
         private sealed class EffectRow
         {
             public GameObject Go;
-            public Image Dot, SideMark;
+            public Image Dot, SideMark, SideIcon;
             public TMP_Text Label, Left, Side;
             public int Effect = -1, Level = -1, Seconds = -1, SideEffect = -1; // what the row shows (written on change only)
             public float Y = -1f;
@@ -335,6 +336,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     row.Effect = (int)e.Effect;
                     row.Level = e.Level;
+                    row.Dot.sprite = BioIcons.Find(BioSymbols.EffectIcon(e.Effect)) ?? UiKit.DiscSprite;
                     row.Dot.color = BioLabUi.EffectColor(e.Effect);
                     row.Label.text = BlocksBeyondTheStars.Shared.Bio.BioItems.EffectLabel(loc, e.Effect, e.Level);
                 }
@@ -351,6 +353,9 @@ namespace BlocksBeyondTheStars.Client
                 {
                     row.SideEffect = side;
                     row.SideMark.enabled = side != 0;
+                    var sideSprite = side != 0 ? BioIcons.Find(BioSymbols.SideIcon(e.Side)) : null;
+                    row.SideIcon.sprite = sideSprite;
+                    row.SideIcon.enabled = sideSprite != null;
                     row.Side.text = side != 0 ? loc.Get("bio.side." + e.Side.ToString().ToLowerInvariant()) : string.Empty;
                 }
             }
@@ -366,15 +371,16 @@ namespace BlocksBeyondTheStars.Client
             return count;
         }
 
-        /// <summary>One effect row: the colour dot, the name with its level, the time left — and, to the right of the
-        /// panel, the catch behind a down triangle (drawn: the HUD's SDF font carries no ▼ glyph).</summary>
+        /// <summary>One effect row: the effect's icon, the name with its level, the time left — and, to the right of the
+        /// panel, the catch behind a down triangle (drawn: the HUD's SDF font carries no ▼ glyph) and the icon of the
+        /// effect it undoes.</summary>
         private EffectRow MakeEffectRow()
         {
             var go = new GameObject("effect_row", typeof(RectTransform));
             go.transform.SetParent(_vitalsPanel.transform, false);
             UiKit.Place(go, 10f, 0f, 206f, EffectRowH);
 
-            var dot = UiKit.AddImage(go.transform, 5f, 5f, 10f, 10f, UiKit.DiscSprite, Color.white);
+            var dot = UiKit.AddImage(go.transform, 2f, 2f, 16f, 16f, UiKit.DiscSprite, Color.white);
             var label = UiText.Add(go.transform, 22f, 1f, 134f, 18f, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
             var left = UiText.Add(go.transform, 158f, 1f, 42f, 18f, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Normal, UiText.Look.Outline);
 
@@ -383,9 +389,11 @@ namespace BlocksBeyondTheStars.Client
             markRt.pivot = new Vector2(0.5f, 0.5f);
             markRt.anchoredPosition = new Vector2(228.5f, -10.5f);
             markRt.localRotation = Quaternion.Euler(0f, 0f, 180f);
-            var side = UiText.Add(go.transform, 238f, 1f, 170f, 18f, string.Empty, 12, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+            var sideIcon = UiKit.AddImage(go.transform, 238f, 3f, 14f, 14f, UiKit.DiscSprite, UiKit.Warn);
+            sideIcon.enabled = false;
+            var side = UiText.Add(go.transform, 256f, 1f, 170f, 18f, string.Empty, 12, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
 
-            return new EffectRow { Go = go, Dot = dot, SideMark = mark, Label = label, Left = left, Side = side };
+            return new EffectRow { Go = go, Dot = dot, SideMark = mark, SideIcon = sideIcon, Label = label, Left = left, Side = side };
         }
 
         /// <summary>Motion layer for the vitals (per frame): the fill eases to its target, a dim ghost trails

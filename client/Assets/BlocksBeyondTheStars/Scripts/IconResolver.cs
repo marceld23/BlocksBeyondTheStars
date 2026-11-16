@@ -18,7 +18,6 @@ namespace BlocksBeyondTheStars.Client
     {
         private static readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, Texture2D> _itemTex = new Dictionary<string, Texture2D>();
-        private static readonly Dictionary<string, Color> _effectTints = new Dictionary<string, Color>();
 
         /// <summary>Drops every cached sprite/texture. Called from <see cref="GameBootstrap"/>'s teardown:
         /// the sprites wrap THAT session's atlas texture, so keeping them across sessions would pin the
@@ -29,7 +28,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _sprites.Clear();
             _itemTex.Clear();
-            _effectTints.Clear();
+            BioIcons.ClearCache();
         }
 
         /// <summary>The best icon sprite for an item / ship-module / blueprint key, or null if none.</summary>
@@ -109,8 +108,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Tints the icon: a dyed/glowing item shows its colour (so coloured stacks read at a
-        /// glance), a preparation of the bio lab the colour of its effect (two injectors in the hotbar are told
-        /// apart), toxic consumables (negative consume-health) read green, everything else neutral white.
+        /// glance), a preparation of the bio lab the colour of its effect's family (the badge on its icon says which
+        /// effect, <see cref="BioIcons.SyncBadge"/>), toxic consumables (negative consume-health) read green, everything
+        /// else neutral white.
         /// Applied as the icon image colour (multiplied over the sprite).</summary>
         public static Color Tint(string key, GameBootstrap game)
         {
@@ -131,8 +131,9 @@ namespace BlocksBeyondTheStars.Client
             return def != null && def.ConsumeHealth < 0f ? new Color(0.45f, 1f, 0.4f) : Color.white;
         }
 
-        /// <summary>The effect colour of a preparation's key (#2202); false for every other key. The hotbar asks for
-        /// its tints ten times a second, so the answer is kept per key instead of decoding the compound each time.</summary>
+        /// <summary>The colour of a preparation's key (#2202): its effect's family's; false for every other key. The
+        /// hotbar asks for its tints ten times a second, so the effect is kept per key instead of decoding the compound
+        /// each time.</summary>
         private static bool PreparationTint(string key, out Color tint)
         {
             tint = Color.white;
@@ -141,17 +142,14 @@ namespace BlocksBeyondTheStars.Client
                 return false; // a plain key carries no compound
             }
 
-            if (!_effectTints.TryGetValue(key, out var known))
+            var effect = BioIcons.PreparationEffect(key); // kept per key there
+            if (effect == BlocksBeyondTheStars.Shared.Bio.BioEffect.None)
             {
-                // Alpha 0 stands for "no preparation" (a dyed block, a sample, a changed tool).
-                known = BlocksBeyondTheStars.Shared.Bio.BioItems.CompoundOf(key) is { } compound
-                    ? BioLabUi.EffectColor(compound.Effect)
-                    : Color.clear;
-                _effectTints[key] = known;
+                return false; // a dyed block, a sample, a changed tool
             }
 
-            tint = known;
-            return known.a > 0f;
+            tint = BioIcons.EffectColor(effect);
+            return true;
         }
 
         /// <summary>Builds a form-silhouette sprite for a shaped block key (e.g. <c>"stone#s04"</c>); null when

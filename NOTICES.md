@@ -118,7 +118,10 @@ marker `map_lodge` (#2647, `gen_map_icons.py --only map_lodge`, 2026-10-15) were
 the UI layout overhaul — `btn_back`, `btn_close`, `btn_continue`, `btn_delete`, `btn_dice`, `btn_editors`,
 `btn_multiplayer`, `btn_new`, `btn_pause`, `ed_shape`, `ed_texture` and the settings categories `set_*` (#3662,
 `gen_icons.py --only …`, 2026-11-15, recoloured to the set's cyan) and the editor shell's `btn_save`, `btn_load`,
-`btn_undo`, `btn_redo` (mirrored `btn_undo`) and `btn_submit` (#3688, same way, 2026-11-15) — too); they are
+`btn_undo`, `btn_redo` (mirrored `btn_undo`) and `btn_submit` (#3688, same way, 2026-11-15), and the 20 pictograms of
+the bio lab's symbol set `bio_*` (#3718, `tools/ai-assets/gen_bio_icons.py`, 2026-11-16: bold filled white ink like the
+map markers; the set's 14 group, reaction and plate marks `bio_group_*`, `bio_react_*`, `bio_hex` are drawn in code with
+Pillow, not AI-generated) — too); they are
 AI-synthesised images, use governed by the OpenAI usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for

@@ -26,7 +26,7 @@ namespace BlocksBeyondTheStars.Client
     /// The static helpers name and describe samples, preparations and changed items for the other screens
     /// (inventory, Codex, HUD), so all of them read alike.
     /// </summary>
-    public sealed class BioLabUi : UiPanel
+    public sealed partial class BioLabUi : UiPanel
     {
         /// <summary>The slot whose options the right pane lists instead of the tab (None = the tab itself).</summary>
         private enum Pick { None, Active, Carrier, Stabiliser, Modifier, Target, Material, Coating }
@@ -56,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
         private string _discardArmed = string.Empty, _discardSent = string.Empty;
         private RectTransform _caseContent;
         private float _caseScroll;
-        private int _tab; // 0 analyse, 1 mix, 2 change
+        private int _tab; // 0 analyse, 1 mix, 2 change, 3 the reaction chart
         private Pick _pick;
         private int _resultSeen;
         private int _dataSig;
@@ -397,7 +397,7 @@ namespace BlocksBeyondTheStars.Client
             var head = UiKit.AddText(panel, 32f, 22f, 420f, 40f, L("ui.bio.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
 
-            string[] tabs = { "ui.bio.tab.analyse", "ui.bio.tab.mix", "ui.bio.tab.change" };
+            string[] tabs = { "ui.bio.tab.analyse", "ui.bio.tab.mix", "ui.bio.tab.change", "ui.bio.tab.chart" };
             for (int i = 0; i < tabs.Length; i++)
             {
                 int tab = i;
@@ -431,9 +431,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 BuildMix(_paneLayer);
             }
-            else
+            else if (_tab == 2)
             {
                 BuildChange(_paneLayer);
+            }
+            else
+            {
+                BuildChart(_paneLayer);
             }
 
             if (_status.Length > 0)
@@ -584,7 +588,8 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     string title = KindLabel(Game, entry.Kind) + "  (" + n + ")";
-                    Row(_caseContent, 28f, go => UiKit.AddText(go.transform, 8f, 2f, CaseW - 44f, 24f, title, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold));
+                    var kind = entry.Kind;
+                    Row(_caseContent, 28f, go => KindHeading(go.transform, kind, title, CaseW - 44f));
                 }
 
                 Row(_caseContent, 64f, go => SampleRow(go.transform, entry, works));
@@ -660,7 +665,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>One sample of the case: icon, name and count; under them what it holds (an analysed plant or
-        /// animal its effect in the effect's colour, a deposit its strongest traits, anything else "Not analysed") and
+        /// animal its effect's icon and name, a deposit its traits as chips, anything else "Not analysed") and
         /// where it is from — on the Change tab "✓ works" instead, for a deposit that would change the chosen piece.</summary>
         private void SampleRow(Transform row, SampleCaseEntry entry, HashSet<uint> works)
         {
@@ -674,16 +679,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.FitLabel(name, 12, 18);
             UiKit.AddText(b.transform, w - 70f, 5f, 62f, 26f, "×" + entry.Count, 18, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
 
-            float x = 62f;
-            if (entry.Effect != BioEffect.None)
-            {
-                UiKit.AddImage(b.transform, x, 37f, 12f, 12f, UiKit.SolidSprite, EffectColor(entry.Effect));
-                x += 18f;
-            }
-
-            var detail = UiKit.AddText(b.transform, x, 32f, w - x - 132f, 22f, SampleDetail(Game, entry), 14,
-                entry.Analysed ? UiKit.TextCol : UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.FitLabel(detail, 10, 14);
+            SampleDetailRow(b.transform, entry, 62f, w - 62f - 132f);
 
             bool working = works != null && works.Contains(entry.Seed);
             string right = working ? L("ui.bio.works_here") : entry.Species?.OriginBodyName ?? string.Empty;
@@ -771,12 +767,11 @@ namespace BlocksBeyondTheStars.Client
             var material = analysed && mineral ? MaterialOf(Game, seed) : null;
             if (profile != null)
             {
-                y += EffectHeadline(panel, y, EffectLabel(Game, profile.Effect, profile.Level), profile.Effect);
-                Para(panel, PaneX, y, PaneW, ProfileText(Game, profile, species), 18, UiKit.TextCol);
+                new BioCard(Game, panel, PaneX, y, PaneW).Profile(profile, species);
             }
             else if (material != null)
             {
-                Para(panel, PaneX, y, PaneW, MaterialText(Game, material, "\n"), 18, UiKit.TextCol);
+                new BioCard(Game, panel, PaneX, y, PaneW).Material(material);
             }
             else
             {
@@ -857,6 +852,7 @@ namespace BlocksBeyondTheStars.Client
             y += 32f;
             if (_mixActive != 0)
             {
+                y += GroupLine(panel, y);
                 MixPreview(panel, y);
             }
 
@@ -908,9 +904,12 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    y += EffectHeadline(panel, y,
-                        L("item." + BioItems.PreparationKey(form) + ".name") + " · " + EffectLabel(Game, compound.Effect, compound.Level), compound.Effect);
-                    y += Para(panel, PaneX, y, PaneW, CompoundText(Game, compound, false) + "\n" + tail, 18, UiKit.TextCol) + 8f;
+                    var card = new BioCard(Game, panel, PaneX, y, PaneW);
+                    card.Headline(L("item." + BioItems.PreparationKey(form) + ".name") + " · " + EffectLabel(Game, compound.Effect, compound.Level),
+                        compound.Effect, compound.Level);
+                    card.Preparation(compound, false, true);
+                    card.Line(tail);
+                    y = card.Y + 8f;
                 }
             }
 
@@ -995,7 +994,9 @@ namespace BlocksBeyondTheStars.Client
                 y += 6f;
                 UiKit.AddText(panel, PaneX, y, PaneW, 26f, L("ui.bio.changed"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 y += 30f;
-                y += Para(panel, PaneX, y, PaneW, ModsText(Game, carried, true, "\n"), 18, UiKit.TextCol) + 10f;
+                var carriedCard = new BioCard(Game, panel, PaneX, y, PaneW);
+                carriedCard.Mods(carried);
+                y = carriedCard.Y + 6f;
             }
 
             y += 6f;
@@ -1011,12 +1012,15 @@ namespace BlocksBeyondTheStars.Client
                 // The server's call, with the same arguments: what the tool has decides what a material can change.
                 var mods = ModsFor(def, material, coatingCompound);
                 bool nothing = mods.IsEmpty || mods.ApplyTo(_chTarget) == _chTarget;
-                y += Para(panel, PaneX, y, PaneW, nothing ? L("ui.bio.no_change_preview") : ModsText(Game, mods, true, "\n"), 18,
-                    nothing ? UiKit.CyanDim : UiKit.TextCol) + 8f;
                 if (nothing)
                 {
+                    y += Para(panel, PaneX, y, PaneW, L("ui.bio.no_change_preview"), 18, UiKit.CyanDim) + 8f;
                     // #2249: the dead end gets a way out — what of what you carry would change this piece.
                     Para(panel, PaneX, y, PaneW, WorkingMaterialsLine(def, coatingCompound), 16, UiKit.Warn);
+                }
+                else
+                {
+                    new BioCard(Game, panel, PaneX, y, PaneW).Mods(mods);
                 }
             }
             else if (def != null)
@@ -1048,7 +1052,7 @@ namespace BlocksBeyondTheStars.Client
         private static ItemMods ModsFor(ItemDefinition def, MaterialProfile material, Compound coating)
         {
             var tool = def.Tool;
-            return ItemModRules.Compute(tool != null, tool is { CooldownSeconds: > 0f }, tool is { Range: > 0f },
+            return ItemModRules.Compute(tool != null, tool is { CooldownSeconds: > 0f }, ItemModRules.HasChangeableRange(tool),
                 tool is { EnergyPerUse: > 0f }, material, coating);
         }
 
@@ -1155,6 +1159,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var b = UiKit.AddButton(go.transform, 4f, 4f, PaneW - 28f, 44f, choice.Text, () => Choose(choice));
                     if (IsCurrent(choice)) Lit(b);
+                    ChoiceMarks(b.transform, choice.Seed, choice.Item, PaneW - 28f);
                 });
             }
 
@@ -1316,15 +1321,6 @@ namespace BlocksBeyondTheStars.Client
             return h;
         }
 
-        /// <summary>The headline of an effect: its colour as a small square (there are no effect icons) and its
-        /// name with the level. Returns the height it takes.</summary>
-        private float EffectHeadline(Transform panel, float y, string text, BioEffect effect)
-        {
-            UiKit.AddImage(panel, PaneX, y + 7f, 20f, 20f, UiKit.SolidSprite, EffectColor(effect));
-            UiKit.AddText(panel, PaneX + 32f, y, PaneW - 32f, 34f, text, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            return 42f;
-        }
-
         private static void Lit(Button b)
         {
             var img = b.GetComponent<Image>();
@@ -1352,377 +1348,5 @@ namespace BlocksBeyondTheStars.Client
         private static bool IsMineral(string key) => ItemKey.Base(key) == BioItems.MineralSample;
 
         private string ItemName(string item) => ItemNames.Display(Game.Localizer, item, null, seed => Game.Bio.SpeciesName(seed));
-
-        // ---------------- shared with the inventory, the Codex and the HUD ----------------
-
-        private static string Loc(GameBootstrap game, string key) => game?.Localizer?.Get(key) ?? key;
-
-        private static string Hex(Color c) => "#" + ColorUtility.ToHtmlStringRGB(c);
-
-        private static string Dim(string text) => "<color=" + DimHex + ">" + text + "</color>";
-
-        /// <summary>The colour that stands for an effect wherever it shows: the lab's headline square, the HUD's
-        /// effect dot and the tint of a preparation's icon — one colour per effect, so a look at the hotbar tells
-        /// two injectors apart.</summary>
-        public static Color EffectColor(BioEffect effect) => effect switch
-        {
-            BioEffect.Speed => new Color(0.35f, 0.85f, 1.00f),
-            BioEffect.Jump => new Color(0.55f, 1.00f, 0.55f),
-            BioEffect.FeatherFall => new Color(0.85f, 0.95f, 1.00f),
-            BioEffect.Grip => new Color(0.80f, 0.62f, 0.40f),
-            BioEffect.Shield => new Color(0.40f, 0.60f, 1.00f),
-            BioEffect.Regeneration => new Color(0.95f, 0.35f, 0.45f),
-            BioEffect.Strength => new Color(1.00f, 0.50f, 0.20f),
-            BioEffect.Mining => new Color(0.75f, 0.75f, 0.80f),
-            BioEffect.Reflex => new Color(1.00f, 0.90f, 0.30f),
-            BioEffect.Breath => new Color(0.60f, 0.90f, 0.95f),
-            BioEffect.HeatWard => new Color(1.00f, 0.40f, 0.25f),
-            BioEffect.ColdWard => new Color(0.55f, 0.75f, 1.00f),
-            BioEffect.ToxinWard => new Color(0.60f, 0.90f, 0.30f),
-            BioEffect.Satiety => new Color(0.90f, 0.70f, 0.35f),
-            BioEffect.NightSight => new Color(0.70f, 0.50f, 1.00f),
-            BioEffect.Perception => new Color(1.00f, 0.55f, 0.85f),
-            BioEffect.Stealth => new Color(0.50f, 0.55f, 0.65f),
-            BioEffect.Energy => new Color(1.00f, 0.82f, 0.25f),
-            BioEffect.Gathering => new Color(0.40f, 0.80f, 0.45f),
-            _ => Color.white,
-        };
-
-        /// <summary>"Speed III" in the player's language.</summary>
-        public static string EffectLabel(GameBootstrap game, BioEffect effect, int level)
-            => game?.Localizer != null ? BioItems.EffectLabel(game.Localizer, effect, level) : effect + " " + BioItems.Roman(level);
-
-        /// <summary>The name of a side effect.</summary>
-        public static string SideLabel(GameBootstrap game, BioSideEffect side)
-            => Loc(game, "bio.side." + side.ToString().ToLowerInvariant());
-
-        /// <summary>What a sample of the case is called: a species by its coined name, a deposit by its material,
-        /// a plant without a name by its body block.</summary>
-        public static string SampleName(GameBootstrap game, string itemKey)
-        {
-            if (game == null) return string.Empty;
-            game.Bio.Species.TryGetValue(ItemKey.Seed(itemKey), out var species);
-            return SpeciesLabel(game, species, IsMineral(itemKey));
-        }
-
-        /// <summary>The name of a species of the research book (see <see cref="SampleName"/>); <paramref name="species"/>
-        /// may be null for a seed the book does not hold.</summary>
-        public static string SpeciesLabel(GameBootstrap game, NetBioSpecies species, bool mineral)
-        {
-            if (mineral || (species != null && species.Kind == (int)BioKind.Mineral))
-            {
-                return species != null && !string.IsNullOrEmpty(species.MaterialItem)
-                    ? Loc(game, "item." + species.MaterialItem + ".name")
-                    : Loc(game, "item." + BioItems.MineralSample + ".name");
-            }
-
-            if (species != null && !string.IsNullOrEmpty(species.Name)) return species.Name;
-            if (species != null && !string.IsNullOrEmpty(species.BodyBlock)) return Loc(game, "block." + species.BodyBlock + ".name");
-            return Loc(game, "item." + BioItems.Sample + ".name");
-        }
-
-        /// <summary>"Plant · Found on: Kepler" — what a sample is and where it is from.</summary>
-        public static string SampleOrigin(GameBootstrap game, string itemKey)
-        {
-            if (game == null) return string.Empty;
-            game.Bio.Species.TryGetValue(ItemKey.Seed(itemKey), out var species);
-            string kind = IsMineral(itemKey) ? "mineral" : species != null && species.Kind == (int)BioKind.Animal ? "animal" : "plant";
-            string text = Loc(game, "bio.kind." + kind);
-            if (species != null && !string.IsNullOrEmpty(species.OriginBodyName))
-            {
-                text += "  ·  " + Loc(game, "ui.bio.origin") + ": " + species.OriginBodyName;
-            }
-
-            return text;
-        }
-
-        /// <summary>"Movement", "Senses" … — the name of an effect family (#2300).</summary>
-        public static string FamilyLabel(GameBootstrap game, BioEffectFamily family)
-            => Loc(game, "bio.family." + family.ToString().ToLowerInvariant());
-
-        /// <summary>The heading of a kind in the sample lists: "Plants", "Animals", "Deposits".</summary>
-        public static string KindLabel(GameBootstrap game, BioKind kind) => kind switch
-        {
-            BioKind.Animal => Loc(game, "ui.bio.filter.animals"),
-            BioKind.Mineral => Loc(game, "ui.bio.filter.deposits"),
-            _ => Loc(game, "ui.bio.filter.plants"),
-        };
-
-        /// <summary>A kind chip's word (#2300): "All" or the kind's heading.</summary>
-        public static string KindFilterLabel(GameBootstrap game, SampleKindFilter kind) => kind switch
-        {
-            SampleKindFilter.Plants => KindLabel(game, BioKind.Plant),
-            SampleKindFilter.Animals => KindLabel(game, BioKind.Animal),
-            SampleKindFilter.Deposits => KindLabel(game, BioKind.Mineral),
-            _ => Loc(game, "ui.bio.filter.all"),
-        };
-
-        /// <summary>The effect button's text (#2300): "Effect: All ▸", "Effect: Senses ▸", "Effect: Not analysed ▸".</summary>
-        public static string EffectFilterLabel(GameBootstrap game, SampleEffectFilter effect)
-        {
-            string value = effect switch
-            {
-                SampleEffectFilter.All => Loc(game, "ui.bio.filter.all"),
-                SampleEffectFilter.NotAnalysed => Loc(game, "ui.bio.not_analysed"),
-                _ => FamilyLabel(game, (BioEffectFamily)(int)effect),
-            };
-            return Loc(game, "ui.bio.filter.effect").Replace("{0}", value) + "  ▸";
-        }
-
-        /// <summary>
-        /// What a sample of the case holds, in one short line for a list (#2299): an analysed plant or animal its effect
-        /// ("Speed II"), an analysed deposit its strongest traits ("Hard 3 · Conductive 2"), anything else "Not
-        /// analysed" — the effect stays a secret until the analysis, as on the lab's card.
-        /// </summary>
-        public static string SampleDetail(GameBootstrap game, SampleCaseEntry entry)
-        {
-            if (entry.Effect != BioEffect.None)
-            {
-                return EffectLabel(game, entry.Effect, entry.Level);
-            }
-
-            if (!entry.Analysed)
-            {
-                return Loc(game, "ui.bio.not_analysed");
-            }
-
-            if (entry.Kind == BioKind.Mineral && MaterialOf(game, entry.Seed) is { } material)
-            {
-                string traits = StrongestTraits(game, material, 2);
-                if (traits.Length > 0)
-                {
-                    return traits;
-                }
-            }
-
-            return Loc(game, "ui.bio.analysed");
-        }
-
-        /// <summary>The <paramref name="count"/> highest traits of a deposit (its trace left out, as on the card).</summary>
-        private static string StrongestTraits(GameBootstrap game, MaterialProfile material, int count)
-        {
-            var traits = new List<MatTrait>();
-            for (int i = 1; i < material.Levels.Length; i++)
-            {
-                if (material.Levels[i] > 0 && (MatTrait)i != material.Trace) traits.Add((MatTrait)i);
-            }
-
-            traits.Sort((a, b) => material.Levels[(int)b].CompareTo(material.Levels[(int)a]));
-            var sb = new StringBuilder();
-            for (int i = 0; i < traits.Count && i < count; i++)
-            {
-                if (sb.Length > 0) sb.Append(" · ");
-                sb.Append(TraitName(game, traits[i])).Append(' ').Append(material.Levels[(int)traits[i]]);
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>The icon a sample shows (#2299): what it was taken from — a deposit its material, a plant its body
-        /// block — or null for the sample item's own icon.</summary>
-        public static string IconKeyOf(NetBioSpecies species)
-            => species == null ? null
-                : !string.IsNullOrEmpty(species.MaterialItem) ? species.MaterialItem
-                : !string.IsNullOrEmpty(species.BodyBlock) ? species.BodyBlock
-                : null;
-
-        /// <summary>The material profile of a deposit of the research book, with the fixed traits from the item data.</summary>
-        public static MaterialProfile MaterialOf(GameBootstrap game, uint seed)
-            => game == null ? null : game.Bio.MaterialOf(seed, key => game.Content?.GetItem(key)?.LabTraits);
-
-        /// <summary>The profile of a plain material from the backpack (an ingot, an alloy, synthesised ore): its
-        /// fixed traits at purity 3. Null for an item without lab traits.</summary>
-        public static MaterialProfile SyntheticMaterial(GameBootstrap game, string itemKey)
-            => !string.IsNullOrEmpty(itemKey) && game?.Content?.GetItem(itemKey) is { LabTraits: { Count: > 0 } } def
-                ? MaterialProfiles.Synthetic(MaterialProfiles.BaseLevels(def.LabTraits))
-                : null;
-
-        /// <summary>What a mix makes, computed as the server computes it. Null when the research book lacks a species
-        /// the mix needs. <paramref name="washed"/> says whether a detoxifier washed the toxic samples of the mix
-        /// (#2216) — the washed and the unwashed mix of the same inputs are two experiments with two results.</summary>
-        public static Compound ComputeMix(GameBootstrap game, uint activeSeed, BioForm form, uint stabiliserSeed,
-            string stabiliserItem, uint modifierSeed, bool washed = false)
-        {
-            var active = game?.Bio.ProfileOf(activeSeed);
-            if (active == null) return null;
-
-            MaterialProfile stabiliser = null;
-            if (stabiliserSeed != 0)
-            {
-                stabiliser = MaterialOf(game, stabiliserSeed);
-                if (stabiliser == null) return null;
-            }
-            else if (!string.IsNullOrEmpty(stabiliserItem))
-            {
-                stabiliser = SyntheticMaterial(game, stabiliserItem);
-                if (stabiliser == null) return null;
-            }
-
-            BioProfile modifier = null;
-            if (modifierSeed != 0)
-            {
-                modifier = game.Bio.ProfileOf(modifierSeed);
-                if (modifier == null) return null;
-            }
-
-            return Synthesis.Compute(new SynthesisInput
-            {
-                Active = active,
-                ActiveCleaned = washed,
-                Form = form,
-                Stabiliser = stabiliser,
-                Modifier = modifier,
-                ModifierCleaned = washed,
-            });
-        }
-
-        /// <summary>The catch of a substance as rich text — amber, one arrow per level, its name — or "no side effect".</summary>
-        public static string SideText(GameBootstrap game, BioSideEffect side, int level)
-            => side == BioSideEffect.None || level <= 0
-                ? Loc(game, "ui.bio.no_side")
-                : "<color=" + Hex(UiKit.Warn) + ">" + new string('▼', Mathf.Clamp(level, 1, 3)) + " " + SideLabel(game, side) + "</color>";
-
-        private static void AppendSide(StringBuilder sb, GameBootstrap game, BioSideEffect side, int level, bool withDesc)
-        {
-            if (side == BioSideEffect.None || level <= 0)
-            {
-                sb.Append(SideText(game, side, level)).Append('\n');
-                return;
-            }
-
-            sb.Append(Loc(game, "ui.bio.side")).Append(": ").Append(SideText(game, side, level)).Append('\n');
-            if (withDesc)
-            {
-                sb.Append(Dim(Loc(game, "bio.side." + side.ToString().ToLowerInvariant() + ".desc"))).Append('\n');
-            }
-        }
-
-        private static string Seconds(GameBootstrap game, int seconds) => string.Format(Loc(game, "ui.bio.seconds"), seconds);
-
-        /// <summary>What a preparation does besides its main effect, as lines of rich text: a coupled second effect,
-        /// the catch, how long it lasts and how it takes the weather. <paramref name="withDesc"/> adds the one-line
-        /// explanations — for a reader without the lab at hand.</summary>
-        public static string CompoundText(GameBootstrap game, Compound compound, bool withDesc)
-        {
-            var sb = new StringBuilder();
-            if (withDesc)
-            {
-                sb.Append(Dim(Loc(game, "bio.effect." + compound.Effect.ToString().ToLowerInvariant() + ".desc"))).Append('\n');
-            }
-
-            if (compound.Secondary != BioEffect.None && compound.SecondaryLevel > 0)
-            {
-                sb.Append("+ <b>").Append(EffectLabel(game, compound.Secondary, compound.SecondaryLevel)).Append("</b>\n");
-                if (withDesc)
-                {
-                    sb.Append(Dim(Loc(game, "bio.effect." + compound.Secondary.ToString().ToLowerInvariant() + ".desc"))).Append('\n');
-                }
-            }
-
-            AppendSide(sb, game, compound.Side, compound.SideLevel, withDesc);
-            sb.Append(Loc(game, "ui.bio.duration")).Append(": ").Append(Seconds(game, compound.DurationSeconds)).Append('\n');
-            sb.Append(Dim(Loc(game, "bio.thermal." + compound.Thermal.ToString().ToLowerInvariant())));
-            return sb.ToString();
-        }
-
-        /// <summary>The analysed profile of a species as lines of rich text (everything but the effect headline).</summary>
-        public static string ProfileText(GameBootstrap game, BioProfile profile, NetBioSpecies species)
-        {
-            var sb = new StringBuilder();
-            sb.Append(Dim(Loc(game, "bio.effect." + profile.Effect.ToString().ToLowerInvariant() + ".desc"))).Append('\n');
-            sb.Append(Loc(game, "ui.bio.substance")).Append(": <b>").Append(profile.Substance).Append("</b>\n");
-            AppendSide(sb, game, profile.Side, profile.SideLevel, true);
-            if (profile.Toxicity > 0)
-            {
-                sb.Append("<color=").Append(Hex(UiKit.Warn)).Append('>').Append(Loc(game, "ui.bio.toxicity")).Append(' ')
-                    .Append(profile.Toxicity).Append("/3</color>\n");
-                sb.Append(Dim(Loc(game, "ui.bio.toxic_hint"))).Append('\n');
-            }
-            else
-            {
-                sb.Append(Loc(game, "ui.bio.not_toxic")).Append('\n');
-            }
-
-            sb.Append(Loc(game, "ui.bio.group")).Append(": ").Append(Loc(game, "bio.group." + profile.Group)).Append('\n');
-            sb.Append(Loc(game, "ui.bio.rarity")).Append(": ").Append(Loc(game, "bio.rarity." + profile.Rarity)).Append('\n');
-            sb.Append(Loc(game, "ui.bio.duration")).Append(": ").Append(Seconds(game, profile.DurationSeconds)).Append('\n');
-            sb.Append(Dim(Loc(game, "bio.thermal." + profile.Thermal.ToString().ToLowerInvariant())));
-            if (species != null && species.ParentA != 0 && species.ParentB != 0 && game != null)
-            {
-                game.Bio.Species.TryGetValue(species.ParentA, out var a);
-                game.Bio.Species.TryGetValue(species.ParentB, out var b);
-                sb.Append('\n').Append(Loc(game, "ui.bio.cross_of")).Append(": ")
-                    .Append(SpeciesLabel(game, a, false)).Append(" × ").Append(SpeciesLabel(game, b, false));
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>The analysed profile of a deposit: purity, the traits with their levels, the trace trait —
-        /// joined by <paramref name="separator"/> (a line break for a card, " · " for a list line).</summary>
-        public static string MaterialText(GameBootstrap game, MaterialProfile material, string separator)
-        {
-            var sb = new StringBuilder();
-            sb.Append(Loc(game, "ui.bio.purity")).Append(": ").Append(material.Purity).Append("/5");
-            var traits = new StringBuilder();
-            for (int i = 1; i < material.Levels.Length; i++)
-            {
-                if (material.Levels[i] <= 0 || (MatTrait)i == material.Trace) continue;
-                if (traits.Length > 0) traits.Append(", ");
-                traits.Append(TraitName(game, (MatTrait)i)).Append(' ').Append(material.Levels[i]);
-            }
-
-            if (traits.Length > 0)
-            {
-                sb.Append(separator).Append(Loc(game, "ui.bio.traits")).Append(": ").Append(traits);
-            }
-
-            if (material.Trace != MatTrait.None)
-            {
-                sb.Append(separator).Append(Loc(game, "ui.bio.trace")).Append(": ").Append(TraitName(game, material.Trace));
-            }
-
-            return sb.ToString();
-        }
-
-        private static string TraitName(GameBootstrap game, MatTrait trait)
-            => Loc(game, "bio.trait." + trait.ToString().ToLowerInvariant());
-
-        /// <summary>What the lab changed on a tool or a piece of gear, as rich text: every gain as green arrows (one
-        /// per level), the stat and "+n", the drawback as amber arrows and "−n". <paramref name="headers"/> puts the
-        /// words "better" / "worse" above them (the lab's card); a list line passes false and " · ".</summary>
-        public static string ModsText(GameBootstrap game, ItemMods mods, bool headers, string separator)
-        {
-            var sb = new StringBuilder();
-            bool gains = mods.First != ModStat.None || mods.Second != ModStat.None;
-            if (headers && gains)
-            {
-                sb.Append(Dim(Loc(game, "ui.bio.gain")));
-            }
-
-            AppendMod(sb, game, mods.First, mods.FirstLevel, true, separator);
-            AppendMod(sb, game, mods.Second, mods.SecondLevel, true, separator);
-            if (mods.Drawback != ModStat.None)
-            {
-                if (headers)
-                {
-                    if (sb.Length > 0) sb.Append(separator);
-                    sb.Append(Dim(Loc(game, "ui.bio.loss")));
-                }
-
-                AppendMod(sb, game, mods.Drawback, mods.DrawbackLevel, false, separator);
-            }
-
-            return sb.ToString();
-        }
-
-        private static void AppendMod(StringBuilder sb, GameBootstrap game, ModStat stat, int level, bool gain, string separator)
-        {
-            if (stat == ModStat.None || level <= 0) return;
-            if (sb.Length > 0) sb.Append(separator);
-            sb.Append("<color=").Append(Hex(gain ? UiKit.Ok : UiKit.Warn)).Append('>').Append(gain ? '▲' : '▼', level).Append("</color> ")
-                .Append(Loc(game, "bio.stat." + stat.ToString().ToLowerInvariant()))
-                .Append(gain ? " +" : " −").Append(level);
-        }
     }
 }

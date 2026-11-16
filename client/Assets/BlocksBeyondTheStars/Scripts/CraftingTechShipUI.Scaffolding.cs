@@ -48,10 +48,15 @@ namespace BlocksBeyondTheStars.Client
             float tx = 16f;
             // Prefer the real content-styled icon (item/material/module art); fall back to the category icon.
             var sprite = string.IsNullOrEmpty(contentKey) ? null : IconResolver.Resolve(contentKey, Game);
-            bool placed = sprite != null
-                ? UiKit.AddIconSprite(card.transform, 14, 14, 50, sprite, IconResolver.Tint(contentKey, Game)) != null
-                : UiKit.AddIcon(card.transform, 14, 14, 50, icon) != null;
-            if (placed)
+            var placed = sprite != null
+                ? UiKit.AddIconSprite(card.transform, 14, 14, 50, sprite, IconResolver.Tint(contentKey, Game))
+                : UiKit.AddIcon(card.transform, 14, 14, 50, icon);
+            if (sprite != null)
+            {
+                BioIcons.SyncBadge(placed, contentKey); // a preparation carries its effect's icon (#3719)
+            }
+
+            if (placed != null)
             {
                 tx = 78f;
             }

@@ -53,6 +53,10 @@ public sealed partial class GameServer
         public HashSet<uint> Analysed { get; set; } = new();
         public HashSet<string> Reactions { get; set; } = new(StringComparer.Ordinal);
         public List<string> Changes { get; set; } = new();
+
+        /// <summary>#3731: the deposits of which this player traded a sample away — still known to them, so the next
+        /// block of such a deposit is not a "first block" again. Additive: a save from before simply has none.</summary>
+        public HashSet<uint> SamplesTradedAway { get; set; } = new();
     }
 
     private static string BioResearchBlob(string playerId) => "bio:research:" + playerId;
@@ -313,6 +317,7 @@ public sealed partial class GameServer
                 research.Reactions = new HashSet<string>(research.Reactions ?? new HashSet<string>(), StringComparer.Ordinal);
                 research.Analysed ??= new HashSet<uint>();
                 research.Changes ??= new List<string>();
+                research.SamplesTradedAway ??= new HashSet<uint>();
             }
             catch (JsonException ex)
             {
@@ -537,8 +542,9 @@ public sealed partial class GameServer
             uint seed = BioHash.DepositSeed(ActiveRosterSeed, material);
             var p = session.State;
             // The first block of a deposit always yields a sample; after that one cell in eight, decided by the cell.
+            // #3731: a deposit whose sample the player traded away stays known — handing samples on is no sample farm.
             bool first = BioEntry(seed) is not { } known
-                || (SampleCount(p, known) == 0 && !ResearchOf(p.PlayerId).Analysed.Contains(seed));
+                || (SampleCount(p, known) == 0 && !DepositKnownTo(p.PlayerId, seed));
             ulong cell = BioHash.Mix(unchecked(((ulong)(uint)pos.X * 0x9E3779B97F4A7C15UL) ^ ((ulong)(uint)pos.Y << 21) ^ ((ulong)(uint)pos.Z << 42) ^ seed));
             if (first || cell % BioRules.MineralSampleEvery == 0)
             {

@@ -271,5 +271,45 @@ public static class Synthesis
            + "/" + modifierSeed.ToString("x8", CultureInfo.InvariantCulture)
            + (washed ? "/w" : string.Empty);
 
+    /// <summary>
+    /// Reads a <see cref="Signature"/> back into what went into the mixer (#3721: the Codex lists the tried mixes and the
+    /// reaction chart is drawn from them). False for anything this version would not have written: a wrong number of
+    /// parts, a seed that is no hex number, a form it does not know.
+    /// </summary>
+    public static bool TryParseSignature(string? signature, out uint activeSeed, out BioForm form, out string stabiliserItem,
+        out uint stabiliserSeed, out uint modifierSeed, out bool washed)
+    {
+        activeSeed = 0;
+        form = BioForm.Injector;
+        stabiliserItem = string.Empty;
+        stabiliserSeed = 0;
+        modifierSeed = 0;
+
+        string[] parts = (signature ?? string.Empty).Split('/');
+        washed = parts.Length == 5 && parts[4] == "w";
+        if (parts.Length != 4 && !washed)
+        {
+            return false;
+        }
+
+        int colon = parts[2].LastIndexOf(':');
+        if (colon < 0
+            || !HexSeed(parts[0], out activeSeed)
+            || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int formId)
+            || formId < 0 || formId > (int)BioForm.Coating
+            || !HexSeed(parts[2].Substring(colon + 1), out stabiliserSeed)
+            || !HexSeed(parts[3], out modifierSeed))
+        {
+            return false;
+        }
+
+        form = (BioForm)formId;
+        stabiliserItem = parts[2].Substring(0, colon);
+        return true;
+    }
+
+    private static bool HexSeed(string text, out uint seed)
+        => uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out seed);
+
     private static int CeilDiv(int a, int b) => (a + b - 1) / b;
 }

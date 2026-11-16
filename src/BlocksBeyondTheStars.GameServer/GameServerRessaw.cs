@@ -27,7 +27,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>The lamp's night sight</b> (#3339): while a worn piece with <c>nightSight</c> (the Ressaw lamp) is switched on
 /// with the lamp key, the server keeps <see cref="BioEffect.NightSight"/> running at the top level, renewing a short run;
 /// switched off or taken off, the lamp's run ends at once. It is one of the three effects a player may run — with three
-/// preparations running it waits for a free place — and a stronger or longer night sight the player drank is left alone.</item>
+/// preparations running it waits for a free place. A night sight the player drank is never lost to the lamp (#3728): one as
+/// strong is left alone, a weaker one is covered — the player sees with the lamp's strength, the drunk one counts down
+/// underneath (without acting, in the same place) and what is left of it is back when the lamp goes off.</item>
 /// </list>
 /// Cost per player and tick: two block reads for the Ressaw check (a dictionary lookup per worn piece only while standing
 /// in Ressaw), one flag read for the lamp while it is off — no new per-world state, two session fields.
@@ -138,33 +140,64 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The lamp's own night sight: top level, no catch, weather-proof, at most one run long.</summary>
+    private static bool IsLampRun(ActiveEffect e)
+        => e.Effect == BioEffect.NightSight && e.Level == LampSightLevel && e.Side == BioSideEffect.None
+           && e.Thermal == BioThermal.Stable && e.SecondsLeft > 0f && e.SecondsLeft <= LampSightSeconds;
+
+    private static ActiveEffect NewLampRun()
+        => new() { Effect = BioEffect.NightSight, Level = LampSightLevel, SecondsLeft = LampSightSeconds };
+
     /// <summary>Starts or renews the lamp's night sight unless a night sight as strong with enough time left already runs
-    /// (the lamp's own, or one the player drank). A weaker one gives way to it — the bio lab's rule for a stronger effect of
-    /// the same kind. With three other effects running there is no place for it. True when the effects changed.</summary>
+    /// (the lamp's own, or one the player drank). A weaker one the player drank — or one as strong that is about to run
+    /// out — is covered, not replaced (#3728): the lamp's run takes its place, it keeps counting down underneath
+    /// (<see cref="PlayerEffects.Cover"/>) and <see cref="EndLampSight"/> brings back what is left of it. With three other
+    /// effects running there is no place for the lamp. True when the effects changed.</summary>
     private static bool KeepLampSight(PlayerState p)
     {
-        foreach (var e in p.Effects)
+        var running = p.Effects.Find(e => e.Effect == BioEffect.NightSight && e.SecondsLeft > 0f);
+        if (running is null)
         {
-            if (e.Effect == BioEffect.NightSight && e.SecondsLeft >= LampSightRenewBelow && e.Level >= LampSightLevel)
+            if (PlayerEffects.Check(p.Effects, BioEffect.NightSight, LampSightLevel) != EffectAddResult.Applied)
             {
-                return false;
+                return false; // three other effects run — the lamp waits for a free place
             }
+
+            BioLabSystem.StartEffect(p, NewLampRun());
+            return true;
         }
 
-        if (PlayerEffects.Check(p.Effects, BioEffect.NightSight, LampSightLevel) is not (EffectAddResult.Applied or EffectAddResult.Refreshed))
+        if (running.SecondsLeft >= LampSightRenewBelow && running.Level >= LampSightLevel)
         {
-            return false; // three other effects run — the lamp waits for a free place
+            return false; // as strong, with time left: the lamp's own run, or one the player drank — left alone
         }
 
-        BioLabSystem.StartEffect(p, new ActiveEffect { Effect = BioEffect.NightSight, Level = LampSightLevel, SecondsLeft = LampSightSeconds });
+        if (IsLampRun(running))
+        {
+            running.SecondsLeft = LampSightSeconds; // renewed in place: what it covers stays underneath
+        }
+        else
+        {
+            PlayerEffects.Cover(p.Effects, running, NewLampRun());
+        }
+
         return true;
     }
 
-    /// <summary>Ends the lamp's own night sight (top level, no catch, at most one run long) — a night sight the player drank
-    /// keeps running. True when one ended.</summary>
+    /// <summary>Ends the lamp's own night sight. A night sight the player drank keeps running — and one the lamp covered
+    /// is back with the time it has left, its catch and its thermal behaviour (#3728); one that ran out under the lamp
+    /// stays gone. True when the lamp's run ended.</summary>
     private static bool EndLampSight(PlayerState p)
-        => p.Effects.RemoveAll(e => e.Effect == BioEffect.NightSight && e.Level == LampSightLevel
-            && e.Side == BioSideEffect.None && e.SecondsLeft <= LampSightSeconds) > 0;
+    {
+        int at = p.Effects.FindIndex(IsLampRun);
+        if (at < 0)
+        {
+            return false;
+        }
+
+        PlayerEffects.Uncover(p.Effects, at);
+        return true;
+    }
 
     // ---------------- Test seams ----------------
 
