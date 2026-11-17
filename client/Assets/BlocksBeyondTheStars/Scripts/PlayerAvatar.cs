@@ -794,8 +794,8 @@ namespace BlocksBeyondTheStars.Client
             if (_cheerTimer > 0f)
             {
                 _cheerTimer -= dt;
-                var (k, bob) = AvatarGestures.Cheer(1f - Mathf.Clamp01(_cheerTimer / AvatarGestures.CheerSeconds));
-                float lift = (150f + 12f * bob) * k;             // both arms up in a V, pumping
+                var (k, bob, up) = ArmsUp();                     // the cheer's pumping V — or a startle's hands straight up (#3769)
+                float lift = (up + 12f * bob) * k;
                 float forearm = (10f + 15f * Mathf.Max(0f, bob)) * k;
                 armL = Mathf.Lerp(armL, -10f, k);
                 armR = Mathf.Lerp(armR, -10f, k);

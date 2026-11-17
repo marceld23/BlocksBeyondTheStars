@@ -59,9 +59,12 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so f
 - 🚧 **Still to build in this batch (decisions recorded in the issues):** #3765 Hard Survival (a fourth world mode: many
   enemies, slow needs, death = watching until a team-mate revives with a medkit; alone 60 s), #3766 carry a block over
   the head and throw it (Q lifts, the attack key throws; damage by material; the block lands as an item), #3767 the
-  figure's voice (a pitch and an age slider in the skin editor, heard by others on a hit and a fall), #3769 NPCs
-  startled by a shot or swing nearby (funny, never afraid) plus framed speech bubbles and a plate under the status
-  toast.
+  figure's voice (a pitch and an age slider in the skin editor, heard by others on a hit and a fall).
+- ✅ **#3769 Startled NPCs, framed speech bubbles.** A shot or a weapon's swing next to NPCs makes the nearest three
+  throw both hands up, open their mouth wide and call out (`npc.startle.1…8`, 14 languages; one line names the
+  shooter) — startled and funny, never afraid, paced per shooter and per NPC (`GameServerNpcStartle.cs`, gesture
+  `NpcGestures.HandsUp`). Every speech bubble sits on a framed plate, and so does the status toast, which ran through
+  the name tags.
 - ✅ **#3770 A submitted skin is the first free template.** The note on the submission asked for "a template for people
   who are not good at this", but the only adoption path made a pioneer NPC's look of it. A template may carry a face
   now (`SkinDefinition.Face`), `tools/gen_festive_skins.py --from-skin` adopts a skin 1:1, and the **Green spacesuit**

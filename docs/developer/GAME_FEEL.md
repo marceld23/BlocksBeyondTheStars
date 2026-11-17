@@ -115,6 +115,12 @@ bow have two takes each that rotate.
 A villager who sees a wave waves back with a hello of its own (`WaveBack`, the passing greeting's rules: awake, not
 busy, in sight, not hostile; at most every 12 s).
 
+**Startled, never afraid (#3769).** A weapon fired or swung next to NPCs makes the nearest ones call out with both
+hands up and the mouth wide open (`GameServerNpcStartle.cs`, `PlayerAvatar.Startle`, the curve
+`AvatarGestures.HandsUp`). The lines are indignant or funny; there is no cry for help and nobody flees — the game has
+no fear-driven mechanics. Speech bubbles sit on a framed plate (`NpcBubbleFrame`, `ScreenLabelLayer`), and so does the
+status toast (`HudUi.ToastPlate.cs`), which used to run through the name tags under it.
+
 ## 6. Adding to it
 
 - **An emote**: the next id in `PlayerEmotes` (and raise `LastPlayable` to it), a length in `EmoteCurves.Seconds`, a

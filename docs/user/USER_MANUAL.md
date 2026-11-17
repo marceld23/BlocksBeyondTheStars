@@ -5094,6 +5094,13 @@ look up: what a mix does follows from what goes in, and the same things always g
   hear from where you stand.
 - **Wave at a villager** and they wave back and say hello — if they are awake, not busy, can see you and are not
   angry with you.
+- **Fire or swing a weapon next to people** and they jump (an idea of Justus): the nearest ones throw both hands up,
+  open their mouth wide and call out — "Watch out!", "Not here, please!", or they ask whether you are related to a
+  certain bounty hunter. They are startled, not afraid: nobody runs away, nobody can be hurt, and a few seconds later
+  everybody carries on. A burst of fire is one fright, and the same person does not call out again for a while. The
+  fist and tools startle nobody.
+- **Speech bubbles have a frame**: what a villager says floats above them on a dark, rounded plate with a light edge,
+  so it reads over any wall or floor. The message line at the top of the screen sits on a plate too.
 - Figures show more of what happens to them: a player who is hurt **flinches**, one who is defeated **sinks down**,
   one in water **swims**, and everybody gives a little in the knees on landing. Faces **blink**, and a mouth moves
   while its owner speaks. (A pixel face you drew yourself stays exactly as you drew it.)

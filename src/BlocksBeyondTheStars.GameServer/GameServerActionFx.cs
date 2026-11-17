@@ -92,6 +92,10 @@ public sealed partial class GameServer
 
         var fx = NewActionFx(session, intent.Kind, key, from, to, intent.Hit, outcome: false);
         SendFxNearby(fx, from, session, includeActor: false, DeliveryMode.Unreliable);
+        if (StartlingEffect(intent.Kind, key))
+        {
+            StartleNpcsNear(session, from); // #3769: a shot or a swing of a weapon makes the people around jump
+        }
     }
 
     /// <summary>A successful gadget use (#2158): the server's confirmation that the heal / freeze / blast / scan really

@@ -42,6 +42,7 @@ namespace BlocksBeyondTheStars.Client
             public RectTransform Rt;
             public Text Main;
             public Text Shadow;
+            public Image Plate; // #3769: a speech bubble's framed plate (null on a name tag)
         }
 
         private sealed class BarEntry
@@ -210,10 +211,7 @@ namespace BlocksBeyondTheStars.Client
             var e = AcquireBubble();
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, new Vector2(sp.x, sp.y), null, out var local);
             e.Rt.anchoredPosition = local;
-            if (!ReferenceEquals(e.Main.text, text))
-            {
-                e.Main.text = e.Shadow.text = text;
-            }
+            SetBubbleText(e, text, alpha); // the text and (#3769) the framed plate behind it
 
             var main = color;
             main.a *= alpha;
@@ -222,6 +220,37 @@ namespace BlocksBeyondTheStars.Client
             shadow.a = 0.7f * alpha;
             e.Shadow.color = shadow;
             e.Rt.gameObject.SetActive(true);
+        }
+
+        /// <summary>#3769: sets a bubble's text and fits the framed plate behind it — a rounded dark plate with a light edge
+        /// (the dialogue window's look, <see cref="NpcBubbleFrame"/>), so a line reads over any background. The plate is
+        /// measured only when the text changes; its opacity follows the bubble's fade every frame.</summary>
+        private static void SetBubbleText(Entry e, string text, float alpha)
+        {
+            if (!ReferenceEquals(e.Main.text, text))
+            {
+                e.Main.text = e.Shadow.text = text;
+                var (w, h) = NpcBubbleFrame.Plate(e.Main.preferredWidth, e.Main.preferredHeight, BubbleWidth, BubbleLineHeight);
+                e.Plate.rectTransform.sizeDelta = new Vector2(w, h);
+            }
+
+            e.Plate.color = new Color(1f, 1f, 1f, alpha);
+        }
+
+        /// <summary>The plate of a new bubble: behind its text, hanging from the bubble's bottom centre and reaching
+        /// <see cref="NpcBubbleFrame.PadY"/> below the text's bottom edge.</summary>
+        private static Image MakeBubblePlate(RectTransform bubble)
+        {
+            var go = new GameObject("Plate", typeof(RectTransform));
+            go.transform.SetParent(bubble, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0f);
+            rt.anchoredPosition = new Vector2(0f, -NpcBubbleFrame.PadY);
+            var plate = go.AddComponent<Image>();
+            plate.sprite = UiKit.PanelSprite;
+            plate.type = Image.Type.Sliced;
+            plate.raycastTarget = false;
+            return plate;
         }
 
         /// <summary>Pushes a horizontal bar (track + fill) anchored to a world position — the world-space
@@ -427,6 +456,7 @@ namespace BlocksBeyondTheStars.Client
             rt.pivot = new Vector2(0.5f, 0f);
             rt.sizeDelta = new Vector2(BubbleWidth, BubbleLineHeight);
 
+            var plate = MakeBubblePlate(rt); // first, so it draws behind the text (#3769)
             var shadow = MakeText(rt, new Vector2(1f, -1f), new Color(0f, 0f, 0f, 0.7f));
             var main = MakeText(rt, Vector2.zero, UiKit.TextCol);
             foreach (var t in new[] { shadow, main })
@@ -437,7 +467,7 @@ namespace BlocksBeyondTheStars.Client
                 t.supportRichText = false; // the line may come from an AI backend — shown verbatim
             }
 
-            var e = new Entry { Rt = rt, Main = main, Shadow = shadow };
+            var e = new Entry { Rt = rt, Main = main, Shadow = shadow, Plate = plate };
             _bubblePool.Add(e);
             _bubbleUsed++;
             return e;

@@ -462,6 +462,26 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   the same star system `vega.news.trader` ({0} body, kind 1). *Guard* — see §7 (`vega.news.guard`, kind 3, urgent). AI:
   `vega_news`, the authored line's `{0}`/`{1}` are required tokens.
 
+### Startled by a weapon nearby (`GameServerNpcStartle.cs`, #3769)
+
+NPCs cannot be hit, and a shot or swing that hits nothing reaches the server only as the player's cosmetic
+`FxIntent`. `HandleFxIntent` hands a **shot** — or a **swing of a weapon** (`ToolKind.Weapon`; never the fist, a tool
+or a block) — to `StartleNpcsNear` after its own checks (so only on foot on a surface, never in space):
+
+- the nearest awake NPCs within `StartleRange` (12 blocks) of the shooter, at most `StartleMaxNpcs` (3) — never a
+  guardian, a sleeper, one away on a visit, one in a talk with a player, or one hostile to the shooter;
+- each calls out through `BroadcastNpcLine` to every player within 24 blocks: kind `NpcGreetingKinds.Alert` (the
+  client's alert sound, through the voice budget) with the gesture `NpcGestures.HandsUp` (4 — an older client plays no
+  gesture, the line still shows), and stands looking at the shooter for 3 s;
+- the lines are `npc.startle.1…8` in all 14 languages, taking turns from bout to bout (`StartleLineKey`); `{0}` is
+  the shooter's name (one line asks about "the bounty hunter {0}"). **Startled and funny, never afraid** — no cry for
+  help, nobody runs;
+- pace: one bout per shooter every 5 s, one call-out per NPC every 25 s.
+
+Client: `NpcView.Gesture` → `PlayerAvatar.Startle` (both arms straight up, the stock mouth held wide —
+`AvatarGestures.HandsUp`); every bubble sits on a framed plate sized to its wrapped text (`NpcBubbleFrame.Plate`,
+`ScreenLabelLayer.SetBubbleText`); name tags stay plain. Tests: `NpcStartleTests`, `NpcStartleClientTests`.
+
 ## 13. Villagers talk to each other (`GameServerVillageLife.cs`, #2600)
 
 - **Tick** (`TickVillageLife`, per world after `TickProfessions`): running conversations say their next line when it is

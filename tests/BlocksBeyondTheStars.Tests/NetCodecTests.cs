@@ -656,7 +656,7 @@ public sealed class NetCodecTests
                 NpcGreetingKinds.Addressed, NpcGreetingKinds.Passing, NpcGreetingKinds.Welcome, NpcGreetingKinds.Chatter,
                 NpcGreetingKinds.Cheer, NpcGreetingKinds.Guest, NpcGreetingKinds.Alert,
             });
-        Assert.Equal(new byte[] { 0, 1, 2, 3 }, new[] { NpcGestures.None, NpcGestures.Wave, NpcGestures.Nod, NpcGestures.Cheer });
+        Assert.Equal(new byte[] { 0, 1, 2, 3, 4 }, new[] { NpcGestures.None, NpcGestures.Wave, NpcGestures.Nod, NpcGestures.Cheer, NpcGestures.HandsUp }); // 4: #3769
     }
 
     [Fact]

@@ -534,8 +534,8 @@ namespace BlocksBeyondTheStars.Client
                     React(npcId, NpcReaction.Ack); // #3238: the nod's "mm-hm", through the voice budget (never over a babble)
                     break;
                 case NpcGestures.Cheer:
-                    n.Avatar.Cheer();
-                    n.GestureTimer = Mathf.Max(n.GestureTimer, 1.5f);
+                case NpcGestures.HandsUp: // #3769: startled — both hands up, the mouth wide open
+                    PlayArmsUp(n, gesture);
                     break;
             }
         }
