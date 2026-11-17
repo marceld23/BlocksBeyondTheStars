@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎮 Game feel: movement, flight, sound, interface and figures that answer — epic #3738 (#3739–#3748), ✅ 2026-11-17 (⚠ playtest open; server + client, two appended messages, no protocol bump, saves stay compatible)
+### 🎮 Game feel: movement, flight, sound, interface and figures that answer — epic #3738 (#3739–#3748), ✅ 2026-11-17, PR #3749 (⚠ playtest open; server + client, two appended messages, no protocol bump, saves stay compatible)
 
 How it works: [docs/developer/GAME_FEEL.md](docs/developer/GAME_FEEL.md). The sounds and the music went through
 listening checks; the hover sound and the button click were tuned in a first play session the same evening. Everything
