@@ -129,20 +129,20 @@ public sealed class WorldHostLegalTests : IDisposable
     {
         // The Impressum/Datenschutz pages read these operator-set values; verify the env plumbing.
         Environment.SetEnvironmentVariable("BBS_WH_LEGAL_NAME", "Marcel Dütscher");
-        Environment.SetEnvironmentVariable("BBS_WH_LEGAL_ADDRESS", "Bresslauer Str. 20, 54295 Trier");
+        Environment.SetEnvironmentVariable("BBS_WH_LEGAL_ADDRESS", "Breslauer Str. 20, 54295 Trier");
         Environment.SetEnvironmentVariable("BBS_WH_LEGAL_EMAIL", "info@blocksbeyondthestars.de");
         try
         {
             var c = WorldHostConfig.FromEnvironment();
             Assert.Equal("Marcel Dütscher", c.LegalName);
-            Assert.Equal("Bresslauer Str. 20, 54295 Trier", c.LegalAddress);
+            Assert.Equal("Breslauer Str. 20, 54295 Trier", c.LegalAddress);
             Assert.Equal("info@blocksbeyondthestars.de", c.LegalEmail);
 
             // The pages render without throwing and carry the configured data / no placeholder.
             // (Non-ASCII like "ü" is HTML-encoded, so assert on ASCII-safe tokens.)
             string impressum = WorldHostPortalPages.Impressum(c);
             Assert.Contains("Marcel", impressum, StringComparison.Ordinal);
-            Assert.Contains("Bresslauer Str. 20", impressum, StringComparison.Ordinal);
+            Assert.Contains("Breslauer Str. 20", impressum, StringComparison.Ordinal);
             Assert.Contains("info@blocksbeyondthestars.de", impressum, StringComparison.Ordinal);
             Assert.DoesNotContain("noch nicht", impressum, StringComparison.Ordinal); // no unconfigured notice
             Assert.Contains("§ 5 DDG", impressum, StringComparison.Ordinal);
