@@ -214,6 +214,7 @@ namespace BlocksBeyondTheStars.Client
                 var b = AddGridSlot(GridX0 + (i % QuickSlots) * pitch, y + (i / QuickSlots) * pitch, Game.ItemInSlot(index),
                     Game.CountInSlot(index), () => OnInventorySlotClicked(index), cell);
                 DimUnlessMatch(b, Game.ItemInSlot(index)); // #3111: the filter dims, nothing moves
+                AttachSlotFeel(b, index); // tooltip + drag and drop (CraftingTechShipUI.Feel.cs)
                 if (_pickKind == "inv" && _pickIndex == index)
                 {
                     Highlight(b);
@@ -237,6 +238,7 @@ namespace BlocksBeyondTheStars.Client
                 int index = k;
                 var b = AddGridSlot(GridX0 + k * pitch, y, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index), cell);
                 DimUnlessMatch(b, Game.ItemInSlot(index));
+                AttachSlotFeel(b, index);
                 var num = UiKit.AddText(b.transform, 6f, 4f, 30f, numSize + 6f, (k + 1).ToString(), numSize, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
                 UiKit.AddOutline(num);
                 if (_pickKind == "inv" && _pickIndex == index)
@@ -522,6 +524,7 @@ namespace BlocksBeyondTheStars.Client
 
             y = AddBioItemInfo(item, y);
             y = AddDerelictLogText(item, y);
+            y = AddGearComparison(item, y); // a wearable piece's numbers, next to the piece it would replace
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
             y += 40f;

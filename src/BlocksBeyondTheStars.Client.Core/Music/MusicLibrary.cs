@@ -62,6 +62,8 @@ namespace BlocksBeyondTheStars.Client.Music
         public const string Workshop = "workshop";
         /// <summary>The tech / research tab has been open for a while (#1174).</summary>
         public const string Research = "research";
+        /// <summary>On foot with a hostile staying close (<see cref="TensionMusic"/>): alert, never frightening.</summary>
+        public const string Tension = "tension";
 
         /// <summary>The track the director plays once on the first landing on a planet in this session.</summary>
         public const string ArrivalTrack = "music_planet_sunrise";
@@ -96,6 +98,7 @@ namespace BlocksBeyondTheStars.Client.Music
             [StarChart] = new[] { "music_cockpit_starmap" },
             [Workshop] = new[] { "music_crafting_workshop" },
             [Research] = new[] { "music_research_blueprints" },
+            [Tension] = new[] { "music_tension", "music_tension_2", "music_tension_3" },
         };
 
         private static readonly string[] Empty = Array.Empty<string>();

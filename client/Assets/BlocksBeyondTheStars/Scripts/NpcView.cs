@@ -740,7 +740,7 @@ namespace BlocksBeyondTheStars.Client
             float pitch = NpcVoice.ClipPitch(n.Pitch, (float)_voiceRng.NextDouble()) * _babblePitchScale;
             _babbleClipVolume = NpcVoice.SpeechVolume * _babbleBase;
             float length = audio.PlayVoiceOn(channel.Src, ClipsOf(n)[clip], VoiceAnchor(n), pitch, _babbleClipVolume * duck);
-            n.SounderRig?.Pulse(0.8f); // #3355: a Sounder's mouth opens as it hums
+            PulseMouth(n, length); // #3355: a Sounder's mouth opens as it hums — a villager's moves while the clip plays
             _babbleNextAt = now + (length > 0f ? length / Mathf.Max(0.5f, pitch) : NpcVoice.ClipSeconds);
         }
 

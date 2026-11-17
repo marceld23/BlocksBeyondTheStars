@@ -231,8 +231,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Move()
         {
-            float h = _captureWalk ? _captureH : InputMap.MoveX();
-            float v = _captureWalk ? _captureV : InputMap.MoveY();
+            ReadWalkInput(out float h, out float v); // the walk's own start and stop curve (PlayerController.Feel.cs)
 
             // Observer mode (issue #487): free flight straight through geometry. Handled before every normal
             // movement branch because none of them apply — no gravity, no ground, no water, no fall damage,
@@ -337,6 +336,7 @@ namespace BlocksBeyondTheStars.Client
                 _glidePressArmed = false;
             }
 
+            TickJumpAssist(grounded, inWater || onLadder || roped || climbing);
             if (inWater)
             {
                 // Buoyant swimming: drift down slowly when idle, hold Jump to rise and surface; water also
@@ -397,19 +397,11 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (grounded)
             {
-                bool springs = _jumpBoost > 0f; // #2295: the spring boots jump higher and have their own sound
-                if (InputMap.JumpDown() && !springs)
+                // A held key jumps on every landing (as before); a TAP from just before the landing is remembered too.
+                bool tapped = _jumpAssist.BufferedPress;
+                if ((InputMap.JumpHeld() || tapped) && !_climbJumpLatch)
                 {
-                    ClientAudio.Instance?.Cue("jump", 0.6f);
-                }
-
-                if (InputMap.JumpHeld() && !_climbJumpLatch)
-                {
-                    _verticalVelocity = _effJumpSpeed * BioJumpImpulse() * SpringJumpImpulse();
-                    if (springs)
-                    {
-                        SpringJump();
-                    }
+                    BeginJump(cue: tapped); // the sound belongs to a press, not to a key held through a row of hops
                 }
                 else
                 {
@@ -435,10 +427,13 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                _verticalVelocity -= _effGravity * Time.deltaTime;
-                if (InputMap.JumpDown())
+                if (!TryCoyoteJump()) // just off an edge the press still jumps — and is then no press for the wing
                 {
-                    _glidePressArmed = true; // #2296: a second press in the air asks for the wing at once
+                    _verticalVelocity -= _effGravity * Time.deltaTime;
+                    if (InputMap.JumpDown())
+                    {
+                        _glidePressArmed = true; // #2296: a second press in the air asks for the wing at once
+                    }
                 }
 
                 // Jetpack: hold Jump in the air to thrust upward (needs the item + suit energy). The server
@@ -527,7 +522,9 @@ namespace BlocksBeyondTheStars.Client
                 _controller.stepOffset = 0f; // #2188: no auto-step hop at the wall's lip — the pull-up does that properly
             }
 
+            float yBeforeMove = transform.position.y;
             _controller.Move(move * Time.deltaTime);
+            AbsorbStep(yBeforeMove, grounded, inWater || onLadder || roped || climbing);
 
             // Last line of defence: if that move left us inside geometry (or below the world), get back out.
             GuardAgainstFallingOut(grounded, inWater, onLadder);

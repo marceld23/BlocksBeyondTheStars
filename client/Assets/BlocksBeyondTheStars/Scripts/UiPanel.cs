@@ -111,36 +111,55 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(_canvas.gameObject);
             Shown = true;
             OpenFrame = Time.frameCount;
+            UiSound.Open();
         }
 
         /// <summary>Shapes B/B2: builds the canvas if needed, marks the panel shown in this frame and activates it.</summary>
         protected void ShowCanvas()
         {
             EnsureCanvas();
+            if (!Shown)
+            {
+                UiSound.Open(); // once per open — a re-show of an open panel is no new window
+            }
+
             Shown = true;
             OpenFrame = Time.frameCount;
+            UiClosing.Cancel(_canvas.gameObject); // re-opened while still fading out: whole and clickable again
             _canvas.gameObject.SetActive(true);
         }
 
         /// <summary>Shapes B/B2: marks the panel closed and deactivates the canvas (kept for the next open).</summary>
         protected void HideCanvas()
         {
+            PlayCloseSound();
             Shown = false;
             if (_canvas != null)
             {
-                _canvas.gameObject.SetActive(false);
+                UiClosing.FadeOut(_canvas.gameObject, destroy: false); // the picture fades, the panel is closed at once
             }
         }
 
         /// <summary>Shape A: marks the panel closed and destroys its canvas (and with it the overlay).</summary>
         protected void DestroyCanvas()
         {
+            PlayCloseSound();
             Shown = false;
             _overlay = null;
             if (_canvas != null)
             {
-                Destroy(_canvas.gameObject);
+                UiClosing.FadeOut(_canvas.gameObject, destroy: true); // fades, then destroys itself
                 _canvas = null;
+            }
+        }
+
+        /// <summary>The window's closing sound — only when it really was open and is on screen (a panel torn down with
+        /// its rig, or closed while already hidden, stays silent).</summary>
+        private void PlayCloseSound()
+        {
+            if (Shown && _canvas != null && _canvas.gameObject.activeInHierarchy)
+            {
+                UiSound.Close();
             }
         }
 

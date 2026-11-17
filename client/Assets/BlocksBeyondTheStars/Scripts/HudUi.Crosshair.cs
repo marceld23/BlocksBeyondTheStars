@@ -100,9 +100,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Flashes the crosshair hit marker (#693) — called by the entity views when a hull drop is
-        /// attributable to the local player's latest shot.</summary>
-        public void ShowHitMarker()
+        /// attributable to the local player's latest shot. The hit is also HEARD (a short tick; a fuller pop when it
+        /// <paramref name="defeated"/> the target) and holds the swing of the hand for a moment (<see cref="HitPause"/>).</summary>
+        public void ShowHitMarker(bool defeated = false)
         {
+            ClientAudio.Instance?.Cue(defeated ? "hit_confirm_defeat" : "hit_confirm", defeated ? 0.7f : 0.55f);
+            HitPause.Trigger(defeated ? HitPause.DefeatSeconds : HitPause.HitSeconds);
             if (_hitMarker == null)
             {
                 return;

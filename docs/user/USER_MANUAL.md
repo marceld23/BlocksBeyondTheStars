@@ -218,6 +218,8 @@ Last updated: 2026-10-04.
 | **U** | Undock from a player / leave a boarded space station. As a **guest** in a docked friend's ship: **back to my ship** (the hint reads "Visiting Lena's ship · U: back to my ship"). As the **host** while a friend visits: **send the guest home** (it undocks; the hint reads "Tom is visiting · U: send home") |
 | **O** | Aboard your own (or any player-built) station: toggle **zero-g construction mode** for yourself — the suit floats over the decks (Jump rises, Crouch sinks) so you can extend the hull without walking; press again to walk. Not saved; off whenever you board |
 | **V** | Toggle first / third-person camera |
+| **P** (hold or tap) | **Emote wheel** — hold the key, point at one of the nine gestures, let go to play it; or tap the key and click a gesture (see §5 → Emotes) — rebindable; on a gamepad and on a tablet it is in the action list |
+| **F10** | **HUD off / on** — hides the whole display for a clean view or a screenshot; a short note names the key that brings it back — rebindable |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
 | **Tab** | Open / close the on-board console (Inventory, Crafting, Blueprints, Ship, Map, Logbook, Knowledge, Me); also closes full-screen menu screens such as the Codex |
@@ -228,6 +230,16 @@ Last updated: 2026-10-04.
 | **Esc** | Close the current screen; if no game screen is open, open the pause menu (Resume · Settings · **Back to my ship** while on foot · Quit) |
 
 Interaction reach is ~6 m (extended by reach equipment).
+
+**How moving feels.** Your suit answers quickly: it reaches full pace within a tenth of a second and stops just as
+fast, so you stop on the block you meant. In the air and in water it turns a little more slowly. Two small helps
+make jumping forgiving: for a blink after you walked off an edge, **Space still jumps**, and a press of Space just
+before you land **jumps the moment you touch down**. Walking up a one-block step no longer jolts the view — your eyes
+follow smoothly — and the thing in your hand trails a little when you look around and dips when you land. With
+*Camera motion* switched off (Settings → Accessibility) the view stays as steady as before.
+
+**Run and crouch as a switch.** *Settings → Accessibility → Keys* turns **Run** and **Crouch** into keys you press once
+instead of holding. Running then ends when you stop walking forward; a jump stands a crouching player up again.
 
 ### Gamepad / controller (experimental)
 
@@ -370,6 +382,11 @@ nothing changes — controls stay keyboard + mouse (or a gamepad).
 Enter space by launching the ship; on foot you board/leave via the cockpit. On a landed ship, **E at the
 cockpit asks "Launch into space?"** — confirm with the button, **E** or **Enter**; "Not yet" opens the map instead
 (the Map tab keeps its own **Launch into space** button).
+
+**How the ship flies.** The ship has a little weight: it takes a moment to reach full speed and coasts to a stop when
+you let go, it leans into a turn, and the outside camera follows it softly instead of being bolted to it. It is still
+an easy, arcade ship — it never drifts on forever, and it slides along a station's hull instead of sticking to it. With
+*Camera motion* off the camera is rigid again.
 
 **Lift-off, landing and docking play as one continuous scene** — no loading screen in between:
 
@@ -559,6 +576,24 @@ separate unlock; admins can still disable it through server world rules.
   (*First met: …*). The numbers are the game's own (`data/enemies.json`), so they are always right.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **Back** (top left) returns from the full-screen screen to the console. The Codex lists its chapters on the left.
+
+### Screen, 3D resolution and reading help (Settings)
+
+- **Display & HUD** (desktop): **Resolution (fullscreen)** — the monitor's own or a smaller one, scaled up to the whole
+  screen (a smaller one runs faster on a very sharp screen); **Monitor** — which screen the game uses; **Pause when the
+  window loses focus** — opens the pause menu when you switch to another window.
+- **Graphics → 3D resolution** (desktop): draws the world at 50–100 % of the screen's resolution and sharpens it; the
+  menus and the HUD stay crisp. Lower runs faster.
+- **Accessibility:** **Story text size** and a **dark box behind story text** for the cutscene and story lines;
+  **Colour vision** (*Standard · Red-green weakness · Blue-yellow weakness*) changes the signal colours for "good" and
+  "caution" to a pair you can tell apart; **Run / Crouch: press once instead of holding** (see §2).
+- **Controls → Gamepad → button names:** *Automatic* reads the connected pad's name and shows what it found (Xbox,
+  PlayStation or Nintendo); the three fixed sets stay for a pad whose name says nothing.
+- **Tooltips:** rest the mouse on an inventory slot and a small card names the item and says what it is for. On a
+  gamepad the card follows the focus; on a tablet a long press shows it. (Inventory slots only for now.)
+- **Buttons answer visibly:** a button gives a little while you hold it down, and its outline lights up for a moment
+  when the click counts — with the mouse, a gamepad or a finger. With *Reduced effects* only the colour changes.
+- **Windows close softly:** a window fades out instead of vanishing. With *Reduced effects* it closes at once.
 
 ### Quality preset (Settings → Graphics)
 
@@ -805,7 +840,21 @@ fit together. Mining stone and the scrap pistol used to be nearly silent, while 
 the game.
 
 The **Master** slider turns everything up or down. **Effects** turns every game sound up or down, including the
-ship's engine.
+ship's engine. Two sliders sit under it: **Ambience** (wind, rain, the planet's own background) and **Interface**
+(clicks, windows opening and closing, the little tick of a hit).
+
+**Variety and accents.**
+- Mining, placing, swinging, shooting, jumping and landing no longer sound the same every time: each has two or three
+  recordings that take turns.
+- A block you **place** sounds like what it is made of: stone, metal, crystal, earth, wood or glass.
+- A **hit** ticks softly, and a little brighter when it was the last one.
+- A few moments get a short **musical accent**: your first steps on another world, a place you discover, a blueprint
+  you research, an achievement, and coming home to your ship after a long outing. Accents never pile up — there are at
+  least eight seconds between two.
+- The music **makes room** while VEGA or somebody else speaks.
+- When something unfriendly **stays close** to you on foot, the music changes to a wary, ticking piece — alert, never
+  scary. It plays for a little while and goes back to the planet's music when the danger has left. (With the *Tracks*
+  music style; the *Synth* style plays its own tense mood.)
 
 **Your body.**
 - Your footsteps follow your pace (sneaking is slower and quieter, running quicker) and the ground under your feet:
@@ -1410,6 +1459,9 @@ players.
   **quick-bar** row of nine, the on-screen hotbar, under a line, and 27 backpack slots above it). It travels
   with you everywhere. Older saves are simply widened. On the **Backpack** tab, click a slot to pick its item
   up and a second slot to put it down or swap — the same by touch and with a gamepad (A picks and places).
+  With the **mouse** you can also **drag** an item from one slot and drop it on another. Resting the mouse on a slot
+  shows a small card with the item's name and what it is for; for a piece of gear you can wear, the item's page also
+  shows **how it compares with the piece you wear in that slot** (▲ better, ▼ worse, number by number).
   **How much one slot holds:** building blocks, ores and materials **1024**; **food, baits and data fragments 99**
   (20 before 2026-10 — an old stack of 20 fills up as you pick more up); medpacks 20; VEGA's memory fragments and
   SPS access codes 10 (they are meant to be rare); tools, weapons and suit gear one each. Machines, energy cells and a
@@ -1583,6 +1635,9 @@ players.
   **algae tank**, **campfire** — or the matching **ship module** while you're aboard. The menu names the block
   a recipe needs and where the nearest one is; aiming at a placed station block shows on the HUD which
   menu tab it powers. The Codex guide *Stations & menu tabs* has the full table.
+- **Pin a recipe:** *Pin to the HUD* on a recipe's page keeps it on screen while you play — a small card at the right
+  lists each ingredient with how many you have and how many you need, and says so when everything is there. One recipe
+  at a time; *Unpin* (same button) removes it. The pin is remembered on this computer.
 - **Aboard a ship, stations are ship modules** (#2585). In the ship only the module counts: a station block built
   into a ship — say a forge right beside the cabin's workbench — is only decoration, and VEGA tells you once per
   block kind which module does its job. Modules are built in the **Ship** tab (research the blueprint first if it
@@ -4955,6 +5010,21 @@ look up: what a mix does follows from what goes in, and the same things always g
   world. A template is loaded as a copy you can paint on. When you unlock the Christmas lights and wear no frame yet, you
   get them straight away (a message says where to change or switch them off). The lights twinkle; with **Reduced
   effects** they stay still.
+
+### Emotes and body language
+- **Hold P** (rebindable) and a wheel of nine gestures opens: **Wave, Nod, Cheer, Point, Shake head, Dance, Clap, Sit
+  down, Bow**. Point at one and let go — or just tap P, then click a gesture (the middle closes the wheel). On a gamepad and on a tablet the wheel is in the action list. You see your own
+  gesture in the third-person view (**V**).
+- Players near you see it (within about 48 blocks, and on the same side of a ship's hull). You can play one gesture
+  about every second. **Sit down** lasts until you move. Each gesture makes a small sound that the players near you
+  hear from where you stand.
+- **Wave at a villager** and they wave back and say hello — if they are awake, not busy, can see you and are not
+  angry with you.
+- Figures show more of what happens to them: a player who is hurt **flinches**, one who is defeated **sinks down**,
+  one in water **swims**, and everybody gives a little in the knees on landing. Faces **blink**, and a mouth moves
+  while its owner speaks. (A pixel face you drew yourself stays exactly as you drew it.)
+- Where the sun's shadows do not reach — under a roof, underground, aboard, at night, and on the *Potato* preset —
+  figures and walking animals stand on a small **soft shadow**, so they no longer seem to float.
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop

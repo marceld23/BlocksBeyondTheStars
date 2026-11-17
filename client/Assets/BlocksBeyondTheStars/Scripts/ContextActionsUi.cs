@@ -72,6 +72,7 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.StowVehicle, u => u.OnFoot && u.Player != null && u.Player.NearOwnParkedSpeeder),
             new Entry(InputAction.RecallVehicle, u => u.OnFoot && u.Player != null && u.Player.CanRecallVehicle), // at the cockpit (#1661)
             new Entry(InputAction.PingMarker, u => u.OnFoot), // "look here!" for allies + crew (#1217)
+            new Entry(InputAction.EmoteWheel, u => u.OnFoot), // the emote wheel — the pad's and the tablet's way in
             new Entry(InputAction.PrimaryFire, u => u.OnFoot && u.Player != null && u.Player.HoldsWeapon),
             new Entry(InputAction.ToggleThermal, u => u.OnFoot && u.Player != null && u.Player.BinocularsRaised),
             new Entry(InputAction.PlanetMap, u => u.OnFoot && !u.Game.InSpace),

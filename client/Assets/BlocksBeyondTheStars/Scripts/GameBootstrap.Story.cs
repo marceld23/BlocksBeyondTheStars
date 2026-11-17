@@ -112,7 +112,7 @@ namespace BlocksBeyondTheStars.Client
         /// <c>hideHud</c> on a T3 overlay such as the tutorial's "Lift-off!", the controls stay free). Read by the HUD, the flight
         /// HUD, the space radar and the name tags; the touch controls, the chat and the controls keep reading
         /// <see cref="CutsceneActive"/>, so a touch pilot keeps the stick under an overlay.</summary>
-        public static bool HudHidden => Cutscenes.HudHidden;
+        public static bool HudHidden => Cutscenes.HudHidden || PlayerHudOff; // a scene hides it, or the player's own key
 
         /// <summary>A fresh process (or an Editor play session without a domain reload) starts with no cutscene.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

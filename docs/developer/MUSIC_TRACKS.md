@@ -6,8 +6,8 @@ The granular background-music library used by the **Tracks** music mode (see
 in `MusicLibrary` and **all present** — see *Variance pack* below), the 5 dramatic **finale/boss**
 tracks (also present + wired — see the last section) and **11 tracks composed with the ElevenLabs Music
 API** (nine `_3` third variants + `music_planet_night_2` / `music_planet_sunrise_2`, #1175 — see *ElevenLabs
-additions*) and the **3 tracks of the Sounders story pack** (#3363, ElevenLabs Music — see *Sounders story pack*): **54
-tracks** in total. All live as raw MP3s in **`client/Music/*.mp3`**
+additions*), the **3 tracks of the Sounders story pack** (#3363, ElevenLabs Music — see *Sounders story pack*) and the
+**3 tracks of the on-foot tension pool** (ElevenLabs Music — see *Tension pool*): **57 tracks** in total. All live as raw MP3s in **`client/Music/*.mp3`**
 (tracked, deliberately *outside* `client/Assets/`); `scripts/sync-client-libs.{ps1,sh}` copies them to
 `client/Assets/StreamingAssets/music/` (git-ignored) on every build, and `ClientMusic` **streams each
 track on demand** with `UnityWebRequestMultimedia` — over HTTP in the browser, from disk on desktop —
@@ -63,6 +63,7 @@ idle pair; underground only the idle pair (no sky).
 | Planet — deep water | head submerged ≥ 8 s (back to the surface pool 5 s after surfacing) | `music_planet_ocean_2` (loops) | — |
 | Planet — generic | any other surface (rocky / varied / highland / skylands / asteroid) | `music_explore_planet`(`_2`), `music_idle_default`(`_2`) | `music_planet_sunrise`(`_2`) at dawn, `music_planet_night`(`_2`) at night |
 | First landing | first time a planet is walked in this session | `music_planet_sunrise` once, then the pool | — |
+| On-foot tension | on foot (not aboard), a hostile within 20 m for 2 s; holds at least 20 s and ends 8 s after the last hostile left (`TensionMusic`) | `music_tension`, `music_tension_2`, `music_tension_3` | — |
 
 The `_2` tracks are the **variance pack** (see *Variance pack* section below). All 12 are present in
 `client/Music/` and live in the pools today; a track whose `.mp3` fails to load is dropped from its pool
@@ -81,8 +82,11 @@ for the session.
   the finale never rest. A context change ends a rest at once.
 - **Ducking**: a violent weather episode (storm / blizzard / sandstorm, by `WeatherFamily` × intensity)
   pulls the music down to ~55 %, rain / fog / gale to ~80 %; a **hostile creature within 20 m** (on foot)
-  ducks to 60 % and darkens the music (low-pass 1.4 kHz) — a tension treatment, not a track switch. Under
-  water the existing 680 Hz muffle applies.
+  ducks to 60 % and darkens the music (low-pass 1.4 kHz) at once; when it stays for 2 s the **tension pool**
+  takes over (see the mapping table and *Tension pool*) and plays unducked — it is that moment's music. Under
+  water the existing 680 Hz muffle applies. Anywhere, the music also steps back to 55 % while someone speaks
+  (VEGA, a cutscene's speaker, an NPC conversation) and to 40 % under a musical accent (`MusicDuck`,
+  [GAME_FEEL.md](GAME_FEEL.md) §3).
 - **Synth style** (`SynthComposer`, #1176): the Synth music style is no longer four fixed 10–24 s loops but
   a seeded generative ambient engine — per piece a mode, tempo, two chord phrases (8 chords, 40–110 s), two
   arpeggio patterns, pad timbre and drone are composed in code and rendered over a few frames; planet
@@ -451,3 +455,18 @@ Instrumental melancholic, swelling choir-like piece for a flashback memory: long
 ```text
 Instrumental warm and hopeful finale for a kid-friendly space adventure: two peoples sing a bridge song together and giant gentle sky creatures appear. Warm strings and choir-like synth pads that sound like many hummed voices, glassy chimes, a rising heartfelt melody that blooms within the first fifteen seconds and keeps growing, joyful, moving and uplifting. No vocals, no lyrics, no heavy drums, no battle music.
 ```
+
+## Tension pool (the feel pass, 2026-11-17)
+
+Three tracks composed with the **ElevenLabs Music API** via `tools/ai-assets/gen_music.py` in **plan mode**: one
+composition plan ([tools/audio/music_tension_plan.json](../../tools/audio/music_tension_plan.json) — four sections of 25,
+30, 30 and 45 s, 130 s in all), rendered with the seeds 1, 2 and 3, so the three are siblings of one piece and a change
+between them is no break. `mp3_44100_128` (the library's other ElevenLabs tracks are 192 kbit/s), the default `music_v1`
+model. They are the pool of the context `MusicLibrary.Tension`: on foot, a hostile that stays close
+([GAME_FEEL.md](GAME_FEEL.md) §3). Alert and curious, never frightening — the plan's styles ask for "tense but playful,
+kid-friendly, steady pulsing synth bass, light ticking percussion, wary minor-key melody" and rule out horror, jump
+scares, screeching strings and big orchestral hits. Space combat and the Synth style keep the synth combat mood.
+
+The plan file is the record of the piece (the styles and sections the API was given). Regenerate a sibling — a new take
+of the same piece — from `tools/ai-assets/` with `uv run gen_music.py --plan ../audio/music_tension_plan.json --seed <n>
+--out out/music/music_tension_<n>.mp3`.

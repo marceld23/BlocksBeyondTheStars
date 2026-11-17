@@ -82,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
             // browser: the page owns the canvas there and ClientSettings.ApplyWindowMode does nothing (#1420).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
                 dir => { S.Window = (WindowMode)Wrap((int)S.Window + dir, 3); S.Apply(); Rebuild(); });
+            FeelDisplayRows(ref y); // fullscreen resolution, monitor, pause on focus loss (UiSettings.Feel.cs)
 #endif
             // Frame pacing. VSync off (+ optional fps cap) is the recommended fix when the game runs sluggish
             // on the Linux/Proton client, where VSync can lock to a hard 30 fps.
@@ -120,6 +121,8 @@ namespace BlocksBeyondTheStars.Client
             VolRow(ref y, L("ui.settings.master_volume"), () => S.MasterVolume, v => S.MasterVolume = v);
             VolRow(ref y, L("ui.settings.music_volume"), () => S.MusicVolume, v => S.MusicVolume = v);
             VolRow(ref y, L("ui.settings.sfx_volume"), () => S.SfxVolume, v => S.SfxVolume = v);
+            VolRow(ref y, L("ui.settings.ambience_volume"), () => S.AmbienceVolume, v => S.AmbienceVolume = v); // under the effects
+            VolRow(ref y, L("ui.settings.ui_volume"), () => S.UiVolume, v => S.UiVolume = v);
             Cycle(ref y, L("ui.settings.music_style"),
                 L(S.MusicMode == MusicMode.Tracks ? "ui.settings.music_style.tracks" : "ui.settings.music_style.synth"),
                 _ => { S.MusicMode = S.MusicMode == MusicMode.Tracks ? MusicMode.Synth : MusicMode.Tracks; Rebuild(); });
@@ -208,8 +211,7 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.pad_invert_y"), S.PadInvertY, () => { S.PadInvertY = !S.PadInvertY; Rebuild(); });
             Toggle(ref y, L("ui.settings.pad_triggers"), S.PadTriggersMinePlace,
                 () => { S.PadTriggersMinePlace = !S.PadTriggersMinePlace; Rebuild(); }, L("ui.settings.pad_triggers_hint"));
-            Cycle(ref y, L("ui.settings.pad_glyphs"), L("ui.settings.pad_glyphs." + S.PadGlyphs.ToString().ToLowerInvariant()),
-                dir => { S.PadGlyphs = (PadGlyphSet)Wrap((int)S.PadGlyphs + dir, 3); Rebuild(); });
+            PadGlyphRow(ref y); // Automatic (by the pad's name) / Xbox / PlayStation / Nintendo (UiSettings.Feel.cs)
             // #2746: the explanation says what rumbles — or, where no backend exists (WebGL, the native Linux build), that
             // vibration is not available here (the choice is still remembered).
             Toggle(ref y, L("ui.settings.pad_vibration"), S.PadVibration, () => { S.PadVibration = !S.PadVibration; Rebuild(); },
@@ -257,6 +259,7 @@ namespace BlocksBeyondTheStars.Client
             // #2468: story-pack cutscene captions wait for the reader (default) or turn the page by themselves.
             Toggle(ref y, L("ui.settings.story_text_wait"), S.StoryTextWaitForMe, () => { S.StoryTextWaitForMe = !S.StoryTextWaitForMe; Rebuild(); },
                 L("ui.settings.story_text_wait_hint"));
+            FeelAccessibilityRows(ref y); // story text size + backdrop, signal colours, keys that switch (UiSettings.Feel.cs)
         }
 
         private void SetFieldOfView(float degrees)

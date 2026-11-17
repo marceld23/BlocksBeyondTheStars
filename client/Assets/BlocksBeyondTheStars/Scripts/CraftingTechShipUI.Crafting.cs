@@ -538,6 +538,7 @@ namespace BlocksBeyondTheStars.Client
             string verb = r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market ? L("ui.vendor.trade") : L("ui.action.craft");
             var btn = UiKit.AddButton(_detail, 8, y, 280, 56, verb + (maxCraft > 1 ? " ×" + n : string.Empty), () => { Game.Network.SendCraft(r.Key, n); });
             SetInteractable(btn, can);
+            AddPinButton(r.Key, y); // beside the craft button: keep this recipe on the HUD (CraftingTechShipUI.Feel.cs)
             y += 70f;
             y = BelongsToRow(Cats.OfItem(outItem.Item), y, PickCategory); // #3108
             return NeededForSection(outItem.Item, y); // #3112: what it goes into

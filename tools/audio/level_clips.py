@@ -49,17 +49,19 @@ CLASSES: dict[str, tuple[str, float]] = {
     "weather": ("integrated", -18.0),
     "bed": ("integrated", -20.0),  # biome/night/fluid beds and quiet ambience loops
     "machine": ("integrated", -18.0),  # engines, motors, hums
+    "ui": ("mmax", -18.0),         # the interface's own sounds and the hit tick: heard constantly, so they sit low
     "oneshot": ("mmax", -12.0),
 }
 
 RULES: list[tuple[str, str]] = [
     ("step", r"^step_"),
-    ("foley", r"^(climb_|land$|land_|jump$|swim_|breath_|heartbeat|surface_gasp|water_splash|wing_flap|suit_thruster|"
+    ("foley", r"^(climb_|land$|land_|jump$|jump_\d|emote_|swim_|breath_|heartbeat|surface_gasp|water_splash|wing_flap|suit_thruster|"
               r"spring_jump$|glider_open$|rcs_puff|ship_cooling_tick|cargo_creak)"),
     # #3363: the Sounders pack's own animals (the series' Soundi, the Soundrak, the Qualis, the Soundelings) are creatures.
     ("creature", r"^(creature_|soundi_call_|soundrak_scream_|quali_song_|soundeling_coo_)"),
     ("voice", r"^(npc_voice_|npc_human_|npc_alien_|vega_chatter_|echo_hum_|elder_hum_)"),  # #3363: the Sounders' hums
-    ("sting", r"^(festival_|chapter_sting|jumave_sting$|splash_intro$)"),
+    ("sting", r"^(festival_|chapter_sting|sting_|jumave_sting$|splash_intro$)"),  # sting_*: the musical accents
+    ("ui", r"^(ui_|hit_confirm)"),
     ("weather", r"^(rain_loop|storm_loop|drizzle_loop|gale_loop|blizzard_loop|sandstorm_loop|ash_loop|acid_hiss|"
                 r"ion_crackle|spore_amb|meteor_streak|toxic_storm_loop|wind_light|wind_strong|rain_on_hull)$"),
     ("bed", r"^(amb_|night_|water_(brook|fall|shore|surf)$|lava_fall$|lava_bubble$|fire_crackle$|energy_fence_hum$|glider_wind$|"
@@ -73,7 +75,7 @@ SLACK = 1.5       # dB — closer than this counts as levelled; the guard test a
 TOLERANCE = 3.0   # dB — the guard's allowance (re-encoding moves a level by a fraction of a dB)
 PEAK_CEILING = -2.0  # dBFS — a clip whose peak reaches this is limiter-bound: it may sit below its target (a click
                     # or a gunshot is all peak; more gain would only flatten it)
-TRIM_CLASSES = {"step", "foley"}  # tight attack: a footstep that starts 80 ms late feels laggy
+TRIM_CLASSES = {"step", "foley", "ui"}  # tight attack: a footstep or a click that starts 80 ms late feels laggy
 
 
 def class_of(cid: str) -> str:

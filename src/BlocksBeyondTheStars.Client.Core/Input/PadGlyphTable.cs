@@ -28,6 +28,39 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class PadGlyphTable
     {
+        /// <summary>
+        /// The glyph set a connected pad asks for, by the name the system reports for it — or null when the name says
+        /// nothing (a generic or unknown pad keeps the player's own choice). Sony's pads report themselves as
+        /// "Wireless Controller" or by model, Nintendo's as "Pro Controller" / "Joy-Con", Microsoft's (and everything
+        /// that speaks XInput) with "Xbox" or "XInput" in the name.
+        /// </summary>
+        public static PadGlyphSet? Detect(string? joystickName)
+        {
+            string n = (joystickName ?? string.Empty).Trim().ToLowerInvariant();
+            if (n.Length == 0)
+            {
+                return null;
+            }
+
+            if (n.Contains("xbox") || n.Contains("xinput"))
+            {
+                return PadGlyphSet.Xbox;
+            }
+
+            if (n.Contains("dualsense") || n.Contains("dualshock") || n.Contains("playstation") || n.Contains("ps4")
+                || n.Contains("ps5") || n.Contains("sony") || n == "wireless controller")
+            {
+                return PadGlyphSet.PlayStation;
+            }
+
+            if (n.Contains("nintendo") || n.Contains("pro controller") || n.Contains("joy-con") || n.Contains("switch"))
+            {
+                return PadGlyphSet.Nintendo;
+            }
+
+            return null;
+        }
+
         /// <summary>The bottom face button (Xbox A) — jump, and up on a spacewalk.</summary>
         public const int BottomFace = 0;
 

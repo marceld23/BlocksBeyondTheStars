@@ -7,7 +7,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// First-person viewmodel: the held tool/weapon/block shown in the lower-right of the camera (the
-    /// avatar itself is hidden in first person). Bobs with movement, sways on look, and jabs forward on
+    /// avatar itself is hidden in first person). Bobs with movement, sways on look and dips on a landing
+    /// (Viewmodel.Feel.cs), and jabs forward on
     /// a <see cref="Swing"/> (mine / place / attack). Built from the shared <see cref="HeldItem"/> mesh
     /// and parented to the camera so it tracks the view. Hidden in third-person.
     /// <para><b>Two hands</b> — a second, mirrored holder on the left (<c>_holderL</c>; #3134 also racks a drawn gun with it)
@@ -592,7 +593,11 @@ namespace BlocksBeyondTheStars.Client
             bool aroundForearm = false;
             if (_swingTimer > 0f)
             {
-                _swingTimer -= dt;
+                if (!HitPause.Active) // a confirmed hit holds the swing for a few hundredths of a second
+                {
+                    _swingTimer -= dt;
+                }
+
                 float t = 1f - Mathf.Clamp01(_swingTimer / _swingDuration);
                 float jab = Mathf.Sin(Mathf.Clamp01(t) * Mathf.PI); // 0→1→0
 
@@ -636,6 +641,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #3095: the item's flourish (a drill's test spin, a gun's rack, a blade's twirl) — never while it is used.
             PoseFlourish(dt, speed, ref posOff, ref rot);
+            PoseWeight(dt, vy, ref posOff, ref rot, ref posL); // look sway + landing dip (Viewmodel.Feel.cs)
 
             // The pivot on the forearm stays where the rest pose has it while the swing turns the hand and the item round it.
             var pivotShift = Vector3.zero;

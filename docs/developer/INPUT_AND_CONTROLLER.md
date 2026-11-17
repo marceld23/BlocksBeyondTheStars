@@ -77,6 +77,22 @@ cluster.
   `ClientSettings.PadBindings` (mirroring `KeyBindings`); `GamepadInputSource.ButtonFor` resolves
   override-then-default (`DefaultButtonFor`). Reset clears both lists. An action with no stock pad button
   (shown "—") can still be bound.
+- **Glyph set by the pad's name (the feel pass, 2026-11-17):** with `ClientSettings.PadGlyphsAuto` (the default) the
+  set follows the connected pad — `PadGlyphTable.Detect(joystickName)` reads Unity's joystick name ("DualSense",
+  "Wireless Controller", "Pro Controller", "Xbox", "XInput" …) and returns a `PadGlyphSet`, or `null` for a name that
+  says nothing; `InputMap.DetectedPadGlyphs` caches it and the settings row shows "Automatic: Xbox". Picking a fixed
+  set in the row switches the automatic off. The glyphs are still TEXT ("(A)", "RT"); pictures are open.
+- **Raw move axes, keys that switch (same pass):** the on-foot walk reads `InputMap.MoveXRaw/MoveYRaw` (Unity's
+  `GetAxisRaw`) and eases them itself (`WalkInertia`, [GAME_FEEL.md](GAME_FEEL.md) §1) — the smoothed axes stay for
+  everything else. `InputMap.SprintToggle` / `CrouchToggle` (Settings → Accessibility → Keys) turn the keyboard's run
+  and crouch into a press: run reuses the pad's stick-click rule (`SprintToggleDown` → `SprintState`), crouch latches
+  in `InputMap.KeyboardCrouch` and the space bar (the keyboard's jump) clears it. Two new actions: `InputAction.EmoteWheel` (P, held or tapped — the wheel
+  is open while the key is down) and `InputAction.ToggleHud` (F10); neither has a stock pad button, the emote wheel
+  is in the context-actions list.
+- **Never Y or Z as a default key.** `ProjectSettings/InputManager.asset` has `m_UsePhysicalKeys: 1`: a `KeyCode` names
+  a key's POSITION on a US keyboard, which keeps WASD in place on every layout. Y and Z are the two letters a German
+  keyboard swaps, so a default on `KeyCode.Y` sits on the key labelled Z there while every text says "Y" (the emote
+  wheel did, for one evening). The editors' Ctrl+Z / Ctrl+Y undo and redo have the same swap.
 - **Glyphs:** `InputMap.Glyph(action)` returns the pad label while a pad is the active device, else the
   bound key name; `InputMap.PadGlyph(keyCode)` names all 20 pad buttons, `InputMap.PadTriggerGlyph(right)` the
   triggers (RT/LT, R2/L2, ZR/ZL). Since #2507 both read the ONE table in Client.Core (`PadGlyphTable.Button(index,

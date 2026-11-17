@@ -148,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
             get
             {
                 var settings = GamepadInputSource.Settings;
-                return (settings, settings != null ? settings.BindingsVersion : -1, settings != null ? settings.PadGlyphs : PadGlyphSet.Xbox,
+                return (settings, settings != null ? settings.BindingsVersion : -1, InputMap.PadGlyphs, // the set in use (auto-detected or chosen)
                     settings != null && settings.PadTriggersMinePlace);
             }
         }
@@ -222,7 +222,7 @@ namespace BlocksBeyondTheStars.Client
             string template = loc.Get("ui.hud.hint_pad_glyphs");
             bool triggers = settings != null && settings.PadTriggersMinePlace;
             var key = (template, settings != null ? settings.BindingsVersion : -1,
-                settings != null ? settings.PadGlyphs : PadGlyphSet.Xbox, triggers);
+                InputMap.PadGlyphs, triggers);
             if (_padHint != null && key.Equals(_padHintKey))
             {
                 return _padHint;

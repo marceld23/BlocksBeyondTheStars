@@ -35,6 +35,10 @@
    "metric": "integrated",
    "target": -18.0
   },
+  "ui": {
+   "metric": "mmax",
+   "target": -18.0
+  },
   "oneshot": {
    "metric": "mmax",
    "target": -12.0
@@ -1319,6 +1323,72 @@
    "peak": -0.7,
    "sha256": "b5137640e7237766f9a04d1e790835c8fc3e4ad90c4d636bed33a2e71a02c50c"
   },
+  "emote_bow": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -6.8,
+   "sha256": "c2e3c577135a2d6ea8e3613ff30a339ebc2a162a232bc877061e8528cef4952d"
+  },
+  "emote_bow_2": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -15.6,
+   "sha256": "daf71a9506020364e6cfcca934922e30a05ff5c1ece9862f02dc4c5a3436726a"
+  },
+  "emote_cheer": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -3.6,
+   "sha256": "39e795d4f65ab0c7180fd66d3cb667c88f3eed5e33c82ba267b3a5d020dafff7"
+  },
+  "emote_cheer_2": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -10.5,
+   "sha256": "c1c132bae9213e7d9284cdec59c2bfa9c4670c26fb4d066674a886a150c2707b"
+  },
+  "emote_clap": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": 1.6,
+   "sha256": "13c321b9033cfac0f8a10f85d51f31fd2730f0fb28e8b85ce9267992fc9aa78f"
+  },
+  "emote_dance": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -7.3,
+   "sha256": "a284fbccff98ee792148e0297e0a4818357100e3e3c508ac54d80cee1a88fbdd"
+  },
+  "emote_head_shake": {
+   "class": "foley",
+   "level": -20.4,
+   "peak": -7.8,
+   "sha256": "4118eb9d3cd2a40595deda6a599a7ee15dede416d564c7a1aca92a98c2c40c92"
+  },
+  "emote_nod": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -6.6,
+   "sha256": "39d70fcc7fae0d0b47443006059f9db0fc95e65dedb8f597b148f0336ed32bb7"
+  },
+  "emote_point": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -1.4,
+   "sha256": "4da45af2756d8d64c419cb5174bd45e4ed96aa5d9fd4ea1ec4bdc6d1777ef383"
+  },
+  "emote_sit": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -0.9,
+   "sha256": "554ea66eee042af8509574bf72080b69253a6d945a25ef1d3b89663cb93f0fcd"
+  },
+  "emote_wave": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": 0.6,
+   "sha256": "eb15982c974af9b08ad8929d7d61e8992ebf03f1b9faa5b810cf7ed490e0aa55"
+  },
   "enemy_attack": {
    "class": "oneshot",
    "level": -12.2,
@@ -1625,6 +1695,18 @@
    "peak": -3.4,
    "sha256": "9092f83383dc1e75483489bf3b75dcde2379441c7fe42809c89d386eadd6f53c"
   },
+  "hit_confirm": {
+   "class": "ui",
+   "level": -20.0,
+   "peak": -0.8,
+   "sha256": "bcb99192cbc1c265916f4fbcf87723a4da60a79da53e3d701d1e93d8060667cd"
+  },
+  "hit_confirm_defeat": {
+   "class": "ui",
+   "level": -18.4,
+   "peak": -0.6,
+   "sha256": "b59ee46549d87141e1f5e1a2518ea01a5e9a7b099730df99e1fedd69c9eba24e"
+  },
   "horn_0": {
    "class": "oneshot",
    "level": -12.5,
@@ -1697,11 +1779,29 @@
    "peak": -11.4,
    "sha256": "bad5f3c2fdeb29ba2e421bbd24691ff82e6a027d9fb27e8a45e9d2555feb0ed6"
   },
+  "jump_2": {
+   "class": "foley",
+   "level": -21.0,
+   "peak": -1.3,
+   "sha256": "8f5a123093872c6408bc6aa3f4b010fd99359c6f63af93f5ab734f98c201f1b9"
+  },
   "land": {
    "class": "foley",
    "level": -20.5,
    "peak": -3.3,
    "sha256": "a6f08021b37ae91dd43f25664ea1e5ed0453981f85a077d5ac6d14b73b29093c"
+  },
+  "land_2": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": 1.3,
+   "sha256": "6e655febbee581b5c251e41ef4fc9be73e9c1ca7eb92b5828047ba1791c4bf82"
+  },
+  "land_3": {
+   "class": "foley",
+   "level": -21.8,
+   "peak": -1.4,
+   "sha256": "58c4a2bc4f2ae38310b12bf394040e0f2b58db4a39f0e265a9707f9be0941cd0"
   },
   "land_heavy": {
    "class": "foley",
@@ -1787,11 +1887,35 @@
    "peak": -1.1,
    "sha256": "0525456ce6596d3c4791238e450b5ea884ffdf9b8a2fa1a24fe7a5a9dc190759"
   },
+  "melee_hit_2": {
+   "class": "oneshot",
+   "level": -13.9,
+   "peak": -1.1,
+   "sha256": "fee3bc22dbaf5aa58dc2aa96509dfcff7e62291f1291f5af47b0afe6afd8afe9"
+  },
+  "melee_hit_3": {
+   "class": "oneshot",
+   "level": -15.4,
+   "peak": -0.9,
+   "sha256": "a0ace6c7d5b2033255a0be29e837cef77e86fb9c1861ab045ef8854ec5038ccf"
+  },
   "melee_swing": {
    "class": "oneshot",
    "level": -13.5,
    "peak": -1.3,
    "sha256": "6c8c0bbb17c89bcacf5808c7b03797a9951305534bcfb01b8898652260f9e9b6"
+  },
+  "melee_swing_2": {
+   "class": "oneshot",
+   "level": -17.5,
+   "peak": -1.4,
+   "sha256": "dc566852beebb7d0755903b7657d032bd81d0574b346a3708960add044dc3e38"
+  },
+  "melee_swing_3": {
+   "class": "oneshot",
+   "level": -17.4,
+   "peak": -1.3,
+   "sha256": "08a0a32696e02b842109b9dd6ea6baf288a7dfe756bf19b6a07ae19e6cc7ae4c"
   },
   "meteor_streak": {
    "class": "weather",
@@ -1805,11 +1929,35 @@
    "peak": -0.5,
    "sha256": "c97439624ffa038cb3379affe771bed85e1dc2d3cef7f2e01396cd260c80a09d"
   },
+  "mine_crystal_2": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": 1.9,
+   "sha256": "025479f44f4839e31c81e4e2ec1571b02e98a0f616e2cc11fc3a1eaecfdc0a10"
+  },
+  "mine_crystal_3": {
+   "class": "oneshot",
+   "level": -13.7,
+   "peak": -0.5,
+   "sha256": "f6b5b03d3a546fda7063c67650fe575597d17f2d56631da4efd7b29863aef6fd"
+  },
   "mine_dirt": {
    "class": "oneshot",
    "level": -12.2,
    "peak": -1.9,
    "sha256": "2c1549a13d8e16f95ea1b57b5ce4c268c1232a428bc143307df593d27bd768ba"
+  },
+  "mine_dirt_2": {
+   "class": "oneshot",
+   "level": -13.4,
+   "peak": 0.0,
+   "sha256": "6ae6074348c843d59b3f16c5d9bcef910b7afe4b970ca43a0b649609e563aa07"
+  },
+  "mine_dirt_3": {
+   "class": "oneshot",
+   "level": -14.7,
+   "peak": -0.5,
+   "sha256": "43555880acae422eaa66a734513505fb186d6ca1352e0974aed480ba8b04c698"
   },
   "mine_metal": {
    "class": "oneshot",
@@ -1817,11 +1965,35 @@
    "peak": 0.9,
    "sha256": "9cbf8372bb17239d6bb377e4292bd07424cf3565217ef0568c7eb0c77eabe3d7"
   },
+  "mine_metal_2": {
+   "class": "oneshot",
+   "level": -15.5,
+   "peak": -0.3,
+   "sha256": "83929155e47bb7b122e2e0569be2fdce6abd0b1a32df22711d50603d3febfd1d"
+  },
+  "mine_metal_3": {
+   "class": "oneshot",
+   "level": -14.0,
+   "peak": -1.2,
+   "sha256": "7dc6cc0e153cfeb51eed5c7505649a232761e855be5dca03b373f4c71c0d399b"
+  },
   "mine_stone": {
    "class": "oneshot",
    "level": -13.5,
    "peak": -0.1,
    "sha256": "786219062bbf36c9664574d8251cfbd870be13dbcc8836f6ad06195e277b03d6"
+  },
+  "mine_stone_2": {
+   "class": "oneshot",
+   "level": -15.6,
+   "peak": -0.5,
+   "sha256": "20db9e96ba91bbe45987a26b4e2e25e8f141a0e5b03683d7525c6aed722e23ee"
+  },
+  "mine_stone_3": {
+   "class": "oneshot",
+   "level": -14.0,
+   "peak": -0.9,
+   "sha256": "1063f2b0139dc1f9ae1cbde81d1830b643d843ddacd58c83e474c5a482833e55"
   },
   "night_chimes": {
    "class": "bed",
@@ -2044,6 +2216,84 @@
    "level": -13.2,
    "peak": -0.9,
    "sha256": "e6ab6b1b50033f885e4fa3c6fe5820e29864eef31139a776e94334aa45ab67a2"
+  },
+  "place_crystal": {
+   "class": "oneshot",
+   "level": -13.3,
+   "peak": -1.4,
+   "sha256": "f5fd2e11ca6d3ba46f032b853adc0ee25e9af50d290d14516f274300508cf4f2"
+  },
+  "place_crystal_2": {
+   "class": "oneshot",
+   "level": -11.6,
+   "peak": -3.4,
+   "sha256": "9411a6b2c8d24873bf8ba40cc360c59b1fc829b64ee765178f48770bd39f0a83"
+  },
+  "place_dirt": {
+   "class": "oneshot",
+   "level": -15.2,
+   "peak": -1.3,
+   "sha256": "1f36994ee16d3783f8dadcc9a54b8fd9d3bbe2fd7daaff7f5ac657d93c9eeb1f"
+  },
+  "place_dirt_2": {
+   "class": "oneshot",
+   "level": -14.7,
+   "peak": -1.3,
+   "sha256": "4f57d13bdb966d57ae6bda194830ae147d87e83de0c34a63cd73720fd62c8934"
+  },
+  "place_dirt_3": {
+   "class": "oneshot",
+   "level": -14.6,
+   "peak": -1.1,
+   "sha256": "1098b7681e4df1b8a0ed0415aba59882559140518f37e554e641b7d10bcdcc90"
+  },
+  "place_glass": {
+   "class": "oneshot",
+   "level": -12.9,
+   "peak": -1.5,
+   "sha256": "5248ae69f4f306a806f538ccbe8fe3e3dc7117174e17cce63a6450b4e1ee42be"
+  },
+  "place_glass_2": {
+   "class": "oneshot",
+   "level": -13.5,
+   "peak": -1.2,
+   "sha256": "3a668766dd011d969c89afecf6d52cceb4ed1de9b38cd26f19bb2514a6815034"
+  },
+  "place_metal": {
+   "class": "oneshot",
+   "level": -14.9,
+   "peak": -1.1,
+   "sha256": "df8db21af7d01606be3ea57f0305b48b143b22e7d2113520ea4edcbf94c42850"
+  },
+  "place_metal_2": {
+   "class": "oneshot",
+   "level": -14.6,
+   "peak": -1.3,
+   "sha256": "d6e90a165d643e3137f44258a475c8041f2401c410c56a9fb978dd90a0b6faae"
+  },
+  "place_stone": {
+   "class": "oneshot",
+   "level": -14.8,
+   "peak": -1.4,
+   "sha256": "9e1dc8975a6ee03a5e51bb5321975755fca13cb4a8378906d3a1bc9c98bf49cf"
+  },
+  "place_stone_2": {
+   "class": "oneshot",
+   "level": -15.0,
+   "peak": -1.4,
+   "sha256": "944fa5ecbfe89d0794ab3a9b3d70e0ab1c475bafaca34400bee0d864a6957914"
+  },
+  "place_wood": {
+   "class": "oneshot",
+   "level": -16.0,
+   "peak": -1.3,
+   "sha256": "bf6a793041c5098438524bd8decaa59ff68838c3dde3edab77eb189a18b82637"
+  },
+  "place_wood_2": {
+   "class": "oneshot",
+   "level": -15.4,
+   "peak": -1.3,
+   "sha256": "a04697b16c58081b3c89aef06242e57318489bd50130a00950fc9f4dea905d6d"
   },
   "planet_scan_overview": {
    "class": "oneshot",
@@ -2699,6 +2949,36 @@
    "peak": -5.9,
    "sha256": "c989fb7b307ece587768709af8b0a053c163ebb986ac55ef7d894292cb59f50c"
   },
+  "sting_achievement": {
+   "class": "sting",
+   "level": -10.0,
+   "peak": 1.1,
+   "sha256": "664a4f0bcdabd0bca86d4992315021becdfc6d1fdad61ed12a5f14989982e0eb"
+  },
+  "sting_blueprint": {
+   "class": "sting",
+   "level": -8.7,
+   "peak": -3.8,
+   "sha256": "68ea958eaef2a65c69d7f522a554692792d21a6a66f78e07f19d34e95ac97f84"
+  },
+  "sting_home": {
+   "class": "sting",
+   "level": -10.1,
+   "peak": 0.3,
+   "sha256": "9a98fad8e70222b7bf1804c0413588c486c6da297cd83375f5ed4a4db80db10e"
+  },
+  "sting_new_planet": {
+   "class": "sting",
+   "level": -10.3,
+   "peak": 0.5,
+   "sha256": "f32bbebc40f679e9b3b00202d6eaeb723ba8c84f30853356bbb583707c540088"
+  },
+  "sting_site_found": {
+   "class": "sting",
+   "level": -10.1,
+   "peak": -3.7,
+   "sha256": "361884f25f804cf6960f6595e35e408987dedacce7e36529a3d49616c4df98ad"
+  },
   "storm_loop": {
    "class": "weather",
    "level": -18.6,
@@ -2777,6 +3057,12 @@
    "peak": -1.5,
    "sha256": "c1db0efea43d6f0cbb076aa5bb910367812f0267dfd9bdd448cc5acf09be65dd"
   },
+  "tech_unlock": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -3.6,
+   "sha256": "b487131e721e81585593d429e528a7b5a0712ab2c8e47f1bdeca3d4ecf6765f6"
+  },
   "terrain_blast": {
    "class": "oneshot",
    "level": -12.4,
@@ -2842,6 +3128,66 @@
    "level": -13.0,
    "peak": -0.7,
    "sha256": "0e2114c2c53423c75ab7f29d48014fe4d9923e92d2d295f098e425d43db5a7a9"
+  },
+  "ui_back": {
+   "class": "ui",
+   "level": -18.5,
+   "peak": -3.5,
+   "sha256": "818fb99c47d62ac5eaae8ed96db5a39dd835278b5e82bff32af8e1028ddd5306"
+  },
+  "ui_click": {
+   "class": "ui",
+   "level": -18.9,
+   "peak": -7.2,
+   "sha256": "de653eced64da908b2eea1876de2acb687c9ea7e3b50883716df8cd66f709d10"
+  },
+  "ui_close": {
+   "class": "ui",
+   "level": -18.4,
+   "peak": -9.1,
+   "sha256": "d5b0d0e3d1743a8281e397eb420db8a03a27d391bf7d2d97532b596f94f502b7"
+  },
+  "ui_confirm": {
+   "class": "ui",
+   "level": -18.4,
+   "peak": -5.8,
+   "sha256": "a0b77df248cac42bee41bd5276aa34c05dc50f86c2f687f657bf1223d2d6446d"
+  },
+  "ui_error": {
+   "class": "ui",
+   "level": -18.4,
+   "peak": -4.9,
+   "sha256": "5c0251a294d6dd778ce098aa36d636a52a76c2f3a13db655f504d47b74600ddb"
+  },
+  "ui_hover": {
+   "class": "ui",
+   "level": -18.5,
+   "peak": -1.6,
+   "sha256": "a0c4f6c82d8f7cc3e09b46098831e3198092211a56ad6f88c8c7a21333ef3738"
+  },
+  "ui_open": {
+   "class": "ui",
+   "level": -18.5,
+   "peak": -7.1,
+   "sha256": "9bac2b1af7e00781fd22d1cef741761bf972da620f0a2b6aa772db24ecf7f043"
+  },
+  "ui_success": {
+   "class": "ui",
+   "level": -18.4,
+   "peak": -3.8,
+   "sha256": "424cd10ed8a866ae0a423a984b57df8546827a92268adf055f80ddc7af04dcc6"
+  },
+  "ui_tab": {
+   "class": "ui",
+   "level": -18.5,
+   "peak": -3.2,
+   "sha256": "46c98375887b70d28208c439211cb3d4c5d023aae14b2b8144016db381c2dedf"
+  },
+  "ui_toast": {
+   "class": "ui",
+   "level": -18.5,
+   "peak": -7.1,
+   "sha256": "a6ddecbeadde0434a14ec8ea8075bd131f3e4b65032251c09416a93e8a3d6667"
   },
   "underwater_bubbles": {
    "class": "bed",
@@ -2945,11 +3291,23 @@
    "peak": -0.5,
    "sha256": "11c3cd0b75417efadad87a79c7fbd386db2cee12e9c53582dd81e47d8f443b2f"
   },
+  "weapon_gauss_2": {
+   "class": "oneshot",
+   "level": -13.3,
+   "peak": -1.3,
+   "sha256": "172d5cf91d97444424c320481eafa88888d3549fc1a5554cd6bb25fa9fad2c65"
+  },
   "weapon_laser": {
    "class": "oneshot",
    "level": -13.5,
    "peak": -1.1,
    "sha256": "e54961928f9d141098067640439b691907b3f92c31c4e302e5be0a89ed0cc1c7"
+  },
+  "weapon_laser_2": {
+   "class": "oneshot",
+   "level": -12.8,
+   "peak": 1.8,
+   "sha256": "0de31148cbd7c423d9199ca0fe950a4ebcc78b2948353b3e7100bc09a2956b01"
   },
   "weapon_plasma": {
    "class": "oneshot",
@@ -2957,11 +3315,29 @@
    "peak": -3.4,
    "sha256": "c71442878cba756d3f4b924bbc8611901b689bd06e1aaac5fb1dd9ed08d10453"
   },
+  "weapon_plasma_2": {
+   "class": "oneshot",
+   "level": -10.9,
+   "peak": -1.9,
+   "sha256": "20382ebae80ec2e86018272c20630a2233967278362ed4c1bdf1229ec8ae3ee3"
+  },
+  "weapon_plasma_3": {
+   "class": "oneshot",
+   "level": -13.7,
+   "peak": -0.8,
+   "sha256": "d0d22240ab7f4cc76fc6a411312dae9efc13bc49f783847a8cb60b67bf3f091e"
+  },
   "weapon_scrap": {
    "class": "oneshot",
    "level": -14.9,
    "peak": 0.5,
    "sha256": "4640e4bb36bb1918bcb63c242ee839042de1337aefa4a9e3ca99a7c292eabfd8"
+  },
+  "weapon_scrap_2": {
+   "class": "oneshot",
+   "level": -15.1,
+   "peak": -1.0,
+   "sha256": "6f6fce76801b12d760d48c0192cd5133a6584a39da9afd4a960e1b588f770ed0"
   },
   "wind_light": {
    "class": "weather",

@@ -89,5 +89,11 @@ public static partial class NetCodec
         Register(346, typeof(CallAdminIntent));              // Client -> Server (#3508 "Call an admin")
         Register(347, typeof(PlayerReportIntent));           // Client -> Server (#3508 a player report, also the portal mirror)
         Register(348, typeof(GuardianGiantStatus));          // Server -> Client (#3676 a guardian giant fight: move, aim, boss bar)
+
+        // The feel pass: a player's emotes and the body states other players see (a flinch, the fall, the rise). No
+        // protocol bump — an older server drops the intent (the emote shows on the sender only), an older client the
+        // broadcast. The next message after these takes 351.
+        Register(349, typeof(PlayerEmoteIntent));            // Client -> Server
+        Register(350, typeof(PlayerEmote));                  // Server -> Client
     }
 }

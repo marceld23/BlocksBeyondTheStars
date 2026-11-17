@@ -14,6 +14,7 @@ namespace BlocksBeyondTheStars.Client
         private void GraphicsRows(ref float y)
         {
             PictureRows(ref y);
+            FeelGraphicsRows(ref y); // the 3D view's own resolution (UiSettings.Feel.cs)
             ViewRows(ref y);
             EffectRows(ref y);
             HighDetailRows(ref y); // #3061: the desktop-class extras of the High preset

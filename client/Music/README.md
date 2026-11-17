@@ -1,7 +1,8 @@
 # Background-music library (source of truth)
 
-The 54 MP3 tracks of the **Tracks** music mode (40 Suno-generated + 14 composed with the ElevenLabs Music
-API via `tools/ai-assets/gen_music.py`, three of them for the Sounders story pack, #3363). See
+The 57 MP3 tracks of the **Tracks** music mode (40 Suno-generated + 17 composed with the ElevenLabs Music
+API via `tools/ai-assets/gen_music.py`, three of them for the Sounders story pack, #3363, and three for the
+on-foot tension pool). See
 [docs/developer/MUSIC_TRACKS.md](../../docs/developer/MUSIC_TRACKS.md) for every track's prompt, context
 mapping and the pools in `MusicLibrary`.
 

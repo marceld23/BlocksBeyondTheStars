@@ -322,6 +322,7 @@ namespace BlocksBeyondTheStars.Client
                 else if ((apTarget - _ship.transform.localPosition).sqrMagnitude <= apArriveSq)
                 {
                     SetAutopilot(false); // arrived — the E dock/land prompt takes over
+                    StopFlightDrift();   // the autopilot parks the ship: no coasting on past the dock range
                 }
                 else
                 {
@@ -344,12 +345,14 @@ namespace BlocksBeyondTheStars.Client
                 _yaw += InputMap.LookX() * LookSpeed * _shipTurnMul;
                 _pitch = Mathf.Clamp(_pitch - InputMap.LookY() * LookSpeed * _shipTurnMul, -80f, 80f);
                 fwd = CaptureForward();
-                strafe = InputMap.MoveX();
+                strafe = InputMap.MoveXRaw(); // raw: the ship's own spool-up shapes the motion (SpaceView.Feel.cs)
             }
 
+            // The ship has mass: the thrust builds up, a let-go stick coasts out, the hull leans into the turn. The
+            // heading it FLIES on is the unrolled one.
             var rot = Quaternion.Euler(_pitch, _yaw, 0f);
-            _ship.transform.localRotation = rot;
-            var move = rot * (Vector3.forward * fwd + Vector3.right * strafe) * (MoveSpeed * _shipSpeedMul * Time.deltaTime);
+            var move = FlightStep(rot, fwd, strafe);
+            _ship.transform.localRotation = BankedRotation(rot);
             var pos = _ship.transform.localPosition + move;
             if (pos.magnitude > FlightClamp)
             {
@@ -398,6 +401,7 @@ namespace BlocksBeyondTheStars.Client
             // and slides along it instead of drifting through; ramming one fast still costs shield/hull (the server decides).
             pos = ResolveRockMove(_ship.transform.localPosition, pos);
 
+            SettleFlightVelocity(_ship.transform.localPosition, pos); // what a body, a hull or a rock blocked is gone
             _ship.transform.localPosition = pos;
 
             // System-scale flight: the nearest other body within approach range is the land target; press E
@@ -608,17 +612,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var sp = _ship.transform.localPosition;
-            var rot = _ship.transform.localRotation;
+            var rot = CameraHeading(); // the heading without the hull's lean (SpaceView.Feel.cs)
             if (_viewMode == 1)
             {
-                // Cockpit: just ahead of the ship, facing its heading.
+                // Cockpit: just ahead of the ship, facing its heading — the horizon takes a share of the lean.
+                _chaseValid = false;
                 Camera.transform.localPosition = sp + rot * new Vector3(0f, 0.7f, 1.9f);
-                Camera.transform.localRotation = rot;
+                Camera.transform.localRotation = FxKit.CameraMotion
+                    ? rot * Quaternion.Euler(0f, 0f, _bank * Feel.FlightFeel.CockpitBankShare)
+                    : rot;
             }
             else
             {
-                // Third-person: behind and above, looking at the ship.
-                Camera.transform.localPosition = sp + rot * new Vector3(0f, 4.5f, -13f);
+                // Third-person: behind and above, looking at the ship; the camera trails its place a little.
+                Camera.transform.localPosition = ChaseCamera(sp + rot * new Vector3(0f, 4.5f, -13f));
                 Camera.transform.localRotation = Quaternion.LookRotation((sp + Vector3.up * 0.5f) - Camera.transform.localPosition, Vector3.up);
             }
 

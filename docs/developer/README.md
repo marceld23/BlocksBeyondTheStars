@@ -55,6 +55,9 @@ refreshed 2026-10-23.
 - [UI_LAYOUT.md](UI_LAYOUT.md) — where windows go: the menu template (header, button tiers, icon meanings) and the HUD zone plan.
 - [INPUT_AND_CONTROLLER.md](INPUT_AND_CONTROLLER.md) — the input abstraction (`IInputSource`): keyboard/mouse,
   gamepad (bindings + glyphs), on-screen touch controls and WebGL text entry.
+- [GAME_FEEL.md](GAME_FEEL.md) — the feel pass: walk curve, coyote time and jump buffer, step smoothing, arcade ship
+  flight with bank, sound takes / interface set / musical accents / tension music, tooltips, drag and drop, the emote
+  wheel and its two messages, body states, blinking faces, contact shadows; what is not done.
 - [URP_MIGRATION.md](URP_MIGRATION.md) — the URP rendering setup (custom unlit voxel shaders, post, shadows).
 - [ADVANCED_GRAPHICS.md](ADVANCED_GRAPHICS.md) — graphics: what shipped + the remaining roadmap.
 - [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) — UI + render concept, done vs. open.

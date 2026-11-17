@@ -208,6 +208,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerBodyPaintReceived += OnBodyPaint;
                 Game.Network.PlayerToolLookReceived += OnToolLook;
                 Game.Network.WorldResetReceived += OnWorldReset;
+                Game.Network.PlayerEmoteReceived += OnEmote; // emotes and body states (RemotePlayers.Feel.cs)
                 _subscribed = true;
             }
 
@@ -483,6 +484,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             r.Avatar.SetLookPitch(m.Pitch);
+            PoseSwimming(r.Avatar); // in water up to the chest: it swims (RemotePlayers.Feel.cs)
 
             // Stealth field active, or the player is up in SPACE (the server stealth-marks orbiters so
             // no frozen ghost avatar keeps standing at the pad they launched from): hide avatar + plate.
@@ -687,6 +689,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerBodyPaintReceived -= OnBodyPaint;
                 Game.Network.PlayerToolLookReceived -= OnToolLook;
                 Game.Network.WorldResetReceived -= OnWorldReset;
+                Game.Network.PlayerEmoteReceived -= OnEmote;
             }
         }
 

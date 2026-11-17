@@ -268,7 +268,7 @@ namespace BlocksBeyondTheStars.Client
             _researchAge = 0f;
             _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
             _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
-            ClientAudio.Instance?.Cue("ui_success", 0.9f);
+            ClientAudio.Instance?.Sting("sting_achievement", "ui_success"); // the achievement's own musical accent
         }
 
         private static readonly Color RewardWaitingOrange = new Color(1f, 0.6f, 0.25f);

@@ -232,6 +232,7 @@ namespace BlocksBeyondTheStars.Client
             // Hotbar slot actions: swap/colour/form on the selected slot, straight from the HUD.
             var hotbarActions = root.AddComponent<HotbarActionUi>();
             hotbarActions.Game = boot;
+            root.AddComponent<EmoteWheelUi>().Game = boot; // the emote wheel (wave, dance, sit …)
 
             // Floating beacon labels above their blocks in the world (item 37).
             var beaconView = root.AddComponent<BeaconView>();

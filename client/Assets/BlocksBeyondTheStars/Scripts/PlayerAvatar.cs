@@ -232,6 +232,7 @@ namespace BlocksBeyondTheStars.Client
             LowerFace lowerFace = LowerFace.Breather)
         {
             EnsureTextures();
+            BlobShadow.Attach(gameObject, null, 0.55f); // a contact shadow where the sun's does not reach
             _suit = spacesuit;
             _phase = (GetEntityId().GetHashCode() & 0x3ff) * 0.11f;
             _skinColor = skin;
@@ -813,6 +814,10 @@ namespace BlocksBeyondTheStars.Client
                 nod = AvatarGestures.Nod(1f - Mathf.Clamp01(_nodTimer / AvatarGestures.NodSeconds));
             }
 
+            // The feel pass: body states (down, sitting, swimming), emotes, eased legs, the face (PlayerAvatar.Feel.cs).
+            PoseFeel(dt, t, moving, airborne, ref armL, ref armR, ref elbowL, ref elbowR, ref legL, ref legR, ref kneeL, ref kneeR,
+                ref rollL, ref rollR, ref yawL, ref yawR, ref headYaw, ref nod);
+
             // #2322: on the rope the right arm points at the anchor, straight — the rope leaves the hand.
             if (_roped)
             {
@@ -852,7 +857,8 @@ namespace BlocksBeyondTheStars.Client
             // 10 Hz presence steps read as a glance, not a twitch; the idle look-around keeps riding on the yaw.
             float wantPitch = _lying ? 0f : Mathf.Clamp(_lookPitch, -LookPitchLimit, LookPitchLimit);
             _headPitch = dt > 0f ? Mathf.Lerp(_headPitch, wantPitch, 1f - Mathf.Exp(-dt * 10f)) : wantPitch;
-            _crouchBlend = dt > 0f ? Mathf.MoveTowards(_crouchBlend, _crouched ? 1f : 0f, dt * 6f) : (_crouched ? 1f : 0f);
+            bool low = _crouched || _sitting || _down; // the folded legs are shorter: the caller lowers the root for all three
+            _crouchBlend = dt > 0f ? Mathf.MoveTowards(_crouchBlend, low ? 1f : 0f, dt * 6f) : (low ? 1f : 0f);
 
             // #2593: the head turns towards someone (SetLookYaw) instead of the idle look-around, eased both ways; with no
             // target the blend sinks to 0 and the yaw is the pose's own again.
@@ -904,40 +910,7 @@ namespace BlocksBeyondTheStars.Client
         /// player nearby. NaN frees the head again. Eased both ways; ignored while lying.</summary>
         public void SetLookYaw(float yaw) => _lookYawTarget = yaw;
 
-        /// <summary>#2593: a greeting wave (~1.2 s): one arm out to the side, the forearm up and wagging. The free hand —
-        /// <paramref name="leftHand"/> when the right one holds a tool. Ignored while lying or while a wave plays.</summary>
-        public void Wave(bool leftHand = false)
-        {
-            if (_lying || _waveTimer > 0f)
-            {
-                return;
-            }
-
-            _waveLeft = leftHand;
-            _waveTimer = AvatarGestures.WaveSeconds;
-            _cheerTimer = 0f; // one arm gesture at a time
-        }
-
-        /// <summary>#2593: a short nod (~0.6 s) — a dialog answer, a trade. Ignored while lying.</summary>
-        public void Nod()
-        {
-            if (!_lying)
-            {
-                _nodTimer = AvatarGestures.NodSeconds;
-            }
-        }
-
-        /// <summary>#2593: a cheer (~1.2 s): both arms up in a V, pumping — the village festival. Ignored while lying.</summary>
-        public void Cheer()
-        {
-            if (_lying)
-            {
-                return;
-            }
-
-            _cheerTimer = AvatarGestures.CheerSeconds;
-            _waveTimer = 0f;
-        }
+        // #2593: the greeting gestures Wave / Nod / Cheer live in PlayerAvatar.Feel.cs, next to the emotes built on them.
 
         /// <summary>#2647: a hunter's bow shot (~0.9 s, <see cref="AvatarGestures.BowShot"/>): the bow arm comes up at the
         /// target, the string hand draws and lets go after <see cref="AvatarGestures.BowReleaseSeconds"/> — when the arrow

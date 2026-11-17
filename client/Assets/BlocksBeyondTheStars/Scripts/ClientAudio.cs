@@ -215,8 +215,8 @@ namespace BlocksBeyondTheStars.Client
             _boat.clip = _clips.TryGetValue("boat_engine_loop", out var boatClip) ? boatClip : _speeder.clip;
             _boat.Play();
 
-            _ok = Tone(660f, 0.12f, 0.4f);
-            _err = Tone(110f, 0.20f, 0.5f);
+            _ok = Recorded("ui_confirm") ?? Tone(660f, 0.12f, 0.4f); // the recorded UI set, else the old tones
+            _err = Recorded("ui_error") ?? Tone(110f, 0.20f, 0.5f);
             _blip = Tone(900f, 0.06f, 0.35f);
 
             _lowpass = gameObject.AddComponent<AudioLowPassFilter>();
@@ -261,7 +261,7 @@ namespace BlocksBeyondTheStars.Client
             TickAudioRelease(Time.unscaledDeltaTime); // #3580
             float sfx = SfxVol();
             _duck = Mathf.MoveTowards(_duck, _duckTarget, Time.deltaTime / DuckFadeSeconds);
-            float bed = sfx * _duck; // #2495: the ambience beds' level (ducked under a cutscene)
+            float bed = sfx * _duck * AmbienceVol(); // #2495: the ambience beds' level (ducked under a cutscene)
             TickMix(bed, _ambienceId); // #3241 vacuum + suit tone, #3247 rain on the hull
 
             // Ship interior hum swells while aboard, fades out on foot.
@@ -760,7 +760,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Plays a 2D one-shot by clip name (no-op if missing).</summary>
         public void Cue(string id, float vol = 1f)
         {
-            if (_clips.TryGetValue(id, out var clip))
+            if (_clips.TryGetValue(Take(id), out var clip)) // a rotating family plays its next take (ClientAudio.Takes.cs)
             {
                 Play2D(clip, vol);
             }
@@ -776,7 +776,7 @@ namespace BlocksBeyondTheStars.Client
         /// baked variant sounds the same on every platform.</summary>
         public void At(string id, Vector3 pos, float pitch = 1f, float vol = 1f, bool echo = false)
         {
-            if (!_clips.TryGetValue(id, out var clip) || clip == null)
+            if (!_clips.TryGetValue(Take(id), out var clip) || clip == null)
             {
                 return;
             }
@@ -984,9 +984,9 @@ namespace BlocksBeyondTheStars.Client
             var at = Game != null
                 ? Game.ScenePos(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f)
                 : new Vector3(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
-            // Mined → the material's own break sound (#2151: it used to be a random pick of the four); placed → the knock.
+            // Mined → the material's own break sound (#2151: it used to be a random pick of the four); placed → its knock.
             bool mined = newId.Value == 0;
-            At(mined ? MineCue(oldKey) : "place_block", at, mined ? 0.92f + (float)_rng.NextDouble() * 0.16f : 1f);
+            At(mined ? MineCue(oldKey) : PlaceCue(newKey), at, mined ? 0.92f + (float)_rng.NextDouble() * 0.16f : 1f);
         }
 
         /// <summary>The break sound of a mined block by its material (key heuristic, like the footsteps): crystals and

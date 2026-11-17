@@ -22,8 +22,8 @@ namespace BlocksBeyondTheStars.Client
         public static readonly Color Panel = new Color(0.05f, 0.12f, 0.24f, 0.80f);
         public static readonly Color PanelFill = new Color(1f, 1f, 1f, 1f);
         public static readonly Color TextCol = new Color(0.86f, 0.93f, 1.00f);
-        public static readonly Color Ok = new Color(0.35f, 0.95f, 0.55f);
-        public static readonly Color Warn = new Color(1.00f, 0.72f, 0.28f); // amber — caution / developer-tool labels
+        public static Color Ok => UiPalette.Ok;     // green — or the player's colour-vision palette (UiKit.Feel.cs)
+        public static Color Warn => UiPalette.Warn; // amber — caution / developer-tool labels
         public static readonly Color TabLocked = new Color(0.30f, 0.34f, 0.42f, 0.85f); // dimmed tab whose context isn't met (stays clickable)
 
         /// <summary>The ONE dim level behind a menu dialog (#588). The menu stays readable as context but is
@@ -947,7 +947,7 @@ namespace BlocksBeyondTheStars.Client
             c.fadeDuration = 0.08f;
             btn.colors = c;
             go.AddComponent<UiHover>();           // hover blip
-            btn.onClick.AddListener(UiSound.Click); // click feedback
+            UiClickFx.Attach(btn); btn.onClick.AddListener(UiSound.Click); // click feedback: the press + outline flash, the sound
             if (onClick != null)
             {
                 btn.onClick.AddListener(() => onClick());

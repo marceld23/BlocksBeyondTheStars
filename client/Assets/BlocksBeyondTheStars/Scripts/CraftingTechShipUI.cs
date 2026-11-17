@@ -459,7 +459,7 @@ namespace BlocksBeyondTheStars.Client
 
             _celebrateKey = fresh;
             _celebrateUntil = Time.unscaledTime + 3f;
-            ClientAudio.Instance?.Cue("tech_unlock", 0.8f);
+            ClientAudio.Instance?.Sting("sting_blueprint", "tech_unlock", 0.8f); // the accent, else the plain unlock chime
             SpawnFloatLabel(L($"blueprint.{fresh}.name") + " — " + L("ui.tech.unlocked"), UiKit.Cyan);
             _lastDataHash = 0; // rebuild so the unlocked node pulses + statuses refresh
         }

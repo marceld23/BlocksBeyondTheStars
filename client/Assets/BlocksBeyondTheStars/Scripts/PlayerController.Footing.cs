@@ -44,6 +44,7 @@ namespace BlocksBeyondTheStars.Client
             transform.position = pos;
             _controller.enabled = true;
             _verticalVelocity = 0f;
+            ResetFeel(); // no leftover walk, jump grace or camera lag across a teleport
         }
 
         // --- Never fall out of the world -----------------------------------------------------------------

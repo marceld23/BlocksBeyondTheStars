@@ -41,6 +41,7 @@
   { "id": "combat" },
   { "id": "ships-modules" },
   { "id": "alliances" },
+  { "id": "emotes" },
   { "id": "arcade" },
   { "id": "house-rules" }
 ]
