@@ -61,7 +61,12 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so f
   the head and throw it (Q lifts, the attack key throws; damage by material; the block lands as an item), #3767 the
   figure's voice (a pitch and an age slider in the skin editor, heard by others on a hit and a fall), #3769 NPCs
   startled by a shot or swing nearby (funny, never afraid) plus framed speech bubbles and a plate under the status
-  toast, #3770 a submitted skin as the first free template (templates may carry a face).
+  toast.
+- ✅ **#3770 A submitted skin is the first free template.** The note on the submission asked for "a template for people
+  who are not good at this", but the only adoption path made a pioneer NPC's look of it. A template may carry a face
+  now (`SkinDefinition.Face`), `tools/gen_festive_skins.py --from-skin` adopts a skin 1:1, and the **Green spacesuit**
+  is in `data/skins.json`, free for everybody (credited under the nickname in `NOTICES.md`). The submit dialog names
+  both uses (template or pioneer look); all texts in 14 languages.
 - 📋 **Open decision for the maintainer (from #3750):** natural healing of 2 health a second on a breathable world also
   makes every rolled hunter with 2 health a second harmless there. Whether healing should pause for a few seconds
   after a hit is a balance decision for the whole game — not changed.

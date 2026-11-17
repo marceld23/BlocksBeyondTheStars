@@ -62,7 +62,8 @@ namespace BlocksBeyondTheStars.Client
             => string.IsNullOrEmpty(unlock) || (unlocked != null && unlocked(cosmeticKey));
 
         /// <summary>Puts a skin template onto <paramref name="look"/>: each colour it names (an empty entry keeps the
-        /// player's own) and the four body paintings; the face stays the player's.</summary>
+        /// player's own), the four body paintings and — when the template carries one (#3770) — its face; without one the
+        /// face stays the player's.</summary>
         public static void ApplySkin(SkinDefinition skin, AvatarOutfit look)
         {
             if (skin == null || look == null)
@@ -84,7 +85,16 @@ namespace BlocksBeyondTheStars.Client
             {
                 look.SetBodyPaint(part, part < paint.Length ? paint[part] ?? string.Empty : string.Empty);
             }
+
+            if (skin.HasFace)
+            {
+                look.FacePixels = skin.Face;
+            }
         }
+
+        /// <summary>The status line's key after a template was put on: its face came along, or the player's own stayed.</summary>
+        public static string WornKey(SkinDefinition skin)
+            => skin != null && skin.HasFace ? "ui.avatar.skin_worn_face" : "ui.avatar.skin_worn";
 
         /// <summary>Colour slot 0 skin, 1 torso, 2 arms, 3 legs of an outfit.</summary>
         private static void SetColor(AvatarOutfit look, int slot, Color color)

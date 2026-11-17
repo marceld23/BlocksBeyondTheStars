@@ -199,6 +199,12 @@ public sealed partial class GameContent
                 problems.Add($"{ctx}: colors must be empty or four entries, each \"\" (keep the player's own) or #rrggbb.");
             }
 
+            string face = s.Face ?? string.Empty; // #3770: a template may carry a painted face
+            if (face.Length > 0 && (face.Length != BodyPaint.ChunkPixels || !IsPixelAlphabet(face)))
+            {
+                problems.Add($"{ctx}: face must be empty or {BodyPaint.ChunkPixels} pixel-alphabet characters (0-9a-v).");
+            }
+
             if (s.Paint.Length is not (0 or BodyPaint.PartCount))
             {
                 problems.Add($"{ctx}: paint must be empty or {BodyPaint.PartCount} entries (torso, arms, legs, helmet).");

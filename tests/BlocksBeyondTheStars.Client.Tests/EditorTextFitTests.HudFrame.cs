@@ -23,7 +23,7 @@ public sealed partial class EditorTextFitTests
         Wrap("Paint editor no frames (392 × 120)", 392f, 6, 16, "ui.hudframe.none"),
         Wrap("Paint editor frame / skin status (the shell's status bar)", FaceStatusW, 2, 16, "ui.hudframe.saved", "ui.hudframe.updated",
             "ui.hudframe.renamed", "ui.hudframe.deleted", "ui.hudframe.limit", "ui.hudframe.select_first", "ui.hudframe.name_taken",
-            "ui.hudframe.need_name", "ui.hudframe.empty", "ui.hudframe.worn", "ui.hudframe.template_worn", "ui.avatar.skin_worn")
+            "ui.hudframe.need_name", "ui.hudframe.empty", "ui.hudframe.worn", "ui.hudframe.template_worn", "ui.avatar.skin_worn", "ui.avatar.skin_worn_face")
             with { Sample = "Lichterkette" },
         Button("Paint editor template rows (392)", 392f, 44f, "hudframe.*.name", "skin.*.name"),
         Input("Submit dialog name field (a frame's default name)", 828f, 18, "ui.hudframe.default_name"),

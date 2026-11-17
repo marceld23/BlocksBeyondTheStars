@@ -30,7 +30,7 @@ public sealed partial class EditorTextFitTests
         Wrap("AvatarEditor status (the shell's status bar)", FaceStatusW, 2, 16, "ui.avatar.need_name",
             "ui.ed.export_failed_hint", "ui.avatar.outfit_deleted", "ui.avatar.outfit_limit", "ui.avatar.outfit_loaded",
             "ui.avatar.outfit_name_taken", "ui.avatar.outfit_renamed", "ui.avatar.outfit_saved", "ui.avatar.outfit_select_first",
-            "ui.avatar.outfit_updated", "ui.avatar.outfit_worn", "ui.avatar.skin_worn") with { Sample = "Mein Skin" },
+            "ui.avatar.outfit_updated", "ui.avatar.outfit_worn", "ui.avatar.skin_worn", "ui.avatar.skin_worn_face") with { Sample = "Mein Skin" },
     }.Concat(WhenMerged(
         Button("AvatarEditor Figure tab", 170f, 52f, "ui.avatar.figure_tab"),
         Wrap("AvatarEditor export done (the shell's status bar)", FaceStatusW, 2, 16, "ui.avatar.exported_folder")));

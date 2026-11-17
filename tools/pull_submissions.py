@@ -19,6 +19,8 @@ submission is the one step every export takes:
                          {structure.json, layout.json[, kit.json]}                         then tools/merge_structure.py <dir>
     --kind avatar     -> <out>/avatar_exports/<key>/skin.json
                          then tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --key <key> --author <nickname>
+                         (a pioneer's look) or tools/gen_festive_skins.py --from-skin <dir>/skin.json --key <key>
+                         (a template every player can pick, kept 1:1 with its face)
     --kind hud        -> <out>/hud_exports/<key>/hud.json  (the four frame tiles, the twinkle, the size)
                          then tools/gen_hud_frames.py --from-hud <dir>/hud.json --key <key>
 
@@ -246,6 +248,10 @@ def fetch_creation(base, key, item, block, kind, out_root, block_keys):
         notes.append(
             f'adopt: python tools/gen_pioneer_skins.py --from-skin "{target / "skin.json"}" '
             f"--key {creation_key} --author \"{info['author'] or 'player'}\""
+        )
+        notes.append(
+            f'or, as a template for everybody: python tools/gen_festive_skins.py --from-skin "{target / "skin.json"}" '
+            f"--key <template_key>"
         )
     if kind == "hud":
         notes.append(f'adopt: python tools/gen_hud_frames.py --from-hud "{target / "hud.json"}" --key {creation_key}')

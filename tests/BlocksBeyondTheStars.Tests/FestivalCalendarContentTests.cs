@@ -110,6 +110,40 @@ public sealed class FestivalCalendarContentTests
         Assert.Contains("colors", SkinProblem(content, s => s.Colors = new[] { "white", "", "", "" }));
         Assert.Contains("paint must be", SkinProblem(content, s => s.Paint = new[] { torso }));
         Assert.Contains("paint part 1", SkinProblem(content, s => s.Paint = new[] { torso, torso, "", "" }));
+
+        // #3770: a template may carry a painted face — one 32 x 32 chunk, or none.
+        string face = new('3', BodyPaint.ChunkPixels);
+        content.SetSkins(new SkinCatalog { Skins = { new SkinDefinition { Key = "christmas", Unlock = "calendar", Paint = new[] { torso, "", "", "" }, Face = face } } });
+        content.Validate();
+        Assert.True(content.Skins[0].HasFace);
+        Assert.Contains("face must be", SkinProblem(content, s => s.Face = face.Substring(1)));
+        Assert.Contains("face must be", SkinProblem(content, s => s.Face = new string('w', BodyPaint.ChunkPixels)));
+    }
+
+    [Fact]
+    public void TheShippedSkinTemplates_AreNamedInBothLanguages_AndAFreeOneBringsAWholeLook()
+    {
+        // #3770: the first free template is a player's submitted skin — the three suit colours, all four paintings and
+        // its painted face; the skin colour stays the wearer's own. Its name is the game's, never the player's.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        Assert.NotEmpty(content.Skins);
+        foreach (var locale in new[] { GameLocale.English, GameLocale.German })
+        {
+            var loc = content.CreateLocalizer(locale);
+            Assert.All(content.Skins, s => Assert.False(loc.Get(s.NameKey).StartsWith("[", StringComparison.Ordinal), s.NameKey));
+        }
+
+        var suit = Assert.Single(content.Skins, s => s.Key == "green_spacesuit");
+        Assert.Equal(string.Empty, suit.Unlock); // free: it shows in the main menu's designer too
+        Assert.True(suit.HasFace);
+        Assert.Equal(BodyPaint.ChunkPixels, suit.Face.Length);
+        Assert.Equal(BodyPaint.PartCount, suit.Paint.Length);
+        Assert.All(suit.Paint, p => Assert.False(string.IsNullOrEmpty(p)));
+        Assert.Equal(string.Empty, suit.Colors[0]);
+        Assert.Equal("Green spacesuit", content.CreateLocalizer(GameLocale.English).Get(suit.NameKey));
+        Assert.Equal("Grüner Raumanzug", content.CreateLocalizer(GameLocale.German).Get(suit.NameKey));
+
+        Assert.False(Assert.Single(content.Skins, s => s.Key == "christmas").HasFace); // the festive outfit keeps the wearer's face
     }
 
     [Fact]

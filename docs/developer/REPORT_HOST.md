@@ -150,7 +150,10 @@ is the export bundle as a JSON document `{ formatVersion, kind, key, files: { "<
   into `analysis/submissions/{ship,station,settlement,avatar}_exports/<key>/` (the editors' own export layout, plus a
   `submission.json` with author, report id, `basedOn` and the **unknown block keys** checked against
   `data/blocks.json`), then `tools/merge_ship.py` / `tools/merge_structure.py <dir>` (the latter also folds a
-  `kit.json`) or `tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --key … --author <nickname>`. Names are never
+  `kit.json`) or `tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --key … --author <nickname>` (a pioneer's look) — or, for a
+  skin that should be a **template every player can pick** (#3770),
+  `tools/gen_festive_skins.py --from-skin <dir>/skin.json --key …` (kept 1:1 with its face in `data/skins.json`; add
+  `skin.<key>.name`). Names are never
   copied into the locale files automatically; ship stats are re-balanced by hand at merge. Credit the author in
   `NOTICES.md` under the nickname and set *fixed in version*.
 - **Deploy order:** the reports image must be deployed **before** a client release that sends these kinds — an older

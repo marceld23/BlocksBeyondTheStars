@@ -309,6 +309,14 @@ parts:
   `uv run --no-project python tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --author <nickname> [--key …] [--hair …]`
   adds it the same way (the key defaults to the file's). Look at the face and the paintings first — it is a player's pixel art.
 
+  **As a template instead** (#3770): a pioneer's look is recoloured, snapped to the palette and given hair. A skin its
+  painter wants players to wear goes into `data/skins.json` with
+  `uv run --no-project python tools/gen_festive_skins.py --from-skin <dir>/skin.json --key <key> [--unlock calendar]` —
+  the three suit colours, the four paintings and the face 1:1 (`SkinDefinition.Face`; the skin colour stays the
+  wearer's own), free for everybody unless `--unlock calendar`. Add `skin.<key>.name` (the game's name for it, never
+  the player's) in all languages and the credit under the nickname in `NOTICES.md`. The character editor lists at most
+  three templates (`FaceEditor.MaxTemplateRows`).
+
 ## Tests
 
 `LodgeTests`, `LodgeResidentTests`, `NpcWorkTests` (§2–§4), `NpcGatheringTests`, `NpcWoodcuttingTests`, `NpcMiningTests`,

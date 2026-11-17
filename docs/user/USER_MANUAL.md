@@ -5053,14 +5053,17 @@ look up: what a mix does follows from what goes in, and the same things always g
   server-persistent, so your look follows you to any world. When you put a whole outfit on in the game your own
   figure changes at once; the other players' screens catch up over the next few seconds, one part at a time.
   When you join a world, the others see your whole look straight away — colours, face and every painted part.
-- **Skin templates** — ready-made looks under the outfits (**SKIN TEMPLATES**): the **Christmas outfit** (green,
-  white and gold with red buttons) appears there once door 6 of the **Advent calendar** is open in this world. A click
-  puts it on — the four colours and all four paintings; your **face stays your own** — and you can paint on from there
-  like on any outfit. A template cannot be deleted; save your changes as your own outfit.
+- **Skin templates** — ready-made looks under the outfits (**SKIN TEMPLATES**), for everybody who would rather start
+  from something finished: the **Green spacesuit** (a whole look with a dark visor face, painted by a player and sent
+  in with *Submit*) is always there, in the main menu's designer too; the **Christmas outfit** (green, white and gold
+  with red buttons) appears once door 6 of the **Advent calendar** is open in this world. A click puts a template on —
+  the colours and all four paintings. A template **with a face** brings it along (the status line says so); with one
+  that has none your **face stays your own**. You can paint on from there like on any outfit. A template cannot be
+  deleted; save your changes as your own outfit.
 - **Submit** — the header button sends your skin (from the figure tabs) or your HUD frame (from the **HUD frame** tab)
   to the developers, in the menu and inside a world alike — the same dialog as the other editors (nickname, an
-  optional note, three confirmations; no e-mail, no real name, no location). Good ones may become templates for
-  everybody.
+  optional note, three confirmations; no e-mail, no real name, no location). A good skin may become a **template for
+  everybody** or the look of pioneers in other worlds; a good frame a template.
 
 ### HUD frame (a decorated edge around your view)
 - An idea of the school club: you can put a **frame around the edge of your screen** — the inside of your helmet's
