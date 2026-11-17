@@ -1770,6 +1770,7 @@
   "npc.theme.traders": "Торговец",
   "npc.theme.researchers": "Исследователь",
   "npc.role.settler": "Поселенец",
+  "npc.role.station_crew": "Экипаж",
   "npc.role.guardian": "Страж",
   "npc.role.sounder": "Sounder",
   "npc.role.sounder_echo": "Эхо",

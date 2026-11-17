@@ -836,8 +836,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (_held != null && !_fightGloves) // the gloves are turned onto the hands once (BuildAvatarGlove)
             {
-                // #2777: undo the arm's pitch on the held item, so a carried tool points ahead, not at the sky.
-                _held.transform.localRotation = Quaternion.Euler(-(armR + elbowR) * level, 0f, 0f);
+                // #2777: undo the arm's pitch on the held item, so a carried tool points ahead, not at the sky — a blade
+                _held.transform.localRotation = Quaternion.Euler((-(armR + elbowR) - _carryTip) * level, 0f, 0f); // or a pick tipped up (#3763)
             }
 
             _armL.localRotation = Quaternion.Euler(armL, yawL, rollL);

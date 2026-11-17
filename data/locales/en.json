@@ -1770,6 +1770,7 @@
   "npc.theme.traders": "Trader",
   "npc.theme.researchers": "Researcher",
   "npc.role.settler": "Settler",
+  "npc.role.station_crew": "Crew",
   "npc.role.guardian": "Guardian",
   "npc.role.sounder": "Sounder",
   "npc.role.sounder_echo": "Echo",

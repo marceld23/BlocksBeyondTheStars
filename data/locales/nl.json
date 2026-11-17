@@ -1770,6 +1770,7 @@
   "npc.theme.traders": "Handelaar",
   "npc.theme.researchers": "Onderzoeker",
   "npc.role.settler": "Kolonist",
+  "npc.role.station_crew": "Bemanning",
   "npc.role.guardian": "Bewaker",
   "npc.role.sounder": "Sounder",
   "npc.role.sounder_echo": "Echo",

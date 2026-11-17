@@ -1770,6 +1770,7 @@
   "npc.theme.traders": "무역상",
   "npc.theme.researchers": "연구원",
   "npc.role.settler": "정착민",
+  "npc.role.station_crew": "승무원",
   "npc.role.guardian": "수호자",
   "npc.role.sounder": "Sounder",
   "npc.role.sounder_echo": "에코",

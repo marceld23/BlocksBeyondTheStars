@@ -205,7 +205,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             TriggerSwing(); // keep the mining chop going while held
-            if (drill)
+            if (drill && !_heldPick) // #3763: the wooden pickaxe is a drill by its tool kind, but nothing in it whirrs
             {
                 ClientAudio.Instance?.DrillTick();
             }
@@ -261,6 +261,7 @@ namespace BlocksBeyondTheStars.Client
 
         private float _nextDrillSpark;
         private float _nextDrillMine;
+        private bool _heldPick; // the selected item is held as a pick (#3763, set in RefreshHeldItem)
 
         /// <summary>True if the selected hotbar item is a drill (its primary action mines).</summary>
         private bool HoldingDrill()

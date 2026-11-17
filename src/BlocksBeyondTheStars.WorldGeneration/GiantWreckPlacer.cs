@@ -141,6 +141,31 @@ public static class GiantWreckPlacer
         return sorted[sorted.Count - 1];
     }
 
+    /// <summary>
+    /// #3764 (Justus: "in every system I have a wreck I already know from the first one"): the ships a wreck may still be
+    /// when <paramref name="taken"/> names the designs other wrecks of the world already are — every candidate not taken,
+    /// or all of them once none is left. Each wreck used to pick on its own, so two wrecks of one world were the same ship
+    /// about one time in four; with this the weights only decide among the free designs.
+    /// </summary>
+    public static IReadOnlyList<StructureTemplate> Untaken(IReadOnlyList<StructureTemplate> candidates, ICollection<string>? taken)
+    {
+        if (taken is null || taken.Count == 0)
+        {
+            return candidates;
+        }
+
+        var free = new List<StructureTemplate>();
+        foreach (var t in candidates)
+        {
+            if (!taken.Contains(t.Key))
+            {
+                free.Add(t);
+            }
+        }
+
+        return free.Count > 0 ? free : candidates;
+    }
+
     /// <summary>How many giant wrecks a fixed system other than the start system rolls: none most of the time, then one
     /// (up to <see cref="GiantShipRules.MaxPerSystem"/>).</summary>
     private static int CountFor(long seed, int index, double odds)

@@ -1667,7 +1667,7 @@ players.
   + 6 plant fibre — the crafting list shows it as **Wooden boat** next to the workshop's **Boat**; both make the
   same boat), the **wooden tools** and all three **baits** (forage bait, meat bait, nectar lure). The wooden
   tools (#2536) are the **wooden pickaxe** (3 logs + 2 plant fibre + 1 stone — mines what the basic drill mines,
-  only slower, and needs no energy), the **wooden club** (2 logs + 1 plant fibre — close combat, a little weaker than
+  only slower, and needs no energy; you hold it head up and **swing it over your head**, and nothing in it whirrs), the **wooden club** (2 logs + 1 plant fibre — close combat, a little weaker than
   the machete) and the **wooden spear** (2 logs + 2 plant fibre + 1 stone — close combat with a longer reach, swings
   a little slower).
 - The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
@@ -2203,7 +2203,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 ### Stations: boarding & docking
 - **Space stations**: approach in space and press **E** to board. A station is its **own place in orbit** —
   you arrive inside it, floating in space (black sky, no planet/weather, life support), and can walk the
-  interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. Press **U** to leave and
+  interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. The name tag tells you who trades:
+  a **Vendor** (or a shopkeeper, an arms dealer …) opens a shop, the **Crew** only talks. Press **U** to leave and
   travel back down to your ship on the planet. **Quit the game aboard a station and you come back aboard** — at
   the spot where you stood; your ship waits at the planet the station orbits.
 - **What you see from the cockpit is the station you walk.** Every station floats in space as its real hull, block
@@ -3056,7 +3057,8 @@ with a game version that has generation 35 get them — an older world never cha
   with a flight deck and hangars, a **cruise liner** with pools under glass domes, a **battleship** whose huge cannon you
   can walk through like a tunnel, a **terraforming ark** full of greenhouses, and — rarely — a strange **crystal squid**
   that nobody knows the builders of. **Nobody can build one**: there is no blueprint and no way to craft it. They were
-  abandoned a very long time ago, and **everyone aboard got away safely**.
+  abandoned a very long time ago, and **everyone aboard got away safely**. The wrecks drifting in one world's space are
+  **different ships** — you only meet the same kind twice once all five are out there.
 - **On planets** (worlds created since generation 42): about **every 20th planet** has one, lying crashed on the ground,
   its keel sunk into the rock — broken open, scorched in places, sometimes in two or three pieces, and no two wrecks are
   alike. Also on moons and asteroids without air when they are big enough; never on a gas giant. Walk in through its

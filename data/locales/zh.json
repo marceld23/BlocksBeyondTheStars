@@ -1770,6 +1770,7 @@
   "npc.theme.traders": "贸易商",
   "npc.theme.researchers": "研究员",
   "npc.role.settler": "定居者",
+  "npc.role.station_crew": "乘员",
   "npc.role.guardian": "守护者",
   "npc.role.sounder": "Sounder",
   "npc.role.sounder_echo": "回声",

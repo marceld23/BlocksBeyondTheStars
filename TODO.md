@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking past sleepers, armour that no longer flickers (#3750–#3752; more of the batch below as it lands), 🚧 in work (⚠ playtest open; server + client, no protocol or save change)
+### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking past sleepers, armour that no longer flickers, a pick that chops, wrecks that differ, crew that is not called traders (#3750–#3752, #3763–#3770), 🚧 in work (⚠ playtest open; server + client)
 
 Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so far:
 
@@ -45,6 +45,23 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so f
   plates' front and back in the pelvis' planes (z-fighting, every set), and the suit's status light stuck 5 mm out of
   the plate. The body boxes under the plates and the two plate boxes live in `Client.Core/AvatarArmourFit.cs` now;
   every set draws them; the suit's chest panel hides under a chest piece (`AvatarArmourFitTests`).
+- ✅ **#3763 The pickaxe is a pick, blades are held up.** The wooden pickaxe is a `drill` by its tool kind and got
+  the drill's spin-up flourish and sound, the forward jab and the drill loop; every blade pointed into the screen like a
+  gun. A drill-kind tool whose own model has no bit is the held kind `Pick` now (from the data, never a key): held head
+  up, an overhead chop, no drill sounds. Blades rest tipped up in first and third person (`Client.Core/HeldStances.cs`,
+  `HeldStancesTests`).
+- ✅ **#3764 The wrecks of one world are different ships.** Each giant wreck in space picked one of the five designs on
+  its own, so two wrecks of a world were the same ship about one time in four. A fresh pick now only chooses among the
+  designs no other wreck of the world is yet; pinned wrecks keep theirs (`GiantWreckPlacer.Untaken`).
+- ✅ **#3768 Nobody who cannot trade is called a trader.** A station's crew and the residents of a traders settlement
+  wore the label of their place's theme ("Trader" — in German the vendor's word) but only talk. Station crew is "Crew"
+  now (`npc.role.station_crew`, all 14 languages), the settlement's people "Settler"; clothes still follow the theme.
+- 🚧 **Still to build in this batch (decisions recorded in the issues):** #3765 Hard Survival (a fourth world mode: many
+  enemies, slow needs, death = watching until a team-mate revives with a medkit; alone 60 s), #3766 carry a block over
+  the head and throw it (Q lifts, the attack key throws; damage by material; the block lands as an item), #3767 the
+  figure's voice (a pitch and an age slider in the skin editor, heard by others on a hit and a fall), #3769 NPCs
+  startled by a shot or swing nearby (funny, never afraid) plus framed speech bubbles and a plate under the status
+  toast, #3770 a submitted skin as the first free template (templates may carry a face).
 - 📋 **Open decision for the maintainer (from #3750):** natural healing of 2 health a second on a breathable world also
   makes every rolled hunter with 2 health a second harmless there. Whether healing should pause for a few seconds
   after a hit is a balance decision for the whole game — not changed.

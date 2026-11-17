@@ -303,7 +303,10 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
 - Pose 1: `SetSeated`, lowered 0.45 like a seated remote player. Pose 2: `SetLying`, root pitched onto its back with
   the head toward the headboard, lifted onto the mattress, a "z z z" above. No gestures while seated or asleep.
 - `HeldItem.ForNpc`: hoe, hammer, blade meshes; the gesture cadence follows the tool.
-- Nameplate: `Name · role · stage · activity`.
+- Nameplate: `Name · role · stage · activity`. The role word is the NPC's `NameKey`. **Nobody who cannot trade is called
+  a trader** (#3768): only the vendor role trades, so `MakeNpc` labels the other people of a `traders`-themed place
+  settlers (`GameServer.ThemeNameKey` — the theme still picks their clothes), and a station's crew without a shop is
+  `npc.role.station_crew` ("Crew", `LabelStationCrew`). A profession or an authored character still names itself.
 - `Sky.ApplyLighting`: on a boarded station the fill light, ambient and interior fill follow the station clock
   (floor 0.45, smoothed); emissive strip lights stay bright. `LocalTimeOfDay` drops the longitude aboard a station.
 - `HudUi`: *"Talk to … (E)"* for the person E picks — the one under the crosshair (`NpcAim`, Client.Core: the aim ray

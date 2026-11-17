@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Definitions;
@@ -75,8 +76,9 @@ public sealed partial class GameServer
 
     /// <summary>The ship a giant wreck is: the pinned one while it and the revisions match; with nothing of the wreck stored,
     /// the pinned ship's new version or a fresh pick; null when the save holds the wreck's changes and its recipe changed
-    /// (kept, with a warning), or when there is no ship at all.</summary>
-    private StructureTemplate? ResolveGiantDesign(string id)
+    /// (kept, with a warning), or when there is no ship at all. A fresh pick avoids the designs in <paramref name="taken"/>
+    /// while another one is left (#3764: the wrecks of one world are different ships).</summary>
+    private StructureTemplate? ResolveGiantDesign(string id, ICollection<string>? taken = null)
     {
         if (_meta.GiantWreckDesigns.TryGetValue(id, out var raw))
         {
@@ -102,7 +104,20 @@ public sealed partial class GameServer
             }
         }
 
-        return GiantWreckPlacer.PickDesign(GiantWreckCandidates(), _meta.Seed, id);
+        return GiantWreckPlacer.PickDesign(GiantWreckPlacer.Untaken(GiantWreckCandidates(), taken), _meta.Seed, id);
+    }
+
+    /// <summary>The designs the save already pins for the world's giant wrecks (#3764) — a wreck built once keeps its ship,
+    /// and no wreck picked afresh takes one of these while another design is free.</summary>
+    private HashSet<string> PinnedGiantDesignKeys()
+    {
+        var keys = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (string raw in _meta.GiantWreckDesigns.Values)
+        {
+            keys.Add(GiantPin.Parse(raw).Key);
+        }
+
+        return keys;
     }
 
     /// <summary>Whether the save holds anything made on a giant wreck's build — the derived station's record, its delta blob, its

@@ -1770,6 +1770,7 @@
   "npc.theme.traders": "Tüccar",
   "npc.theme.researchers": "Araştırmacı",
   "npc.role.settler": "Yerleşimci",
+  "npc.role.station_crew": "Mürettebat",
   "npc.role.guardian": "Muhafız",
   "npc.role.sounder": "Sounder",
   "npc.role.sounder_echo": "Yankı",
