@@ -5011,6 +5011,12 @@ look up: what a mix does follows from what goes in, and the same things always g
   Designer** is the same screen; there your changes stay on the designer's figure until **Save** makes them yours.
   The **Figure** tab holds the body colours (← and → step through them), the gear preview and, in the menu, your
   figure's name and the export.
+- **Voice** (an idea of Justus) — on the **Figure** tab, beside the colours: how your figure sounds when it breathes
+  out after a run, strains on a wall, puffs on a jump, grunts at a hit or falls. Two sliders in steps of ten:
+  **Pitch** from low to high and **Age** from young to old. **Low · Middle · High** set the pitch with one click, and
+  every position in between works — the middle of both is the voice the game always had. You hear each change at
+  once (and with **Listen**), and it applies at once, without Save. Other players near you hear your grunt at a hit
+  and your fall in **your** voice. The voice is yours, not a part of an outfit: changing outfits keeps it.
 - **Base colour** — every tab has the part's colour right beside the canvas: 30 swatches, or the **colour
   wheel** for any colour at all (skin and suit colours are not limited to the list). Unpainted pixels are drawn
   in that colour on the canvas, because that is what will show through. The helmet takes the torso colour.

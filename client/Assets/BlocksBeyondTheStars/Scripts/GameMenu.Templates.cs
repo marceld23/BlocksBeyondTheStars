@@ -21,6 +21,7 @@ namespace BlocksBeyondTheStars.Client
             editor.SkinTemplateNames = () => AppearanceTemplates.Names(WorldSkins(), s => s.NameKey, L);
             editor.OnWearSkinTemplate = WearSkinTemplate;
             editor.SubmitSettings = Settings;
+            editor.UseVoiceOf(Settings, ApplyAppearance); // #3767: the voice sliders — saved and sent with the colours
             editor.HudHost = new HudFrameEditorHost
             {
                 Settings = Settings,

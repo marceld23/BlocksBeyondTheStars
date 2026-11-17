@@ -22,7 +22,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             r.Avatar.PlayEmote(m.Emote);
-            EmoteSounds.PlayAt(m.Emote, r.Avatar.transform.position);
+            var at = r.Avatar.transform.position;
+            if (m.Emote is PlayerEmotes.Hurt or PlayerEmotes.Down)
+            {
+                // #3767: the pain grunt and the fall, where the figure stands, in THAT player's voice.
+                ClientAudio.Instance?.VoiceAt(m.Emote == PlayerEmotes.Hurt ? "hurt_player" : "player_death", at, m.Voice, 0.7f);
+                return;
+            }
+
+            EmoteSounds.PlayAt(m.Emote, at);
         }
 
         /// <summary>A figure up to its chest in water swims.</summary>

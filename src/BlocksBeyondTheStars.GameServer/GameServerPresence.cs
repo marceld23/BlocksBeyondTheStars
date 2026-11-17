@@ -62,6 +62,7 @@ public sealed partial class GameServer
         session.TorsoColor = intent.Torso;
         session.ArmColor = intent.Arms;
         session.LegColor = intent.Legs;
+        session.Voice = Shared.Definitions.PlayerVoice.Sanitize(intent.Voice); // #3767: heard by the others on a hit and a fall
         if (intent.Hull != 0 && intent.Hull != session.HullColor)
         {
             session.HullColor = intent.Hull; // item 32 (0 = a client that didn't send one — keep the default)

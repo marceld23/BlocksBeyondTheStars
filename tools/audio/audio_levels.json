@@ -327,6 +327,18 @@
    "peak": -1.9,
    "sha256": "339b8cbabb643ee4ce2eb611d1997bce1fd4ac1432508ef6792a92da5885eaa8"
   },
+  "breath_effort": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -7.7,
+   "sha256": "209e3880f66b0af63c2ca5590d9a507481fe912d0c9d1242148a46752be66ff4"
+  },
+  "breath_effort_2": {
+   "class": "foley",
+   "level": -20.7,
+   "peak": -6.4,
+   "sha256": "f28b3f296890e30f58dd128781209dd3b470786d635e5ea52d7a1ce42b232351"
+  },
   "breath_exhale": {
    "class": "foley",
    "level": -20.4,
@@ -1760,6 +1772,18 @@
    "level": -13.4,
    "peak": -1.2,
    "sha256": "b670bb839dfcc0591de4c6bf6a7163e045d025f02f954c6ce3651d5e9bbf3192"
+  },
+  "hurt_player_2": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -1.8,
+   "sha256": "ab447facd89661b435925f49869c4d2ecbad62a5a006e277336c416502c8aa2a"
+  },
+  "hurt_player_3": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -2.7,
+   "sha256": "28532abef7f698ae2cd7c298f3417ff0c80970e5d7976b6431da05d77b04ac89"
   },
   "hyperspace_charge": {
    "class": "oneshot",

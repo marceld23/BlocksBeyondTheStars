@@ -87,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f); // a red death wash
-            ClientAudio.Instance?.Cue("player_death");
+            ClientAudio.Instance?.Voice("player_death");
         }
 
         private void OnRespawnOptions(RespawnOptions m)
@@ -96,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
             // the player picks where to wake up, so the death feedback belongs to this message.
             _optionsPending = true;
             Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f);
-            ClientAudio.Instance?.Cue("player_death");
+            ClientAudio.Instance?.Voice("player_death");
         }
 
         private void OnSpaceClosed(SpaceClosed m)

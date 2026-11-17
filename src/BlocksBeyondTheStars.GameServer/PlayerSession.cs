@@ -190,6 +190,10 @@ public sealed class PlayerSession
     public int ArmColor { get; set; } = 0x3372CC;
     public int LegColor { get; set; } = 0x40404F;
 
+    /// <summary>#3767: the figure's voice as the client sent it with its colours (<c>PlayerVoice.Pack</c>, sanitized); 0 = not
+    /// set, the middle voice. Session memory like the colours: the client sends it again at every join.</summary>
+    public int Voice { get; set; }
+
     /// <summary>Ship hull colour (packed 0xRRGGBB), relayed so other players see this player's ship tinted
     /// (item 32). Default = the steel tint the ship hull used before hull colours existed.</summary>
     public int HullColor { get; set; } = 0xD1D6E0;

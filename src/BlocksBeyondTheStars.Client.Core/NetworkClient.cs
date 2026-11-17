@@ -1248,8 +1248,8 @@ namespace BlocksBeyondTheStars.Client
         public void SendCreateMission(string title, string description, NetMissionObjective[] objectives, NetReward[] rewards)
             => Send(new CreateMissionIntent { Title = title, Description = description, Objectives = objectives, Rewards = rewards });
 
-        public void SendAppearance(int skin, int torso, int arms, int legs, int hull = 0)
-            => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs, Hull = hull });
+        public void SendAppearance(int skin, int torso, int arms, int legs, int hull = 0, int voice = 0)
+            => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs, Hull = hull, Voice = voice }); // voice: #3767
 
         /// <summary>Sends the player's custom pixel face (empty clears it). Sent on join and on each edit —
         /// out of band from the presence stream.</summary>

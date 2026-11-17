@@ -27,6 +27,11 @@ public sealed partial class EditorTextFitTests
         Label("AvatarEditor gear rows", 300f, 18, "ui.avatar.helmet", "ui.avatar.chest", "ui.avatar.legs", "ui.avatar.pack", "ui.avatar.lamp"),
         Input("AvatarEditor default name in the name field", 600f, 18, "ui.ed.default.skin"),
         Button("AvatarEditor export", 300f, 44f, "ui.avatar.export"),
+        // #3767: the voice column of the Figure tab (FaceEditor.Voice.cs) — 300 wide, three quick buttons of 96.
+        FitLine("AvatarEditor voice kicker (upper case)", 300f * FaceKickerShare, 13, 16, "ui.avatar.voice"),
+        Button("AvatarEditor voice quick buttons", 96f, 44f, "ui.avatar.voice_low", "ui.avatar.voice_middle", "ui.avatar.voice_high"),
+        Label("AvatarEditor voice slider labels", 300f, 16, "ui.avatar.voice_pitch", "ui.avatar.voice_age"),
+        Button("AvatarEditor voice listen", 300f, 44f, "ui.avatar.voice_listen"),
         Wrap("AvatarEditor status (the shell's status bar)", FaceStatusW, 2, 16, "ui.avatar.need_name",
             "ui.ed.export_failed_hint", "ui.avatar.outfit_deleted", "ui.avatar.outfit_limit", "ui.avatar.outfit_loaded",
             "ui.avatar.outfit_name_taken", "ui.avatar.outfit_renamed", "ui.avatar.outfit_saved", "ui.avatar.outfit_select_first",

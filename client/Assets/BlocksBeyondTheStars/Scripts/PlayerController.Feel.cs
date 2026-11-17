@@ -71,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
             if (cue && !springs)
             {
                 ClientAudio.Instance?.Cue("jump", 0.6f);
+                EffortBreath(); // #3767: now and then a short breath of effort, in the figure's voice
             }
 
             _verticalVelocity = _effJumpSpeed * BioJumpImpulse() * SpringJumpImpulse();

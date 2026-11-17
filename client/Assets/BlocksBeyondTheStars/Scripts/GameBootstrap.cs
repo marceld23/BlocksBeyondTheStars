@@ -587,7 +587,7 @@ namespace BlocksBeyondTheStars.Client
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,
                             string.IsNullOrEmpty(installId) ? null : installId);
-                        Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
+                        Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb, Settings != null ? Settings.VoicePacked : 0); // voice: #3767
                         // #1119: the server initiates NPC calls, so it must know the preference — and VEGA's hints mute
                         // (#2462, B31), so a muted hint waits instead of burning its once-flag unseen.
                         Network.SendSetNpcCalls(Settings?.NpcCalls ?? 0, Settings != null && !Settings.VegaHints);

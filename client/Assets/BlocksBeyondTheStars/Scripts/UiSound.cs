@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -72,6 +73,34 @@ namespace BlocksBeyondTheStars.Client
             {
                 _src.PlayOneShot(clip, Mathf.Clamp01(Volume * gain));
             }
+        }
+
+        private static AudioSource _voiceSrc;
+
+        /// <summary>#3767: one breath in <paramref name="packedVoice"/> — the character editor's "Listen" where no world
+        /// (and so no <see cref="ClientAudio"/>) is up: the main menu's designer. Its own source, because a voice has a
+        /// pitch and <c>PlayOneShot</c> has none.</summary>
+        public static void VoiceSample(int packedVoice)
+        {
+            var clip = Clip("breath_exhale");
+            if (clip == null || Volume <= 0.001f)
+            {
+                return;
+            }
+
+            Ensure();
+            if (_voiceSrc == null)
+            {
+                _voiceSrc = _src.gameObject.AddComponent<AudioSource>();
+                _voiceSrc.playOnAwake = false;
+                _voiceSrc.spatialBlend = 0f;
+            }
+
+            var (op, amount) = PlayerVoice.Timbre(PlayerVoice.Unpack(packedVoice).Age);
+            _voiceSrc.clip = op == VoiceOp.None ? clip : SampleKit.Variant(clip, null, op, amount, 0);
+            _voiceSrc.pitch = Mathf.Clamp(PlayerVoice.Factor(packedVoice), 0.5f, 2f);
+            _voiceSrc.volume = Mathf.Clamp01(Volume * 2f); // a breath is far quieter than a click
+            _voiceSrc.Play();
         }
 
         public static void Click() => Play("ui_click");

@@ -58,8 +58,14 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so f
   now (`npc.role.station_crew`, all 14 languages), the settlement's people "Settler"; clothes still follow the theme.
 - 🚧 **Still to build in this batch (decisions recorded in the issues):** #3765 Hard Survival (a fourth world mode: many
   enemies, slow needs, death = watching until a team-mate revives with a medkit; alone 60 s), #3766 carry a block over
-  the head and throw it (Q lifts, the attack key throws; damage by material; the block lands as an item), #3767 the
-  figure's voice (a pitch and an age slider in the skin editor, heard by others on a hit and a fall).
+  the head and throw it (Q lifts, the attack key throws; damage by material; the block lands as an item).
+- ✅ **#3767 The figure's voice.** The character editor's Figure tab has a voice column: a **pitch** and an **age**
+  slider (steps of ten, the middle = the old sound) with Low · Middle · High quick buttons — sliders instead of
+  "man / woman" categories, by decision. The figure's own breath, strain, pain and fall clips are retuned (pitch as
+  playback pitch, age as a baked timbre; `PlayerVoice` in Shared); the voice travels with the colours, and others hear
+  a hit and a fall in it (`PlayerEmote.Voice`). Four new clips in a neutral voice (two pain takes, two breaths of
+  effort on a jump; `tools/audio/voice_batch.py`). Both wire fields are additive — no protocol bump.
+  ⚠ The four clips were generated without a listening check by the maintainer — to hear in the playtest.
 - ✅ **#3769 Startled NPCs, framed speech bubbles.** A shot or a weapon's swing next to NPCs makes the nearest three
   throw both hands up, open their mouth wide and call out (`npc.startle.1…8`, 14 languages; one line names the
   shooter) — startled and funny, never afraid, paced per shooter and per NPC (`GameServerNpcStartle.cs`, gesture
