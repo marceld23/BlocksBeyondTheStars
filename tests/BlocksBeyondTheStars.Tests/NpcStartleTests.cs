@@ -49,9 +49,14 @@ public sealed class NpcStartleTests
         var at = p.State.Position;
         w.Server.FxIntentForTest(p, new FxIntent
         {
-            Kind = kind, ItemKey = item,
-            FromX = at.X, FromY = at.Y + 1.4f, FromZ = at.Z,
-            ToX = at.X + 4f, ToY = at.Y + 1.4f, ToZ = at.Z + 4f,
+            Kind = kind,
+            ItemKey = item,
+            FromX = at.X,
+            FromY = at.Y + 1.4f,
+            FromZ = at.Z,
+            ToX = at.X + 4f,
+            ToY = at.Y + 1.4f,
+            ToZ = at.Z + 4f,
         });
     }
 
