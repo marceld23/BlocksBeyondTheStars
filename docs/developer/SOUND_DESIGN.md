@@ -48,7 +48,8 @@ ElevenLabs sound generation is now **blanket-approved** (no per-batch gate) — 
 
 Source: procedural (short tonal cues). **Implemented** in `ProceduralAudio` (`ui_hover`, `ui_click`,
 `ui_confirm`, `ui_back`) and played everywhere via the `UiSound` shell hook (UiKit buttons fire
-click-on-press + hover-on-enter).
+click-on-press + hover-on-enter). Since the feel pass (§39) a bundled recording of the same name plays first and the
+procedural cue is the fallback.
 
 ## 2. Player actions — *procedural + a few ElevenLabs*
 
@@ -578,7 +579,8 @@ like a click or a gunshot: it may stay below its target.
 | foley | momentary max | −20 | climbing, landing, swimming, breath, wings, suit puffs, RCS, cooling ticks, cargo creaks |
 | creature | momentary max | −10 | creature calls and combat banks |
 | voice | momentary max | −11 | NPC babble and reactions, VEGA's chatter |
-| sting | momentary max | −9 | festival jingles, chapter stings, splash stings |
+| sting | momentary max | −9 | festival jingles, chapter stings, splash stings, the musical accents `sting_*` (§39) |
+| ui | momentary max | −18 | the interface set `ui_*` and the hit ticks `hit_confirm*` (§39); trimmed like steps |
 | oneshot | momentary max | −12 | everything else that plays once |
 | weather | integrated | −18 | weather beds (rain, storm, wind, sand …), rain on the hull |
 | bed | integrated | −20 | biome, night and fluid beds, quiet ambience loops |
@@ -932,6 +934,43 @@ three (`EditorMarkerPanel.KnownSounds`).
 | `amb_giant_hull` | bed | 14 s, seamless loop, two takes mixed | "seamless loop of the inside of a huge empty spaceship hull drifting quietly in space: slow soft metal creaks, gentle distant low groans of big metal plates settling, a faint hollow air hum, calm and peaceful, spacious reverb, no alarms, no voices, no music, not scary" (0.4) + "seamless loop inside a big empty metal spaceship hall: soft slow metallic creaks and gentle ticking of metal panels, an occasional quiet hollow clank far away, a faint airy hum, calm and peaceful, spacious echo, no alarms, no voices, no music, nothing scary" (0.5) — the metal ships (carrier, liner, battleship, ark; radius 56–72) |
 | `amb_giant_crystal` | bed | 14 s, seamless loop | "seamless loop of a soft resonant crystal hum: warm glassy tones gently ringing and slowly swelling, like a big crystal quietly humming inside a hall of glass, shimmering overtones, calm, mysterious and friendly, no voices, no drums, no melody" (0.4) — the crystal squid (three markers, radius 30–64) |
 | `amb_giant_greenhouse` | bed | 14 s, seamless loop, two takes mixed | "seamless loop inside a quiet spaceship greenhouse: a gentle trickle of water running in small channels, soft drips on leaves, a calm low air ventilation hum, peaceful and cozy, no birds, no voices, no music" (0.4, mixed at −3 dB) + "seamless loop of gentle water trickling and babbling through small channels between plant beds, soft drips falling on leaves, a quiet air hum in the background, peaceful and cozy greenhouse, no birds, no voices, no music" (0.5) — the ark's greenhouses (radius 56) and the liner's lido deck (radius 40) |
+
+## 39. The feel pass: takes, placing by material, the interface set, accents (2026-11-17) — *ElevenLabs clips*
+
+How the parts play is in [GAME_FEEL.md](GAME_FEEL.md) §3; this is the catalogue. 62 clips: 61 made with
+`tools/ai-assets/gen_sound.py` through `tools/audio/aaa_feel_batch.py`, which records every prompt (one take each,
+mono; a few were re-rolled after the listening check), and the hover sound, which is synthesised (see below). Imported with `level_clips.py --import <dir> --only <ids>`.
+
+| group | clips | class | played by |
+|---|---|---|---|
+| mining, further takes | `mine_stone_2`/`_3`, `mine_metal_2`/`_3`, `mine_crystal_2`/`_3`, `mine_dirt_2`/`_3` | oneshot | `ClipTakes`: the family rotates, never the same take twice in a row |
+| melee, further takes | `melee_swing_2`/`_3`, `melee_hit_2`/`_3` | oneshot | `ClipTakes` |
+| weapons, further takes | `weapon_laser_2`, `weapon_plasma_2`/`_3`, `weapon_gauss_2`, `weapon_scrap_2` | oneshot | `ClipTakes` |
+| body, further takes | `land_2`/`_3`, `jump_2` | foley | `ClipTakes` |
+| placing a block | `place_stone`, `place_metal`, `place_crystal`, `place_wood`, `place_glass` (each + `_2`), `place_dirt` (+ `_2`, `_3`) | oneshot | `BlockSoundRules.PlaceCue` picks the family from the block key; `place_block` is the fallback |
+| hit confirmation | `hit_confirm`, `hit_confirm_defeat` | ui | `HudUi.ShowHitMarker` |
+| interface set | `ui_click`, `ui_hover`, `ui_open`, `ui_close`, `ui_tab`, `ui_confirm`, `ui_back`, `ui_error`, `ui_success`, `ui_toast` | ui | `UiSound`; `UiPanel` plays open / close |
+| blueprint unlocked | `tech_unlock` | oneshot | the plain cue when the accent rests |
+| musical accents | `sting_new_planet`, `sting_site_found`, `sting_blueprint`, `sting_achievement`, `sting_home` | sting | `ClientAudio.Sting`: never two at once, 8 s of rest between any two, the music ducks to 40 % under one |
+| emotes | `emote_wave`, `emote_nod`, `emote_point`, `emote_head_shake`, `emote_dance`, `emote_clap`, `emote_sit`, `emote_cheer` (+ `_2`), `emote_bow` (+ `_2`) | foley | `EmoteSounds`: the own emote flat at the listener, another player's where the figure stands; cheer and bow rotate their two takes (`ClipTakes`) |
+
+Two sliders sit under the effects volume: **Ambience** (`ClientSettings.AmbienceVolume`, the beds) and **Interface**
+(`ClientSettings.UiVolume`, the `ui` set). A family is rotating only when its name is in `ClipTakes.Families` —
+`creature_call_x_2` and `step_rock_2` keep their own meaning. `AudioFeelTests.EveryRotatingFamily_ShipsAtLeastTwoTakes`
+reads the folder, so a family without a second take fails the build's tests, not the player's ear.
+
+**The hover sound** is the interface's most frequent sound, and it took four rounds of listening (playtest
+2026-11-17): a generated soft high tick was too bright and too present; the same take darkened and cut short read as
+hammering (most of its energy below 300 Hz, a 9 ms attack); a breath of air was not it either. What was asked for in
+the end — technical, not shrill — is a **synthesised** console blip, not a generated clip:
+`tools/audio/synth_ui_hover.py` builds it (a 520 Hz tone with a little 3rd and 5th partial, 22 ms decay, band-limited
+to 350 Hz–4.5 kHz, 70 ms, a 3 ms fade-in), so its pitch and length can be retuned by hand. Two rules came out of the
+rounds: **no energy below ~300 Hz** (a thud repeated is a hammer) and **nothing above ~5 kHz**. `UiSound.Hover` plays
+it at 0.3 of the UI volume (the click at 1) and at most every 0.07 s, so sweeping the pointer across a row of buttons
+does not rattle. The generated attempts' prompts stay in the batch file as the record of what was tried.
+
+An emote's clip is optional by design: an emote without one plays silently. `emote_bow` (take 1) is a quiet cloth
+rustle that was low-passed at 5 kHz before it was raised by 20 dB, so the gain does not bring up hiss.
 
 ## Totals & rollout
 

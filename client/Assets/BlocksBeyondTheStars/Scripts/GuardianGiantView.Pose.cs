@@ -134,7 +134,7 @@ namespace BlocksBeyondTheStars.Client
                 bool mine = _game.LastShotTargetId == e.Id && Time.time - _game.LastShotTime < 0.6f;
                 if (mine)
                 {
-                    _game.Views.Hud?.ShowHitMarker();
+                    _game.Views.Hud?.ShowHitMarker(defeated: e.Hull <= 0.01f);
                 }
 
                 _flinchPart = mine ? NearestLimbToAim() : GuardianGiantPart.Torso;

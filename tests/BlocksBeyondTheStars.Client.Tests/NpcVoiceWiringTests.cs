@@ -67,7 +67,7 @@ public sealed class NpcVoiceWiringTests
     [Fact]
     public void TheAvatar_HasTheGreetingGestures_WithRestingRolls()
     {
-        string src = Script("PlayerAvatar.cs");
+        string src = ClientTestPaths.ScriptPartsText("PlayerAvatar"); // PlayerAvatar.cs + PlayerAvatar.Feel.cs (the gestures)
         Assert.Contains("public void Wave(bool leftHand = false)", src);
         Assert.Contains("public void Nod()", src);
         Assert.Contains("public void Cheer()", src);
@@ -82,7 +82,7 @@ public sealed class NpcVoiceWiringTests
         string hud = ClientTestPaths.ScriptPartsText("HudUi"); // HudUi.cs + its widget parts (#2909)
         Assert.Contains("Game.AchievementsUnlocked.Dequeue()", hud);
         Assert.Contains("\"ui.achv.banner\"", hud);
-        Assert.Contains("Cue(\"ui_success\"", hud);
+        Assert.Contains("Sting(\"sting_achievement\", \"ui_success\")", hud); // the accent; the plain cue while accents rest
         int research = hud.IndexOf("StartResearchToast(Game.ResearchAvailable.Dequeue())", StringComparison.Ordinal);
         int achievement = hud.IndexOf("StartAchievementToast(Game.AchievementsUnlocked.Dequeue())", StringComparison.Ordinal);
         Assert.True(research > 0 && achievement > research, "research drains first");

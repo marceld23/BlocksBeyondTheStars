@@ -12,6 +12,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#3247: the ambience-bed level (effects × the cutscene duck, #2495) for components that run their own beds
         /// — the ship's design hum and its module rooms duck under a scene like the router's own beds.</summary>
-        public float BedLevel => SfxVol() * _duck;
+        public float BedLevel => SfxVol() * _duck * AmbienceVol();
+
+        /// <summary>The ambience slider: the beds' share of the effects volume.</summary>
+        private float AmbienceVol() => UnityEngine.Mathf.Clamp01(Settings?.AmbienceVolume ?? 1f);
     }
 }

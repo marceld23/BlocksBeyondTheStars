@@ -413,7 +413,7 @@ namespace BlocksBeyondTheStars.Client
         {
             int next = (GroupOf(_mode) + dir + Groups.Length) % Groups.Length;
             _selectActiveTabOnBuild = true;
-            UiSound.Click();
+            UiSound.Tab();
             OnTab(DefaultTarget(next));
         }
 

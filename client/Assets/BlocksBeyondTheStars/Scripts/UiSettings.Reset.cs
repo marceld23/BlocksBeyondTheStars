@@ -152,6 +152,7 @@ namespace BlocksBeyondTheStars.Client
             S.ShowEnemyHealthBars = d.ShowEnemyHealthBars;
             S.ShowAllObjectives = d.ShowAllObjectives;
             S.ChatVisibility = d.ChatVisibility;
+            ResetFeel(d, display: true); // resolution, monitor, focus pause
         }
 
         private void ResetAudio(ClientSettings d)
@@ -159,6 +160,8 @@ namespace BlocksBeyondTheStars.Client
             S.MasterVolume = d.MasterVolume;
             S.MusicVolume = d.MusicVolume;
             S.SfxVolume = d.SfxVolume;
+            S.AmbienceVolume = d.AmbienceVolume;
+            S.UiVolume = d.UiVolume;
             S.MusicMode = d.MusicMode;
             S.MuteAlarms = d.MuteAlarms;
             ClientAudio.Instance?.ApplyAlarmMute();
@@ -182,6 +185,7 @@ namespace BlocksBeyondTheStars.Client
             S.PadInvertY = d.PadInvertY;
             S.PadTriggersMinePlace = d.PadTriggersMinePlace;
             S.PadGlyphs = d.PadGlyphs;
+            S.PadGlyphsAuto = d.PadGlyphsAuto;
             S.PadVibration = d.PadVibration;
         }
 
@@ -202,6 +206,7 @@ namespace BlocksBeyondTheStars.Client
             S.ReduceFlashes = d.ReduceFlashes;
             S.ReducedEffects = d.ReducedEffects;
             S.StoryTextWaitForMe = d.StoryTextWaitForMe;
+            ResetFeel(d, display: false); // key toggles, story text, signal colours
         }
 
         private void ResetGame(ClientSettings d)

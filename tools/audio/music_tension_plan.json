@@ -1,0 +1,112 @@
+{
+  "positive_global_styles": [
+    "sci-fi exploration",
+    "tense but playful",
+    "kid-friendly",
+    "voxel game soundtrack",
+    "steady pulsing synth bass",
+    "light ticking percussion",
+    "wary minor-key melody",
+    "soft synth lead",
+    "alert and curious",
+    "loopable"
+  ],
+  "negative_global_styles": [
+    "horror",
+    "jump scares",
+    "screeching strings",
+    "scary",
+    "distorted guitars",
+    "big orchestral hits",
+    "heavy rock",
+    "dark ambient",
+    "vocal melodies",
+    "sudden silence"
+  ],
+  "sections": [
+    {
+      "section_name": "Intro Loop",
+      "positive_local_styles": [
+        "soft synth lead enters cautiously",
+        "steady pulse established immediately",
+        "light ticking percussion",
+        "curious alien atmosphere",
+        "subtle low-end movement",
+        "clean digital texture"
+      ],
+      "negative_local_styles": [
+        "drums that overpower the pulse",
+        "scary effects",
+        "vocal elements",
+        "abrupt accents",
+        "screeching"
+      ],
+      "duration_ms": 25000,
+      "lines": [],
+      "source_from": null
+    },
+    {
+      "section_name": "Traversal Groove",
+      "positive_local_styles": [
+        "persistent synth bass ostinato",
+        "slightly brighter countermelody",
+        "nimble percussion ticks",
+        "wary but playful phrasing",
+        "gentle harmonic motion",
+        "even energy throughout"
+      ],
+      "negative_local_styles": [
+        "dramatic crescendos",
+        "melodic resolution",
+        "horror stingers",
+        "busy fills",
+        "lush strings"
+      ],
+      "duration_ms": 30000,
+      "lines": [],
+      "source_from": null
+    },
+    {
+      "section_name": "Hostile Nearby",
+      "positive_local_styles": [
+        "more alert rhythmic tension",
+        "minor-key lead motif",
+        "tight sequenced bass",
+        "whispery synth accents",
+        "sense of something closing in",
+        "controlled intensity"
+      ],
+      "negative_local_styles": [
+        "panic",
+        "aggressive distortion",
+        "jump-scare hits",
+        "shrill lead tones",
+        "chaotic percussion"
+      ],
+      "duration_ms": 30000,
+      "lines": [],
+      "source_from": null
+    },
+    {
+      "section_name": "Resolve and Loop Back",
+      "positive_local_styles": [
+        "steady return to the main pulse",
+        "slightly more open melody",
+        "curious exploration mood",
+        "minimal variation for seamless looping",
+        "balanced tension and momentum",
+        "soft landing back into the intro feel"
+      ],
+      "negative_local_styles": [
+        "final cadence",
+        "fade-out",
+        "grand climax",
+        "complete resolution",
+        "sudden ending"
+      ],
+      "duration_ms": 45000,
+      "lines": [],
+      "source_from": null
+    }
+  ]
+}

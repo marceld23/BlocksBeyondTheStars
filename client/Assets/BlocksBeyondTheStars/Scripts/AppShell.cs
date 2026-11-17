@@ -1686,7 +1686,7 @@ namespace BlocksBeyondTheStars.Client
             // Keep the (procedural) UI click/hover volume in step with the audio settings.
             if (Settings != null)
             {
-                UiSound.Volume = Mathf.Clamp01(Settings.SfxVolume) * 0.6f; // master: AudioListener.volume (#3237)
+                UiSound.Volume = Mathf.Clamp01(Settings.SfxVolume) * Mathf.Clamp01(Settings.UiVolume) * 0.6f; // master: AudioListener.volume (#3237)
             }
 
             if (_autoJoinWhenReady && ContentReady && Phase == ShellPhase.MainMenu)

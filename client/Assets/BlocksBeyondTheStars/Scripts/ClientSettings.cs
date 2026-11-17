@@ -1253,7 +1253,7 @@ namespace BlocksBeyondTheStars.Client
         {
             ApplyWindowMode();
             AudioListener.volume = Mathf.Clamp01(MasterVolume); // master bus (M26)
-            UiKit.ReducedMotion = ReducedEffects; // UI transitions snap instantly for reduced-effects users
+            ApplyFeel(); // reduced motion, the input toggles, the story text and the palette (ClientSettings.Feel.cs)
             UiKit.SetUserScale(UiScale);          // HUD canvases + the IMGUI leftovers follow the UI-scale setting
             FxKit.Configure(Preset, ReducedEffects, ScreenShake, ReduceFlashes, CameraMotion); // #2152: effect density + comfort
             HighDetails.Configure(this); // #3066: the desktop-class extras of the High preset
@@ -1295,7 +1295,7 @@ namespace BlocksBeyondTheStars.Client
                 bool webglLow = Application.platform == RuntimePlatform.WebGLPlayer && Preset == QualityPreset.Low;
                 urp.supportsHDR = Preset > QualityPreset.Potato && !webglLow;
                 UrpScenePost.Instance?.SetTonemapForHdr(urp.supportsHDR); // LDR gets Neutral, not ACES (#1457)
-                urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : webglLow ? 0.8f : 1f;
+                ApplyRenderScale(urp, Preset == QualityPreset.Potato ? 0.75f : webglLow ? 0.8f : 1f); // × the player's own (desktop)
 
                 // Depth + opaque copies feed the screen-space effects (volumetric fog, SSR, water refraction).
                 // They cost a prepass + a colour copy, so the two weakest presets turn them off entirely —
@@ -1443,10 +1443,10 @@ namespace BlocksBeyondTheStars.Client
             switch (Window)
             {
                 case WindowMode.Borderless:
-                    Screen.SetResolution(native.width, native.height, FullScreenMode.FullScreenWindow);
+                    Screen.SetResolution(FullWidth(native), FullHeight(native), FullScreenMode.FullScreenWindow);
                     break;
                 case WindowMode.Exclusive:
-                    Screen.SetResolution(native.width, native.height, FullScreenMode.ExclusiveFullScreen);
+                    Screen.SetResolution(FullWidth(native), FullHeight(native), FullScreenMode.ExclusiveFullScreen);
                     break;
                 default: // Windowed
                     int w = Mathf.Clamp(WindowedWidth, 640, Mathf.Max(640, native.width));

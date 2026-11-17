@@ -82,6 +82,14 @@ namespace BlocksBeyondTheStars.Client
         // #3503: the admin view (the panel of the in-game admin mode), appended so no existing value moves. Only read for a
         // player the server lets into it (NetworkClient.HasAdminView); a pad reaches it through the pause menu's Admin button.
         AdminMode,         // enter admin mode and open its panel / toggle the panel while in it — default F8
+
+        // The feel pass, appended so no existing value moves: the whole HUD off and on again (a clean view, a
+        // screenshot) — default F10; a note names the key while the HUD is away.
+        ToggleHud,
+
+        // The emote wheel — the keyboard HOLDS it (default Y) and lets go over a wedge; the pad and the tablet open it
+        // from the ContextActions list.
+        EmoteWheel,
     }
 
     /// <summary>
@@ -174,6 +182,8 @@ namespace BlocksBeyondTheStars.Client
             InputAction.PingMarker, InputAction.FeedCreature, // #2282: Feed was in no group, so Q could not be rebound
             InputAction.Sprint, // #3374
             InputAction.AdminMode, // #3503: F8 — the admin view
+            InputAction.ToggleHud, // F10 — the HUD off and on
+            InputAction.EmoteWheel, // P — the emote wheel
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -256,6 +266,8 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightTargetAhead => KeyCode.Mouse1,
             InputAction.Sprint => KeyCode.LeftShift, // #3374: free on foot; SpeederBoost reads the same key only while driving
             InputAction.AdminMode => KeyCode.F8, // #3503: one of the free function keys, far from the movement hand
+            InputAction.ToggleHud => KeyCode.F10, // a free function key (F9 is the cutscene dev palette's)
+            InputAction.EmoteWheel => KeyCode.P,  // free on foot (the autopilot's P is flight only). NEVER Y or Z as a default: keys are read by POSITION, and those two swap on a German keyboard
             _ => KeyCode.None,
         };
 
@@ -409,13 +421,52 @@ namespace BlocksBeyondTheStars.Client
         public static bool Held(InputAction action) => Passes(action) && (_desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action));
         public static bool Up(InputAction action) => Passes(action) && (_desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action));
 
-        /// <summary>#3374: the run as the keyboard does it — the bound key held.</summary>
-        public static bool SprintKeyHeld() => Passes(InputAction.Sprint) && _desktop.ActionHeld(InputAction.Sprint);
+        /// <summary>Comfort (settings → Accessibility): the keyboard's run key SWITCHES the run on and off instead of
+        /// being held — it then behaves like the pad's and the tablet's control.</summary>
+        public static bool SprintToggle;
+
+        /// <summary>Comfort (settings → Accessibility): the keyboard's crouch key switches crouching on and off instead
+        /// of being held. A jump stands the body up again.</summary>
+        public static bool CrouchToggle;
+
+        private static bool _crouchLatched;
+        private static int _crouchLatchFrame = -1;
+
+        /// <summary>The keyboard's crouch as the player set it: the key held, or — with <see cref="CrouchToggle"/> — a
+        /// state each press of the key flips (once per frame, however often it is asked) and a jump clears.</summary>
+        internal static bool KeyboardCrouch(bool held, bool pressed)
+        {
+            if (!CrouchToggle)
+            {
+                _crouchLatched = false;
+                return held;
+            }
+
+            if (Time.frameCount != _crouchLatchFrame)
+            {
+                _crouchLatchFrame = Time.frameCount;
+                if (pressed)
+                {
+                    _crouchLatched = !_crouchLatched;
+                }
+
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    _crouchLatched = false;
+                }
+            }
+
+            return _crouchLatched;
+        }
+
+        /// <summary>#3374: the run as the keyboard does it — the bound key held (not with <see cref="SprintToggle"/>).</summary>
+        public static bool SprintKeyHeld() => !SprintToggle && Passes(InputAction.Sprint) && _desktop.ActionHeld(InputAction.Sprint);
 
         /// <summary>#3376: the run as the pad and the tablet do it — a press of the left-stick click / the RUN button switches
-        /// it on while moving (<see cref="SprintState"/>).</summary>
+        /// it on while moving (<see cref="SprintState"/>). With <see cref="SprintToggle"/> the keyboard's key does the same.</summary>
         public static bool SprintToggleDown()
-            => Passes(InputAction.Sprint) && (_pad.ActionDown(InputAction.Sprint) || _touch.ActionDown(InputAction.Sprint));
+            => Passes(InputAction.Sprint) && (_pad.ActionDown(InputAction.Sprint) || _touch.ActionDown(InputAction.Sprint)
+                || (SprintToggle && _desktop.ActionDown(InputAction.Sprint)));
 
         /// <summary>#3376: this frame's press of the context-actions control belongs to the run — the stock pad layout puts
         /// both on the left-stick click, which runs while moving and opens the list while standing
@@ -444,6 +495,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Forward axis, −1..1 — replaces <c>Input.GetAxis("Vertical")</c>.</summary>
         public static float MoveY() => Mathf.Clamp(_desktop.MoveY() + _pad.MoveY() + _touch.MoveY() + ScriptedMove.y, -1f, 1f);
+
+        /// <summary>The strafe axis WITHOUT the input manager's generic smoothing (a third of a second both ways): the same
+        /// keys and the same stick as <see cref="MoveX"/>, read raw. For the callers that shape the motion themselves —
+        /// the walk (<c>WalkInertia</c>) and the helm (<c>FlightFeel</c>) — so the two curves do not stack.</summary>
+        public static float MoveXRaw() => Mathf.Clamp(Input.GetAxisRaw("Horizontal") + _pad.MoveX() + _touch.MoveX() + ScriptedMove.x, -1f, 1f);
+
+        /// <summary>The forward axis without the input manager's smoothing — see <see cref="MoveXRaw"/>.</summary>
+        public static float MoveYRaw() => Mathf.Clamp(Input.GetAxisRaw("Vertical") + _pad.MoveY() + _touch.MoveY() + ScriptedMove.y, -1f, 1f);
 
         /// <summary>Yaw look delta (caller still multiplies by sensitivity) — replaces <c>GetAxis("Mouse X")</c>.</summary>
         public static float LookX() => _desktop.LookX() + _pad.LookX() + _touch.LookX();
@@ -572,6 +631,8 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightTargetHostile => "ui.key.flight_target_hostile",
             InputAction.FlightTargetAhead => "ui.key.flight_target_ahead",
             InputAction.Sprint => "ui.key.sprint",
+            InputAction.ToggleHud => "ui.key.toggle_hud",
+            InputAction.EmoteWheel => "ui.key.emote_wheel",
             InputAction.AdminMode => "ui.key.admin_mode",
             _ => string.Empty,
         };
@@ -624,8 +685,47 @@ namespace BlocksBeyondTheStars.Client
         /// on Nintendo. The triggers are an axis, not a button, so <see cref="PadGlyph"/> cannot name them.</summary>
         public static string PadTriggerGlyph(bool right) => PadGlyphTable.Trigger(right, PadGlyphs);
 
-        /// <summary>The player's pad glyph set — Xbox with no settings loaded.</summary>
+        /// <summary>The pad glyph set in use — Xbox with no settings loaded. With "Automatic" (the default) it follows the
+        /// connected pad's own name (<see cref="PadGlyphTable.Detect"/>); a pad whose name says nothing, and the
+        /// player's explicit choice, use the set from the settings.</summary>
         public static PadGlyphSet PadGlyphs
-            => GamepadInputSource.Settings != null ? GamepadInputSource.Settings.PadGlyphs : PadGlyphSet.Xbox;
+        {
+            get
+            {
+                var settings = GamepadInputSource.Settings;
+                if (settings == null)
+                {
+                    return PadGlyphSet.Xbox;
+                }
+
+                return settings.PadGlyphsAuto ? DetectedPadGlyphs ?? settings.PadGlyphs : settings.PadGlyphs;
+            }
+        }
+
+        private static PadGlyphSet? _detectedPad;
+        private static float _detectedPadAt = -10f;
+
+        /// <summary>What the connected pad's name says about its buttons, or null — asked of the system once a second.</summary>
+        public static PadGlyphSet? DetectedPadGlyphs
+        {
+            get
+            {
+                if (Time.unscaledTime - _detectedPadAt >= 1f)
+                {
+                    _detectedPadAt = Time.unscaledTime;
+                    _detectedPad = null;
+                    foreach (string name in Input.GetJoystickNames())
+                    {
+                        _detectedPad = PadGlyphTable.Detect(name);
+                        if (_detectedPad != null)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                return _detectedPad;
+            }
+        }
     }
 }

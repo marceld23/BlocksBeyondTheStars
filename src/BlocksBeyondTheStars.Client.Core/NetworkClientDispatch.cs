@@ -18,6 +18,14 @@ namespace BlocksBeyondTheStars.Client
         /// one-key delta per first meeting.</summary>
         public event Action<EnemyLog>? EnemyLogReceived;
 
+        /// <summary>Another player's figure plays an emote or shows a body state (<see cref="PlayerEmotes"/>): a wave, a
+        /// dance, a flinch, the fall.</summary>
+        public event Action<PlayerEmote>? PlayerEmoteReceived;
+
+        /// <summary>Plays one of the player's emotes (<see cref="PlayerEmotes"/>) for the players nearby; the server
+        /// checks the id and the pace.</summary>
+        public void SendEmote(byte emote) => Send(new PlayerEmoteIntent { Emote = emote });
+
         /// <summary>The species of the world just entered (#3245), once per world entry, after its <c>WorldReset</c> (or the
         /// join) and its first <c>WorldEnvironment</c> — the roster the distant-fauna scheduler (<see cref="DistantFauna"/>)
         /// lets call from far away. Empty for a world without fauna.</summary>
@@ -185,6 +193,7 @@ namespace BlocksBeyondTheStars.Client
             On<WeatherForecast>(map, (c, m) => c.WeatherForecastReceived?.Invoke(m));
             On<DiscoveryLog>(map, (c, m) => c.DiscoveryLogReceived?.Invoke(m));
             On<EnemyLog>(map, (c, m) => c.EnemyLogReceived?.Invoke(m));
+            On<PlayerEmote>(map, (c, m) => c.PlayerEmoteReceived?.Invoke(m)); // the feel pass
             On<PvpTargets>(map, (c, m) => c.PvpTargetsReceived?.Invoke(m));
             On<DuelNotice>(map, (c, m) => c.DuelNoticeReceived?.Invoke(m));
             On<AchievementList>(map, (c, m) => c.AchievementsReceived?.Invoke(m));

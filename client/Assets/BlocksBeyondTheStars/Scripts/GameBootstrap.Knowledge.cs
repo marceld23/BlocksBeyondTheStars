@@ -424,6 +424,7 @@ namespace BlocksBeyondTheStars.Client
                             Discoveries[entries[i]], Content, k => Localizer.Has(k) ? Localizer.Get(k) : null) is { } found)
                     {
                         LastMessage = found;
+                        ClientAudio.Instance?.Sting("sting_site_found"); // the find's own musical accent
                     }
                 }
             };

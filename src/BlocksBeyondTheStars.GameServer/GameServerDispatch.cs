@@ -60,6 +60,7 @@ public sealed partial class GameServer
         On<MelodyNoteIntent>(map, (gs, s, m) => gs.HandleMelodyNote(s, m)); // #3346 a tone of the melody bar
         On<StoryMinigameResultIntent>(map, (gs, s, m) => gs.HandleStoryMinigameResult(s, m)); // #3352 the note-key minigame of a Song Disc
         On<FallDamageIntent>(map, (gs, s, m) => gs.HandleFallDamage(s, m));
+        On<PlayerEmoteIntent>(map, (gs, s, m) => gs.HandleEmote(s, m)); // the feel pass: a wave, a dance — relayed to who is near
         On<AdminCommandIntent>(map, (gs, s, m) => gs.HandleAdminCommand(s, m));
         On<RequestMissions>(map, (gs, s, _) => gs.HandleRequestMissions(s)); // #3087: the list, and why an idle base board is idle
         On<AcceptMissionIntent>(map, (gs, s, m) => gs.HandleAcceptMission(s, m.MissionId));

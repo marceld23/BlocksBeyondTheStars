@@ -219,6 +219,46 @@ namespace BlocksBeyondTheStars.Client
             var c = _caption.color;
             c.a = Mathf.Clamp01(alpha);
             _caption.color = c;
+            UpdateCaptionPlate(c.a);
+        }
+
+        private Image _captionPlate;
+
+        /// <summary>The optional dark plate behind the caption (settings → Accessibility): sized to the text, fading
+        /// with it, drawn right under it. Bright scenes and weak eyes read the subtitle against it.</summary>
+        private void UpdateCaptionPlate(float alpha)
+        {
+            bool show = UiKit.CaptionBackdrop && alpha > 0.001f && !string.IsNullOrEmpty(_caption.text);
+            if (!show)
+            {
+                if (_captionPlate != null)
+                {
+                    _captionPlate.enabled = false;
+                }
+
+                return;
+            }
+
+            if (_captionPlate == null)
+            {
+                var go = new GameObject("CaptionPlate", typeof(RectTransform));
+                go.transform.SetParent(_caption.transform.parent, false);
+                go.transform.SetSiblingIndex(_caption.transform.GetSiblingIndex()); // just under the text
+                _captionPlate = go.AddComponent<Image>();
+                _captionPlate.raycastTarget = false;
+                var plateRt = _captionPlate.rectTransform;
+                plateRt.anchorMin = plateRt.anchorMax = new Vector2(0.5f, 0f);
+                plateRt.pivot = new Vector2(0.5f, 0.5f);
+            }
+
+            var cap = _caption.rectTransform;
+            float w = Mathf.Min(cap.sizeDelta.x, _caption.preferredWidth) + 56f;
+            float h = _caption.preferredHeight + 28f;
+            var rt = _captionPlate.rectTransform;
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(cap.anchoredPosition.x, cap.anchoredPosition.y + (cap.sizeDelta.y * 0.5f)); // the text sits mid-box
+            _captionPlate.color = new Color(0f, 0f, 0f, 0.62f * alpha);
+            _captionPlate.enabled = true;
         }
 
         public void SetHint(string text, float alpha)
@@ -264,7 +304,7 @@ namespace BlocksBeyondTheStars.Client
         /// keep their absolute layout.</summary>
         private void ApplyUserScale()
         {
-            float scale = UiKit.UserScale;
+            float scale = UiKit.UserScale * UiKit.CaptionScale; // the story text's own size on top (Accessibility)
             if (Mathf.Approximately(scale, _appliedScale))
             {
                 return;

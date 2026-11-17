@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
                 _combatUntil[id] = Time.time + ShowSeconds;
                 if (game.LastShotTargetId == id && Time.time - game.LastShotTime < 0.6f)
                 {
-                    game?.Views.Hud?.ShowHitMarker();
+                    game?.Views.Hud?.ShowHitMarker(defeated: hull <= 0.01f);
                 }
             }
 

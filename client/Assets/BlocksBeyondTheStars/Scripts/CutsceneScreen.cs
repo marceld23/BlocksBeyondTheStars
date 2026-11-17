@@ -110,6 +110,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _lastSpokeAt = Time.unscaledTime; // #2592: the NPCs hold their tongues while VEGA speaks
+            MusicDuck.Speech();               // … and the music makes room for the line
 
             if (_source == null)
             {

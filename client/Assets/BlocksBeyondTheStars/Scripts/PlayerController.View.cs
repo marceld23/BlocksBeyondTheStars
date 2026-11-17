@@ -204,14 +204,18 @@ namespace BlocksBeyondTheStars.Client
                 _fovEased = Camera.fieldOfView;
             }
 
+            _stepSmooth.Tick(dt); // the eye catches up after an auto-step (PlayerController.Feel.cs)
+            UpdateAvatarFeel();   // the own figure swims, flinches and sinks down
             if (ThirdPerson)
             {
                 _fovEased = Mathf.MoveTowards(_fovEased, _baseFov, dt * 30f);
                 Camera.fieldOfView = _fovEased + fovPunch * 0.25f;
                 // Spring arm: the boom used to be a fixed offset, so with your back to any wall within 3.5 m the
                 // camera sat inside the block and the world showed through the culled back faces (#1460).
+                // The whole arm follows the body's height softly (a jump, a landing, a step) instead of rigidly.
+                var lag = new Vector3(0f, ThirdPersonLag(dt), 0f);
                 Camera.transform.position = ResolveCameraBoom(
-                    transform.TransformPoint(FirstPersonEye), transform.TransformPoint(ThirdPersonEye), dt);
+                    transform.TransformPoint(FirstPersonEye) + lag, transform.TransformPoint(ThirdPersonEye) + lag, dt);
                 ApplyRestRise(dt); // #2823
                 return;
             }
@@ -241,7 +245,8 @@ namespace BlocksBeyondTheStars.Client
             }
             // Ease the eye down toward the crouch height (_crouchT set in UpdateCrouch) as the baseline the bob rides on.
             Vector3 eye = Vector3.Lerp(FirstPersonEye, CrouchEye, _crouchT);
-            Camera.transform.localPosition = eye + new Vector3(bobX, bobY, 0f);
+            _thirdPersonY = float.NaN; // first person: the third-person follow starts afresh when the view switches back
+            Camera.transform.localPosition = eye + new Vector3(bobX, bobY + _stepSmooth.Offset, 0f);
 
             // A big jump (raising, stepping or dropping the optic) travels fast so it feels like a click; the
             // small walking kick keeps its original gentle 40°/s drift.

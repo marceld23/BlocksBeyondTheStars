@@ -26,6 +26,46 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎮 Game feel: movement, flight, sound, interface and figures that answer — epic #3738 (#3739–#3748), ✅ 2026-11-17 (⚠ playtest open; server + client, two appended messages, no protocol bump, saves stay compatible)
+
+How it works: [docs/developer/GAME_FEEL.md](docs/developer/GAME_FEEL.md). The sounds and the music went through
+listening checks; the hover sound and the button click were tuned in a first play session the same evening. Everything
+else is a first value.
+
+- ✅ **Moving on foot.** Own walk curve on the raw axes (0.08 s up, 0.10 s down; softer in the air), coyote time and
+  a jump buffer (0.12 s each), the auto-step eased for the eye, the third-person boom follows height softly, the held
+  item trails the view and dips on a landing, a hit ticks and holds the own swing for a moment.
+- ✅ **The ship.** Arcade inertia (0.4 s to top speed, 0.8 s to a stop), slides along what it touches, banks into a
+  turn (shown only), soft chase camera.
+- ✅ **Sound.** 62 new clips (takes for mining / melee / weapons / jump / land, placing by material, an interface
+  set, hit ticks, five musical accents, a sound for each of the nine emotes; the hover sound took four rounds of
+  listening and is now a short synthesised console blip, `tools/audio/synth_ui_hover.py`), three tension tracks for
+  the on-foot pool, the music ducks under speech and accents, Ambience and Interface sliders.
+- ✅ **Interface.** A visible click on every menu button (it gives while held, its outline flashes when the click
+  fires — `UiClickFx`; text links, switches and hand-built editor buttons not yet), tooltips on inventory slots, drag
+  and drop with the mouse, windows fade out, gear comparison,
+  a recipe pinned to the HUD, HUD off (F10), resolution / monitor / pause on focus loss / 3D resolution, story text
+  size and backdrop, colour-vision signal colours, run / crouch as a switch, pad glyph set by the pad's name.
+- ✅ **Figures.** Emote wheel (hold or tap P, nine emotes; `PlayerEmoteIntent` 349 / `PlayerEmote` 350), villagers
+  wave back, flinch / down / swimming / landing poses, eased legs, blinking and talking faces, contact shadows. A
+  Codex article "Emotes and Body Language". The new texts are in all 14 languages (machine translation + a hand
+  pass). The wheel's default key is P: keys are read by position, and Y and Z swap on a German keyboard.
+- 📋 **Open — needs a play session:** every number above is a first value (walk curve, coyote window, ship spool and
+  bank, camera follow rates, duck levels, the tension rule's 2 / 20 / 8 s). Listen to the takes and accents in play;
+  check the leg easing against the EditMode pose tests; the emote wheel on a pad and on a tablet; drag and drop next
+  to the click-to-pick flow; the colour-vision pairs on real eyes.
+- 📋 **Open — not built:** pad glyphs as pictures; numbers that count up; an autosave indicator (needs a message
+  from the server); the enemy's own freeze on a hit; horizontal third-person damping; the hotbar's four-wedge ring on
+  `UiWheel`; the IMGUI weather overlay on uGUI; acting in cutscenes; TextMeshPro in the menus; tooltips beyond the
+  inventory's slots; the click effect on text links, switches and hand-built editor buttons.
+- 📋 **Noticed, not changed:** the editors' Ctrl+Z / Ctrl+Y sit on swapped keys on a German keyboard (same cause as
+  the emote key).
+- 📋 **Open — needs measurements first** (reference: a laptop with an 8 GB GPU at 3840×2400, 45 fps on Medium): a
+  soft edge at the view distance, more view distance on Medium, cheaper tiers for the *Details (High)* switches.
+- 📋 **Open — decide:** the "new planet" accent plays on the first landing on another body per session, not once per
+  planet ever (that needs the knowledge store); the tension tracks are 128 kbit/s, the library's other ElevenLabs
+  tracks 192.
+
 ### 🛤️ CI: a narrow lane for client-side PRs (2026-11-17) — PR #3735 (`1c3e19a5`) — ✅ released in v2026.11.20
 
 - ✅ **What.** A PR whose whole non-doc diff is `client/**`, `src/BlocksBeyondTheStars.Client.Core/**`,

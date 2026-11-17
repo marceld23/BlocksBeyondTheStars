@@ -30,7 +30,9 @@ namespace BlocksBeyondTheStars.Client
         // jumped AND toggled the camera view (ToggleThirdPerson). The pad jumps on A through GamepadInputSource.
         public bool JumpHeld() => Input.GetKey(KeyCode.Space);
         public bool JumpDown() => Input.GetKeyDown(KeyCode.Space);
-        public bool CrouchHeld() => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C);
+        public bool CrouchHeld() => InputMap.KeyboardCrouch(
+            Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C),
+            Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.C)); // held, or a toggle (Accessibility)
         public bool PrimaryDown() => Input.GetMouseButtonDown(0);
         public bool PrimaryHeld() => Input.GetMouseButton(0);
         public bool SecondaryDown() => Input.GetMouseButtonDown(1);

@@ -28,7 +28,7 @@ namespace BlocksBeyondTheStars.Client
         private float _captureThrottle = -1f;
         public void SetFlightThrottle(float throttle) => _captureThrottle = throttle < 0f ? -1f : Mathf.Clamp01(throttle);
         public void SetFlightPitch(float pitchDeg) => _pitch = Mathf.Clamp(pitchDeg, -80f, 80f);
-        private float CaptureForward() => _captureThrottle >= 0f ? _captureThrottle : InputMap.MoveY();
+        private float CaptureForward() => _captureThrottle >= 0f ? _captureThrottle : InputMap.MoveYRaw();
 
         // --- Cinematic landing hooks (ClipDirector): a hands-off version of the player's fly-in → pick-pad → land. ---
         public bool CaptureLandMapShowing => _landMapGo != null;

@@ -543,6 +543,7 @@ namespace BlocksBeyondTheStars.Client
             _worldHold?.Tick(Time.realtimeSinceStartup); // #2461: one keep-alive for every holder (menu, feedback, …)
             _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now
             Bio.Tick(Time.deltaTime); // #2202: the effect seconds run between two server updates
+            TickFeel(); // the HUD's own off/on key (GameBootstrap.Feel.cs)
             BioSenses.Ensure(this);   // #2202: night sight and perception — the component arrives with the first such effect
             TickWeatherSmoothing();
             WorldMinimap.Pump(); // #2172: planet map bakes — worker threads on desktop, time slices in the browser

@@ -91,6 +91,10 @@ namespace BlocksBeyondTheStars.Client
         private void LateUpdate()
         {
             Game?.SetMenuOwner(this, _state is not null); // dialogue happens on foot — take the cursor
+            if (_state is not null)
+            {
+                MusicDuck.Speech(); // the music makes room while the conversation is open
+            }
         }
 
         private void OnDialog(NpcDialogState m)

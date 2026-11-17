@@ -49,7 +49,7 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="ClientSettings.MusicVolume"/> (master is the <see cref="AudioListener"/>). The studio/title
     /// splash stings are one-shots played by AppShell and are left alone (music stays silent over them).
     /// </summary>
-    public sealed class ClientMusic : MonoBehaviour
+    public sealed partial class ClientMusic : MonoBehaviour
     {
         /// <summary>The owning shell; supplies settings, the current phase and the in-game world (or null).</summary>
         public AppShell Shell;
@@ -358,6 +358,11 @@ namespace BlocksBeyondTheStars.Client
                 return game.StarChartOpen ? MusicLibrary.StarChart : MusicLibrary.Space;
             }
 
+            if (OnFootTension(game))
+            {
+                return MusicLibrary.Tension; // a hostile stays close on foot: the tension pool (ClientMusic.Feel.cs)
+            }
+
             // The Tab menu's crafting / tech tabs, held open for a while, bring their own beds (#1174).
             string tab = game.MenuTabKey;
             if (tab != _menuTabSeen)
@@ -436,6 +441,10 @@ namespace BlocksBeyondTheStars.Client
                 if (!string.IsNullOrEmpty(body) && _visitedBodies.Add(body))
                 {
                     _arrivalPending = true;
+                    if (_visitedBodies.Count > 1)
+                    {
+                        ClientAudio.Instance?.Sting("sting_new_planet"); // another world reached this session
+                    }
                 }
             }
 
@@ -540,45 +549,6 @@ namespace BlocksBeyondTheStars.Client
             FinaleResolution => "music_boss_resolution",
             _ => null,
         };
-
-        /// <summary>The ducking multiplier the scene asks for: a violent weather episode and a hostile creature
-        /// close by (on foot) both pull the music down under the ambience; aboard / in space nothing ducks.</summary>
-        private float DuckFor(GameBootstrap game)
-        {
-            _tension = false;
-            if (game == null || game.Aboard || game.SpaceViewActive || game.InSpace || _context == GiantFight)
-            {
-                return 1f; // #3676: the boss track is the fight's music — never ducked or muffled under it
-            }
-
-            float duck = 1f;
-            var env = game.Environment;
-            if (env != null && game.ExposedToSky)
-            {
-                float intensity = Mathf.Clamp01(game.WeatherIntensity);
-                switch (env.WeatherFamily)
-                {
-                    case "violent": duck = 1f - 0.45f * intensity; break;            // storm / blizzard / sandstorm
-                    case "wet":
-                    case "obscuring":
-                    case "windy": duck = 1f - 0.2f * intensity; break;               // rain, fog, gale: a touch
-                }
-            }
-
-            if (game.NearestHostileSqr < TensionRadiusSqr)
-            {
-                _tension = true;
-                duck = Mathf.Min(duck, 0.6f);
-            }
-
-            if (game.Uneasy)
-            {
-                _tension = true; // 2026-09 (Valuma): something is watching — the music stays dark and low
-                duck = Mathf.Min(duck, 0.7f);
-            }
-
-            return duck;
-        }
 
         /// <summary>Cross-fades to a clip for <paramref name="want"/>: the next piece from the context's pool
         /// (Tracks mode) or a freshly composed synth piece. <paramref name="reroll"/> keeps the same context but
@@ -789,7 +759,7 @@ namespace BlocksBeyondTheStars.Client
         {
             MusicLibrary.Menu or MusicLibrary.Loading or FinaleResolution => SynthMood.Menu,
             MusicLibrary.Space or MusicLibrary.StarChart or FinaleApproach or FinaleDialogue => SynthMood.Space,
-            Combat or FinaleGauntlet or FinaleHack or GiantFight => SynthMood.Combat,
+            Combat or FinaleGauntlet or FinaleHack or GiantFight or MusicLibrary.Tension => SynthMood.Combat,
             _ => SynthMood.Planet,
         };
 
