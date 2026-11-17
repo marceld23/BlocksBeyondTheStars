@@ -254,6 +254,14 @@ components, a category sidebar and blueprint state.
   (bit 28, above the boots' style bits; only with the obsidian chest), draws a round disc on the chest; with the light disc it shines and a small
   violet-white point light (mirrored into the FX lights like a glowing creature) makes the wearer glow softly — other
   players see it too. The presence gains no field (#3234).
+  **Clearance (#3752):** no face of a plate may lie in the plane of a face of the body box it covers — two such faces
+  flicker against each other and the skin's colour flashes through the plate. The body boxes under the plates (pelvis,
+  abdomen, chest, shoulders, upper leg) and the two plate boxes every set draws (`ChestPlate`: back 2 cm behind the body's
+  back, front at z 0.21 where the sets' trim sits; `LegPlate`: 5 mm deeper than the pelvis in front and behind, 5 mm
+  behind a knee pad's front) live in `Client.Core/AvatarArmourFit.cs`; `AvatarArmourFitTests` holds the rule
+  (`ShareAFace`) and that every set draws the shared boxes. A new set's plate goes through the same boxes — or gets its own
+  box there and a line in that test. The suit's chest panel and its status light hide while a chest piece is worn
+  (`PlayerAvatar.ArmourFit.cs`).
   The own stealth cloak (`Game.Stealthed`) turns the third-person figure into shimmering glass (`SetStealthShimmer`) —
   other players never see a cloaked player at all. Movement: the spring boots scale the ground jump's impulse by
   √(1 + `SuitEquipment.JumpBoost`); holding Jump while falling with the glider where there is air (an atmosphere, below

@@ -12,8 +12,8 @@ namespace BlocksBeyondTheStars.GameServer;
 
 public sealed partial class CombatEntity
 {
-    /// <summary>#3326: seconds until a creature that bites in chunks (<see cref="CreatureReach.BitesInChunks"/>, the
-    /// Schuppenhund) may bite again. Unused by every other creature.</summary>
+    /// <summary>#3326: seconds until a creature that bites in chunks (<see cref="CreatureReach.BitesInChunks"/>: the
+    /// Schuppenhund, and the Soundrak since #3750) may bite again. Unused by every other creature.</summary>
     public double BiteCooldown { get; set; }
 }
 
@@ -22,7 +22,8 @@ public sealed partial class CombatEntity
 /// the dry worlds, kept out of the creature state machine so nothing about any other species changes.
 /// <list type="bullet">
 /// <item><b>Bites in chunks</b> — <see cref="HoundRules.BiteDamage"/> once per <see cref="CreatureSpecies.BiteInterval"/>,
-/// within reach and in sight, instead of the per-second drain every other hostile deals: one lunge, one sound, one chunk.</item>
+/// within reach and in sight, instead of the per-second drain the other hostiles deal: one lunge, one sound, one chunk. The
+/// rule is the species' data (<see cref="BiteThisTick"/>), so the Soundrak's record uses it too (#3750).</item>
 /// <item><b>The charge</b> — within <see cref="HoundRules.ChargeRange"/> of its prey it runs ×<see cref="HoundRules.ChargeFactor"/>,
 /// still below the player's walk; it notices prey from <see cref="HoundRules.AggroRange"/>.</item>
 /// <item><b>Alone</b> — the spawner keeps <see cref="HoundRules.MaxWildAtOnce"/> wild hound at a time.</item>

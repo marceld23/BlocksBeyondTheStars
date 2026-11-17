@@ -254,7 +254,31 @@ public sealed class SoundersCreaturesTests
         Assert.InRange(SoundrakRules.NoticeRange, 6f, SoundrakRules.TerritoryRange);
         Assert.True(SoundrakRules.NoticeRange <= 8f + Math.Max(0f, soundrak.Size - 2f));
         Assert.Equal(CreatureTemperament.Territorial, soundrak.Temperament); // not "Hostile": no permanent red, pets leave it be
-        Assert.InRange(soundrak.AttackDamage ?? 0f, 1f, 5f); // a fair, kid-friendly bite
+        Assert.InRange(soundrak.AttackDamage ?? 0f, 4f, 8f); // #3750: felt, and still below a Schuppenhund's bite
+    }
+
+    [Fact]
+    public void TheSoundrak_StrikesInChunks_ThatShowThroughArmourAndHealing()
+    {
+        // #3750 (Justus: "the Soundraks do no damage"): 3 health a second sat just above the natural healing (2 a second on a
+        // breathable world) and below it behind armour, so the health bar never moved. It strikes in chunks now.
+        var soundrak = Shipped.Value.AuthoredCreatures[SoundersIds.Soundrak];
+        Assert.InRange(soundrak.BiteDamage, 10f, 15f);   // one strike is a clear step on the bar, never half the health
+        Assert.InRange(soundrak.BiteInterval, 1.5f, 3f); // time to turn and walk away between two strikes
+        Assert.Equal((double)(soundrak.BiteDamage / soundrak.BiteInterval), (double)(soundrak.AttackDamage ?? 0f), 3); // per-second readers see the same danger
+        Assert.True(soundrak.BiteDamage * (1f - BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxArmorResistance) >= 3f,
+            "a strike still shows behind the strongest armour");
+
+        // The wire carries no bite interval: the client shows the attack on a hit by the body plan, so the shared rule
+        // must name the plan of every authored species that bites in chunks.
+        foreach (var record in Shipped.Value.AuthoredCreatures.Values.Where(a => a.BiteDamage > 0f && a.BiteInterval > 0f))
+        {
+            Assert.True(CreatureReach.LungesOnHit(record.BodyPlan.ToString()), record.Key);
+        }
+
+        Assert.True(CreatureReach.LungesOnHit(nameof(CreatureBodyPlan.Hound)));
+        Assert.False(CreatureReach.LungesOnHit(nameof(CreatureBodyPlan.Soundi)));
+        Assert.False(CreatureReach.LungesOnHit(null));
     }
 
     [Fact]

@@ -198,7 +198,7 @@ Last updated: 2026-10-04.
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
 | **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. Not while crouched, swimming, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. **Sneaking is quiet:** a sleeping animal does not wake when you sneak up to it (see *Creatures*), and the sandworms do not hear your steps. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** or the **Quantum Teleporter** selected it opens the destination picker — ship, allies, bases, beam blocks, beacons and map markers, and with the Quantum Teleporter typed coordinates or the map waypoint, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -3901,7 +3901,7 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    **the Eldest** — the tallest Sounder — in the village **Mirun**.
    **Watch out for the Soundraks** — the ten-metre giants are dangerous from the very start. When one notices you (about
    11 blocks away) it **screams: that is the warning**. Back away and it lets you go; stay close and a few seconds later it
-   charges and bites. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
+   charges and strikes — every strike takes a clear step off your health. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
    obsidian chest or a pulse of the Resonance Blaster calms it. In **Peaceful** it only screams.
 8. **The Bridge Song.** At the **Choir Tower** the Young Voices want to sing the Final Song again. Talk to **Roll** — the
    things the Echoes told you are your best answers — then climb the tower and strike one of its eight pipes: the choir
@@ -4323,6 +4323,11 @@ controls line at the bottom leaves out the quick-bar keys.
   Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
   (the same airtight rooms the base core supplies with air), no single species fills the whole area, and
   an animal you wall or floor in while it sleeps wakes up and steps clear.
+- **Sleeping animals and sneaking** (an idea of Justus). An animal asleep in the off-hours of its day (the *z z z*
+  above it) wakes when you walk up to it — within about 4 blocks. **Sneak (crouch) and it sleeps on**, however close you
+  come; stand up next to it and it wakes. A friend walking beside you wakes it too. A hit, a shot next to it, a ship's
+  jets, a train's horn or fire wake it as before, and the jetpack and a speeder are never quiet. The giants do not care
+  about any of this: they follow their own rules, and a guardian giant wakes when you mine its body.
 - **Animals and your base.** No ground or cave animal spawns within 24 blocks of a base core. Farther out, wild
   animals stay out of a base's sealed rooms and of a **closed ring of walls** (at least 2 blocks high, closed all
   round at feet level) as far out as you have built around the core — at least 48 blocks, at most 192. **No ground
@@ -4420,8 +4425,9 @@ controls line at the bottom leaves out the quick-bar keys.
   settings) it does not bite at all.
 - **The Soundrak** — Justus' ten-metre, light-blue giant of **Soaniri** (*The Sounders' Song*), and **dangerous from the
   start**: when it notices you (about 11 blocks) it **screams — the warning**. Back away and it lets you go; stay close and
-  a few seconds later it charges and bites (about 3 health a second). It is slow, so you can always walk away, and it gives
-  up after a short chase. The scanner says "Dangerous — it screams, then attacks". The *calm disc* and the Resonance
+  a few seconds later it charges and **strikes: about 12 health every two seconds**, a clear step on your health bar
+  (armour softens every strike — the whole obsidian set leaves about 4). It is slow, so you can always walk away, and it
+  gives up after a short chase — about four strikes if you just stand there. The scanner says "Dangerous — it screams, then attacks". The *calm disc* and the Resonance
   Blaster calm it; with **planet enemies off** it only screams.
 
 ### Giants (the colossus, the sandworm, the leviathan and the sky giant)

@@ -41,7 +41,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildObsidianChest(bool glow)
         {
             EnsureObsidianMaterials();
-            _gear.Add(AddCube("ObsChest", transform, new Vector3(0f, 1.45f, 0.02f), new Vector3(0.62f, 0.42f, 0.38f), _obsidian));
+            _gear.Add(AddCube("ObsChest", transform, AvatarArmourFit.ChestPlate, _obsidian)); // #3752: clear of the body's back
             _gear.Add(AddCube("ObsShoulderL", transform, new Vector3(-0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _obsidian));
             _gear.Add(AddCube("ObsShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _obsidian));
             _gear.Add(AddCube("ObsChestSeamL", transform, new Vector3(-0.2f, 1.45f, 0.212f), new Vector3(0.02f, 0.34f, 0.012f), _obsidianSeam));
@@ -63,13 +63,13 @@ namespace BlocksBeyondTheStars.Client
         private void BuildObsidianLegs()
         {
             EnsureObsidianMaterials();
-            _gear.Add(AddCube("ObsLegL", _legL, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), _obsidian));
-            _gear.Add(AddCube("ObsLegR", _legR, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), _obsidian));
+            _gear.Add(AddCube("ObsLegL", _legL, AvatarArmourFit.LegPlate, _obsidian)); // #3752: clear of the pelvis' planes
+            _gear.Add(AddCube("ObsLegR", _legR, AvatarArmourFit.LegPlate, _obsidian));
             if (_kneeL != null && _kneeR != null)
             {
                 foreach (var knee in new[] { _kneeL, _kneeR })
                 {
-                    _gear.Add(AddCube("ObsKnee", knee, new Vector3(0f, -0.02f, 0.12f), new Vector3(0.22f, 0.16f, 0.06f), _obsidian));
+                    _gear.Add(AddCube("ObsKnee", knee, AvatarArmourFit.KneePad, _obsidian));
                     _gear.Add(AddCube("ObsKneeSeam", knee, new Vector3(0f, -0.02f, 0.155f), new Vector3(0.16f, 0.03f, 0.012f), _obsidianSeam));
                 }
             }

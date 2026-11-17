@@ -109,13 +109,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             EnsureGearSetMaterials();
-            _gear.Add(AddCube("SetLegL", _legL, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), _setDark));
-            _gear.Add(AddCube("SetLegR", _legR, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), _setDark));
+            _gear.Add(AddCube("SetLegL", _legL, AvatarArmourFit.LegPlate, _setDark)); // #3752: clear of the pelvis' planes
+            _gear.Add(AddCube("SetLegR", _legR, AvatarArmourFit.LegPlate, _setDark));
             if (_kneeL != null && _kneeR != null)
             {
                 foreach (var knee in new[] { _kneeL, _kneeR })
                 {
-                    _gear.Add(AddCube("SetKnee", knee, new Vector3(0f, -0.02f, 0.12f), new Vector3(0.22f, 0.16f, 0.06f), _setTrim));
+                    _gear.Add(AddCube("SetKnee", knee, AvatarArmourFit.KneePad, _setTrim));
                     _gear.Add(AddCube("SetKneeLight", knee, new Vector3(0f, -0.02f, 0.155f), new Vector3(0.06f, 0.04f, 0.012f), _setRed));
                 }
             }
@@ -186,7 +186,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildGuardianChest()
         {
             EnsureGearSetMaterials();
-            _gear.Add(AddCube("SetChest", transform, new Vector3(0f, 1.45f, 0.02f), new Vector3(0.62f, 0.42f, 0.38f), _setDark));
+            _gear.Add(AddCube("SetChest", transform, AvatarArmourFit.ChestPlate, _setDark)); // #3752: clear of the body's back
             _gear.Add(AddCube("SetShoulderL", transform, new Vector3(-0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _setTrim));
             _gear.Add(AddCube("SetShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _setTrim));
             _gear.Add(AddCube("SetChestBand", transform, new Vector3(0f, 1.52f, 0.215f), new Vector3(0.30f, 0.03f, 0.012f), _setRed));
@@ -339,7 +339,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildRessawChest()
         {
             EnsureRessawMaterials();
-            RessawPart("Chest", transform, new Vector3(0f, 1.45f, 0.02f), new Vector3(0.62f, 0.42f, 0.38f), _ressawMilk);
+            RessawPart("Chest", transform, At(AvatarArmourFit.ChestPlate), Size(AvatarArmourFit.ChestPlate), _ressawMilk);
             RessawPart("ShoulderL", transform, new Vector3(-0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _ressawPurple);
             RessawPart("ShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _ressawPurple);
             RessawPart("ChestBand", transform, new Vector3(0f, 1.575f, 0.215f), new Vector3(0.62f, 0.05f, 0.012f), _ressawPurple);
@@ -357,7 +357,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureRessawMaterials();
             foreach (var (hip, side) in new[] { (_legL, -1f), (_legR, 1f) })
             {
-                RessawPart("Thigh", hip, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), _ressawMilk);
+                RessawPart("Thigh", hip, At(AvatarArmourFit.LegPlate), Size(AvatarArmourFit.LegPlate), _ressawMilk);
                 RessawPart("ThighStripe", hip, new Vector3(side * 0.145f, -0.22f, 0f), new Vector3(0.012f, 0.40f, 0.08f), _ressawRed);
             }
 

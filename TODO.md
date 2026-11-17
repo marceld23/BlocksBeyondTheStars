@@ -26,6 +26,32 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking past sleepers, armour that no longer flickers (#3750–#3752; more of the batch below as it lands), 🚧 in work (⚠ playtest open; server + client, no protocol or save change)
+
+Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so far:
+
+- ✅ **#3750 The Soundrak strikes.** "The Soundraks do no damage": 3 health a second (2.1 behind the obsidian chest
+  plate) against 2 a second of natural healing never moved the health bar. Its record now strikes in chunks like the
+  Schuppenhund — `biteDamage` 12 every `biteInterval` 2 s (`attackDamage` 6 as the per-second equivalent); the warning
+  scream, backing away, its slow walk and the calm stay. About four strikes per attack before it gives up the chase. The
+  client lunges on every strike (`CreatureReach.LungesOnHit`, shared rule instead of a hard-coded "Hound").
+  Tests: `SoundersFaunaServerTests` (a strike per interval, with and without armour, nothing in between),
+  `SoundersCreaturesTests`, `CreatureStrikeWiringTests`.
+- ✅ **#3751 Sneaking past sleeping animals.** A sleeping animal woke for any player within 4 blocks. A sneaking
+  (crouching, on foot, no jetpack, no speeder) player no longer wakes it; a standing one does, whoever else sneaks.
+  Everything else that wakes a sleeper is unchanged, and so are the giants (`GameServerSneaking.cs`,
+  `SneakingPastSleepersTests`).
+- ✅ **#3752 Worn armour no longer flickers.** The chest plate's back lay in the plane of the body's back, the leg
+  plates' front and back in the pelvis' planes (z-fighting, every set), and the suit's status light stuck 5 mm out of
+  the plate. The body boxes under the plates and the two plate boxes live in `Client.Core/AvatarArmourFit.cs` now;
+  every set draws them; the suit's chest panel hides under a chest piece (`AvatarArmourFitTests`).
+- 📋 **Open decision for the maintainer (from #3750):** natural healing of 2 health a second on a breathable world also
+  makes every rolled hunter with 2 health a second harmless there. Whether healing should pause for a few seconds
+  after a hit is a balance decision for the whole game — not changed.
+- 📋 **Decided, no change:** "too few planets with guardians or robbers" — Explorer worlds stay as calm as they are
+  (machines are on every planet already, 2 per player; lone robbers roam 55 % of the bodies); the answer is the
+  world options (machines / bandits up to Extreme) and the Hard Survival mode of this batch.
+
 ### 🚀 Space combat that moves: barrel roll, boost, livelier enemies, more ship weapons — epic #3762 (#3753–#3761), ✅ 2026-11-17 (⚠ playtest open; server + client, two appended messages, no protocol bump, no new block — saves stay compatible)
 
 How it works: [docs/developer/SPACE_COMBAT_CONCEPT.md](docs/developer/SPACE_COMBAT_CONCEPT.md) § *Manoeuvres, the heavy

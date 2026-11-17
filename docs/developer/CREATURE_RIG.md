@@ -454,8 +454,11 @@ Qualis about (`SoundersFauna.MaxWildAtOnce`; a herd member too), the giants vary
 never be hit or pushed (`srv.attack.quali`). The **Soundrak is hostile from the start** (#3424, on every world, no story
 progress needed): it screams (a `SoundFx` from its crown, every 9–15 s) at the nearest player in its territory (18 blocks); a
 player it notices within `SoundrakRules.NoticeRange` (11 — inside the 11.6 blocks it hunts from) hears the scream as a
-**warning**, and one still that close `WarningSeconds` (2.5 s) later is attacked: provoked into the classic charge and bite
-(3 health a second, the usual give-up after a 7 s chase, death sends the player to the respawn choice). Any scream from the last
+**warning**, and one still that close `WarningSeconds` (2.5 s) later is attacked: provoked into the classic charge, and it
+**strikes in chunks** like the Schuppenhund (#3750: its record's `biteDamage` 12 every `biteInterval` 2 s, `attackDamage` 6 as
+the per-second equivalent — the 3 health a second it drained before sat just above the natural healing of 2 a second and below
+it behind armour, so the health bar never moved; the client lunges on every strike, `CreatureReach.LungesOnHit`; the usual
+give-up after a 7 s chase means about four strikes, death sends the player to the respawn choice). Any scream from the last
 `WarningMemorySeconds` (8 s) counts as the warning, otherwise it screams again first (`SoundrakRules.AlertFor`); a player who
 backs out of the notice range is let go. It attacks only with planet enemies on (Peaceful and Creative: screams only), never a
 player who soothes it (the items pack's `partial void SoothesSoundraks` — the calm disc), notices a wearer of the whole obsidian

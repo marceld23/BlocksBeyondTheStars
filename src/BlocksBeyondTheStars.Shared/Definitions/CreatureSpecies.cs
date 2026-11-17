@@ -311,7 +311,7 @@ public sealed class CreatureSpecies
 
     /// <summary>The damage of ONE bite (#3326). With <see cref="BiteInterval"/> above 0 the species bites in chunks — once per
     /// interval, within reach and in sight — instead of draining <see cref="AttackDamage"/> per second; see
-    /// <see cref="CreatureReach.BitesInChunks"/>. 0 on every species before the hound.</summary>
+    /// <see cref="CreatureReach.BitesInChunks"/>. 0 on every species but the hound and the Soundrak (#3750).</summary>
     public float BiteDamage { get; set; }
 
     /// <summary>Seconds between two bites (#3326); 0 = the classic per-second drain.</summary>

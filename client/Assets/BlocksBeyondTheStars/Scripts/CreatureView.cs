@@ -571,9 +571,9 @@ namespace BlocksBeyondTheStars.Client
                     // species size) — a fixed 3 blocks left a flier biting from 3–5 blocks silent and still. An animal the
                     // server just named as the attacker (#2564) lunges too, wherever smoothing has it drawn.
                     float biteReach = CreatureReach.BiteRange(c.SpeciesSize > 0f ? c.SpeciesSize : c.Size); // 0: an older server
-                    // #3327: the Schuppenhund bites in chunks — it lunges and snaps exactly when the server's bite lands (the
-                    // fresh hit report from it), never on the random cadence, so every lunge is a bite and every bite a lunge.
-                    bool chunkBiter = c.BodyPlan == "Hound";
+                    // #3327/#3750: a chunk biter (the Schuppenhund, the Soundrak) lunges and snaps exactly when the server's bite
+                    // lands (the fresh hit report from it), never on the random cadence: every lunge a bite, every bite a lunge.
+                    bool chunkBiter = CreatureReach.LungesOnHit(c.BodyPlan);
                     bool freshHit = Game.LastHit.IsFreshFrom(c.Id, Time.time, AttackerBlinkFreshSeconds);
                     bool attackNow = chunkBiter
                         ? freshHit

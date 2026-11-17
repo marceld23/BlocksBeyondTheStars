@@ -45,7 +45,7 @@
     "biomeSurfaces": [], "biomeExclusive": false, "hide": "fur" },
   { "key": "soundrak", "namePrefix": "Soundrak", "fixedName": true,
     "habitat": "Land", "activity": "Cathemeral", "temperament": "Territorial", "locoStyle": "Grazer", "bodyPlan": "Soundrak",
-    "size": 5.6, "speed": 1.4, "maxHealth": 420, "attackDamage": 3,
+    "size": 5.6, "speed": 1.4, "maxHealth": 420, "attackDamage": 6, "biteDamage": 12, "biteInterval": 2.0,
     "legs": 2, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 8308462, "bellyRgb": 11726031, "eyes": 0, "horns": 0, "hasCrest": false, "glows": false,
     "socialGroupSize": 1,
     "dropItem": "plant_fiber", "dropCount": 6, "dropKind": "Material",
