@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -25,6 +26,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Plays one of the player's emotes (<see cref="PlayerEmotes"/>) for the players nearby; the server
         /// checks the id and the pace.</summary>
         public void SendEmote(byte emote) => Send(new PlayerEmoteIntent { Emote = emote });
+
+        /// <summary>#3756: a hostile's heavy shot starts charging, or fires (hit or miss).</summary>
+        public event Action<SpaceHeavyShot>? SpaceHeavyShotReceived;
+
+        /// <summary>#3753: the pilot rolls (to the right, or to the left) — the server opens the evade window if its
+        /// cooldown allows, and shows the roll to the other pilots.</summary>
+        public void SendShipRoll(bool right = true) => Send(new ShipManeuverIntent { Kind = ShipManeuverKinds.Roll, On = right });
+
+        /// <summary>#3754: the pilot switches the boost on or off — the server runs its own charge.</summary>
+        public void SendShipBoost(bool on) => Send(new ShipManeuverIntent { Kind = ShipManeuverKinds.Boost, On = on });
 
         /// <summary>The species of the world just entered (#3245), once per world entry, after its <c>WorldReset</c> (or the
         /// join) and its first <c>WorldEnvironment</c> — the roster the distant-fauna scheduler (<see cref="DistantFauna"/>)
@@ -194,6 +205,7 @@ namespace BlocksBeyondTheStars.Client
             On<DiscoveryLog>(map, (c, m) => c.DiscoveryLogReceived?.Invoke(m));
             On<EnemyLog>(map, (c, m) => c.EnemyLogReceived?.Invoke(m));
             On<PlayerEmote>(map, (c, m) => c.PlayerEmoteReceived?.Invoke(m)); // the feel pass
+            On<SpaceHeavyShot>(map, (c, m) => c.SpaceHeavyShotReceived?.Invoke(m)); // #3756
             On<PvpTargets>(map, (c, m) => c.PvpTargetsReceived?.Invoke(m));
             On<DuelNotice>(map, (c, m) => c.DuelNoticeReceived?.Invoke(m));
             On<AchievementList>(map, (c, m) => c.AchievementsReceived?.Invoke(m));

@@ -24,6 +24,21 @@ public sealed class ShipDefinition
     public float FlightSpeed { get; set; } = 1f;
     public float Handling { get; set; } = 1f;
 
+    /// <summary>#3760: the factor on the damage of every weapon this ship fires (a combat hull hits harder). 1 = none.</summary>
+    public float WeaponDamage { get; set; } = 1f;
+
+    /// <summary>#3760: the factor on the top speed while the boost is on; 0 = the default
+    /// (<see cref="ShipManeuverRules.DefaultBoostPower"/>).</summary>
+    public float BoostPower { get; set; }
+
+    /// <summary>#3760: seconds a full boost charge lasts; 0 = the default
+    /// (<see cref="ShipManeuverRules.DefaultBoostSeconds"/>).</summary>
+    public float BoostSeconds { get; set; }
+
+    /// <summary>#3760: seconds between two barrel rolls; 0 = derived from <see cref="Handling"/>
+    /// (<see cref="ShipManeuverRules.RollCooldownFor"/>).</summary>
+    public float RollCooldown { get; set; }
+
     /// <summary>Interior footprint (odd numbers read best) + height; drives the stamped hull size.</summary>
     public int InteriorWidth { get; set; } = 5;
     public int InteriorLength { get; set; } = 7;

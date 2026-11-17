@@ -190,6 +190,36 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
   },
   {
+    "key": "scatter_cannon", "nameKey": "blueprint.scatter_cannon.name", "descriptionKey": "blueprint.scatter_cannon.desc",
+    "category": "ShipWeapon", "prerequisites": [ "ship_cannon_1" ], "knowledgeCost": 70,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "steel", "count": 4 } ]
+  },
+  {
+    "key": "ion_pulse", "nameKey": "blueprint.ion_pulse.name", "descriptionKey": "blueprint.ion_pulse.desc",
+    "category": "ShipWeapon", "prerequisites": [ "ship_cannon_1", "crystal_conduit" ], "knowledgeCost": 90,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "crystal", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
+    "key": "missile_launcher", "nameKey": "blueprint.missile_launcher.name", "descriptionKey": "blueprint.missile_launcher.desc",
+    "category": "ShipWeapon", "prerequisites": [ "laser_cannon_2", "radar_array" ], "knowledgeCost": 110,
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "titanium_plate", "count": 16 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
+    "key": "point_defense", "nameKey": "blueprint.point_defense.name", "descriptionKey": "blueprint.point_defense.desc",
+    "category": "ShipWeapon", "prerequisites": [ "shield_generator", "ship_cannon_1" ], "knowledgeCost": 85,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
+  },
+  {
+    "key": "afterburner", "nameKey": "blueprint.afterburner.name", "descriptionKey": "blueprint.afterburner.desc",
+    "category": "ShipExpansion", "prerequisites": [ "docking_module" ], "knowledgeCost": 55,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "maneuvering_thrusters", "nameKey": "blueprint.maneuvering_thrusters.name", "descriptionKey": "blueprint.maneuvering_thrusters.desc",
+    "category": "ShipExpansion", "prerequisites": [ "docking_module" ], "knowledgeCost": 55,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "light_alloy", "count": 4 } ]
+  },
+  {
     "key": "ship_hauler", "nameKey": "blueprint.ship_hauler.name", "descriptionKey": "blueprint.ship_hauler.desc",
     "category": "Ship", "prerequisites": [ "cargo_expansion_1", "docking_module" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 } ]

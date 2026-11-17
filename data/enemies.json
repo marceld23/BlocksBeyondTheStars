@@ -13,15 +13,15 @@
   { "key": "ufo", "nameKey": "enemy.ufo.name", "descriptionKey": "enemy.ufo.desc", "tipKey": "enemy.ufo.tip", "where": "space",
     "tiers": {
       "normal": { "hull": 40, "damagePerSecond": 4, "loot": [ { "item": "data_fragment", "count": 3 } ] },
-      "elite":  { "hull": 95, "damagePerSecond": 8, "loot": [ { "item": "data_fragment", "count": 4 } ] }
+      "elite":  { "hull": 95, "shield": 30, "damagePerSecond": 8, "loot": [ { "item": "data_fragment", "count": 4 } ] }
     } },
   { "key": "cruiser", "nameKey": "enemy.cruiser.name", "descriptionKey": "enemy.cruiser.desc", "tipKey": "enemy.cruiser.tip", "where": "space",
     "tiers": {
-      "normal": { "hull": 260, "damagePerSecond": 10, "loot": [ { "item": "data_fragment", "count": 8 } ] }
+      "normal": { "hull": 260, "shield": 60, "damagePerSecond": 7, "heavyShotDamage": 24, "heavyShotInterval": 8, "loot": [ { "item": "data_fragment", "count": 8 } ] }
     } },
   { "key": "bandit_ship", "nameKey": "enemy.bandit_ship.name", "descriptionKey": "enemy.bandit_ship.desc", "tipKey": "enemy.bandit_ship.tip", "where": "space",
     "tiers": {
-      "normal": { "hull": 55, "hullMax": 120, "damagePerSecond": 5, "loot": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 2 } ] }
+      "normal": { "hull": 55, "hullMax": 120, "shield": 25, "damagePerSecond": 3.5, "heavyShotDamage": 13, "heavyShotInterval": 9, "loot": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 2 } ] }
     } },
   { "key": "hunter_shuttle", "nameKey": "enemy.hunter_shuttle.name", "descriptionKey": "enemy.hunter_shuttle.desc", "tipKey": "enemy.hunter_shuttle.tip", "where": "space",
     "tiers": {

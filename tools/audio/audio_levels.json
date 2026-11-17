@@ -1695,6 +1695,18 @@
    "peak": -3.4,
    "sha256": "9092f83383dc1e75483489bf3b75dcde2379441c7fe42809c89d386eadd6f53c"
   },
+  "heavy_shot_charge": {
+   "class": "oneshot",
+   "level": -12.2,
+   "peak": -4.1,
+   "sha256": "e1ec93dedf6ecbcd68ccd21cb8085470cf846a6e2c857ebcdc0cef7902f17605"
+  },
+  "heavy_shot_fire": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -4.4,
+   "sha256": "828fcad442abedd421aae48c059838390934d4a6345dcb38c1d5247cf362a0c8"
+  },
   "hit_confirm": {
    "class": "ui",
    "level": -20.0,
@@ -2499,6 +2511,12 @@
    "peak": -2.8,
    "sha256": "e047b7544bf130f3d66c8042495c4dc5216212c65f12d47ee9ceb5816f1525c7"
   },
+  "ship_boost": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -7.1,
+   "sha256": "4b025f2296b38a72f02b85cc4e1f8b824ebc3534e8bc8cc46c22c8029d7a436d"
+  },
   "ship_cooling_tick": {
    "class": "foley",
    "level": -20.5,
@@ -2529,6 +2547,12 @@
    "peak": -3.3,
    "sha256": "4a3bf0dfe88a0db4bcdbc3305e9e7d4bedb291eb6d2fad3b16b9a6c9c139f954"
   },
+  "ship_ion": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -6.2,
+   "sha256": "ab120b21c6747c45853ad4e605b72756d45c331e23d3461c95961fe0b45c33da"
+  },
   "ship_landing": {
    "class": "oneshot",
    "level": -12.4,
@@ -2540,6 +2564,24 @@
    "level": -12.4,
    "peak": -3.8,
    "sha256": "98946e3b9af1e5dc7e8ffa4409a2ac4b7b2ab50782887e6ad63315aca272d071"
+  },
+  "ship_missile": {
+   "class": "oneshot",
+   "level": -12.3,
+   "peak": -4.6,
+   "sha256": "e0f0c7a527a6e0ad3da974c33b36ff0fdee0cffb6ce7c2f94f79cdce75a8763e"
+  },
+  "ship_missile_hit": {
+   "class": "oneshot",
+   "level": -13.1,
+   "peak": -1.8,
+   "sha256": "344998f1faf25591de616df550e20b2dbc7938300f5ad0abe4f971e882df3e2a"
+  },
+  "ship_roll": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -0.9,
+   "sha256": "daff0c70d26df264bf3bca29635c48042f67456b07a04d1ee912c1d0c7152aea"
   },
   "ship_scan_charge": {
    "class": "oneshot",
@@ -2564,6 +2606,12 @@
    "level": -12.5,
    "peak": -2.1,
    "sha256": "d9f349c2cd177090a6266604ef876117cc0393c42c8f69db0daef95d0bc7762a"
+  },
+  "ship_scatter": {
+   "class": "oneshot",
+   "level": -13.2,
+   "peak": 0.5,
+   "sha256": "b2657b13c7a9d3600c92c5c97558aa2aae426e9af54a484d31e8a9637aa5a63a"
   },
   "ship_shield_hit": {
    "class": "oneshot",

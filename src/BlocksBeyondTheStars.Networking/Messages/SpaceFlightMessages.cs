@@ -81,6 +81,46 @@ public sealed class ShipCombatStatus
     /// <summary>The active ship's fitted module keys — lets the flight HUD build its ship-systems quick-bar
     /// (weapon, tractor beam, …) from what the ship actually carries.</summary>
     public string[] Modules { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3754: the factor on the top speed while the boost is on. Contractless-additive: an older server leaves
+    /// the four manoeuvre values 0 and the client then flies by the defaults.</summary>
+    public float BoostPower { get; set; }
+
+    /// <summary>#3754: seconds a full boost charge lasts.</summary>
+    public float BoostSeconds { get; set; }
+
+    /// <summary>#3754: seconds an empty boost charge takes to fill.</summary>
+    public float BoostRecharge { get; set; }
+
+    /// <summary>#3753: seconds between two barrel rolls.</summary>
+    public float RollCooldown { get; set; }
+
+    /// <summary>#3758: the world lets this ship's combat weapons fire on hostiles (space combat on, ship weapons
+    /// allowed) — the flight view draws the point-defence turret's shots only then. Additive like the values above.</summary>
+    public bool CombatWeaponsOn { get; set; }
+}
+
+/// <summary>Client → server (#3753, #3754): the pilot rolls (<c>Kind</c> = <c>ShipManeuverKinds.Roll</c>) or switches
+/// the boost on or off (<c>ShipManeuverKinds.Boost</c> with <see cref="On"/>). The server decides: a roll before the
+/// cooldown has passed opens no evade window, and the boost runs only while the server's charge lasts.</summary>
+public sealed class ShipManeuverIntent
+{
+    public byte Kind { get; set; }
+
+    /// <summary>For the boost: on or off.</summary>
+    public bool On { get; set; }
+}
+
+/// <summary>Server → client (#3756): a hostile's heavy shot. <c>Phase</c> is <c>SpaceCombatRules.HeavyPhaseCharge</c>
+/// when the charge starts (it fires <see cref="Seconds"/> later — the warning to roll or fly clear), then
+/// <c>HeavyPhaseHit</c> or <c>HeavyPhaseMiss</c> when it fires. Sent to every pilot of the flight instance; only the
+/// one named in <see cref="TargetPlayerId"/> is aimed at.</summary>
+public sealed class SpaceHeavyShot
+{
+    public string EntityId { get; set; } = string.Empty;
+    public string TargetPlayerId { get; set; } = string.Empty;
+    public byte Phase { get; set; }
+    public float Seconds { get; set; }
 }
 
 /// <summary>Snapshot of the space instance a player is in (sent on entry and on change).</summary>

@@ -524,6 +524,7 @@ namespace BlocksBeyondTheStars.Client
 
             UpdateInstruments();
             UpdateShipBars();
+            TickManeuvers(); // #3753/#3754: the boost charge, the roll's cooldown and their gauge
 
             // Lens flare only during free flight (hidden behind the launch/landing/boarding fades + EVA).
             if (_phase == Phase.Cruise && !_eva)

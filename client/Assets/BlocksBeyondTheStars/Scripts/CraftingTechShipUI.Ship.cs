@@ -424,6 +424,17 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_detail, 8, y, 620, 26, $"{L("ui.ship.hull")}: {def.BaseHull:0}    {L("ui.ship.shield")}: {def.BaseShield:0}", 20, UiKit.TextCol, TextAnchor.UpperLeft);
             y += 30f;
             UiKit.AddText(_detail, 8, y, 620, 26, $"{L("ui.ship.speed")}: {def.FlightSpeed:0.0}    {L("ui.ship.handling")}: {def.Handling:0.0}    {L("ui.ship.cargo")}: {Game.Content.StartCargoSlots(def)}", 20, UiKit.TextCol, TextAnchor.UpperLeft);
+            y += 30f;
+
+            // #3760: what the ship does in a fight — its boost, how often it rolls and what its weapons gain.
+            var man = BlocksBeyondTheStars.Shared.Definitions.ShipManeuverRules.Stats(def, def.Handling, null);
+            string traits = $"{L("ui.ship.boost")}: {man.BoostSeconds:0.#} s ×{man.BoostPower:0.#}    {L("ui.ship.roll")} {man.RollCooldown:0.#} s";
+            if (def.WeaponDamage > 1.001f)
+            {
+                traits += $"    {L("ui.ship.weapon_bonus")}: +{(def.WeaponDamage - 1f) * 100f:0}%";
+            }
+
+            UiKit.AddText(_detail, 8, y, 620, 26, traits, 20, UiKit.TextCol, TextAnchor.UpperLeft);
             y += 36f;
             return y;
         }

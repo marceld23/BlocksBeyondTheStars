@@ -68,6 +68,10 @@ public sealed class NetCombatEntity
     /// <c>TankSpiderRules.InflateSeconds</c>; the client swells and lights the tank and plays the hiss from the moment it
     /// sees this turn true. Contractless-additive like <see cref="Scale"/>: an older client ignores it.</summary>
     public bool Inflating { get; set; }
+
+    /// <summary>#3758: a space hostile's shield as a share of its full shield (0 = none, or gone) — the client draws the
+    /// shield bubble on a hit while there is any. Contractless-additive like <see cref="Scale"/>.</summary>
+    public float Shield { get; set; }
 }
 
 /// <summary>Snapshot of hostile entities near the player on the planet surface.</summary>

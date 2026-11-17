@@ -269,6 +269,9 @@ public static class FlightWeaponCue
     public const string Mine = "ship_mine";
     public const string Laser = "ship_laser";
     public const string Cannon = "ship_weapon";
+    public const string Missile = "ship_missile";   // #3758: the launch (the burst is the effect's own)
+    public const string Scatter = "ship_scatter";
+    public const string Ion = "ship_ion";
 
     /// <summary>The cue id for a shot of the fx <paramref name="style"/>; <paramref name="mining"/> = the shot hits a rock.</summary>
     public static string For(string? style, bool mining)
@@ -278,8 +281,20 @@ public static class FlightWeaponCue
             return Mine;
         }
 
-        return style == FxStyles.PlasmaBolt || style == FxStyles.HeavyBeam ? Cannon : Laser;
+        return style switch
+        {
+            FxStyles.PlasmaBolt or FxStyles.HeavyBeam => Cannon,
+            FxStyles.Missile => Missile,
+            FxStyles.Scatter => Scatter,
+            FxStyles.IonPulse => Ion,
+            _ => Laser,
+        };
     }
+
+    /// <summary>What a shot of <paramref name="id"/> falls back to while its own clip is not there: the newer weapons
+    /// sound like the cannon, everything else like the laser.</summary>
+    public static string Fallback(string id, bool mining)
+        => mining ? Mine : id is Missile or Scatter ? Cannon : Laser;
 
     /// <summary>The pitch of the shot: the heavy beam booms lower than the plasma bolt.</summary>
     public static float Pitch(string? style) => style == FxStyles.HeavyBeam ? 0.85f : 1f;

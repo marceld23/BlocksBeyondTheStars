@@ -20,6 +20,12 @@ namespace BlocksBeyondTheStars.Client
         /// from their hull to the target point (both in the instance frame).</summary>
         private void OnRemoteShipFx(BlocksBeyondTheStars.Networking.Messages.ActionFx m)
         {
+            if (m != null && m.Kind == BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Roll)
+            {
+                OnRemoteRoll(m); // #3753: another pilot's barrel roll
+                return;
+            }
+
             if (!_active || _root == null || m == null || m.Outcome || m.PlayerId == Game.LocalPlayerId
                 || (m.Kind != BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot && m.Kind != BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Scan)
                 || !_remotePlayers.TryGetValue(m.PlayerId, out var av) || av.Root == null)
@@ -46,6 +52,12 @@ namespace BlocksBeyondTheStars.Client
         /// those). Asteroid bodies break up in <see cref="OnStructEntityDestroyed"/>.</summary>
         private void OnEntityDestroyedFx(BlocksBeyondTheStars.Networking.Messages.SpaceEntityDestroyed m)
         {
+            if (m != null)
+            {
+                _shieldSeen.Remove(m.Id); // #3758: its shield went with it — no burst on top of the explosion
+                _shields.Remove(m.Id);
+            }
+
             if (!_active || m == null || !_entities.TryGetValue(m.Id, out var go) || go == null)
             {
                 return;
@@ -246,7 +258,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var m in mods)
                 {
-                    if (IsWeaponModule(m))
+                    // #3757: every fitted module whose data makes it a weapon the pilot fires — a fixed list of four keys
+                    // used to stand here, so a weapon added to the data was fitted and never selectable.
+                    if (Feel.ShipWeaponView.InSystemsBar(Game.Content?.GetShipModule(m)))
                     {
                         _systems.Add(new ShipSystem { Label = Loc("module." + m + ".name", m), Kind = "laser", WeaponKey = m });
                     }
@@ -267,10 +281,6 @@ namespace BlocksBeyondTheStars.Client
 
             _selectedSystem = Mathf.Clamp(_selectedSystem, 0, _systems.Count - 1);
         }
-
-        /// <summary>The ship modules the flight quick-bar can fire (mirrors the server's weapon table).</summary>
-        private static bool IsWeaponModule(string m)
-            => m == "ship_laser_basic" || m == "ship_cannon_1" || m == "laser_cannon_2" || m == "asteroid_breaker";
 
         // The tractor auto-locks (and the server pulls in) salvage from as far as the laser reaches — matches
         // the server's TractorReach so the beam never visually "hits" a drop the server then rejects as too far.
@@ -340,6 +350,10 @@ namespace BlocksBeyondTheStars.Client
             Vector3 shipPos = _ship.transform.localPosition;
             Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
             bool autoAim = Game.AutoAimOn;
+            if (BlocksBeyondTheStars.Shared.Definitions.ShipWeaponRules.IsHoming(Game.Content?.GetShipModule(weaponKey)))
+            {
+                return HomingTarget(weaponKey, range, shipPos); // #3758: the missile flies at the locked target
+            }
 
             // #2277: the locked target first — in range and inside ±40° with AutoAim on (the server allows ±60°).
             if (TryLockAssist(weaponKey, range, shipPos, fwd, out var lockedTarget))
@@ -399,7 +413,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return best;
+            return best ?? StationFireTarget(weaponKey, range, shipPos, fwd); // #3758: a station only with nothing else in the sights
         }
 
         /// <summary>Sends the fire intent + plays the laser beam, impact flash and sound. Mining (asteroid)
@@ -412,18 +426,10 @@ namespace BlocksBeyondTheStars.Client
             Game.LastShotTargetId = target.Id;
             Game.LastShotTime = Time.time;
             OnShotFired(target); // #2327: a shot at a rock with nothing locked locks it
-            bool mining = BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsMiningKind(target.Kind); // a derelict (#1664) and wreckage (#2353) are mined like rock
-            Color col = mining ? new Color(1f, 0.7f, 0.25f) : new Color(0.45f, 1f, 1f);
 
-            // #2156: every module its own look (data-driven fx) — they all drew the same 0.16-unit cube.
-            _ = col;
-            Vector3 hit = _root.transform.TransformPoint(new Vector3(target.X, target.Y, target.Z));
-            var look = FxLook.ForModule(Game.Content, weaponKey);
-            SpaceFx.Fire(look, _ship.transform, ShipLocalBounds(), hit, mining);
-            PlayOwnShotSound(look.Style, mining); // #3238: a cannon fires the recorded ship-weapon shot (SpaceView.Audio.cs)
-            // #2158: the other pilots in this flight instance see the shot too (cosmetic, instance-frame positions).
-            Game.Network?.SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot, weaponKey,
-                _ship.transform.localPosition, new Vector3(target.X, target.Y, target.Z), true);
+            // #2156: every module its own look (data-driven fx) — they all drew the same 0.16-unit cube. #3758: a shot
+            // at a shield, a station, several targets at once (SpaceView.Weapons.cs).
+            ShowOwnShot(target, weaponKey);
         }
 
         private void OnShipCombat(BlocksBeyondTheStars.Networking.Messages.ShipCombatStatus s)
@@ -572,6 +578,14 @@ namespace BlocksBeyondTheStars.Client
             _ = to;
             var wFrom = _root.transform.TransformPoint(from);
             PlayHostileShotSound(wFrom); // #3248: the enemy's shot is heard at the enemy, not only seen
+            if (Evading)
+            {
+                // #3753: the roll's evade window — the bolt passes the ship and runs on into space.
+                var past = _ship.transform.position + (Random.onUnitSphere * 4.5f);
+                SpaceFx.HostileBolt(wFrom, past + ((past - wFrom).normalized * 40f), new Color(1f, 0.25f, 0.15f), null);
+                return;
+            }
+
             var b = ShipLocalBounds();
             var toShip = (_ship.transform.position - wFrom).normalized;
             var hitLocal = b.center - _ship.transform.InverseTransformDirection(toShip) * b.extents.magnitude * 0.6f

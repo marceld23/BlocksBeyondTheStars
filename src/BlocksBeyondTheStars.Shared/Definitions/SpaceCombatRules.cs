@@ -23,4 +23,37 @@ public static class SpaceCombatRules
     /// like at a station hull, which uses the same radius), and the server's ram check counts a pilot as touching an
     /// asteroid from this distance on (plus a little slack), so a pose at the surface is always a touch.</summary>
     public const float ShipRockRadius = 2.5f;
+
+    /// <summary>#3756: seconds a heavy shot (the cruiser's, the raider's) charges before it fires. The charge is the
+    /// warning: the client lights it up and the pilot has this long to roll or fly clear.</summary>
+    public const float HeavyChargeSeconds = 1.6f;
+
+    /// <summary>#3756: a heavy shot still lands on a target this many times the engage range away when it fires — a
+    /// ship that flew clear of that is missed.</summary>
+    public const float HeavyReachFactor = 1.15f;
+
+    /// <summary>#3756: the share of its flight speed a hostile circles its quarry with once it holds its stand-off ring.</summary>
+    public const float OrbitSpeedShare = 0.55f;
+
+    /// <summary>#3758: the id prefix of a derelict station (and of a giant wreck) — <c>DerelictPlacer.IdPrefix</c>.</summary>
+    public const string DerelictIdPrefix = "derelict:";
+
+    /// <summary>#3758: the story's one derelict that is not a generated one (it keeps its own rules).</summary>
+    public const string StoryDerelictId = "derelict:longquiet";
+
+    /// <summary>#3758: whether a station is behind a shield that takes every ship weapon's shot: every station but a
+    /// generated derelict (a giant wreck among them), whose hull breaks instead. The server decides by this and the
+    /// client draws by it.</summary>
+    public static bool StationHasShield(string? stationId)
+        => stationId == null || stationId == StoryDerelictId
+           || !stationId.StartsWith(DerelictIdPrefix, System.StringComparison.Ordinal);
+
+    /// <summary>#3756: the phases a <c>SpaceHeavyShot</c> message reports.</summary>
+    public const byte HeavyPhaseCharge = 0;
+
+    /// <summary>The shot fired and hit its target.</summary>
+    public const byte HeavyPhaseHit = 1;
+
+    /// <summary>The shot fired and missed: the target rolled, or had flown clear.</summary>
+    public const byte HeavyPhaseMiss = 2;
 }

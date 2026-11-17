@@ -142,6 +142,7 @@ public sealed partial class GameServer
         On<MoveBagItemIntent>(map, (gs, s, m) => gs.HandleMoveBagItem(s, m)); // #3099
         On<MoveCargoItemIntent>(map, (gs, s, m) => gs.HandleMoveCargoItem(s, m));
         On<ShipMoveIntent>(map, (gs, s, m) => gs.HandleShipMove(s, m));
+        On<ShipManeuverIntent>(map, (gs, s, m) => gs.HandleShipManeuver(s, m)); // #3753/#3754: barrel roll + boost
         On<DisassembleIntent>(map, (gs, s, m) => gs.HandleDisassemble(s, m));
         On<ClaimStructureIntent>(map, (gs, s, m) => gs.HandleClaimStructure(s, m));
         On<TradeRequestIntent>(map, (gs, s, m) => gs.HandleTradeRequest(s, m));

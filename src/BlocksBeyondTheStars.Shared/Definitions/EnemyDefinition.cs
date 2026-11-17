@@ -52,6 +52,18 @@ public sealed class EnemyTier
     /// it falls off toward the edge (<see cref="TankSpiderRules.DamageAt"/>). 0 = it does not burst.</summary>
     public float BurstDamage { get; set; }
 
+    /// <summary>#3756: the damage of this tier's heavy shot in space — it charges visibly
+    /// (<see cref="SpaceCombatRules.HeavyChargeSeconds"/>) and a barrel roll at the right moment makes it miss.
+    /// 0 = it has none.</summary>
+    public float HeavyShotDamage { get; set; }
+
+    /// <summary>#3756: seconds from one heavy shot to the start of the next charge.</summary>
+    public float HeavyShotInterval { get; set; }
+
+    /// <summary>#3758: this tier's shield in space — a ship weapon's damage goes on it first, then on the hull. It does
+    /// not recharge, and an ion pulse drops it at once. 0 = none.</summary>
+    public float Shield { get; set; }
+
     public List<ItemAmount> Loot { get; set; } = new();
 }
 
@@ -101,9 +113,11 @@ public static class EnemyCatalog
     public static IReadOnlyList<EnemyDefinition> Defaults() => new[]
     {
         Make(SpaceDrone, EnemyWhere.Space, ("normal", 40f, 0f, 5f, Loot(("data_fragment", 1))), ("elite", 70f, 0f, 7f, Loot(("data_fragment", 2)))),
-        Make(Ufo, EnemyWhere.Space, ("normal", 40f, 0f, 4f, Loot(("data_fragment", 3))), ("elite", 95f, 0f, 8f, Loot(("data_fragment", 4)))),
-        Make(Cruiser, EnemyWhere.Space, ("normal", 260f, 0f, 10f, Loot(("data_fragment", 8)))),
-        Make(BanditShip, EnemyWhere.Space, ("normal", 55f, 120f, 5f, Loot(("data_fragment", 2), ("titanium_plate", 2)))),
+        Shielded(Make(Ufo, EnemyWhere.Space, ("normal", 40f, 0f, 4f, Loot(("data_fragment", 3))), ("elite", 95f, 0f, 8f, Loot(("data_fragment", 4)))), "elite", 30f), // #3758
+        // #3756: the cruiser and the raider trade part of their steady fire for a heavy shot a barrel roll can dodge —
+        // about the same damage over time for a pilot who never rolls (7 + 24/8 and 3.5 + 13/9 per second).
+        Shielded(Heavy(Make(Cruiser, EnemyWhere.Space, ("normal", 260f, 0f, 7f, Loot(("data_fragment", 8)))), 24f, 8f), "normal", 60f),
+        Shielded(Heavy(Make(BanditShip, EnemyWhere.Space, ("normal", 55f, 120f, 3.5f, Loot(("data_fragment", 2), ("titanium_plate", 2)))), 13f, 9f), "normal", 25f),
         Make(HunterShuttle, EnemyWhere.Space, ("normal", 35f, 0f, 2f, Loot(("data_fragment", 2), ("circuit_board", 1)))), // #3097
         Make(ScanDrone, EnemyWhere.Planet, ("normal", 25f, 0f, 2f, Loot(("carbon", 2), (GuardianPlate, 1)))), // #3290: robot metal
         Make(GuardianRobot, EnemyWhere.Planet, ("normal", 30f, 0f, 4f, Loot(("carbon", 2), (GuardianPlate, 2)))),
@@ -122,6 +136,25 @@ public static class EnemyCatalog
             tier.BurstDamage = burstDamage;
         }
 
+        return def;
+    }
+
+    /// <summary>#3756: gives every tier of <paramref name="def"/> a heavy shot.</summary>
+    private static EnemyDefinition Heavy(EnemyDefinition def, float damage, float interval)
+    {
+        foreach (var tier in def.Tiers.Values)
+        {
+            tier.HeavyShotDamage = damage;
+            tier.HeavyShotInterval = interval;
+        }
+
+        return def;
+    }
+
+    /// <summary>#3758: gives one tier of <paramref name="def"/> a shield.</summary>
+    private static EnemyDefinition Shielded(EnemyDefinition def, string tier, float shield)
+    {
+        def.Tiers[tier].Shield = shield;
         return def;
     }
 

@@ -90,6 +90,10 @@ namespace BlocksBeyondTheStars.Client
         // The emote wheel — the keyboard HOLDS it (default Y) and lets go over a wedge; the pad and the tablet open it
         // from the ContextActions list.
         EmoteWheel,
+
+        // #3755: the two flight manoeuvres, appended so no existing value moves. Read at the helm only.
+        FlightBoost,          // boost while the charge lasts — keyboard holds Left Shift; pad L3 while thrusting / touch BOOST switch it on
+        FlightRoll,           // barrel roll (direction from the strafe, else to the right) — default Space, pad A, touch ROLL
     }
 
     /// <summary>
@@ -192,6 +196,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightEnterInterior, InputAction.FlightPadChooser,
             InputAction.FlightAutopilot, InputAction.FlightMap, InputAction.EvaDeployStation,
             InputAction.FlightTargetNext, InputAction.FlightTargetHostile, InputAction.FlightTargetAhead, // #2277
+            InputAction.FlightBoost, InputAction.FlightRoll, // #3755
         };
 
         /// <summary>Vehicle (speeder) + dock/trade actions exposed as a third rebinding group.</summary>
@@ -267,6 +272,10 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Sprint => KeyCode.LeftShift, // #3374: free on foot; SpeederBoost reads the same key only while driving
             InputAction.AdminMode => KeyCode.F8, // #3503: one of the free function keys, far from the movement hand
             InputAction.ToggleHud => KeyCode.F10, // a free function key (F9 is the cutscene dev palette's)
+            // #3755: Shift is "faster" everywhere (running, the speeder's boost — other contexts); Space is not read at the
+            // helm (it lifts the suit on a spacewalk only).
+            InputAction.FlightBoost => KeyCode.LeftShift,
+            InputAction.FlightRoll => KeyCode.Space,
             InputAction.EmoteWheel => KeyCode.P,  // free on foot (the autopilot's P is flight only). NEVER Y or Z as a default: keys are read by POSITION, and those two swap on a German keyboard
             _ => KeyCode.None,
         };
@@ -468,6 +477,24 @@ namespace BlocksBeyondTheStars.Client
             => Passes(InputAction.Sprint) && (_pad.ActionDown(InputAction.Sprint) || _touch.ActionDown(InputAction.Sprint)
                 || (SprintToggle && _desktop.ActionDown(InputAction.Sprint)));
 
+        /// <summary>#3755: the boost as the keyboard does it — the bound key held.</summary>
+        public static bool BoostKeyHeld() => Passes(InputAction.FlightBoost) && _desktop.ActionHeld(InputAction.FlightBoost);
+
+        /// <summary>#3755: the boost as the pad and the tablet do it — a press of the left-stick click / the BOOST button
+        /// switches it on (and off again); it then runs until the charge is empty or the thrust ends.</summary>
+        public static bool BoostToggleDown()
+            => Passes(InputAction.FlightBoost) && (_pad.ActionDown(InputAction.FlightBoost) || _touch.ActionDown(InputAction.FlightBoost));
+
+        /// <summary>#3755: this frame's press of the context-actions control belongs to the boost — at the helm the stock
+        /// pad layout puts both on the left-stick click, which boosts while thrusting and opens the list while the stick
+        /// rests (the same split as running on foot, <see cref="ContextPressIsSprint"/>).</summary>
+        public static bool ContextPressIsBoost(bool atHelm)
+            => SprintState.PadPressIsSprint(
+                GamepadInputSource.ButtonFor(InputAction.ContextActions) == GamepadInputSource.ButtonFor(InputAction.FlightBoost),
+                _pad.ActionDown(InputAction.ContextActions),
+                _desktop.ActionDown(InputAction.ContextActions) || _touch.ActionDown(InputAction.ContextActions),
+                atHelm, MoveX(), MoveY());
+
         /// <summary>#3376: this frame's press of the context-actions control belongs to the run — the stock pad layout puts
         /// both on the left-stick click, which runs while moving and opens the list while standing
         /// (<see cref="SprintState.PadPressIsSprint"/>). <paramref name="runPossible"/>: the body could run here at all
@@ -634,6 +661,8 @@ namespace BlocksBeyondTheStars.Client
             InputAction.ToggleHud => "ui.key.toggle_hud",
             InputAction.EmoteWheel => "ui.key.emote_wheel",
             InputAction.AdminMode => "ui.key.admin_mode",
+            InputAction.FlightBoost => "ui.key.flight_boost",
+            InputAction.FlightRoll => "ui.key.flight_roll",
             _ => string.Empty,
         };
 

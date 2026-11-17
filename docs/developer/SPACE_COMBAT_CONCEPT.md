@@ -271,6 +271,70 @@ and its wreckage is cut from it (`LeavesCombatDebris`).
 scanner readout `ui.scan.machine.hunter_shuttle`; the camp marker is `WorldMap.PoiLook("hunter_shuttle")` (the ship icon
 in Guardian red) plus a compass blip (`HudUi.TryGetPoi`). Tests: `HunterShuttleTests`.
 
+## Manoeuvres, the heavy shot and weapon behaviours (#3762, 2026-11)
+
+A fight used to be "fly within range, hold fire": hostile fire is a per-tick damage field around each hostile (the sum
+of `damagePerSecond` of every hostile within `SpaceCombatRules.EngageRange`), hostiles stood still at their stand-off
+ring, and every weapon was an instant hit on one target. This package keeps that simple positional model and adds the
+rules that make flying matter. The server decides all of them; the client flies and draws by the same shared numbers
+(`Shared/Definitions/ShipManeuverRules.cs`, `ShipWeaponRules.cs`, `SpaceCombatRules.cs`).
+
+**Barrel roll (#3753).** The client sends `ShipManeuverIntent { Kind = Roll, On = to the right }`. The server
+(`GameServerSpaceManeuvers.ShipManeuver`) grants it when the pilot flies a ship and the cooldown has passed (0.25 s of
+slack for clock skew), and then keeps `PilotSim.EvadeUntil` for `RollEvadeSeconds` (0.75 s): the damage field and a
+heavy shot skip a pilot inside that window, and the shield does not recharge by it. The cooldown is
+`RollBaseCooldown / handling` (clamped 1.5–8 s) unless the ship's data sets `rollCooldown`; the module stat
+`roll_cooldown` shortens it. The server relays the roll to the other pilots as an `ActionFx` of kind
+`FxActionKinds.Roll` (only the server sends that kind). The client's picture is `Client.Core/Feel/ShipRollState`: one
+full turn in `RollSeconds`, a slide of `RollSlideDistance` spread over it, the client's own cooldown clock.
+
+**Boost (#3754).** Both sides run the same `ShipBoostMeter`: it drains while the boost is on, needs
+`BoostStartShare` of a full charge to start and refills while it is off. The client sends the on/off edge
+(`ShipManeuverKinds.Boost`); the server's meter decides how fast the ship may be. A boost that ran dry needs a new
+press. Per ship: `boostPower`, `boostSeconds` in `data/ships.json` (0 = the defaults); module stats `boost_seconds`,
+`boost_recharge`. A self-built ship derives both from its engines-to-mass speed (`ShipManeuverRules.CustomBoost`).
+The four values travel to the client in `ShipCombatStatus` (an older server sends none → the defaults).
+
+**Speed check (#3754).** `GameServer.ShipSpeedCheck` (the host sets it; a server embedded in a test leaves it off,
+because tests place ships by hand) makes `ShipMove` pull a pose that lies further from the last accepted one than
+`ShipManeuverRules.AllowedTravel` back onto that distance, toward the reported point. The allowance is the ship's top
+speed (× boost power while the server's meter is on, and for a second after) × the time since the last pose (at most
+5 s) × 1.4, plus 6 units — a flight at full speed, a roll's slide and a frame hitch never trip it, and a ship that
+really is elsewhere is caught up with at flying speed instead of being stuck. A suit on a spacewalk is not checked.
+
+**Hostiles that circle (#3756).** Inside the stand-off hold band `MoveSpaceHostiles` no longer skips a hostile: it
+steps sideways around its quarry (`OrbitStep`: `OrbitSpeedShare` of its speed, a fixed direction per entity, a slow
+rise and fall) and keeps its distance.
+
+**The heavy shot (#3756).** An enemy tier with `heavyShotDamage` (`data/enemies.json`: the cruiser, the raider)
+charges a shot at the pilot it hunts once that pilot is inside the engage range. `SpaceHeavyShot` announces the
+charge (`HeavyChargeSeconds`) to the whole instance and then the outcome: a hit, or a miss when the pilot is inside
+an evade window or beyond `HeavyReachFactor` × the engage range at that moment. The two enemies' steady damage went
+down so a pilot who never rolls takes about what they took before.
+
+**Weapon behaviours (#3757, #3758).** A module is a weapon when its stats carry `weapon_damage`
+(`ShipWeaponRules.IsWeapon`) — the client's ship-systems bar reads the same rule
+(`Client.Core/Feel/ShipWeaponView.InSystemsBar`), so a weapon added to the data is selectable without client code.
+Further stats give a weapon its behaviour, all resolved in `GameServerSpaceWeapons`:
+
+| Stat | Effect | Shipped in |
+|---|---|---|
+| `weapon_homing` 1 | fired at the locked target; no boresight check | `missile_launcher` |
+| `weapon_flight_speed` | the damage lands when the shot has flown the distance (`SpaceInstance.Missiles`); wasted when the target is gone | `missile_launcher` |
+| `weapon_targets` + `weapon_cone` | also hits the nearest hostiles inside the cone around the aimed one | `scatter_cannon` |
+| `weapon_stun` | the hit hostile's shield drops and it neither moves nor fires for that long; then immune to a new stun for `StunImmuneSeconds` | `ion_pulse` |
+| `weapon_auto` 1 | fires by itself at the nearest hostile in range; never in the systems bar | `point_defense` |
+
+A ship's `weaponDamage` (`data/ships.json`) multiplies every weapon it fires (#3760).
+
+**Shields, stations and wrecks (#3758, `GameServerSpaceShields`).** An enemy tier's `shield` absorbs ship-weapon
+damage before the hull, does not recharge, and travels as the fraction `NetCombatEntity.Shield` so the client can
+draw the bubble. A shot at a **station**: a mining tool is refused as before; a combat weapon's shot at an intact
+station does nothing (the client draws it ending on the shield bubble — `SpaceCombatRules.StationHasShield`), at a
+generated derelict or a giant wreck it costs its energy and cooldown and removes hull blocks where the nose ray meets
+the hull (`HullBlocksFor(damage)`: 1–6), through the same mirror / persistence / broadcast path a spacewalker's pick
+uses. The `Wreck` entity and wreckage fragments take every weapon's damage wherever ship weapons are allowed.
+
 ## Deferred (explicitly not in M19)
 
 - Per-player / multiple ships and **PvP ship combat** (needs a ship-ownership model first). On-foot PvP exists since

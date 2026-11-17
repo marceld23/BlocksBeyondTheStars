@@ -95,5 +95,11 @@ public static partial class NetCodec
         // broadcast. The next message after these takes 351.
         Register(349, typeof(PlayerEmoteIntent));            // Client -> Server
         Register(350, typeof(PlayerEmote));                  // Server -> Client
+
+        // #3753/#3754/#3756 space combat that moves: the barrel roll and the boost, and a hostile's heavy shot. No
+        // protocol bump — an older server drops the intent (the roll is a picture only, the boost is not checked), an
+        // older client drops the heavy shot (it still takes the damage). The next message after these takes 353.
+        Register(351, typeof(ShipManeuverIntent));           // Client -> Server
+        Register(352, typeof(SpaceHeavyShot));               // Server -> Client
     }
 }

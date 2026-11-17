@@ -397,7 +397,7 @@ public sealed partial class SpaceInstance
 public readonly record struct SpacePlayerPose(Vector3f Pos, float Yaw, bool Eva);
 
 /// <summary>Mutable per-pilot tick state in a space instance (#955): collision speed baseline + cooldown.</summary>
-public sealed class PilotSim
+public sealed partial class PilotSim
 {
     public Vector3f LastPosition { get; set; }
     public double CollisionCooldown { get; set; }
@@ -446,7 +446,10 @@ public sealed partial class GameServer
     // weapon_class: 0 = mining tool (breaks asteroids, can't hit hostiles), 1 = combat weapon (hits
     // hostiles; breaks asteroids only where AsteroidDestruction allows weapons), 2 = dual laser (does both —
     // the starter ship laser, so one weapon mines AND fights).
-    private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, float Energy, bool IsCombat, bool CanMine);
+    // #3758: Homing (no boresight needed), FlightSpeed (hits on arrival), Targets + ConeCos (several targets in a
+    // cone), Stun (seconds the hit hostile holds its fire) — see ShipWeaponRules for the module stats behind them.
+    private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, float Energy, bool IsCombat, bool CanMine,
+        bool Homing = false, float FlightSpeed = 0f, int Targets = 1, float ConeCos = 1f, float Stun = 0f);
 
     // #694: ship weapons are rate-limited and energy-gated SERVER-side now (both stats existed in
     // data/ship_modules.json but were never enforced — the only limit was the client's local fire timer).
@@ -492,6 +495,8 @@ public sealed partial class GameServer
         float shield = (design?.BaseShield ?? 0f) + BaselineShipShield;
         float regen = BaselineShipShieldRegen;
         float radar = BaseRadarRange;
+        float boostSeconds = 0f, boostRecharge = 0f, rollCut = 0f; // #3759: the afterburner and the manoeuvring thrusters
+        _shipTurretKey = null;
         foreach (var key in _ship.Modules)
         {
             if (_content.GetShipModule(key) is not { } m)
@@ -499,12 +504,21 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (m.Stats.ContainsKey(ShipWeaponRules.StatAuto))
+            {
+                _shipTurretKey = key; // #3758: the weapon that fires by itself
+            }
+
             hull += (float)m.Stats.GetValueOrDefault("hull", 0);
             shield += (float)m.Stats.GetValueOrDefault("shield", 0);
             regen += (float)m.Stats.GetValueOrDefault("shield_regen", 0);
             radar += (float)m.Stats.GetValueOrDefault("radar_bonus", 0);
+            boostSeconds += (float)m.Stats.GetValueOrDefault(ShipManeuverRules.StatBoostSeconds, 0);
+            boostRecharge += (float)m.Stats.GetValueOrDefault(ShipManeuverRules.StatBoostRecharge, 0);
+            rollCut += (float)m.Stats.GetValueOrDefault(ShipManeuverRules.StatRollCooldown, 0);
         }
 
+        RecomputeShipManeuverStats(design, boostSeconds, boostRecharge, rollCut); // #3753/#3754/#3760
         _shipHullMax = hull;
         _shipShieldMax = shield;
         _shipShieldRegen = regen;
@@ -529,6 +543,12 @@ public sealed partial class GameServer
             ShieldMax = _shipShieldMax,
             RadarRange = _shipRadarRange,
             Modules = _ship.Modules.ToArray(),
+            BoostPower = _shipManeuver.BoostPower, // #3753/#3754: the client flies and draws by the server's values
+            BoostSeconds = _shipManeuver.BoostSeconds,
+            BoostRecharge = _shipManeuver.BoostRechargeSeconds,
+            RollCooldown = _shipManeuver.RollCooldown,
+            CombatWeaponsOn = Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both
+                && Rules.ShipWeapons is not (ShipWeaponMode.Off or ShipWeaponMode.MiningOnly),
         });
 
     // ---------------- Build ship modules ----------------
@@ -1221,13 +1241,21 @@ public sealed partial class GameServer
         }
 
         var shipPos = PilotPositionIn(instance, playerId); // #994: THIS pilot's ship, not whoever moved last
+        if (target.Kind == CombatEntityKind.SpaceStation)
+        {
+            // #3758: an intact station's shield takes the shot; a derelict's hull breaks where it lands.
+            FireOnStation(instance, session, playerId, cdKey, weapon, target, shipPos, new Vector3f(dirX, dirY, dirZ));
+            return;
+        }
+
         if (target.Position.DistanceSquared(shipPos) > weapon.Range * weapon.Range)
         {
             RejectSpace(session, "@srv.space.out_of_range");
             return;
         }
 
-        if (!ValidateSpaceAim(session, shipPos, target, dirX, dirY, dirZ))
+        // #3758: a homing shot (the missile) finds its target by itself — the nose need not point at it.
+        if (!weapon.Homing && !ValidateSpaceAim(session, shipPos, target, dirX, dirY, dirZ))
         {
             return;
         }
@@ -1250,7 +1278,15 @@ public sealed partial class GameServer
             _shipWeaponReadyAt[cdKey] = _uptime + weapon.Cooldown * 0.95;
         }
 
-        target.Hull -= weapon.Damage;
+        ResolveShipShot(instance, session, playerId, weapon, target, shipPos); // #3758: one target, several, or a missile on its way
+    }
+
+    /// <summary>A ship weapon's damage lands on a space entity: the hull drops, a voxel body is carved to match, and
+    /// at zero hull the entity is destroyed (<see cref="DestroySpaceTarget"/>). The ship cursor must be on the pilot
+    /// the shot belongs to — loot and salvage go to that ship.</summary>
+    private void DamageSpaceTarget(SpaceInstance instance, PlayerSession? session, CombatEntity target, float damage)
+    {
+        target.Hull -= AbsorbByShield(target, damage); // #3758: a hostile's shield first
 
         // item 20 S3: a voxel ore asteroid carves down to match its hull as you shoot it (visible depletion).
         // A derelict hull (#1664) is salvaged the same way — plating comes off shot by shot — and so is a
@@ -1275,8 +1311,13 @@ public sealed partial class GameServer
             return;
         }
 
-        // Destroyed. A large/medium asteroid splits into smaller chunks instead of dropping loot;
-        // only the smallest asteroids (and other entities) yield resources.
+        DestroySpaceTarget(instance, session, target);
+    }
+
+    /// <summary>A space entity's hull is gone. A large/medium asteroid splits into smaller chunks instead of dropping
+    /// loot; only the smallest asteroids (and other entities) yield resources.</summary>
+    private void DestroySpaceTarget(SpaceInstance instance, PlayerSession? session, CombatEntity target)
+    {
         instance.Entities.Remove(target);
         if (LeavesCombatDebris(target.Kind))
         {
@@ -1284,26 +1325,7 @@ public sealed partial class GameServer
         }
 
         OnHunterShuttleKilled(instance, target); // #3097: shot down before it could land — no robot camp (no-op for other kinds)
-        if (target.Kind == CombatEntityKind.BanditShip)
-        {
-            OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
-            if (session is not null)
-            {
-                OnMissionDefeat(session, DefeatTargetShip); // #731: the raider bounty counts the drive-off
-                RaiseGameEvent(session, GameEventKeys.DefeatAny, GameEventKeys.DefeatRaider); // #2465
-            }
-        }
-        else if (target.Hostile)
-        {
-            RecordStoryMachineKill(); // space machine (drone/UFO) destroyed → advances the story (P4)
-            RecordAmbientHostileKill(instance, target); // #741: stays dead across relaunches for a while
-            if (session is not null)
-            {
-                OnMachineDefeated(session); // #1213: post-win only — the survey orders' Defeat step
-                TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
-                RaiseGameEvent(session, GameEventKeys.DefeatAny, GameEventKeys.DefeatSpaceMachine); // #2465
-            }
-        }
+        CreditSpaceKill(instance, session, target);
 
         if (IsCarvedKind(target.Kind) && instance.Structures.ContainsKey(target.Id))
         {
@@ -1336,6 +1358,31 @@ public sealed partial class GameServer
 
         BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
         BroadcastSpaceState(instance);
+    }
+
+    /// <summary>What the pilot is credited for a destroyed hostile: the raider bounty, or a machine kill for the story.</summary>
+    private void CreditSpaceKill(SpaceInstance instance, PlayerSession? session, CombatEntity target)
+    {
+        if (target.Kind == CombatEntityKind.BanditShip)
+        {
+            OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
+            if (session is not null)
+            {
+                OnMissionDefeat(session, DefeatTargetShip); // #731: the raider bounty counts the drive-off
+                RaiseGameEvent(session, GameEventKeys.DefeatAny, GameEventKeys.DefeatRaider); // #2465
+            }
+        }
+        else if (target.Hostile)
+        {
+            RecordStoryMachineKill(); // space machine (drone/UFO) destroyed → advances the story (P4)
+            RecordAmbientHostileKill(instance, target); // #741: stays dead across relaunches for a while
+            if (session is not null)
+            {
+                OnMachineDefeated(session); // #1213: post-win only — the survey orders' Defeat step
+                TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
+                RaiseGameEvent(session, GameEventKeys.DefeatAny, GameEventKeys.DefeatSpaceMachine); // #2465
+            }
+        }
     }
 
     /// <summary>The voxel kinds a weapon carves cell by cell and an EVA pick hand-mines: asteroids, the derelict wreck
@@ -1513,8 +1560,8 @@ public sealed partial class GameServer
             }
 
             // Mining tools + dual lasers always break asteroids; a pure combat cannon only where the
-            // server allows weapons against rocks.
-            if (!weapon.CanMine && Rules.AsteroidDestruction != AsteroidDestructionMode.WeaponsAllowed)
+            // server allows weapons against rocks — or on wreckage (#3758).
+            if (!weapon.CanMine && !WeaponsTearWreckage(target) && Rules.AsteroidDestruction != AsteroidDestructionMode.WeaponsAllowed)
             {
                 reason = "@srv.space.asteroids_mining_only";
                 return false;
@@ -1559,7 +1606,10 @@ public sealed partial class GameServer
         return true;
     }
 
-    private bool TryGetWeapon(string moduleKey, out WeaponSpec spec)
+    /// <summary>The cursor ship's fitted weapon module as a spec. <paramref name="auto"/> picks which kind is asked
+    /// for: a weapon the pilot fires (false) or one that fires by itself (true, the point-defence turret) — the pilot
+    /// cannot pull the turret's trigger, and the turret never stands in for a weapon.</summary>
+    private bool TryGetWeapon(string moduleKey, out WeaponSpec spec, bool auto = false)
     {
         spec = default;
         if (!_ship.HasModule(moduleKey) || _content.GetShipModule(moduleKey) is not { } def)
@@ -1567,19 +1617,24 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!def.Stats.ContainsKey("weapon_damage"))
+        if (!ShipWeaponRules.IsWeapon(def) || ShipWeaponRules.IsAuto(def) != auto)
         {
             return false;
         }
 
         int weaponClass = (int)def.Stats.GetValueOrDefault("weapon_class", 1);
         spec = new WeaponSpec(
-            Damage: (float)def.Stats.GetValueOrDefault("weapon_damage", 10),
+            Damage: (float)def.Stats.GetValueOrDefault("weapon_damage", 10) * _shipWeaponDamage, // #3760: a combat hull hits harder
             Range: (float)def.Stats.GetValueOrDefault("weapon_range", 50),
             Cooldown: def.Stats.GetValueOrDefault("weapon_cooldown", 1.0),
             Energy: (float)def.Stats.GetValueOrDefault("weapon_energy", 0),
             IsCombat: weaponClass >= 1,                  // combat weapons + dual lasers can hit hostiles
-            CanMine: weaponClass == 0 || weaponClass == 2); // mining tools + dual lasers can break asteroids
+            CanMine: weaponClass == 0 || weaponClass == 2, // mining tools + dual lasers can break asteroids
+            Homing: ShipWeaponRules.IsHoming(def),
+            FlightSpeed: (float)ShipWeaponRules.Stat(def, ShipWeaponRules.StatFlightSpeed),
+            Targets: ShipWeaponRules.Targets(def),
+            ConeCos: ShipWeaponRules.ConeCos(def),
+            Stun: (float)ShipWeaponRules.Stat(def, ShipWeaponRules.StatStun));
         return true;
     }
 
@@ -1887,12 +1942,12 @@ public sealed partial class GameServer
             return;
         }
 
-        var pos = new Vector3f(x, y, z);
-        instance.ShipPosition = pos; // shared, for collision (the acting player's ship)
-
         // Per-player pose for visibility — so the others in this instance can render this ship / EVA suit.
         var pilot = FindSessionByPlayerId(playerId);
         bool eva = pilot?.State.InEva ?? false;
+        var pos = PlausibleShipPose(instance, playerId, new Vector3f(x, y, z), eva); // #3754: no further than the ship can fly
+        instance.ShipPosition = pos; // shared, for collision (the acting player's ship)
+
         instance.PlayerPoses[playerId] = new SpacePlayerPose(pos, yaw, eva);
         if (!eva)
         {
@@ -2013,6 +2068,7 @@ public sealed partial class GameServer
                 }
 
                 SetCurrent(pilot); // damage/shield below must resolve to THIS pilot's ship
+                TickPilotManeuvers(sim, dt); // #3754: the boost charge drains or refills
                 float speed = (float)(System.Math.Sqrt(pose.Pos.DistanceSquared(sim.LastPosition))
                                       / System.Math.Max(dt, 0.0001));
                 sim.CollisionCooldown = System.Math.Max(0.0, sim.CollisionCooldown - dt);
@@ -2038,9 +2094,9 @@ public sealed partial class GameServer
                         inDebrisField = true; // #2355: the rubble taps the shield below
                     }
 
-                    if (e.Hostile && dsq <= ShipEngageRange * ShipEngageRange)
+                    if (e.Hostile && dsq <= ShipEngageRange * ShipEngageRange && !IsStaggered(e))
                     {
-                        incomingSum += e.DamagePerSecond;
+                        incomingSum += e.DamagePerSecond; // (#3758: a hostile an ion pulse silenced holds its fire)
                     }
                 }
 
@@ -2071,8 +2127,9 @@ public sealed partial class GameServer
                 // read as the same fast hit again after every cooldown while it merely rested there.
                 sim.LastPosition = pose.Pos;
 
-                // Hostile fire on THIS pilot: only hostiles within engagement range of their own pose.
-                float incoming = shipHurtable ? (float)incomingSum : 0f;
+                // Hostile fire on THIS pilot: only hostiles within engagement range of their own pose. #3753: a barrel
+                // roll's evade window makes all of it miss.
+                float incoming = shipHurtable && !IsEvading(sim) ? (float)incomingSum : 0f;
                 if (incoming > 0f)
                 {
                     bool evaded = ApplyShipDamage((float)(incoming * dt));
@@ -2090,17 +2147,19 @@ public sealed partial class GameServer
                         ShipAiEvadeCallout(pilot); // Mk3: the dodge that just saved the hull
                     }
                 }
-                else if (_ship.Shield < _shipShieldMax)
+                else if (_ship.Shield < _shipShieldMax && !(incomingSum > 0.0 && IsEvading(sim)))
                 {
-                    // Out of combat: this pilot's shield recharges.
+                    // Out of combat: this pilot's shield recharges (not while a roll merely dodges the fire, #3753).
                     _ship.Shield = System.Math.Min(_shipShieldMax, _ship.Shield + (float)(_shipShieldRegen * dt));
                 }
             }
 
-            if (instanceClosed)
+            if (instanceClosed || TickHeavyShots(instance)) // #3756: the cruiser's and the raider's charged shot
             {
                 continue;
             }
+
+            TickShipWeapons(instance); // #3758: missiles in flight land, point-defence turrets fire
 
             // A mined-out asteroid field slowly replenishes over the session (positions stay deterministic).
             RespawnAsteroids(instance, dt);
@@ -2327,9 +2386,9 @@ public sealed partial class GameServer
         bool moved = false;
         foreach (var e in instance.Entities)
         {
-            if (!e.Hostile || e.Hull <= 0f || ShuttleFleeing(e))
+            if (!e.Hostile || e.Hull <= 0f || ShuttleFleeing(e) || IsStaggered(e))
             {
-                continue; // #3097: a fleeing hunter shuttle runs its own course (TickHunterShuttles)
+                continue; // #3097: a fleeing hunter shuttle runs its own course (TickHunterShuttles); #3758: an ion pulse holds it
             }
 
             var (aggro, minDist, speed) = HostileProfile(e.Kind);
@@ -2374,7 +2433,12 @@ public sealed partial class GameServer
             }
             else if (distSq <= holdSq)
             {
-                continue; // inside the stand-off hold band — hold and let the weapon aura work
+                // Inside the stand-off hold band the weapon aura works. #3756: it circles its quarry there (it used
+                // to stand still), so a fight has to be flown.
+                var ring = OrbitStep(e, quarry, speed, dt);
+                moved |= ring.DistanceSquared(e.Position) > 1e-8f;
+                e.Position = ring;
+                continue;
             }
             else
             {
@@ -2585,6 +2649,7 @@ public sealed partial class GameServer
         VelY = e.TickVel.Velocity.Y,
         VelZ = e.TickVel.Velocity.Z,
         Inflating = e.BurstAt > 0, // #3096: a tank spider's tank is swelling
+        Shield = ShieldFraction(e), // #3758: a space hostile's shield bubble
     };
 
     /// <summary>#2440: how far to the side the n-th ship launches into an orbit that already holds <paramref name="shipsAhead"/>

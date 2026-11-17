@@ -25,9 +25,9 @@
                  "ladder", "stairs", "base_pad", "matter_sender", "matter_receiver", "ship_core", "ship_helm", "ship_engine" ],
       "blueprints": [ "speeder", "monorail", "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "energy_rope_gun",
                       "suit_teleporter", "quantum_teleporter", "beam_block", "radio_beacon", "crystal_lift", "matter_sender", "matter_receiver",
-                      "docking_module", "jump_generator", "ship_builder", "ship_hauler", "ship_scout", "ship_corvette", "ship_hammerhead",
-                      "ship_courier", "ship_thunderbolt", "ship_deathblock" ],
-      "modules": [ "docking_module", "jump_generator" ]
+                      "docking_module", "jump_generator", "afterburner", "maneuvering_thrusters", "ship_builder", "ship_hauler", "ship_scout",
+                      "ship_corvette", "ship_hammerhead", "ship_courier", "ship_thunderbolt", "ship_deathblock" ],
+      "modules": [ "docking_module", "jump_generator", "afterburner", "maneuvering_thrusters" ]
     },
     {
       "key": "tools", "nameKey": "category.tools.name", "group": "gear", "icon": "cat_tools", "iconItem": "titanium_drill",
@@ -56,8 +56,10 @@
       "blueprints": [ "machete", "vibro_knife", "plasma_sword", "guardian_sword", "gauss_pistol", "laser_pistol", "plasma_blaster", "shock_gloves", "energy_gloves",
                       "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "guardian_gear", "stealth_suit", "stasis_projector",
                       "sentry_post", "door_energy", "hull_plating", "shield_generator", "asteroid_breaker", "ship_cannon_1", "laser_cannon_2",
+                      "scatter_cannon", "ion_pulse", "missile_launcher", "point_defense",
                       "ship_corvette", "ship_hammerhead", "ship_thunderbolt", "ship_deathblock" ],
-      "modules": [ "hull_plating", "shield_generator", "asteroid_breaker", "ship_laser_basic", "ship_cannon_1", "laser_cannon_2" ],
+      "modules": [ "hull_plating", "shield_generator", "asteroid_breaker", "ship_laser_basic", "ship_cannon_1", "laser_cannon_2",
+                   "scatter_cannon", "ion_pulse", "missile_launcher", "point_defense" ],
       "ships": [ "corvette", "hammerhead", "thunderbolt", "deathblock" ]
     },
     {
@@ -144,7 +146,8 @@
                       "ship_deathblock", "cargo_expansion_1", "cargo_expansion_2", "cargo_expansion_3", "refinery", "detoxifier", "matter_forge",
                       "matter_resynth", "decontaminator", "bio_lab", "tractor_beam", "oxygen_generator", "docking_module", "jump_generator",
                       "radar_array", "planet_scanner", "quantum_scanner", "ai_core_mk2", "ai_core_mk3", "hull_plating", "shield_generator",
-                      "asteroid_breaker", "ship_cannon_1", "laser_cannon_2", "ship_sensor" ]
+                      "asteroid_breaker", "ship_cannon_1", "laser_cannon_2", "scatter_cannon", "ion_pulse", "missile_launcher",
+                      "point_defense", "afterburner", "maneuvering_thrusters", "ship_sensor" ]
     },
     {
       "key": "food", "nameKey": "category.food.name", "group": "supplies", "icon": "cat_medicine", "iconItem": "medpack",

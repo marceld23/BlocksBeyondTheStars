@@ -82,6 +82,9 @@ public static class FxStyles
     public const string Shield = "shield";
     public const string Warp = "warp";
     public const string ShipScan = "ship_scan"; // #2237: the ship scanner in the flight hotbar (cockpit, Quantum scanner)
+    public const string Missile = "missile";    // #3758: a slow rocket with a long trail and a big burst
+    public const string Scatter = "scatter";    // #3758: a fan of short fat bolts, one per target
+    public const string IonPulse = "ion_pulse"; // #3758: a crackling pulse that leaves the target sparking
 
     private static readonly HashSet<string> Known = new(System.StringComparer.Ordinal)
     {
@@ -90,6 +93,7 @@ public static class FxStyles
         Scan, ScanPro,
         Blueprint, HealPulse, Stasis, Blast, Pump, TerrainScan, Translate, WeatherScan, Generic, Rope,
         TwinPulse, PlasmaBolt, HeavyBeam, DrillBeam, Tractor, PlanetScan, Shield, Warp, ShipScan,
+        Missile, Scatter, IonPulse,
     };
 
     /// <summary>Every known style.</summary>
@@ -121,6 +125,10 @@ public static class FxActionKinds
     /// <summary>Placing a block.</summary>
     public const byte Place = 6;
 
-    /// <summary>True for one of the kinds above.</summary>
+    /// <summary>#3753: a ship's barrel roll — sent by the server to the other pilots when it grants one (the target's X
+    /// minus the start's X is the direction: +1 right, -1 left).</summary>
+    public const byte Roll = 7;
+
+    /// <summary>True for one of the kinds a client may send (the roll is the server's to announce).</summary>
     public static bool IsValid(byte kind) => kind is >= Shot and <= Place;
 }

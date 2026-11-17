@@ -30,7 +30,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Fires a ship weapon's look from the ship at <paramref name="target"/> (world positions). Mining shots
         /// (asteroids, wrecks) read amber whatever the weapon.</summary>
-        public static void Fire(FxLook look, Transform ship, Bounds shipLocal, Vector3 target, bool mining)
+        /// <remarks><paramref name="follow"/>: where the target is right now, for a shot that homes (the missile);
+        /// <paramref name="first"/>: false for the further bolts of one scatter shot (no second muzzle flash).</remarks>
+        public static void Fire(FxLook look, Transform ship, Bounds shipLocal, Vector3 target, bool mining,
+            System.Func<Vector3> follow = null, bool first = true)
         {
             var color = mining ? new Color(1f, 0.68f, 0.25f) : look.Color;
             var core = mining ? new Color(1f, 0.95f, 0.8f) : look.Color2;
@@ -79,6 +82,20 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 }
 
+                case "missile": // #3758
+                    SpaceCombatFx.Missile(look, nose, fwd, ship.up, follow ?? (() => target), at => SpaceCombatFx.MissileBurst(look, at));
+                    FxCamera.Kick(0.8f);
+                    break;
+
+                case "scatter": // #3758
+                    SpaceCombatFx.ScatterBolt(look, nose, fwd, target, first, () => Impact(target, color, core, 1f, mining));
+                    break;
+
+                case "ion_pulse": // #3758
+                    SpaceCombatFx.IonPulse(look, nose, target, null);
+                    FxCamera.Kick(0.5f);
+                    break;
+
                 case "drill_beam":
                 {
                     var mat = FxKit.BeamMaterial("drill_beam", core, coreWidth: 0.5f, noiseScale: 0.5f, noiseSpeed: 16f, pulse: 2.5f, intensity: 3f);
@@ -99,6 +116,23 @@ namespace BlocksBeyondTheStars.Client
                         () => Impact(target, color, core, 0.9f, mining));
                     break;
                 }
+            }
+        }
+
+        /// <summary>Seconds a shot of this look needs to cover <paramref name="distance"/> — when what it hits answers
+        /// (a shield's ripple). The numbers are the ones <see cref="Fire"/> flies its shots with.</summary>
+        public static float TravelSeconds(FxLook look, float distance)
+        {
+            float speed = look.Speed;
+            switch (look.Style)
+            {
+                case "heavy_beam": return Mathf.Clamp(look.Charge, 0.05f, 0.5f);
+                case "drill_beam": return 0f;
+                case "missile": return Mathf.Clamp(distance / (speed > 0f ? speed : 45f), 0.25f, 4f);
+                case "ion_pulse": return Mathf.Clamp(distance / 160f, 0.05f, 0.6f);
+                case "scatter": return Mathf.Clamp(distance / (speed > 0f ? speed : 120f), 0.02f, 2f);
+                case "plasma_bolt": return Mathf.Clamp(distance / (speed > 0f ? speed : 140f), 0.02f, 2f);
+                default: return Mathf.Clamp(distance / (speed > 0f ? speed : 190f), 0.02f, 2f);
             }
         }
 

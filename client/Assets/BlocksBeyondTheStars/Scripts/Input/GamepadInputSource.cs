@@ -361,6 +361,10 @@ namespace BlocksBeyondTheStars.Client
             // #3376: "click the stick you walk with" — L3 runs while moving and opens the context list while standing
             // (InputMap.ContextPressIsSprint), the same one-button-two-contexts split as R3 above.
             InputAction.Sprint => BtnL3,
+            // #3755: the same split at the helm — L3 boosts while the stick thrusts and opens the list while it rests
+            // (InputMap.ContextPressIsBoost). A is idle at the helm (it jumps on foot and lifts the suit on a spacewalk).
+            InputAction.FlightBoost => BtnL3,
+            InputAction.FlightRoll => BtnA,
             _ => KeyCode.None,
         };
 
