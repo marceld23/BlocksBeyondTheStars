@@ -679,7 +679,7 @@ namespace BlocksBeyondTheStars.Client
 
             RefreshHeldItem();
 
-            if (InputMap.Down(InputAction.PrimaryFire) && WeaponSwingReady())
+            if (!CarryTick() && InputMap.Down(InputAction.PrimaryFire) && WeaponSwingReady()) // #3766: a carried block is thrown instead
             {
                 TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
                 AttackNearestEnemy();
@@ -696,6 +696,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network?.SendThrowFood(Game.SelectedHotbarSlot);
                 ClientAudio.Instance?.Cue("loot");
+            }
+            else if (InputMap.Down(InputAction.FeedCreature))
+            {
+                ToggleCarry(); // #3766: nothing to feed — the control lifts the block in the hand, or puts it back
             }
 
             if (InputMap.Down(InputAction.DepositToCrate))

@@ -79,6 +79,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.WorldFxReceived += OnWorldFx; // #3096: a tank spider's burst
                 Game.Network.BlockChanged += OnGiantBlockChanged; // #3676: a stirring guardian giant's eye flickers
                 Game.Network.WorldFxReceived += OnGiantWorldFx;   // #3676: a guardian giant's shock wave pushes the player
+                Game.Network.WorldFxReceived += OnThrownBlockFx;  // #3766: a thrown block flies
                 _subscribed = true;
             }
 
@@ -760,6 +761,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.WorldFxReceived -= OnWorldFx;
                 Game.Network.BlockChanged -= OnGiantBlockChanged;
                 Game.Network.WorldFxReceived -= OnGiantWorldFx;
+                Game.Network.WorldFxReceived -= OnThrownBlockFx;
             }
 
             DisposeGuardianGiants();

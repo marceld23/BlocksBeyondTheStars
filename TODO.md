@@ -56,9 +56,22 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so f
 - ✅ **#3768 Nobody who cannot trade is called a trader.** A station's crew and the residents of a traders settlement
   wore the label of their place's theme ("Trader" — in German the vendor's word) but only talk. Station crew is "Crew"
   now (`npc.role.station_crew`, all 14 languages), the settlement's people "Settler"; clothes still follow the theme.
-- 🚧 **Still to build in this batch (decisions recorded in the issues):** #3765 Hard Survival (a fourth world mode: many
-  enemies, slow needs, death = watching until a team-mate revives with a medkit; alone 60 s), #3766 carry a block over
-  the head and throw it (Q lifts, the attack key throws; damage by material; the block lands as an item).
+- 🚧 **Still to build in this batch (decisions recorded in the issue):** #3765 Hard Survival (a fourth world mode: many
+  enemies, slow needs, death = watching until a team-mate revives with a medkit; alone 60 s).
+- ✅ **#3766 Carry a block over the head and throw it.** The Feed control (Q) with a block in the hand and nothing to
+  feed lifts ONE block of the selected stack with both hands — a stance, the block stays in the stack — and puts it
+  back; the attack control throws it. The server flies it (`GameServerCarryThrow.cs`, rules in `Shared/BlockThrow`):
+  the first machine, robber or wild animal on the arc takes the material's damage (hardness < 1 → 4, < 4 → 7, else
+  10; speed 15 / 13 / 11), booked through `LandHit` — the part of the attack after its checks, split out of
+  `AttackCombatEntity` into `GameServerHitLanding.cs`, so loot, samples, achievements, events and the story follow
+  the same rules as a blow. Tame animals, Qualis, NPCs and players are never hit; the block always ends as a drop
+  packet (never placed). Two appended intents (353 / 354), the flight as `WorldFx` kind `block_throw` with a new
+  additive `Item` field, the pose as bit 29 of the presence's gear mask (`GearLook.CarryingOverhead`) — no protocol
+  bump, no save change. Client: `PlayerController.Carry.cs`, `PlayerAvatar.CarryBlock.cs`, `Viewmodel.Carry.cs`,
+  `WorldEntities.ThrownBlocks.cs`; pose numbers in `Client.Core/BlockCarryPose`. Texts and the Codex's *Combat &
+  Defence* article in all 14 languages. Tests: `BlockCarryThrowTests`, `BlockCarryWiringTests`.
+  ⚠ Playtest open: the pose (where the block sits over the head, first-person view), the arc and the three damage
+  values are first values, never seen in the running game.
 - ✅ **#3767 The figure's voice.** The character editor's Figure tab has a voice column: a **pitch** and an **age**
   slider (steps of ten, the middle = the old sound) with Low · Middle · High quick buttons — sliders instead of
   "man / woman" categories, by decision. The figure's own breath, strain, pain and fall clips are retuned (pitch as

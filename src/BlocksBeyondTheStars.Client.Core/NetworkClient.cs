@@ -994,6 +994,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The Feed action (#2018): throw one piece of the food in <paramref name="slot"/> to a begging herd.</summary>
         public void SendThrowFood(int slot) => Send(new ThrowFoodIntent { Slot = slot });
 
+        /// <summary>#3766: lift one block of the selected hotbar stack over the head (<paramref name="carry"/>), or put it back.</summary>
+        public void SendCarryBlock(bool carry) => Send(new CarryBlockIntent { Carry = carry });
+
+        /// <summary>#3766: throw the carried block along the view direction; the server flies it and books the hit.</summary>
+        public void SendThrowBlock(float dirX, float dirY, float dirZ) => Send(new ThrowBlockIntent { DirX = dirX, DirY = dirY, DirZ = dirZ });
+
         public void SendUseGadget(string gadgetKey, Vector3f target)
             => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
 

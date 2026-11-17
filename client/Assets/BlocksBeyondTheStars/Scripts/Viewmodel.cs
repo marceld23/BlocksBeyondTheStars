@@ -575,7 +575,7 @@ namespace BlocksBeyondTheStars.Client
                 0f);
 
             var rot = RestEuler + _stanceTurn; // #3763: a blade and a pick rest tipped up (Viewmodel.Stance.cs)
-            var posOff = RestPos + _stanceShift + bob;
+            var posOff = RestPos + _stanceShift + CarryShift() + bob; // #3766: a carried block rises to the top of the view
             var rotL = MirroredEuler(RestEuler);
             var posL = Mirrored(RestPos) + new Vector3(-bob.x, bob.y, 0f); // one shared bob, mirrored across
 

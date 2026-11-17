@@ -159,7 +159,7 @@ namespace BlocksBeyondTheStars.Client
         /// plants) — hard materials need a drill. (#128)</summary>
         private void HandleDrillAudio()
         {
-            if (Camera == null || !InputMap.PrimaryHeld())
+            if (Camera == null || !InputMap.PrimaryHeld() || CarryHoldsHands) // #3766: no digging with a block held up
             {
                 return;
             }
@@ -427,7 +427,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void HandleInteract()
         {
-            if (Game?.Network == null || Camera == null)
+            if (Game?.Network == null || Camera == null || CarryHoldsHands) // #3766: both hands hold the block
             {
                 return;
             }

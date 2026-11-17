@@ -791,7 +791,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (_cheerTimer > 0f)
+            if (_cheerTimer > 0f || CarryShows) // #3766: a carried block keeps the arms up
             {
                 _cheerTimer -= dt;
                 var (k, bob, up) = ArmsUp();                     // the cheer's pumping V — or a startle's hands straight up (#3769)
@@ -829,12 +829,12 @@ namespace BlocksBeyondTheStars.Client
                 rollR = yawR = elbowRollR = 0f; // the rope arm stays straight at its anchor, whatever else plays
             }
 
-            if (_swingTimer > 0f || _punchTimer > 0f || _bowTimer > 0f || _waveTimer > 0f || _cheerTimer > 0f || _roped)
+            if (_swingTimer > 0f || _punchTimer > 0f || _bowTimer > 0f || _waveTimer > 0f || _cheerTimer > 0f || _roped || CarryShows)
             {
                 level = 0f;
             }
 
-            if (_held != null && !_fightGloves) // the gloves are turned onto the hands once (BuildAvatarGlove)
+            if (_held != null && !_fightGloves && !PoseCarriedBlock()) // the gloves are turned onto the hands once (BuildAvatarGlove); #3766
             {
                 // #2777: undo the arm's pitch on the held item, so a carried tool points ahead, not at the sky — a blade
                 _held.transform.localRotation = Quaternion.Euler((-(armR + elbowR) - _carryTip) * level, 0f, 0f); // or a pick tipped up (#3763)

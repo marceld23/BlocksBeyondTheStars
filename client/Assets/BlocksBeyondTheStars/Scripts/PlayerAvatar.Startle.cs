@@ -34,6 +34,11 @@ namespace BlocksBeyondTheStars.Client
         /// high the arms go (degrees of roll).</summary>
         private (float Blend, float Bob, float Lift) ArmsUp()
         {
+            if (_cheerTimer <= 0f && CarryShows)
+            {
+                return (CarryBlend(), 0f, BlockCarryPose.ArmLift); // #3766: no gesture plays — a block is held up
+            }
+
             float c = 1f - Mathf.Clamp01(_cheerTimer / _armsUpSeconds);
             if (_startled)
             {

@@ -397,6 +397,8 @@ public sealed class NetCodecTests
         [350] = typeof(PlayerEmote),             // … and what the others see (emotes, a flinch, the fall, the rise)
         [351] = typeof(ShipManeuverIntent),      // #3753/#3754
         [352] = typeof(SpaceHeavyShot),          // #3756
+        [353] = typeof(CarryBlockIntent),        // #3766: a block lifted over the head
+        [354] = typeof(ThrowBlockIntent),        // … and thrown
 
     };
 

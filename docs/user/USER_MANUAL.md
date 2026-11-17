@@ -209,7 +209,7 @@ Last updated: 2026-10-04.
 | **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` or **Ressaw lamp** — a module slot on the Suit tab; without one a hint says so; the Ressaw lamp also gives night sight while it is on). It is a calm white LED on the right of your helmet: a bright spot where you look with a soft halo around it — near rock is bright, rock far away stays dim, and wet stone, ore, ice, metal and water glint in it. While it is on, your eyes get used to the lit spot, so a dark cave around the beam looks a little darker (never black), and specks of dust in front of your visor sparkle in the light. **Under water** the lamp shows as a cone in the water: on every setting the specks floating in the water light up in its beam, and on **High** the water itself glows along the beam, tinted like the water around you (blue-green in the sea, red in red fluid) and fading out after about ten metres. Other players see your beam and the glowing lamp on your helmet, and you see theirs |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container — take everything out of the nearest storage crate; at an **empty** crate a short message says *The crate is empty.* |
-| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
+| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); never wastes food. With a **block** in your hand and nothing to feed: **lift the block over your head** (and put it back) — the attack control then throws it (see *Throwing a block*) — rebindable (Settings → Controls → *Feed an animal / lift a block*) |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**; with nothing of that kind in your bag a message says so); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors); **talk to the person you're looking at**; **aim at a mission board** to open its jobs (Tab → Missions). **What you aim at comes first**: a person, a board, a crate, a bed or a chair under the crosshair wins over a door, a ship station or somebody merely standing nearby — and the prompt at the bottom of the screen always names exactly what **E** will do |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
@@ -2132,6 +2132,20 @@ players.
   the spear reaches further.
 - **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
   auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
+
+### Throwing a block (an idea of Justus)
+
+- **Lift:** select a block in the hotbar and press **Feed** (**Q**) — you lift **one** block of the stack over your
+  head with both hands. It is still part of the stack: nothing is taken yet. **Q** again puts it back; so does
+  selecting another hotbar slot. Only on foot on a world — not seated, climbing, driving, on a train or in a ship.
+- **Throw:** the attack control (left mouse) throws it where you look. While the block is up your hands do nothing
+  else — no mining, no placing, no swing.
+- **What it does:** the first robot, robber or wild animal on its way is hurt by the block's **material** — a soft
+  block (earth, sand, leaves) **4**, wood, stone and ordinary ore **7**, metal, obsidian and the hardest rock **10**
+  (a wooden club does 6, the machete 7). A heavy block does not fly as far. At most one throw every 0.6 s.
+- **What it never does:** it never hits a tame animal, a Quali, an NPC or another player, and it is **never placed**
+  — it lies where it came down as an item, and you (or anyone) can pick it up again. Nothing is lost.
+- Other players see you hold the block up and see it fly.
 
 ### Glove weapons (shock gloves and energy gloves)
 Two weapons you wear on **both hands** — hold them in the hotbar like any weapon; in first person you see both

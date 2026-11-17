@@ -118,7 +118,7 @@ public sealed class HeldStancesTests
 
         string view = Script("Viewmodel.cs");
         Assert.Contains("var rot = RestEuler + _stanceTurn;", view);
-        Assert.Contains("var posOff = RestPos + _stanceShift + bob;", view);
+        Assert.Contains("var posOff = RestPos + _stanceShift + CarryShift() + bob;", view);
         Assert.Contains("PoseJabOrChop(t, jab, aroundForearm, ref posOff, ref rot);", view);
         Assert.Contains("SetKind(kind);", view);
         string stance = Script("Viewmodel.Stance.cs");

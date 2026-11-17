@@ -268,6 +268,14 @@ public sealed class PlayerSession
     /// whether the lamp is CARRIED otherwise). Session-scoped — a rejoin starts with the lamp off, like the client.</summary>
     public bool LampOn { get; set; }
 
+    /// <summary>#3766: the player holds one block of the selected hotbar stack over the head with both hands. A stance
+    /// of this connection (not persisted): the block is still in the stack. Shown to the others as the
+    /// <c>GearLook.CarryingOverhead</c> bit, and only while the player still can carry (<c>CanCarryBlock</c>).</summary>
+    public bool CarryingBlock { get; set; }
+
+    /// <summary>#3766: the uptime the next throw is allowed at.</summary>
+    public double NextBlockThrowAt { get; set; }
+
     /// <summary>Zero-g construction mode on the boarded player-built station (#1842): the suit floats everywhere
     /// on the station, not only beyond its gravity volume. Per player, session-only and deliberately never
     /// persisted — it is cleared on leaving the station, on any world change and on disconnect, so a rejoin

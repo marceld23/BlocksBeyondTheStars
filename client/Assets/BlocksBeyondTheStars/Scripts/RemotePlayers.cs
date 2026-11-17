@@ -509,6 +509,9 @@ namespace BlocksBeyondTheStars.Client
                 r.Avatar.SetLampLit(lampOn);
             }
 
+            // #3766: a block held over the head with both hands (the block is the held item).
+            r.Avatar.SetCarryingBlock(BlocksBeyondTheStars.Shared.State.GearLook.Has(m.Gear, BlocksBeyondTheStars.Shared.State.GearLook.CarryingOverhead));
+
             // #2296: the glider's wings open over a gliding player.
             if (m.Gliding != r.Gliding)
             {
