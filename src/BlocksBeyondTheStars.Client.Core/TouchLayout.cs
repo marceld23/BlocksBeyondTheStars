@@ -40,6 +40,8 @@ namespace BlocksBeyondTheStars.Client
         EvaPlace,
         EvaDeploy,
         Target,
+        FlyBoost,
+        FlyRoll,
         Boost,
         Hop,
         Exit,
@@ -149,6 +151,9 @@ namespace BlocksBeyondTheStars.Client
             Spec(TouchControl.EvaPlace, TouchCluster.Flight, 1f, 0f, -290f, 265f, 110f, "ui.touch.place", "PLACE"),
             Spec(TouchControl.EvaDeploy, TouchCluster.Flight, 1f, 0f, -150f, 305f, 100f, "ui.touch.deploy", "DEPLOY"),
             Spec(TouchControl.Target, TouchCluster.Flight, 1f, 0f, -420f, 310f, 92f, "ui.touch.target", "TARGET"),
+            // #3755: at the helm BOOST and ROLL stand where UP and DOWN stand on a spacewalk (nothing read those two at the helm).
+            Spec(TouchControl.FlyBoost, TouchCluster.Flight, 0f, 0f, 430f, 300f, 96f, "ui.touch.boost", "BOOST"),
+            Spec(TouchControl.FlyRoll, TouchCluster.Flight, 0f, 0f, 430f, 190f, 96f, "ui.touch.roll", "ROLL"),
 
             // Speeder (a boat hides HOP and FUEL).
             Spec(TouchControl.Boost, TouchCluster.Speeder, 1f, 0f, -140f, 150f, 130f, "ui.touch.boost", "BOOST"),

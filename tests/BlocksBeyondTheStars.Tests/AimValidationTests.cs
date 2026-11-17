@@ -226,18 +226,18 @@ public sealed class AimValidationTests : IDisposable
         using (repo)
         {
             server.AddLocalPlayer("Gunner");
-            server.Ship.Modules.Add("ship_cannon_1"); // 20 dmg, 1.0 s cooldown
+            server.Ship.Modules.Add("ship_cannon_1"); // 28 dmg (#3757), 1.0 s cooldown
             server.EnterSpace("Gunner");
 
             var drone = server.SpaceEntitiesFor("Gunner").First(e => e.Kind == CombatEntityKind.Drone);
             server.ShipMove("Gunner", drone.Position.X, drone.Position.Y, drone.Position.Z);
 
-            server.FireWeapon("Gunner", "ship_cannon_1", drone.Id); // 40 -> 20
+            server.FireWeapon("Gunner", "ship_cannon_1", drone.Id); // 40 -> 12
             server.FireWeapon("Gunner", "ship_cannon_1", drone.Id); // still cycling — swallowed (#694)
-            Assert.Equal(drone.HullMax - 20f, drone.Hull);
+            Assert.Equal(drone.HullMax - 28f, drone.Hull);
 
             server.TickForTest(1.1); // cooldown cycles
-            server.FireWeapon("Gunner", "ship_cannon_1", drone.Id); // 20 -> 0: destroyed
+            server.FireWeapon("Gunner", "ship_cannon_1", drone.Id); // 12 -> 0: destroyed
             Assert.DoesNotContain(server.SpaceEntitiesFor("Gunner"), e => e.Id == drone.Id);
         }
     }

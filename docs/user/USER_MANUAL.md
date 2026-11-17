@@ -274,7 +274,9 @@ also closes the gameplay menu itself and backs out of the main menu, Settings, t
 editors. The right stick also steers the ship in flight; the d-pad cycles the **ship-systems bar**
 (laser ↔ tractor beam) at the helm. At the helm **LB** is the **target lock** (tap = next target, hold =
 let go) and **R3** locks the **nearest enemy** (again = the next nearest); *Target ahead* — lock the rock on
-your nose — is in the **L3 Actions** list. See §3 → *Target lock*. Direct
+your nose — is in the **L3 Actions** list. See §3 → *Target lock*. At the helm **(A)** is the **barrel roll** and
+**L3** — clicked while the left stick is pushed — the **boost** (with the stick at rest L3 opens the Actions list, the
+same split as running on foot). Direct
 hotbar number-key picks remain keyboard-only. Verbs without a
 face button — everything in the **L3 Actions** list — can also be given their own button in Settings.
 
@@ -362,7 +364,7 @@ cutscene they step aside — tap its **Skip** button to leave it, or the **Conti
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: hold JUMP to hold on and climb, let go of it to slide down) · mine · place · use/board · descend (on a wall: drop off) · open chat · camera · planet map |
 | *On foot:* **RUN** (above the stick) | Tap it while you move to **run**; it stays on (lit) until you stop, the stamina runs out or you tap it again (see §5 → Running and stamina) |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
-| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" and "target ahead" are in **ACT**) · system chart · camera · dock/board · float up/down |
+| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · BOOST · ROLL** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" and "target ahead" are in **ACT**) · system chart · camera · dock/board · boost (tap = on, it glows; it ends when the charge is empty, you stop or you tap again) · barrel roll |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
@@ -387,6 +389,19 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 you let go, it leans into a turn, and the outside camera follows it softly instead of being bolted to it. It is still
 an easy, arcade ship — it never drifts on forever, and it slides along a station's hull instead of sticking to it. With
 *Camera motion* off the camera is rigid again.
+
+**Two manoeuvres** (every ship has them from the start; two small bars above the speed readout show when they are
+ready and name their control for the device in your hands — "BOOST  Shift", "ROLL  (A)"):
+
+- **Barrel roll** — **Space** (pad **(A)**, touch **ROLL**). The ship spins once about its nose and slides a few
+  metres sideways — to the side you are steering (A / D, the stick), otherwise to the right. While it rolls, **every
+  enemy shot misses** (see §5 → *Space flight & combat*). Then it needs a few seconds before the next roll: a nimble
+  ship rolls about every 2 seconds, the starter ship every 4, a heavy one every 8. The outside camera stays level, so
+  the view does not spin with the ship.
+- **Boost** — hold **Left Shift** while you fly (pad: click the **left stick** while it is pushed; touch: tap **BOOST**
+  — both switch it on until the charge is empty, you stop, or you press again). The ship flies about 1.7 times as
+  fast while the **orange bar** lasts (about 3 seconds on the starter ship), then the bar refills by itself in a few
+  seconds. A boost needs at least a quarter of the bar to start, and the autopilot never boosts.
 
 **Lift-off, landing and docking play as one continuous scene** — no loading screen in between:
 
@@ -423,6 +438,8 @@ While flying:
 |---|---|
 | **W / A / S / D** | Thrust forward / strafe / back |
 | **Mouse** | Yaw + pitch (turn). Sensitivity scales with the ship's **handling** stat |
+| **Left Shift** (hold) | **Boost** while the orange bar lasts (pad: click the **left stick** while it is pushed, touch: **BOOST**) |
+| **Space** | **Barrel roll** to the side you steer, else to the right — enemy shots miss while it turns (pad **(A)**, touch **ROLL**) |
 | **V** | Toggle cockpit / third-person camera |
 | **Caps Lock** (hold) | Push-to-talk voice, as on foot (needs a **worn** radio; see §7 → Voice chat) |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
@@ -1774,7 +1791,8 @@ players.
   only in the floating islands. The numbers come from the very rolls the terrain is generated with, so what it
   promises is really down there. Without the Deep scanner the overview says what it would take to see the ores.
 - **Reactor fuel** (uranium + lead at the refinery) is a **one-time build cost** of the big things: the three
-  capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon and the jump generator ignite
+  capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon, the missile launcher, the
+  afterburner and the jump generator ignite
   their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.
   **Lead** grows on rocky, swamp, fungal and badlands worlds (and, in newly created worlds, in metallic asteroids); any vendor and your ship's trade console also sell it for iron ore (**5 iron ore → 1 lead ore**). A new
   world's home system always holds lead and uranium on one of its bodies.
@@ -2029,7 +2047,52 @@ players.
   cyan on lock). Weapon **range and fire rate come from the fitted module** — bigger cannons genuinely reach
   further.
 - **Who shoots first:** hostiles open fire from about **70** units away; the starter laser reaches **60**. So when the
-  lock frame says *Too far — fly closer*, a short dash towards the enemy is all it takes to shoot back.
+  lock frame says *Too far — fly closer*, a short dash towards the enemy — a **boost** — is all it takes to shoot
+  back. Only the **missile launcher** (90) out-ranges them.
+- **Enemies fly.** A hostile that has closed in no longer stands still: it **circles** you at its own distance, so a
+  fight means turning with it.
+- **Evading:** while your ship does a **barrel roll** (**Space**, pad **(A)**, touch **ROLL**) every enemy shot
+  misses — the bolts fly past the hull. That is three quarters of a second of safety, not a shield: time it.
+- **The heavy shot:** the **cruiser** and the **raider ship** charge a heavy shot every few seconds. You see and hear
+  it coming — the ship glows, a red ring closes in on it, and *Heavy shot incoming — barrel roll!* appears on your
+  screen. It fires after about a second and a half and hits hard (never hard enough to destroy a fresh starter ship
+  in one go). **Roll just before it fires**, or fly out of its range, and it misses. Their steady fire is a little
+  weaker in return.
+- **Enemy shields:** the cruiser, the raider ship and elite UFOs carry a **shield**. The bubble flashes where your
+  shot lands; the hull only takes damage once it is gone (it does not come back). An **ion pulse** drops it at once.
+- **Space stations are shielded.** A shot at an intact station ends on its shield bubble and does nothing — mining
+  tools refuse to fire on a station at all. A **derelict station** or a **giant wreck** has no shield left: a combat
+  weapon's shot tears **blocks out of its hull** where it lands (one for a laser pulse, up to six for a missile).
+  The blocks are gone, not collected — mine a wreck by hand or with the mining laser if you want its materials.
+- **Wrecks and wreckage take hits from every weapon:** the system's derelict ship and the fragments a destroyed ship
+  leaves lose plating to cannons, missiles and the scatter cannon too, not only to the mining laser (asteroids stay
+  the mining tools' business unless the world allows weapons on rocks).
+
+  **Ship weapons** — research each in the Blueprints tab, build it at the workshop, pick it with the number keys:
+
+  | Weapon | What it does | Reach | Blueprint needs |
+  |---|---|---|---|
+  | **Ship laser** (starter) | mines and fights — 14 damage, fast | 60 | — |
+  | **Ship Cannon I** | 28 damage a second; fights only | 65 | Hull Plating |
+  | **Laser Cannon II** | 45 damage per shot; fights only | 70 | Ship Cannon I |
+  | **Scatter Cannon** | one shot hits **up to three** enemies in a cone in front of you (16 each) | 38 | Ship Cannon I |
+  | **Ion Pulse** | barely hurts, but the enemy **loses its shield and neither flies nor fires for 3.5 s** | 55 | Ship Cannon I + Crystal Conduit |
+  | **Missile Launcher** | a **homing** missile at your **locked** target (**T**), wherever the nose points — 70 damage, 3 s reload, it needs a moment to arrive | 90 | Laser Cannon II + Radar Array |
+  | **Point-Defence Turret** | fires **by itself** at the nearest enemy; it takes no slot in the systems bar | 40 | Shield Generator + Ship Cannon I |
+  | **Asteroid Breaker** | mining only | 40 | — |
+
+  **Ship classes** — the ship pane shows each hull's boost, roll and weapon bonus:
+
+  | Class | Ships | In a fight |
+  |---|---|---|
+  | Light | Scout, Courier | roll about every 2 s, boost for 4.5–5 s; little hull. The Scout starts with an **ion pulse** |
+  | Balanced | Starter, Corvette | roll every ~4 s, boost 3 s. The Corvette deals **+15 %** weapon damage and starts with a cannon |
+  | Strike | Thunderbolt | **+25 %** weapon damage, a short hard boost, starts with a cannon and a **missile launcher** |
+  | Heavy | Hauler, Hammerhead, Deathblock | the most hull, a roll only every 5–8 s, a weak boost. Hammerhead and Deathblock start with a **scatter cannon**, Hauler and Deathblock with a **point-defence turret** |
+
+  The **Afterburner** (boost lasts 1.5 s longer and refills faster) and the **Manoeuvring Thrusters** (the roll is
+  ready 40 % sooner) are modules for any ship; both blueprints follow the Docking Module. A self-built ship boosts
+  and rolls by its engines and its mass, like it flies.
 - **Target lock** (**T** / **R** / right mouse button, pad **LB** / **R3**, touch **TARGET**): mark an enemy or
   any other target — a frame shows it, an arrow at the edge points to it when it is off screen, small red
   ticks point at further attackers. With Auto-aim on the laser prefers the locked target, and the centre dot

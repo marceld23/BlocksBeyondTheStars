@@ -183,7 +183,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #3376: the pad's left-stick click runs while moving and opens the list only while standing.
-            if (InputMap.Down(InputAction.ContextActions) && CanOpen && !InputMap.ContextPressIsSprint(Player != null && Player.SprintPossible))
+            if (InputMap.Down(InputAction.ContextActions) && CanOpen && !InputMap.ContextPressIsSprint(Player != null && Player.SprintPossible)
+                && !InputMap.ContextPressIsBoost(Game != null && Game.SpaceViewActive && !Game.InEva)) // #3755: at the helm it boosts while thrusting
             {
                 Open();
             }

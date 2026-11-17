@@ -395,6 +395,8 @@ public sealed class NetCodecTests
         [348] = typeof(GuardianGiantStatus),     // #3676
         [349] = typeof(PlayerEmoteIntent),       // the feel pass: a player's emote
         [350] = typeof(PlayerEmote),             // … and what the others see (emotes, a flinch, the fall, the rise)
+        [351] = typeof(ShipManeuverIntent),      // #3753/#3754
+        [352] = typeof(SpaceHeavyShot),          // #3756
 
     };
 

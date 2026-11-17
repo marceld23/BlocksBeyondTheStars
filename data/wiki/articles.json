@@ -39,6 +39,7 @@
   { "id": "own-forms" },
   { "id": "farming" },
   { "id": "combat" },
+  { "id": "space-combat" },
   { "id": "ships-modules" },
   { "id": "alliances" },
   { "id": "emotes" },

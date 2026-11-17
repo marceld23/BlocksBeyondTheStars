@@ -348,6 +348,8 @@ namespace BlocksBeyondTheStars.Client
                 strafe = InputMap.MoveXRaw(); // raw: the ship's own spool-up shapes the motion (SpaceView.Feel.cs)
             }
 
+            UpdateManeuvers(fwd, strafe); // #3753/#3754: the barrel roll and the boost (SpaceView.Maneuvers.cs)
+
             // The ship has mass: the thrust builds up, a let-go stick coasts out, the hull leans into the turn. The
             // heading it FLIES on is the unrolled one.
             var rot = Quaternion.Euler(_pitch, _yaw, 0f);

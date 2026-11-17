@@ -100,7 +100,8 @@ namespace BlocksBeyondTheStars.Client
                 "FlightEnterInterior" => "ui.touch.ship",
                 "FlightTargetNext" => "ui.touch.target",
                 "EvaDeployStation" => "ui.touch.deploy",
-                "SpeederBoost" => "ui.touch.boost",
+                "SpeederBoost" or "FlightBoost" => "ui.touch.boost", // #3755: the helm's BOOST button reads the same
+                "FlightRoll" => "ui.touch.roll",
                 "Sprint" => "ui.touch.run", // #3376: the on-foot RUN switch
                 "SpeederExit" => "ui.touch.exit",
                 "SpeederRefuel" => "ui.touch.fuel",

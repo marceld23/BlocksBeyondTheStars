@@ -348,6 +348,13 @@ MODULES = [
     ("ship_laser_basic", "a small ship laser turret"),
     ("ship_cannon_1", "a ship cannon turret"),
     ("laser_cannon_2", "a heavy ship laser cannon turret"),
+    # #3758/#3759 space combat (2026-11-17): four weapons with their own behaviour and two manoeuvre upgrades.
+    ("missile_launcher", "a ship missile launcher pod, a dark gunmetal box rack with four round launch tubes, one orange-tipped missile half out of its tube on a small flame"),
+    ("scatter_cannon", "a short wide ship scatter cannon with three stubby barrels side by side in a flared muzzle, glowing yellow at the tips"),
+    ("ion_pulse", "a ship ion pulse emitter, a round dish of white metal with a pale blue crystal core and thin blue electric arcs jumping across it"),
+    ("point_defense", "a small automatic ship defence turret, a compact dome with two thin barrels and one glowing green sensor eye"),
+    ("afterburner", "a ship afterburner engine nozzle, a wide dark metal exhaust cone with a bright orange-white flame cone bursting out of it"),
+    ("maneuvering_thrusters", "a cluster of four small ship manoeuvring thruster nozzles on a white block pointing in different directions, each puffing a short blue jet"),
 ]
 
 ALL = [("item", k, d) for k, d in ITEMS] + [("item", k, d) for k, d in MODULES]

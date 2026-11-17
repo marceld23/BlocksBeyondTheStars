@@ -127,7 +127,7 @@
     "key": "ship_cannon_1", "nameKey": "module.ship_cannon_1.name", "descriptionKey": "module.ship_cannon_1.desc",
     "mandatory": false, "requiredBlueprint": "ship_cannon_1",
     "buildCost": [ { "item": "titanium_plate", "count": 30 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 } ],
-    "stats": { "weapon_class": 1, "weapon_damage": 20, "weapon_range": 65, "weapon_cooldown": 1.0, "weapon_energy": 3 },
+    "stats": { "weapon_class": 1, "weapon_damage": 28, "weapon_range": 65, "weapon_cooldown": 1.0, "weapon_energy": 3 },
     "fx": {"style":"plasma_bolt","color":"#ff9a3c","color2":"#fff0c8","speed":140}
   },
   {
@@ -136,6 +136,46 @@
     "buildCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 6 }, { "item": "glass", "count": 4 }, { "item": "reactor_fuel", "count": 1 } ],
     "stats": { "weapon_class": 1, "weapon_damage": 45, "weapon_range": 70, "weapon_cooldown": 1.2, "weapon_energy": 5 },
     "fx": {"style":"heavy_beam","color":"#ff4fd8","color2":"#ffffff","charge":0.25}
+  },
+  {
+    "key": "missile_launcher", "nameKey": "module.missile_launcher.name", "descriptionKey": "module.missile_launcher.desc",
+    "mandatory": false, "requiredBlueprint": "missile_launcher",
+    "buildCost": [ { "item": "titanium_plate", "count": 35 }, { "item": "cable", "count": 14 }, { "item": "circuit_board", "count": 3 }, { "item": "magnet", "count": 2 }, { "item": "reactor_fuel", "count": 1 } ],
+    "stats": { "weapon_class": 1, "weapon_damage": 70, "weapon_range": 90, "weapon_cooldown": 3.0, "weapon_energy": 12, "weapon_homing": 1, "weapon_flight_speed": 45 },
+    "fx": {"style":"missile","color":"#ff8a3c","color2":"#fff2c8","speed":45}
+  },
+  {
+    "key": "scatter_cannon", "nameKey": "module.scatter_cannon.name", "descriptionKey": "module.scatter_cannon.desc",
+    "mandatory": false, "requiredBlueprint": "scatter_cannon",
+    "buildCost": [ { "item": "titanium_plate", "count": 28 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 }, { "item": "steel", "count": 4 } ],
+    "stats": { "weapon_class": 1, "weapon_damage": 16, "weapon_range": 38, "weapon_cooldown": 0.9, "weapon_energy": 4, "weapon_targets": 3, "weapon_cone": 28 },
+    "fx": {"style":"scatter","color":"#ffd84a","color2":"#fffbe0","speed":120}
+  },
+  {
+    "key": "ion_pulse", "nameKey": "module.ion_pulse.name", "descriptionKey": "module.ion_pulse.desc",
+    "mandatory": false, "requiredBlueprint": "ion_pulse",
+    "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "cable", "count": 14 }, { "item": "crystal", "count": 6 }, { "item": "circuit_board", "count": 3 }, { "item": "energy_cell_1", "count": 4 } ],
+    "stats": { "weapon_class": 1, "weapon_damage": 4, "weapon_range": 55, "weapon_cooldown": 5.0, "weapon_energy": 10, "weapon_stun": 3.5 },
+    "fx": {"style":"ion_pulse","color":"#7fb4ff","color2":"#eaf4ff"}
+  },
+  {
+    "key": "point_defense", "nameKey": "module.point_defense.name", "descriptionKey": "module.point_defense.desc",
+    "mandatory": false, "requiredBlueprint": "point_defense",
+    "buildCost": [ { "item": "titanium_plate", "count": 24 }, { "item": "cable", "count": 12 }, { "item": "circuit_board", "count": 4 }, { "item": "sensor_lens", "count": 1 }, { "item": "energy_cell_1", "count": 3 } ],
+    "stats": { "weapon_class": 1, "weapon_damage": 6, "weapon_range": 40, "weapon_cooldown": 0.8, "weapon_energy": 2, "weapon_auto": 1 },
+    "fx": {"style":"twin_pulse","color":"#9dff7a","color2":"#ffffff","size":0.7}
+  },
+  {
+    "key": "afterburner", "nameKey": "module.afterburner.name", "descriptionKey": "module.afterburner.desc",
+    "mandatory": false, "requiredBlueprint": "afterburner",
+    "buildCost": [ { "item": "titanium_plate", "count": 18 }, { "item": "cable", "count": 10 }, { "item": "reactor_fuel", "count": 2 }, { "item": "lubricant", "count": 2 } ],
+    "stats": { "boost_seconds": 1.5, "boost_recharge": 0.4 }
+  },
+  {
+    "key": "maneuvering_thrusters", "nameKey": "module.maneuvering_thrusters.name", "descriptionKey": "module.maneuvering_thrusters.desc",
+    "mandatory": false, "requiredBlueprint": "maneuvering_thrusters",
+    "buildCost": [ { "item": "light_alloy", "count": 8 }, { "item": "cable", "count": 10 }, { "item": "energy_cell_1", "count": 3 }, { "item": "lubricant", "count": 1 } ],
+    "stats": { "roll_cooldown": 0.4 }
   },
   {
     "key": "ai_core_mk2", "nameKey": "module.ai_core_mk2.name", "descriptionKey": "module.ai_core_mk2.desc",

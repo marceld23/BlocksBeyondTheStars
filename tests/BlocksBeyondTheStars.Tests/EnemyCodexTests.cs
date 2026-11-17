@@ -85,6 +85,9 @@ public sealed class EnemyCodexTests : IDisposable
                 Assert.Equal(tier.HullMax, got.HullMax);
                 Assert.Equal(tier.DamagePerSecond, got.DamagePerSecond);
                 Assert.Equal(tier.BurstDamage, got.BurstDamage); // #3096: the tank spider's burst
+                Assert.Equal(tier.HeavyShotDamage, got.HeavyShotDamage); // #3756: the cruiser's and the raider's heavy shot
+                Assert.Equal(tier.HeavyShotInterval, got.HeavyShotInterval);
+                Assert.Equal(tier.Shield, got.Shield); // #3758: a space hostile's shield
                 Assert.Equal(tier.Loot.Select(l => (l.Item, l.Count)), got.Loot.Select(l => (l.Item, l.Count)));
             }
         }

@@ -451,6 +451,7 @@ namespace BlocksBeyondTheStars.Client
             if (_phase == Phase.Cruise)
             {
                 UpdateHostileFire(Time.deltaTime); // draw the enemy's shots (server damage is an invisible aura)
+                UpdateCombatExtras(Time.deltaTime); // #3758: shields that burst, silenced hostiles, the turret
             }
 
             // EVA is server-driven now (you step out through the ship's airlock): mirror its InEva state so
@@ -602,6 +603,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ShipCombatStatusChanged += OnShipCombat;
                 Game.Network.SpaceClosed += OnSpaceClosedFx;
                 Game.Network.ActionFxReceived += OnRemoteShipFx; // #2158: other pilots' shots
+                Game.Network.SpaceHeavyShotReceived += OnHeavyShot; // #3756: a hostile's heavy shot charges / fires
                 _combatSubscribed = true;
             }
 
@@ -716,6 +718,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ShipCombatStatusChanged -= OnShipCombat;
                 Game.Network.SpaceClosed -= OnSpaceClosedFx;
                 Game.Network.ActionFxReceived -= OnRemoteShipFx;
+                Game.Network.SpaceHeavyShotReceived -= OnHeavyShot;
                 _combatSubscribed = false;
             }
 
@@ -757,6 +760,7 @@ namespace BlocksBeyondTheStars.Client
             ResetVisit(); // #2724
             _shipDestroyed = false;
             _remotePlayers.Clear(); // their GameObjects are children of _root, destroyed with the scene
+            ClearCombatExtras();
             _remoteLerp.Clear();
             _entityLerp.Clear();
             _lastEntitySnapshot = null;
@@ -776,6 +780,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _shipSpeedMul = 1f;
             _shipTurnMul = 1f;
+            ResetManeuvers(); // #3753/#3754: a full boost charge, no roll
 
             string type = null;
             var owned = Game?.OwnedShips;

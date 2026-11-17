@@ -148,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
             bool cruise = _phase == Phase.Cruise && !_eva && !_shipDestroyed;
             float throttle = cruise ? Mathf.Clamp01(Mathf.Abs(CaptureForward())) : 0f;
             float strafe = MeasureShipMotion(dt, cruise);
-            bool boost = _boostSurge.Step(dt, throttle);
+            bool boost = _boostSurge.Step(dt, throttle) | (cruise && _boost.Active); // #3754: the afterburner layer burns with the boost
             var phase = _shipDestroyed ? FlightEnginePhase.Off
                 : _eva ? FlightEnginePhase.Eva
                 : _phase == Phase.Cruise ? FlightEnginePhase.Cruise
@@ -243,7 +243,7 @@ namespace BlocksBeyondTheStars.Client
             string id = FlightWeaponCue.For(style, mining);
             if (!audio.Has(id))
             {
-                id = mining ? FlightWeaponCue.Mine : FlightWeaponCue.Laser;
+                id = FlightWeaponCue.Fallback(id, mining);
             }
 
             audio.Cue(id, id == FlightWeaponCue.Cannon ? 0.85f : 1f);

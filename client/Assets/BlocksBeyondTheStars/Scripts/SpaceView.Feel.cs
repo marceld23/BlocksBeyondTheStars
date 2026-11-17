@@ -39,7 +39,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _flightFeelFrame = Time.frameCount;
-            float top = MoveSpeed * _shipSpeedMul;
+            float top = MoveSpeed * _shipSpeedMul * BoostFactor; // #3754: faster while the boost burns
             var want = heading * ((Vector3.forward * fwd) + (Vector3.right * strafe)) * top;
             bool thrusting = Mathf.Abs(fwd) + Mathf.Abs(strafe) > 0.05f;
             _flightVel = Vector3.MoveTowards(_flightVel, want, top * FlightFeel.SpeedStep(dt, thrusting));
@@ -49,7 +49,8 @@ namespace BlocksBeyondTheStars.Client
             _bankPrevYaw = _yaw;
             float wantBank = -(FlightFeel.BankTarget(yawRate) + (strafe * StrafeBankDegrees));
             _bank = Mathf.Lerp(_bank, wantBank, FlightFeel.Follow(FlightFeel.BankFollowRate, dt));
-            return _flightVel * dt;
+            _thrustVel = _flightVel;
+            return (_flightVel * dt) + RollSlide(heading); // #3753: a barrel roll slides the ship sideways
         }
 
         /// <summary>After the keep-out, hull and rock rules moved the wanted position: what they blocked is no longer
@@ -60,11 +61,12 @@ namespace BlocksBeyondTheStars.Client
             if (dt > 0f)
             {
                 _flightVel = (to - from) / dt;
+                SettleRollSlide(dt);
             }
         }
 
         /// <summary>The helm's heading with the hull's lean on top — what the ship model shows.</summary>
-        private Quaternion BankedRotation(Quaternion heading) => heading * Quaternion.Euler(0f, 0f, _bank);
+        private Quaternion BankedRotation(Quaternion heading) => heading * Quaternion.Euler(0f, 0f, _bank - _roll.Angle);
 
         /// <summary>The ship stops dead (the autopilot parks it, a transition takes it).</summary>
         private void StopFlightDrift() => _flightVel = Vector3.zero;

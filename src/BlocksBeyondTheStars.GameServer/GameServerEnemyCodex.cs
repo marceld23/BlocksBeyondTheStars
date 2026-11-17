@@ -44,6 +44,10 @@ public sealed partial class GameServer
             HullMax = tier.Hull,
             Position = at,
             DamagePerSecond = tier.DamagePerSecond,
+            Shield = tier.Shield,       // #3758
+            ShieldMax = tier.Shield,
+            HeavyDamage = tier.HeavyShotDamage, // #3756
+            HeavyInterval = tier.HeavyShotInterval,
         };
         foreach (var loot in tier.Loot)
         {

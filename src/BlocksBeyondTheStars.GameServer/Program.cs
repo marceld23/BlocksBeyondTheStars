@@ -100,7 +100,10 @@ if (webSocket != null)
     logger.Info($"WebSocket gateway enabled on {config.WebSocketBindAddress}:{config.GameplayPort} (browser clients).");
 }
 
-var server = new GameServer(config, content, transport, repo, logger);
+var server = new GameServer(config, content, transport, repo, logger)
+{
+    ShipSpeedCheck = true, // #3754: a reported ship pose may be no further away than the ship can have flown
+};
 
 // Hosted-worlds wiring: the WebSocket gateway serves the live status snapshot (GET /status) a control
 // plane polls; idle shutdown + join-token enforcement live inside the server and only need their config.

@@ -26,6 +26,45 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 Space combat that moves: barrel roll, boost, livelier enemies, more ship weapons — epic #3762 (#3753–#3761), ✅ 2026-11-17 (⚠ playtest open; server + client, two appended messages, no protocol bump, no new block — saves stay compatible)
+
+How it works: [docs/developer/SPACE_COMBAT_CONCEPT.md](docs/developer/SPACE_COMBAT_CONCEPT.md) § *Manoeuvres, the heavy
+shot and weapon behaviours*. Every number is a first value; the eight new sounds were generated without a listening
+check.
+
+- ✅ **Barrel roll (#3753).** Space / pad (A) / touch ROLL. The server opens a 0.75 s evade window (hostile fire and a
+  heavy shot miss) and keeps the cooldown (4 s ÷ handling, 1.5–8 s); the other pilots see the roll.
+- ✅ **Boost (#3754).** Left Shift held / pad L3 while thrusting / touch BOOST. ×1.7 for 3 s on the starter ship, from a
+  charge the server runs too. **Speed check:** the host now pulls a ship pose back that lies further away than the
+  ship can have flown (there was none before).
+- ✅ **Input (#3755).** Two rebindable flight actions; the touch helm shows BOOST / ROLL where UP / DOWN stood (those
+  two did nothing at the helm — they stay for the spacewalk); a gauge above the flight instruments whose captions name
+  the control for the device in hand (the pad's long control line has no room for two more: 160 characters).
+- ✅ **Enemies (#3756).** Hostiles circle at their stand-off ring instead of standing still. The cruiser and the raider
+  charge a telegraphed heavy shot (1.6 s; 24 / 13 damage) that a roll dodges; their steady fire went from 10 → 7 and
+  5 → 3.5 per second.
+- ✅ **Weapon base (#3757).** The client's systems bar takes every fitted module whose data makes it a weapon (a fixed
+  list of four keys before). Ship Cannon I 20 → 28 damage — it was worse than the free starter laser.
+- ✅ **New weapons (#3758), each with its blueprint:** missile launcher (homing, 70 damage, reach 90, flight time),
+  scatter cannon (up to 3 targets in a 28° cone), ion pulse (drops a shield, silences the target 3.5 s), point-defence
+  turret (fires by itself). Enemy shields (cruiser 60, raider 25, elite UFO 30); intact stations are behind a shield;
+  derelict stations, giant wrecks, the wreck and wreckage lose blocks to combat weapons.
+- ✅ **Upgrade modules (#3759):** afterburner (+1.5 s boost, faster refill), manoeuvring thrusters (roll 40 % sooner).
+- ✅ **Ship classes (#3760):** per-ship `weaponDamage`, `boostPower`, `boostSeconds`, `rollCooldown`; the ship pane shows
+  them. Start weapons: Scout ion pulse, Corvette cannon, Thunderbolt missile launcher, Hammerhead scatter cannon,
+  Deathblock scatter cannon + turret, Hauler turret.
+- ✅ **Docs (#3761):** manual (§3, pad, touch, *Space flight & combat*), Codex article *Space Combat*, all 14 languages.
+
+**Open after this package**
+- Playtest and tune: roll window and cooldowns, boost power and charge, heavy-shot damage and cadence, enemy shields,
+  the circling speed, every new weapon's numbers; listen to the eight new sounds (`ship_missile`, `ship_missile_hit`,
+  `ship_scatter`, `ship_ion`, `ship_roll`, `ship_boost`, `heavy_shot_charge`, `heavy_shot_fire`).
+- Other pilots' ships show no shield bubble (the wire carries no shield for them) and nobody can fire on them anyway.
+- The point-defence turret's shots are drawn on the client's own cadence, not on the server's exact shots.
+- A scatter shot is relayed to other pilots as one bolt; a missile they see flies to where the target was.
+- Hostile fire is still a damage field: bolts drawn at the ship are decoration (they pass it during a roll).
+- Not built: missiles that can be shot down, enemy missiles, a lock-on warning, weapon energy that really limits.
+
 ### 🎮 Game feel: movement, flight, sound, interface and figures that answer — epic #3738 (#3739–#3748), ✅ 2026-11-17, PR #3749 (⚠ playtest open; server + client, two appended messages, no protocol bump, saves stay compatible)
 
 How it works: [docs/developer/GAME_FEEL.md](docs/developer/GAME_FEEL.md). The sounds and the music went through

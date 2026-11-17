@@ -55,6 +55,8 @@ namespace BlocksBeyondTheStars.Client
         private TouchButton _fire, _flightUp, _flightDown;              // flight + EVA
         private TouchButton _land, _shipIn, _auto, _flightMap;          // helm only — swapped out in EVA
         private TouchButton _target;                                    // helm only: tap = next target, long press = clear (#2277)
+        private TouchButton _flyBoost, _flyRoll;                        // helm only (#3755) — UP / DOWN take their spots on a spacewalk
+        private Image _flyBoostImage;
         private TouchButton _evaPlace, _evaDeploy;                      // EVA only (#1042)
         private TouchButton _boost, _hop, _fuel;                        // speeder (a boat hides hop + fuel, #1215)
         private TouchButton _prev, _next, _menu;                        // shared
@@ -340,6 +342,11 @@ namespace BlocksBeyondTheStars.Client
                 SetActive(_auto?.gameObject, !eva);
                 SetActive(_flightMap?.gameObject, !eva);
                 SetActive(_target?.gameObject, !eva);
+                SetActive(_flyBoost?.gameObject, !eva); // #3755: BOOST / ROLL at the helm, UP / DOWN on a spacewalk
+                SetActive(_flyRoll?.gameObject, !eva);
+                SetActive(_flightUp?.gameObject, eva);
+                SetActive(_flightDown?.gameObject, eva);
+                LightBoostButton(!eva && SpaceView.BoostLit);
                 SetActive(_evaPlace?.gameObject, eva);
                 SetActive(_evaDeploy?.gameObject, eva);
             }
@@ -478,6 +485,11 @@ namespace BlocksBeyondTheStars.Client
             _target = MakeButton(fly, TouchControl.Target);
             _actions.Add((InputAction.FlightTargetNext, _target));
             _heldActions.Add((InputAction.FlightTargetNext, _target));
+            _flyBoost = MakeButton(fly, TouchControl.FlyBoost); // #3755
+            _flyBoostImage = _flyBoost.GetComponent<Image>();
+            _flyRoll = MakeButton(fly, TouchControl.FlyRoll);
+            _actions.Add((InputAction.FlightBoost, _flyBoost));
+            _actions.Add((InputAction.FlightRoll, _flyRoll));
             _actions.Add((InputAction.Interact, flyUse));
             _actions.Add((InputAction.FlightPadChooser, _land));
             _actions.Add((InputAction.FlightEnterInterior, _shipIn));
@@ -569,6 +581,16 @@ namespace BlocksBeyondTheStars.Client
             if (_runImage != null && _runImage.color != col)
             {
                 _runImage.color = col;
+            }
+        }
+
+        /// <summary>#3755: the BOOST button glows while the boost is on.</summary>
+        private void LightBoostButton(bool on)
+        {
+            var col = on ? RunLit : RunIdle;
+            if (_flyBoostImage != null && _flyBoostImage.color != col)
+            {
+                _flyBoostImage.color = col;
             }
         }
 
