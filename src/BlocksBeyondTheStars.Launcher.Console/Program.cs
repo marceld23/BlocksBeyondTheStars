@@ -49,11 +49,13 @@ internal static class Program
         Process game;
         try
         {
-            game = Process.Start(new ProcessStartInfo(gameExe)
+            var psi = new ProcessStartInfo(gameExe)
             {
                 WorkingDirectory = dir,
                 UseShellExecute = false,
-            })!;
+            };
+            GameArguments.Forward(args, psi); // the start options (-dataDir, -hostPort) are the game's
+            game = Process.Start(psi)!;
         }
         catch (Exception ex)
         {

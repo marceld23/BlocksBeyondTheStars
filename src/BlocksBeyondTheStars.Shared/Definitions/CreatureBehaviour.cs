@@ -19,6 +19,11 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// </summary>
 public static class CreatureBehaviour
 {
+    /// <summary>How many water cells a column must hold before water life swims into it or spawns in it (Lyxette report
+    /// 2026-11-18). One cell is a puddle to the swimmer's height probe (the server's <c>WaterColumnY</c>), which then answers
+    /// with dry ground — so a fish the spawner or the step gate let into one-cell water was set beside it, on the floor.</summary>
+    public const int MinSwimDepth = 2;
+
     public static Vector3f Step(
         Vector3f current,
         CreatureTemperament temperament,
@@ -135,7 +140,8 @@ public static class CreatureBehaviour
     /// 2, giants 1). The target column's water must be wadeable (≤ 1 deep) unless the animal is amphibious.</item>
     /// <item><b>Swimmers</b>: never step into a dry column — in water they keep to their water body, and a stranded one
     /// (#3552: its old "legacy freedom" let a fish glide along a player's walkway) can only step back into water. The
-    /// server sends a stranded fish away while nobody looks. Amphibians may leave.</item>
+    /// server sends a stranded fish away while nobody looks. Amphibians may leave. The water must be at least
+    /// <see cref="MinSwimDepth"/> cells deep (Lyxette report 2026-11-18).</item>
     /// <item><b>Fliers and hoverers</b> are unaffected — except a LAND hoverer (a gas-sac grazer), which the server
     /// gates as a walker (#1862, <see cref="CreatureMotion.IsLandHoverer"/>): it floats 0.8 above the ground, so a
     /// two-block wall and a moat must stop it like everything else that lives down there.</item>
@@ -169,7 +175,8 @@ public static class CreatureBehaviour
 
                 return !amphibious && nextWaterDepth > 1; // wading is fine, swimming is not (amphibians swim)
             case MotionClass.Swimmer:
-                return !amphibious && nextWaterDepth <= 0; // never onto dry land — stranded, only back into water (#3552)
+                // Never onto dry land — stranded, only back into water (#3552) — nor into a puddle (Lyxette report 2026-11-18).
+                return !amphibious && nextWaterDepth < MinSwimDepth;
             default:
                 return false; // fliers + hoverers
         }

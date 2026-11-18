@@ -487,12 +487,14 @@ public sealed partial class GameServer
 
     /// <summary>Finds the nearest water column (global sea, upland pond — or a pool the player built) to a
     /// spot, returning its coordinates and the water-surface / seabed Y. False if no water is within the
-    /// probe radius.</summary>
-    private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY)
+    /// probe radius. A column holding fewer than <paramref name="minDepth"/> water cells is passed over (Lyxette report
+    /// 2026-11-18: water life asks for <see cref="CreatureBehaviour.MinSwimDepth"/> — a fish seated in one-cell water was
+    /// set on the floor beside it by the swimmer's height probe, which calls one cell a puddle).</summary>
+    private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY, int minDepth = 1)
     {
         foreach (var (dx, dz) in WaterProbe)
         {
-            if (TryGetFluidColumn(x + dx, z + dz, _creatureWaterId, out waterTopY, out seabedY))
+            if (TryGetFluidColumn(x + dx, z + dz, _creatureWaterId, out waterTopY, out seabedY) && waterTopY - seabedY >= minDepth)
             {
                 wx = x + dx;
                 wz = z + dz;
@@ -506,6 +508,11 @@ public sealed partial class GameServer
         seabedY = 0;
         return false;
     }
+
+    /// <summary>The water a species is seated in at spawn: water life needs room to swim (Lyxette report 2026-11-18), an
+    /// amphibian wades at the surface cell of any water.</summary>
+    private static int MinSpawnWaterDepth(CreatureSpecies sp)
+        => sp.Habitat == CreatureHabitat.Water ? CreatureBehaviour.MinSwimDepth : 1;
 
     /// <summary>The molten sibling of <see cref="TryFindWaterColumnNear"/> (#470/F4): the nearest lava
     /// column — a volcano crater pool, the global lava sea, or a lava flow — around a spot.</summary>
@@ -617,7 +624,7 @@ public sealed partial class GameServer
                     // (upland ponds) fill flush to the surface — so probing surface+1 always hit air and water
                     // creatures never spawned. Seek the nearest water column (sea/pond) around the spot and place
                     // inside it; skip the species if there's no water nearby (no land fallback).
-                    if (!TryFindWaterColumnNear(x, z, out px, out pz, out int waterTopY, out int seabedY))
+                    if (!TryFindWaterColumnNear(x, z, out px, out pz, out int waterTopY, out int seabedY, MinSpawnWaterDepth(sp)))
                     {
                         continue;
                     }
@@ -913,7 +920,7 @@ public sealed partial class GameServer
             // #1718: a member runs the leader's probe from its own spot. It used to ask only its own column,
             // so beside a small pond the golden-angle spots landed on the bank and the school was the leader
             // alone — the water four blocks away was never looked at.
-            if (!TryFindWaterColumnNear(mx, mz, out mx, out mz, out int waterTopY, out int seabedY))
+            if (!TryFindWaterColumnNear(mx, mz, out mx, out mz, out int waterTopY, out int seabedY, MinSpawnWaterDepth(sp)))
             {
                 return false; // no water near this member's spot — the school stays smaller
             }
@@ -3326,7 +3333,9 @@ public sealed partial class GameServer
     /// <para>#3551: and the water the body is IN comes first. The probe started at the generator surface and only
     /// looked down, so a pond standing above the terrain the world was born with — a pool on a platform, a moat dug
     /// into a lake the player filled up — was never found: the fish was set on the ground under it, or into the fill
-    /// (and the stuck-body rescue then lifted it onto the nearest floor).</para></summary>
+    /// (and the stuck-body rescue then lifted it onto the nearest floor).</para>
+    ///
+    /// <para>Lyxette report 2026-11-18: and the dry answer never lifts a water animal (<see cref="WaterLifeDryRestY"/>).</para></summary>
     private float WaterColumnY(int x, int z, float vertWave, int surface, float bodyY, float? holdY = null, bool bottom = false)
     {
         int waterTopY = int.MinValue, seabedY = int.MinValue;
@@ -3345,7 +3354,7 @@ public sealed partial class GameServer
         if ((waterTopY == int.MinValue && !TryGetStandingGeneratedWater(x, z, out waterTopY, out seabedY))
             || waterTopY <= seabedY + 1) // a puddle is no column to porpoise in
         {
-            return holdY ?? GroundFeetYAt(x, z, (int)System.Math.Floor(bodyY), canopyCarries: false);
+            return holdY ?? WaterLifeDryRestY(x, z, bodyY, bedFeet);
         }
 
         float lo = seabedY + 1f, hi = waterTopY - 0.5f;
@@ -3357,6 +3366,25 @@ public sealed partial class GameServer
         }
 
         return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
+    }
+
+    /// <summary>Where a water animal rests in a column <see cref="WaterColumnY"/> finds no water to swim in (Lyxette report
+    /// 2026-11-18). In a puddle — water one cell deep at or under its body — it rests on the puddle's bed, in the water.
+    /// Otherwise on the ground under it, but never ABOVE its body unless the body is inside a block (a fish in a lake the
+    /// player filled up is set on the floor laid over it, #3476). The plain ground probe looked up for the nearest standable
+    /// cell when nothing below the feet was one, and answered the generator surface when it found none: a fish in a pool one
+    /// cell deep, flush with a floor laid on the old ground, was set at that floor's walking height beside its water — awake,
+    /// stranded and in plain view — and one under an upper storey on the storey's top.</summary>
+    private float WaterLifeDryRestY(int x, int z, float bodyY, int puddleFeet)
+    {
+        int refY = (int)System.Math.Floor(bodyY);
+        if (puddleFeet != int.MinValue && puddleFeet <= refY)
+        {
+            return puddleFeet;
+        }
+
+        int feet = GroundFeetYAt(x, z, refY, canopyCarries: false);
+        return feet <= bodyY || IsSupportCell(x, refY, z, canopyCarries: false) ? feet : bodyY;
     }
 
     /// <summary>The generator's water body in a column (surface top, bed) — but only while it still stands there

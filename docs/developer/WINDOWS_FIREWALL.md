@@ -47,6 +47,10 @@ IPv6 socket to the port the IPv4 socket was given ("one port for two sockets").
 - `ServerConfig.GameplayBindAddress` (`--bind`, `BBS_BIND`): empty = every interface, `127.0.0.1` =
   this machine only, or one IPv4 address. `LocalServerLauncher` passes `--bind 127.0.0.1` for a world
   with one player and nothing for a hosted world.
+- The bundled server's port is `LocalServerLauncher.ConfiguredPort`: 31550, or the player's start option
+  (`port=` in `portable_data_dir.txt`, `-hostPort` on the command line — `Client.Core/LaunchOptions.cs`,
+  documented for players in `docs/user/USER_MANUAL.md` § *Start options*). The firewall check, the rule
+  below and the host screen's address all use that one value.
 - Tests that open real sockets bind loopback, so a test run raises no dialog either.
 
 ## Hosting
@@ -87,6 +91,8 @@ Details worth knowing:
 - *Host anyway* is remembered for the session only.
 - Rules are per path, so every new build folder starts without one. The installed game keeps its
   path (`…\current\`) across updates.
+- The rule names one port. A player who moves the port with a start option is asked once more; *Allow
+  now* then replaces the old rule (it deletes the server's rules first).
 
 ## Not covered
 

@@ -26,6 +26,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏫 Credits: the head teacher and the IT officer of KuBa West in the school-club section — #3790, ✅ 2026-11-18, PR #3791
+
+- ✅ Michael Marx (head teacher of KuBa West, the school that hosts the club) and Andreas Selders (teacher and IT officer
+  at KuBa West) — README §School club and `ui.credits.body` in all 14 locales (each has its own translated school-club
+  block, so the two lines were set into every one by hand), before the club's IT support line.
+
+### 🚪 Start options: data folder and host port from the portable file or the shortcut — #3789, ✅ 2026-11-18, PR #3791 (⚠ playtest open; client + launchers; no protocol or save change, no new texts)
+
+Marcel: the portable `portable_data_dir.txt` (#1285) should also set the port of home-network games, and the
+installed game should take command-line parameters for the port and the data folder.
+
+- ✅ `Client.Core/LaunchOptions.cs` (Unity-free, `LaunchOptionsTests`): the marker's directory line as before plus an
+  optional `port=<n>` line (only known keys count as option lines, so a path with '=' still works); on the command line
+  `-dataDir <path>` and `-hostPort <n>` (also `-name=value`, two dashes, `--data-dir` / `--host-port`). The command line
+  wins over the file; a marker still always means a portable data folder. A port outside 1024–65535 or an unusable
+  folder is logged and ignored — the game starts with the default.
+- ✅ `AppPaths.Launch` holds the result; `LocalServerLauncher.ConfiguredPort` is the one port singleplayer, in-game hosting,
+  the LAN address on the host screen and the firewall check use. The join side keeps 31550 as its hint.
+- ✅ Both launchers hand their arguments to the game (`Launcher/GameArguments.cs`, Velopack's `--veloapp-*` excluded) — the
+  installed shortcut points at the launcher, so before this no argument reached the game. `ClientUpdater` passes the
+  command-line options to the update restart.
+- ✅ Docs: USER_MANUAL (hosting paragraph + *Start options*), DEVELOPER.md.
+- ⚠ Playtest open on a real install: shortcut Target `… -hostPort 31600`, then `[AppPaths] Port of the bundled server
+  from -hostPort: 31600` in `Player.log`. Velopack's shortcut stub forwards its arguments (`Update.exe start -- <args>`,
+  `src/bins/src/stub.rs` in the Velopack repository), so the chain stub → launcher → game holds in the source. Not done:
+  the launcher's splash still reads the language from the default data folder (as for portable copies before); a port
+  field in the host tab.
+
 ### 🩹 After the v2026.11.21 release check: 56 fixes in Hard Survival, block throwing, space combat, game feel and the interface — epic #3776 (#3777–#3784), PR #3785 (`2480781a`) — ✅ released in v2026.11.22 (⚠ playtest open; server + client, one additive field and one emote id — no protocol bump, no save change, no new texts)
 
 A read-only check of the release (six reviewers plus re-checks in the code) found one serious and about a dozen
@@ -1002,6 +1030,29 @@ content, authored in the town editor. New worlds only (terrain generation 37, sa
 - Playtest: `/landmark sample_tower` twice on a world with air (two different ruins, chests, map POI, scan, silhouette
   from far away); `sample_mine` (shaft, sealed tunnels, cave-in); `sample_store` on an inhabited planet (keeper sells
   burgers only inside, blocks protected); the editor's landmark mode with the ruin preview; the browser build.
+
+### 🐟 "Still fish on dry land" — water one cell deep is no water to live in — Lyxette report 2026-11-18, #3788, ✅ 2026-11-18, PR #3791 (⚠ playtest open; server only, no protocol or save change)
+
+Lyxette (v2026.11.22, after #3551–#3552): two awake fish of his water roster lay on his base floor 35 s after the world
+loaded, in plain view. #3552 worked as built (the fish neither slept nor roamed and would have left unseen), but nothing
+stopped them from getting onto the floor. One cell of water was water to the spawner and the swimmer's step gate and a
+"puddle, no column to swim in" to the swimmer's height probe (`WaterColumnY`), whose dry answer could LIFT the fish.
+
+- **One rule: water life needs two cells of water** (`CreatureBehaviour.MinSwimDepth`) — the spawner seats water life
+  (leader and school) only in water at least two cells deep (`TryFindWaterColumnNear` `minDepth`), and a swimmer never
+  steps into shallower water (`TerrainStepBlocked`). Amphibians unchanged.
+- **The dry answer never lifts a water animal** (`WaterLifeDryRestY`) — in a puddle it rests on the puddle's bed, in the
+  water; otherwise on the ground under it, never above its body unless the body is inside a block (#3476's fish in a
+  filled-up lake still goes onto the floor laid over it). The ground probe looked UP for the nearest standable cell when
+  nothing below was one and answered the generator surface + 1 when it found none: a fish in a pool one cell deep, flush
+  with a floor laid on the old ground, was set at the floor's walking height beside its water (the reported scene,
+  exactly), and one under an upper storey on the storey's top.
+- Tests: `ShallowWaterFishTests` (6, all red before the fix — the flush pool puts the fish at the floor's walking height
+  as reported; the spawner seated five fish in one-cell water). Not proven from his snapshot which of the two ways his
+  fish took (the cells under them were outside it); both are closed.
+- Not in this package: removing a stranded fish while someone watches (it still leaves only unseen).
+- Playtest: Lyxette's base floor by day and after a reload (no fish on it); a one-cell water strip in a floor; a pond
+  three deep beside it keeps its fish.
 
 ### 🐟 "The thing with the fish doesn't quite work yet" — water life stays in its water — #3551–#3552, ✅ 2026-11-12, PR #3553 (`6a8f62ca`), released in v2026.11.18 (⚠ playtest open)
 

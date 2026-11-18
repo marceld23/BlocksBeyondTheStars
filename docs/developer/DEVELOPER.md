@@ -606,9 +606,15 @@ silently misbehaves*. Check them in this order:
 **Where to look when debugging the built player:** the player log is at
 `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\Player.log`.
 The persistent-data root (settings, `singleplayer-saves/`, `usercontent/`, exports, spools, photos) is the
-same folder — unless a `portable_data_dir.txt` next to the executable redirects it (#1285): every consumer
-goes through `AppPaths.Root`; the marker parsing lives Unity-free in `Client.Core/PortableDataDir.cs`
-(`PortableDataDirTests`). Never use `Application.persistentDataPath` directly in new client code.
+same folder — unless a `portable_data_dir.txt` next to the executable redirects it (#1285) or the game is
+started with `-dataDir <path>`: every consumer goes through `AppPaths.Root`; the marker parsing lives Unity-free
+in `Client.Core/PortableDataDir.cs` (`PortableDataDirTests`). Never use `Application.persistentDataPath`
+directly in new client code. The same start options carry the bundled server's port (`port=` line in the
+marker, `-hostPort <n>`): `Client.Core/LaunchOptions.cs` combines file and command line (the command line
+wins, `LaunchOptionsTests`), `AppPaths.Launch` holds the result and `LocalServerLauncher.ConfiguredPort` is the
+one port singleplayer, in-game hosting, the LAN address and the firewall check use. An installed copy gets
+the options through its shortcut: both launchers forward their arguments to the player (`Launcher/GameArguments.cs`,
+Velopack's `--veloapp-*` hook arguments excluded), and `ClientUpdater` hands them to the update restart.
 Add a `Debug.Log` before the guard that might fail (e.g. log the layer index or whether
 `Shader.Find` returned null) and rebuild.
 

@@ -17,6 +17,8 @@
          Windows launcher's "Loading…" localization, which reads the game's own settings and locale tables. -->
     <EmbeddedResource Include="../../client/Branding/launcher-splash.jpg" Condition="Exists('../../client/Branding/launcher-splash.jpg')" LogicalName="splash-art" />
     <Compile Include="../BlocksBeyondTheStars.Launcher/SplashLocalization.cs" Link="SplashLocalization.cs" />
+    <!-- The launcher's arguments are handed on to the game (start options -dataDir / -hostPort). -->
+    <Compile Include="../BlocksBeyondTheStars.Launcher/GameArguments.cs" Link="GameArguments.cs" />
   </ItemGroup>
 
   <ItemGroup>

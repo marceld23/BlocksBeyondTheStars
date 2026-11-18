@@ -275,6 +275,8 @@ and their ideas became whole planets, animals and plants — the rainbow planet,
 flowerling, the scrap planet, the gaming planet, Leni the ice creature and the Paul flower ([#1756](https://github.com/marceld23/BlocksBeyondTheStars/issues/1756)–[#1765](https://github.com/marceld23/BlocksBeyondTheStars/issues/1765)):
 
 - **Ben**, **Daimien**, **Jafar**, **Lena**, **Marie**, **Nikita**, **Noah**, **Paul**, **Sophie** and **Theo** — the children of the club
+- **Michael Marx** — head teacher of KuBa West, the school that hosts the club
+- **Andreas Selders** — teacher and IT officer at KuBa West
 - **Christopher Korb** (K&K Multimedia) — IT support for the club
 
 ### Contributors
