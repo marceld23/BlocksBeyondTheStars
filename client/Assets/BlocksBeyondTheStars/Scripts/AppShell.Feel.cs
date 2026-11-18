@@ -27,7 +27,26 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // The same guards as Esc, and a player who is typing keeps the chat line: switching windows in the middle
+            // of a sentence must not put the pause menu over it.
+            var boot = Boot();
+            if (PauseMenuBlocked(boot) || (boot != null && boot.ChatTyping))
+            {
+                return;
+            }
+
             OpenPauseMenu(); // a no-op while it is already up
         }
+
+        /// <summary>
+        /// Whether something else owns the screen, so the pause menu must stay closed — for Esc and for the lost focus
+        /// alike: an in-game menu or a modal (also one that took its input this very frame), the death prompt, the
+        /// first-spawn prologue, the story-resolution cinematic or any other cutscene. The pause dialog (canvas order
+        /// 60) would open unseen behind the death prompt (85) or a cutscene (67) and hold the world.
+        /// </summary>
+        private static bool PauseMenuBlocked(GameBootstrap boot)
+            => boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame || boot.AwaitingRespawnConfirm || boot.VegaPrologueActive
+                || GameBootstrap.CutsceneActive
+                || (boot.Views.Resolution != null && boot.Views.Resolution.Playing));
     }
 }

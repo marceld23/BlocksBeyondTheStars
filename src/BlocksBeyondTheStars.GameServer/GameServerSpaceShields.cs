@@ -99,7 +99,7 @@ public sealed partial class GameServer
         => target.Kind is CombatEntityKind.Wreck or CombatEntityKind.Debris
            && Rules.ShipWeapons is not (ShipWeaponMode.Off or ShipWeaponMode.MiningOnly);
 
-    /// <summary>How many hull blocks one shot of this damage tears out: one for a laser pulse, up to six for a missile.</summary>
+    /// <summary>How many hull blocks one shot of this damage tears out: two for the starter laser's pulse, up to six for a missile.</summary>
     internal static int HullBlocksFor(float damage) => System.Math.Clamp(1 + (int)(damage / 14f), 1, 6);
 
     /// <summary>Where a structure's cell lies in the flight space: the structure floats with its cell box centred on

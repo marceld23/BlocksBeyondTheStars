@@ -531,7 +531,6 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _fireCd -= Time.deltaTime;
             var sys = _systems[_selectedSystem];
             if (sys.Kind != "scanner")
             {
@@ -542,9 +541,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 var target = BestFireTarget(sys.WeaponKey);
                 _fireTargetId = target?.Id;
-                if (target != null && _fireCd <= 0f && InputMap.PrimaryHeld())
+                if (target != null && WeaponReady(sys.WeaponKey) && InputMap.PrimaryHeld())
                 {
-                    _fireCd = WeaponCooldownFor(sys.WeaponKey);
+                    StartWeaponCooldown(sys.WeaponKey); // this weapon's own — the others stay ready
                     FireAt(target, sys.WeaponKey);
                 }
             }
@@ -558,9 +557,9 @@ namespace BlocksBeyondTheStars.Client
                 // a blind radius sweep was impossible to aim in 3D, where depth is hard to judge.
                 var drop = BestTractorTarget();
                 _fireTargetId = drop?.Id;
-                if (_fireCd <= 0f && InputMap.PrimaryDown())
+                if (Game.WorldTime >= _tractorReadyAt && InputMap.PrimaryDown())
                 {
-                    _fireCd = 0.6f;
+                    _tractorReadyAt = Game.WorldTime + 0.6f;
                     ActivateTractor(drop);
                 }
             }

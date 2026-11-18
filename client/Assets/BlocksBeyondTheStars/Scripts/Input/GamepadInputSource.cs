@@ -271,6 +271,7 @@ namespace BlocksBeyondTheStars.Client
         public bool JumpHeld() => Connected() && Input.GetKey(BtnA);
         public bool JumpDown() => Connected() && Input.GetKeyDown(BtnA);
         public bool CrouchHeld() => Connected() && Input.GetKey(BtnB);
+        public bool DescendHeld() => CrouchHeld(); // the pad's (B) is always a hold
 
         // Mine / place: the shoulder buttons always, plus the triggers once the player switches them on
         // (#1220). The two paths are ORed, so enabling triggers ADDS a way to mine rather than moving it.

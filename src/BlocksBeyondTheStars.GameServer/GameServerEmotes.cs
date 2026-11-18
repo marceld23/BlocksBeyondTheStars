@@ -24,6 +24,10 @@ public sealed partial class GameServer
     /// ticks (thin air, heat) would otherwise send one per tick.</summary>
     internal const double HurtEmoteGapSeconds = 0.6;
 
+    /// <summary>Health per second from which one damage call counts as a blow (a bite, a strike, a hard landing) rather
+    /// than as damage that ticks: the hazards and the machines' steady fire stay far below it, a single hit far above.</summary>
+    internal const float HurtBlowPerSecond = 45f;
+
     /// <summary>How far an emote is seen, blocks.</summary>
     internal const float EmoteRange = 48f;
 
@@ -35,6 +39,7 @@ public sealed partial class GameServer
 
     private readonly Dictionary<string, double> _emoteReadyAt = new(StringComparer.Ordinal);
     private readonly Dictionary<string, double> _hurtEmoteReadyAt = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, double> _hurtBlowReadyAt = new(StringComparer.Ordinal);
     private readonly Dictionary<string, double> _waveBackReadyAt = new(StringComparer.Ordinal);
 
     /// <summary>A player plays an emote: a known one, not faster than <see cref="EmoteCooldownSeconds"/>, and not as
@@ -42,7 +47,7 @@ public sealed partial class GameServer
     private void HandleEmote(PlayerSession session, PlayerEmoteIntent intent)
     {
         var p = session.State;
-        if (!PlayerEmotes.IsPlayable(intent.Emote) || session.Spectating)
+        if (!PlayerEmotes.MaySend(intent.Emote) || session.Spectating)
         {
             return;
         }
@@ -61,9 +66,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>Tells every other player near <paramref name="p"/> that its figure plays <paramref name="emote"/>.
-    /// Aboard and outside do not see each other: the ship's hull is in between.</summary>
-    private void BroadcastPlayerEmote(PlayerState p, byte emote)
+    /// Aboard and outside do not see each other: the ship's hull is in between. A cloaked player's figure is hidden on
+    /// every other client, so nothing is sent for it at all — the emote's sound would give the place away.
+    /// <paramref name="quiet"/>: a flinch that is seen but not heard (<see cref="PlayerEmote.Quiet"/>).</summary>
+    private void BroadcastPlayerEmote(PlayerState p, byte emote, bool quiet = false)
     {
+        if (p.Stealthed)
+        {
+            return;
+        }
+
         double rangeSq = (double)EmoteRange * EmoteRange;
         // #3767: a hit and a fall are heard in the figure's own voice.
         int voice = emote is PlayerEmotes.Hurt or PlayerEmotes.Down ? FindSessionByPlayerId(p.PlayerId)?.Voice ?? 0 : 0;
@@ -76,7 +88,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            Send(s, new PlayerEmote { PlayerId = p.PlayerId, Emote = emote, Voice = voice });
+            Send(s, new PlayerEmote { PlayerId = p.PlayerId, Emote = emote, Voice = voice, Quiet = quiet });
         }
     }
 
@@ -95,13 +107,24 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_hurtEmoteReadyAt.TryGetValue(p.PlayerId, out double ready) && _uptime < ready)
+        // A blow is heard, damage that ticks is only seen: thin air, cold or fire take a sliver of health every tick, and
+        // a pain grunt with each paced flinch would never stop for whoever stands beside the victim. Measured against
+        // the tick's length, so the line between the two does not move with the tick rate (a very long tick counts as a
+        // tenth of a second: a hit must stay a hit on a slow host).
+        bool blow = lost >= HurtBlowPerSecond * (float)System.Math.Clamp(_tickSeconds, 0.001, 0.1);
+        var paced = blow ? _hurtBlowReadyAt : _hurtEmoteReadyAt;
+        if (paced.TryGetValue(p.PlayerId, out double ready) && _uptime < ready)
         {
             return;
         }
 
         _hurtEmoteReadyAt[p.PlayerId] = _uptime + HurtEmoteGapSeconds;
-        BroadcastPlayerEmote(p, PlayerEmotes.Hurt);
+        if (blow)
+        {
+            _hurtBlowReadyAt[p.PlayerId] = _uptime + HurtEmoteGapSeconds; // its own pace: a silent flinch never swallows a blow
+        }
+
+        BroadcastPlayerEmote(p, PlayerEmotes.Hurt, quiet: !blow);
     }
 
     /// <summary>A villager who sees the wave waves back and says hello — the nearest one that may greet at all
@@ -155,6 +178,15 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(playerId) is { } session)
         {
             HandleEmote(session, new PlayerEmoteIntent { Emote = emote });
+        }
+    }
+
+    /// <summary>Test seam: takes health from a player the way a hazard's tick or a hit does (unmitigated).</summary>
+    public void HurtForTest(string playerId, float amount)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            DamagePlayer(session.State, amount);
         }
     }
 

@@ -75,12 +75,42 @@ namespace BlocksBeyondTheStars.Client
             ScreenLabelLayer.Instance.WorldBar(cam, anchor, shown, col, 46f, fadeStart, fadeEnd, occlude ? game : null);
         }
 
+        /// <summary>The client learned that an entity was defeated: when the local player's latest shot went there, the HUD
+        /// hit marker gives its "defeated" tick (#693). <see cref="Push"/> does not see the killing blow — the server takes
+        /// a defeated target off the list before a snapshot shows its hull empty — so the places that learn of a defeat
+        /// (not of a plain despawn) call this, before <see cref="Forget(string)"/>. Silent when <see cref="Push"/> did see
+        /// the empty hull and ticked for it already.</summary>
+        public static void NoteDefeated(GameBootstrap game, string id)
+        {
+            if (game == null || string.IsNullOrEmpty(id) || (_lastHull.TryGetValue(id, out var hull) && hull <= 0.01f))
+            {
+                return;
+            }
+
+            if (game.LastShotTargetId == id && Time.time - game.LastShotTime < 0.6f)
+            {
+                game.Views.Hud?.ShowHitMarker(defeated: true);
+            }
+        }
+
         /// <summary>Drops an entity's bookkeeping when it despawns/dies, so ids never accumulate.</summary>
         public static void Forget(string id)
         {
             _lastHull.Remove(id);
             _combatUntil.Remove(id);
             _shownFrac.Remove(id);
+        }
+
+        /// <summary><see cref="Forget(string)"/> for an entity that left its list — <see cref="NoteDefeated"/> first when
+        /// it left <paramref name="defeated"/> rather than out of view.</summary>
+        public static void Forget(GameBootstrap game, string id, bool defeated)
+        {
+            if (defeated)
+            {
+                NoteDefeated(game, id);
+            }
+
+            Forget(id);
         }
 
         /// <summary>The speeder-gauge colour convention: green while healthy, amber when bruised, red when

@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
         private const float LegEaseRate = 22f; // how fast the leg joints follow their pose (per second, exponential)
 
         private float _pointTimer, _shakeTimer, _danceTimer, _clapTimer, _bowEmoteTimer, _flinchTimer, _landTimer;
-        private bool _sitting, _down, _swimming, _wasAirborne;
+        private bool _sitting, _down, _swimming, _wasAirborne, _wasFalling;
         private float _downUntil;
         private Vector3 _downAt;
         private float _talkUntil;
@@ -79,7 +79,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Plays an emote or shows a body state (<see cref="PlayerEmotes"/>). One timed emote at a time: a new
         /// one replaces the one that plays, and every one of them gets a sitting figure up again — except "sit" itself,
-        /// which sits it down (and stands it up when it already sits). Ignored while lying in a bed.</summary>
+        /// which sits it down; "stand" gets it up and does nothing else. Ignored while lying in a bed.</summary>
         public void PlayEmote(byte emote)
         {
             if (_lying)
@@ -99,8 +99,11 @@ namespace BlocksBeyondTheStars.Client
                     SetDown(false);
                     return;
                 case PlayerEmotes.Sit:
+                case PlayerEmotes.Stand:
+                    // Said outright, never a switch: the relay is one-shot, so a player who came near later (or one press
+                    // the server's pace dropped) saw a switched figure sit when it stood.
                     ClearEmotes();
-                    _sitting = !_sitting;
+                    _sitting = emote == PlayerEmotes.Sit;
                     return;
             }
 
@@ -171,6 +174,12 @@ namespace BlocksBeyondTheStars.Client
                 PoseBodyEmotes(dt, ref armL, ref armR, ref elbowL, ref elbowR, ref legL, ref legR, ref kneeL, ref kneeR,
                     ref rollL, ref rollR, ref headYaw, ref nod);
             }
+            else
+            {
+                // Lying, climbing, seated or gliding: these cannot play now, and one that waited played when the figure got
+                // off — the flinch of a hit on a ladder, a dance picked on a chair — possibly much later.
+                _pointTimer = _shakeTimer = _danceTimer = _clapTimer = _bowEmoteTimer = _flinchTimer = 0f;
+            }
 
             EaseLegs(dt, ref legL, ref legR, ref kneeL, ref kneeR);
             PoseFace(dt);
@@ -228,15 +237,23 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A landing gives in the knees for a moment (only a real one: the air pose ended on the ground).</summary>
+        /// <summary>A landing gives in the knees for a moment (only a real one: the air pose ended on the ground, and it
+        /// ended a fall). The air pose also ends at the top of every jump — the vertical speed passes through zero there —
+        /// so the way the figure moved in its last airborne frame tells the two apart: up at the top, down before a
+        /// landing.</summary>
         private void PoseLanding(float dt, bool airborne, bool free, ref float legL, ref float legR, ref float kneeL, ref float kneeR)
         {
-            if (_wasAirborne && !airborne && free && !_swimming)
+            if (_wasAirborne && !airborne && _wasFalling && free && !_swimming)
             {
                 _landTimer = EmoteCurves.LandSeconds;
             }
 
             _wasAirborne = airborne;
+            if (airborne)
+            {
+                _wasFalling = _vySmooth < 0f; // the smoothed vertical speed the air pose itself keys off (Animate)
+            }
+
             if (_landTimer > 0f)
             {
                 _landTimer -= dt;

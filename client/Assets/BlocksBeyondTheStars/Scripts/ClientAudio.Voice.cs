@@ -32,8 +32,12 @@ namespace BlocksBeyondTheStars.Client
             PlayAt(VoiceTimbre(clip, packedVoice), pos, PlayerVoice.Factor(packedVoice), vol, id, AudioCategory.RemotePlayer);
         }
 
+        private AudioSource _voiceSample; // the character editor's sample (VoiceSample)
+
         /// <summary>A sample of a voice for the character editor: one breath, 2D, in <paramref name="packedVoice"/> — whatever
-        /// the saved voice is, so the sliders can be heard before Save.</summary>
+        /// the saved voice is, so the sliders can be heard before Save. It has one source of its own that starts over:
+        /// a slider plays a sample at every step, and from the own pool a quick drag was six breaths on top of each
+        /// other.</summary>
         public void VoiceSample(int packedVoice)
         {
             if (!_clips.TryGetValue("breath_exhale", out var clip) || clip == null)
@@ -41,7 +45,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var src = OwnSource();
+            if (_voiceSample == null)
+            {
+                _voiceSample = gameObject.AddComponent<AudioSource>();
+                _voiceSample.playOnAwake = false;
+                _voiceSample.spatialBlend = 0f;
+            }
+
+            var src = _voiceSample;
+            src.Stop();
             src.clip = VoiceTimbre(clip, packedVoice);
             src.pitch = Mathf.Clamp(PlayerVoice.Factor(packedVoice), 0.5f, 2f);
             src.volume = Mathf.Clamp01(0.9f * SfxVol());

@@ -519,7 +519,7 @@ namespace BlocksBeyondTheStars.Client
                 if (Game.TrainSeat >= 0)
                 {
                     HoldTrainSeatView(); // #3471/#3473/#3475: turned across the aisle or lying in a berth, the avatar on the seat
-                    bool wantsUp = InputMap.JumpDown() || InputMap.CrouchHeld() || InputMap.Down(InputAction.Interact)
+                    bool wantsUp = InputMap.JumpDown() || InputMap.DescendHeld() || InputMap.Down(InputAction.Interact)
                         || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
                     if (InputMap.Down(InputAction.SpeederExit))
                     {
@@ -573,7 +573,7 @@ namespace BlocksBeyondTheStars.Client
                     || Game.SeatRejections != _seatRejectionsSeen // #2122: the server says somebody sits there (toast shown)
                     || !FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(seat.x, seat.y, seat.z)));
                 bool wantsUp = Time.frameCount != _satFrame
-                    && (InputMap.JumpDown() || InputMap.CrouchHeld() || InputMap.Down(InputAction.Interact)
+                    && (InputMap.JumpDown() || InputMap.DescendHeld() || InputMap.Down(InputAction.Interact)
                         || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f);
                 if (chairGone || wantsUp)
                 {

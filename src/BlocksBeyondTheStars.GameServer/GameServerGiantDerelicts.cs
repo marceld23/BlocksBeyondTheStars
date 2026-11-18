@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// boardable by anyone, no air aboard (dead life support), nobody home, no trade, no home spawn, falling out is a spacewalk and a
 /// breach lets the suit back in.
 /// <list type="bullet">
-/// <item><b>Which ship</b>: a weighted pick by a hash of the id (<see cref="GiantWreckPlacer.PickDesign"/>), pinned the first time
+/// <item><b>Which ship</b>: a weighted pick by a hash of the id among the designs no other wreck of the world is yet (#3764,
+/// <see cref="GiantWreckPlacer.PickDesign"/> over <see cref="GiantWreckPlacer.Untaken"/>), pinned the first time
 /// the wreck is built — GameServerGiantDerelictPins.cs: the ship, the ruin and decay revisions and a hash of the base build;
 /// a wreck whose base would no longer come out as stored stays away while the save holds anything of it.</item>
 /// <item><b>The build</b>: <see cref="GiantShipGenerator.BuildSpace"/> (ruin revision 3, profile <c>hull</c>) → the derelict decay in

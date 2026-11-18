@@ -149,7 +149,7 @@ public sealed partial class GameServer
         }
 
         _landmarkTickAt[world] = _uptime + 1.0;
-        var players = JoinedInActiveWorld().Where(s => !s.Spectating && OnFootHere(s)).ToList();
+        var players = JoinedInActiveWorld().Where(s => !s.Watching && OnFootHere(s)).ToList();
         bool spawned = false;
         foreach (var lm in _landmarks)
         {

@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            if (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f || InputMap.JumpHeld() || InputMap.CrouchHeld())
+            if (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f || InputMap.JumpHeld() || InputMap.DescendHeld())
             {
                 _adminFollow.Stop(); // any manual movement takes the flight back
                 return false;

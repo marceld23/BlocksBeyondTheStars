@@ -42,7 +42,7 @@ namespace BlocksBeyondTheStars.Client
         private Image _boostFill, _rollFill;
         private Text _boostCaption, _rollCaption;
         private Text _heavyWarn;
-        private float _heavyWarnUntil;
+        private float _heavyWarnUntil; // on the world clock, like the charge it announces (it holds with the world)
 
         private static readonly Color BoostCol = new Color(1f, 0.72f, 0.25f, 0.95f);
         private static readonly Color RollCol = new Color(0.45f, 0.9f, 1f, 0.95f);
@@ -110,18 +110,20 @@ namespace BlocksBeyondTheStars.Client
                 FxCamera.Kick(1.1f); // also the pad's rumble
             }
 
-            _slideShare = _roll.Tick(Time.deltaTime);
+            _slideShare = _roll.Tick(Game.WorldDeltaTime); // the world clock, like TickManeuvers
         }
 
         /// <summary>Every frame of the flight view, after the helm (if it steered): the boost charge drains or refills,
-        /// the server hears when the boost goes on or off, and the gauge follows.</summary>
+        /// the server hears when the boost goes on or off, and the gauge follows. On the world clock: the server's stands
+        /// still while the world is held (the pause menu), and a cooldown or a charge that ran on here would show a roll
+        /// as ready that the server still refuses, and a fuller boost than there is.</summary>
         private void TickManeuvers()
         {
-            float dt = Time.deltaTime;
+            float dt = Game.WorldDeltaTime;
             bool helm = _maneuverFrame == Time.frameCount;
             if (!helm)
             {
-                _roll.Tick(dt);   // the cooldown runs on behind a menu
+                _roll.Tick(dt);   // the cooldown runs on behind a menu that does not hold the world
                 _slideShare = 0f;
                 _boostLatched = false;
             }
@@ -319,7 +321,7 @@ namespace BlocksBeyondTheStars.Client
                 _maneuverHud.SetActive(show);
             }
 
-            bool warn = show && Time.time < _heavyWarnUntil;
+            bool warn = show && Game.WorldTime < _heavyWarnUntil;
             if (_heavyWarn.gameObject.activeSelf != warn)
             {
                 _heavyWarn.gameObject.SetActive(warn);
@@ -363,7 +365,7 @@ namespace BlocksBeyondTheStars.Client
             var from = hostile.transform;
             if (m.Phase == SpaceCombatRules.HeavyPhaseCharge)
             {
-                ShowHeavyCharge(from, Mathf.Clamp(m.Seconds, 0.2f, 6f), atMe);
+                ShowHeavyCharge(m.EntityId, from.position, Mathf.Clamp(m.Seconds, 0.2f, 6f), atMe);
                 return;
             }
 
@@ -375,10 +377,12 @@ namespace BlocksBeyondTheStars.Client
 
             bool hit = m.Phase == SpaceCombatRules.HeavyPhaseHit;
             Vector3 dir = (target.position - from.position).normalized;
-            // A miss passes the ship on the side it rolled away from and runs on into space.
+            // A miss passes the ship on the side it rolled away from and runs on into space. A pilot who never rolled (the
+            // ship flew clear of the shot) has no such side: the beam then passes on the right, not through the own hull.
+            float side = atMe && _roll.Direction != 0 ? -_roll.Direction * 5f : 5f;
             Vector3 end = hit
                 ? target.position
-                : target.position + (Vector3.Cross(dir, Vector3.up).normalized * (atMe ? -_roll.Direction * 5f : 5f)) + (dir * 60f);
+                : target.position + (Vector3.Cross(dir, Vector3.up).normalized * side) + (dir * 60f);
             SpaceCombatFx.HeavyBeam(from.position, end, HeavyCol);
             ClientAudio.Instance?.At(ClientAudio.Instance.Has("heavy_shot_fire") ? "heavy_shot_fire" : "ship_weapon", from.position, 0.7f, 1f);
             if (!hit || !atMe)
@@ -400,11 +404,14 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The charge: the glow gathering at the hostile, its sound, and — aimed at this pilot — the warning.</summary>
-        private void ShowHeavyCharge(Transform from, float seconds, bool atMe)
+        /// <summary>The charge: the glow gathering at the hostile, its sound, and — aimed at this pilot — the warning.
+        /// The glow follows the hostile by its id and ends with it: one destroyed while charging (or gone with the
+        /// scene) has no place any more, and the glow must not jump to the scene's origin.</summary>
+        private void ShowHeavyCharge(string entityId, Vector3 at, float seconds, bool atMe)
         {
-            SpaceCombatFx.HeavyCharge(() => from != null ? from.position : Vector3.zero, seconds, HeavyCol);
-            ClientAudio.Instance?.At(ClientAudio.Instance.Has("heavy_shot_charge") ? "heavy_shot_charge" : "weapon_charge", from.position, 0.8f, 1f);
+            SpaceCombatFx.HeavyCharge(
+                () => _entities.TryGetValue(entityId, out var go) && go != null ? go.transform.position : (Vector3?)null, seconds, HeavyCol);
+            ClientAudio.Instance?.At(ClientAudio.Instance.Has("heavy_shot_charge") ? "heavy_shot_charge" : "weapon_charge", at, 0.8f, 1f);
             if (!atMe || _eva)
             {
                 return;
@@ -415,7 +422,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var loc = Game.Localizer;
                 _heavyWarn.text = loc != null ? HudUi.ExpandKeyTokens(loc, loc.Get("ui.space.heavy_warn")) : "Heavy shot incoming — roll!";
-                _heavyWarnUntil = Time.time + seconds;
+                _heavyWarnUntil = Game.WorldTime + seconds;
             }
         }
 

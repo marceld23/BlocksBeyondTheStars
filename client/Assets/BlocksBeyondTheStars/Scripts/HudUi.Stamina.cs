@@ -23,7 +23,10 @@ namespace BlocksBeyondTheStars.Client
         private const float StaminaRigLookupPause = 0.5f;
 
         private static readonly Color StaminaTrack = new Color(0.02f, 0.06f, 0.12f, 0.55f);
-        private static readonly Color StaminaSpentTint = UiKit.Warn;
+
+        /// <summary>The spent bar's caution colour, read when it is used: a field would keep the colour of the palette
+        /// the game started with, and a change of the colour-vision mode would not reach the bar until the next start.</summary>
+        private static Color StaminaSpentTint => UiKit.Warn;
 
         private readonly StaminaBarFade _staminaFade = new StaminaBarFade();
         private CanvasGroup _staminaGroup;

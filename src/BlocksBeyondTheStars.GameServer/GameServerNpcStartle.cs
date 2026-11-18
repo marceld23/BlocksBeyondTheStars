@@ -24,8 +24,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// still and looks at the shooter for a moment. One line of the pool names the shooter.</item>
 /// <item><b>The tone is startled and funny, never afraid</b> (the game has no fear-driven mechanics): indignant call-outs,
 /// no cry for help, nobody runs away, and a few seconds later everybody carries on.</item>
-/// <item><b>The pace</b>: one bout per shooter every <see cref="StartleShooterGapSeconds"/>, one call-out per NPC every
-/// <see cref="StartleNpcGapSeconds"/> — a burst of fire is one fright, not a chorus.</item>
+/// <item><b>The pace</b>: one bout per shooter every <see cref="StartleShooterGapSeconds"/>, one per place every
+/// <see cref="StartlePlaceGapSeconds"/> (whoever shoots), one call-out per NPC every <see cref="StartleNpcGapSeconds"/>
+/// — a burst of fire is one fright, not a chorus.</item>
 /// </list>
 /// </summary>
 public sealed partial class GameServer
@@ -51,16 +52,44 @@ public sealed partial class GameServer
     /// <summary>The call-outs: <c>npc.startle.1</c> … <c>npc.startle.8</c>; <c>{0}</c> is the shooter's name.</summary>
     internal const int StartleLineCount = 8;
 
+    /// <summary>Seconds before anybody startles the people of the same place again — whoever shoots. Without it a
+    /// crowded square answered every shooter's every bout in turn, a chorus that never ended under steady fire.</summary>
+    internal const double StartlePlaceGapSeconds = 12.0;
+
     private readonly Dictionary<string, double> _startleShooterReadyAt = new(System.StringComparer.Ordinal);
-    private readonly Dictionary<int, double> _startleNpcReadyAt = new();
+    private readonly List<(string World, Vector3f At, double Until)> _startlePlaces = new();
     private readonly List<(ServerNpc Npc, double DistSq)> _startleCandidates = new();
     private int _startleBouts;
 
-    /// <summary>Whether a relayed weapon effect is one that startles: a shot, or a swing of a weapon (never the fist, a
-    /// tool or a block in the hand).</summary>
+    /// <summary>Whether a relayed weapon effect is one that startles: a shot or a swing of a WEAPON — never the fist, a
+    /// tool or a block in the hand. The item decides for a shot too: a mining beam or a drill "fired" at something sends
+    /// the same effect kind as a pistol, and tools startle nobody.</summary>
     internal bool StartlingEffect(byte kind, string itemKey)
-        => kind == FxActionKinds.Shot
-           || (kind == FxActionKinds.Melee && _content.GetItem(itemKey)?.Tool?.Kind == ToolKind.Weapon);
+        => (kind == FxActionKinds.Shot || kind == FxActionKinds.Melee)
+           && _content.GetItem(itemKey)?.Tool?.Kind == ToolKind.Weapon;
+
+    /// <summary>Whether the people around <paramref name="at"/> were startled a moment ago (by anybody); forgets the
+    /// places whose rest is over.</summary>
+    private bool StartledPlaceRests(Vector3f at)
+    {
+        string world = _world.LocationId;
+        double rangeSq = (double)StartleRange * StartleRange;
+        bool rests = false;
+        for (int i = _startlePlaces.Count - 1; i >= 0; i--)
+        {
+            var place = _startlePlaces[i];
+            if (_uptime >= place.Until)
+            {
+                _startlePlaces.RemoveAt(i);
+            }
+            else if (place.World == world && WrapDistSq(at, place.At) <= rangeSq)
+            {
+                rests = true;
+            }
+        }
+
+        return rests;
+    }
 
     /// <summary>Whether an NPC can be startled at all: awake, not a G.D.S. guardian, not away visiting a base, not busy in
     /// a talk with a player.</summary>
@@ -73,7 +102,8 @@ public sealed partial class GameServer
     {
         var p = shooter.State;
         if (_npcs.Count == 0 || !OnFootHere(shooter)
-            || (_startleShooterReadyAt.TryGetValue(p.PlayerId, out double ready) && _uptime < ready))
+            || (_startleShooterReadyAt.TryGetValue(p.PlayerId, out double ready) && _uptime < ready)
+            || StartledPlaceRests(at))
         {
             return 0;
         }
@@ -83,8 +113,7 @@ public sealed partial class GameServer
         foreach (var npc in _npcs)
         {
             double d = WrapDistSq(at, npc.Pos);
-            if (d > rangeSq || !MayBeStartled(npc)
-                || (_startleNpcReadyAt.TryGetValue(npc.Id, out double npcReady) && _uptime < npcReady)
+            if (d > rangeSq || !MayBeStartled(npc) || _uptime < npc.StartleReadyAt
                 || RelationshipTier(RelationshipValue(p, NpcKeyForNpc(shooter, npc))) == "hostile")
             {
                 continue;
@@ -113,10 +142,18 @@ public sealed partial class GameServer
                 continue;
             }
 
-            _startleNpcReadyAt[npc.Id] = _uptime + StartleNpcGapSeconds;
+            // On the NPC itself, not in a table by its number: the numbers start again on every world, and a table
+            // would hand one NPC's rest to a stranger with the same number (and never forget anybody).
+            npc.StartleReadyAt = _uptime + StartleNpcGapSeconds;
+            npc.StartledUntil = _uptime + StartleAttendSeconds; // stands still on a route too (the NPC tick)
             npc.AttendUntil = System.Math.Max(npc.AttendUntil, _uptime + StartleAttendSeconds);
             npc.AttendPos = p.Position;
             called++;
+        }
+
+        if (called > 0)
+        {
+            _startlePlaces.Add((_world.LocationId, at, _uptime + StartlePlaceGapSeconds));
         }
 
         return called;

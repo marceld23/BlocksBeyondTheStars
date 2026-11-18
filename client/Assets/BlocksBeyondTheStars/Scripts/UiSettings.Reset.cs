@@ -137,6 +137,7 @@ namespace BlocksBeyondTheStars.Client
             S.HighDecals = d.HighDecals;
             S.HighVolumetricLight = d.HighVolumetricLight;
             S.HighLampShadows = d.HighLampShadows;
+            S.RenderScale = d.RenderScale; // the 3D resolution; set on the pipeline by the Apply that follows, as its row does
             UrpScenePost.Instance?.SetBrightness(S.Brightness);
             S.ApplyCameraLook(); // SMAA
         }

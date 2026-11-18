@@ -440,8 +440,10 @@ public sealed partial class GameServer
         foreach (var s in JoinedInActiveWorld())
         {
             var p = s.State;
-            if (InSpace(p.PlayerId))
+            if (InSpace(p.PlayerId) || s.Watching)
             {
+                // A watcher (an observing admin, a fallen player — #3765) flies through rock on purpose: "rescuing" the
+                // camera would teleport it once a second and, for the fallen, wipe the banner that offers the restart.
                 continue;
             }
 

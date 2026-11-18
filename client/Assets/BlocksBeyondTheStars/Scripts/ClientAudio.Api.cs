@@ -16,5 +16,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The ambience slider: the beds' share of the effects volume.</summary>
         private float AmbienceVol() => UnityEngine.Mathf.Clamp01(Settings?.AmbienceVolume ?? 1f);
+
+        /// <summary>The interface slider: an interface sound's share of the effects volume. Every 2D one-shot whose clip
+        /// is named <c>ui_…</c> (the slot pick, the craft's confirm and reject, the success chime, a toast) follows it,
+        /// as the clicks and windows of <see cref="UiSound"/> do; 1 for any other clip. The clips are kept under their
+        /// own names, so the name is the cue id (a muffled bake keeps the prefix).</summary>
+        private float UiShare(UnityEngine.AudioClip clip)
+            => clip.name.StartsWith("ui_", System.StringComparison.Ordinal) ? UnityEngine.Mathf.Clamp01(Settings?.UiVolume ?? 1f) : 1f;
     }
 }

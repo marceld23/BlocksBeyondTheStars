@@ -131,6 +131,8 @@ public sealed partial class GameServer
 
         // --- #2593: passing greetings ---
         public Dictionary<string, long>? GreetedDay; // player id → the in-game day (MarketDay) of today's hello; lazy
+        public double StartledUntil;                  // #3769: uptime until which a startled NPC stands still (a walker too) and looks at AttendPos
+        public double StartleReadyAt;                 // #3769: uptime from which this NPC can be startled again
         public double AttendUntil;                    // uptime until which the NPC stands still and looks at AttendPos
         public Vector3f AttendPos;                    // where the player it just greeted stood (#2616: or is talking with it)
 
@@ -384,6 +386,15 @@ public sealed partial class GameServer
             // #2616: talking with a player — stand still and look at them; a walk the NPC was on waits (its route is kept,
             // and the pause is no "stuck"). The hold lapses after a minute per talk — then the routine may walk it on.
             if (_uptime < npc.TalkHoldUntil)
+            {
+                FaceTowards(npc, npc.AttendPos);
+                npc.LastProgressAt = _uptime;
+                continue;
+            }
+
+            // #3769: startled by a shot or a swing — stand still and look at the shooter. On a route too: the walk waits
+            // as it does in a talk (the attend below only holds an NPC that stands anyway).
+            if (_uptime < npc.StartledUntil)
             {
                 FaceTowards(npc, npc.AttendPos);
                 npc.LastProgressAt = _uptime;

@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
             float fwd = InputMap.MoveY();
             float strafe = InputMap.MoveX();
             float lift = (InputMap.JumpHeld() ? 1f : 0f)
-                       - ((InputMap.CrouchHeld()) ? 1f : 0f);
+                       - ((InputMap.DescendHeld()) ? 1f : 0f);
             EvaThrusterPuff(strafe, lift, fwd); // #3241: a short puff when the push starts or turns
             Vector3 dir = rot * (Vector3.forward * fwd + Vector3.right * strafe) + Vector3.up * lift;
             Vector3 delta = dir * (EvaSpeed * Time.deltaTime);

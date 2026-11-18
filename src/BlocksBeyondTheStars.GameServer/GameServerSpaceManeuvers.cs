@@ -55,6 +55,10 @@ public sealed partial class CombatEntity
     /// <summary>#3756: the pilot the charging heavy shot is aimed at.</summary>
     public string HeavyTargetId { get; set; } = string.Empty;
 
+    /// <summary>True once this hostile has had its quarry in range for a heavy shot. The first contact starts the wait
+    /// over — a hostile that had been in the system for a while was already due and charged the moment a pilot arrived.</summary>
+    public bool HeavyContact { get; set; }
+
     /// <summary>#3756: the damage of this hostile's heavy shot and the seconds between two of them (from its tier);
     /// 0 = it has none.</summary>
     public float HeavyDamage { get; set; }
@@ -151,7 +155,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        sim.RollReadyAt = _uptime + sim.Stats.RollCooldown;
+        // The cooldown counts from when the roll was DUE, not from a grant the slack let through early: otherwise every
+        // roll came a quarter of a second sooner than the last and the real period was the cooldown minus the slack.
+        sim.RollReadyAt = System.Math.Max(_uptime, sim.RollReadyAt) + sim.Stats.RollCooldown;
         sim.EvadeUntil = _uptime + ShipManeuverRules.RollEvadeSeconds;
 
         // The other pilots see the roll: a cosmetic effect at the ship, its direction in the target's X (+1 right, -1 left).
@@ -308,6 +314,11 @@ public sealed partial class GameServer
 
             if (e.HeavyFireAt > 0)
             {
+                if (HeavyChargeLapsed(e))
+                {
+                    continue;
+                }
+
                 if (_uptime >= e.HeavyFireAt && FireHeavyShot(instance, e))
                 {
                     return true;
@@ -327,7 +338,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (_uptime < e.HeavyNextAt || !HeavyTargetInRange(instance, e, 1f, out string targetId))
+            bool inRange = HeavyTargetInRange(instance, e, 1f, out string targetId);
+            if (!inRange || HeavyFirstContact(e) || _uptime < e.HeavyNextAt)
             {
                 continue;
             }
@@ -344,6 +356,40 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>How long after its due time a charged heavy shot still fires. A flight instance without a pilot at the
+    /// helm is not ticked, so a charge can be found long overdue when somebody takes the helm again.</summary>
+    private const double HeavyOverdueSeconds = 1.0;
+
+    /// <summary>A charge that is overdue by more than a moment was never ticked — its pilot left the helm mid-charge.
+    /// Fired now it would land a heavy shot nobody was warned of, so it lapses and the next one comes after the usual
+    /// wait. True when it lapsed.</summary>
+    private bool HeavyChargeLapsed(CombatEntity e)
+    {
+        if (_uptime - e.HeavyFireAt <= HeavyOverdueSeconds)
+        {
+            return false;
+        }
+
+        e.HeavyFireAt = 0;
+        e.HeavyTargetId = string.Empty;
+        e.HeavyNextAt = _uptime + (e.HeavyInterval * 0.5);
+        return true;
+    }
+
+    /// <summary>The first time a hostile's quarry is in range the wait for its first heavy shot starts over (see
+    /// <see cref="CombatEntity.HeavyContact"/>). True on that first contact — no charge yet.</summary>
+    private bool HeavyFirstContact(CombatEntity e)
+    {
+        if (e.HeavyContact)
+        {
+            return false;
+        }
+
+        e.HeavyContact = true;
+        e.HeavyNextAt = _uptime + (e.HeavyInterval * 0.5);
+        return true;
     }
 
     /// <summary>Whether the pilot this hostile hunts can be hurt and is within the engage range times

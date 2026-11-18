@@ -99,7 +99,13 @@ namespace BlocksBeyondTheStars.Client
                 return; // #3765: an update for a player who is already watching — no second death
             }
 
-            _optionsPending = true;
+            // Only a death that asks where to wake up ends in a RespawnNotice with Died, which takes the mark back. A
+            // fall (#3765) ends in one without — the mark stayed, and the next ordinary death had no flash and no sound.
+            if (!m.Fallen)
+            {
+                _optionsPending = true;
+            }
+
             Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f);
             ClientAudio.Instance?.Voice("player_death");
         }

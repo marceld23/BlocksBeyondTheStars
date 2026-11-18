@@ -98,9 +98,12 @@ public sealed partial class GameServer
 
         var weight = BlockThrow.WeightOf(block.Hardness);
         BlockThrow.Direction(intent.DirX, intent.DirY, intent.DirZ, p.Yaw, out float dx, out float dy, out float dz);
-        var from = new Vector3f(p.Position.X, p.Position.Y + BlockThrow.ReleaseHeight, p.Position.Z);
+        var from = ThrowReleasePoint(p.Position);
         var dir = new Vector3f(dx, dy, dz);
         var end = FlyThrownBlock(from, dir, BlockThrow.Speed(weight), out float seconds, out var hit, out var hitList, out bool hitCreature);
+        // Thrown off the edge of the world (a sky island's rim, a gas sea) there is nothing to land on: the flight is
+        // shown, but the block drops where the thrower stands instead of falling out of reach — it is never lost.
+        var landing = GroundBelow(end.ToBlock()) ? end : p.Position;
 
         BroadcastToWorld(new WorldFx
         {
@@ -117,7 +120,7 @@ public sealed partial class GameServer
         });
 
         // The block first, the hit after: a beaten enemy's loot then lies beside the block, not under a rule of its own.
-        SpillToGround(end.ToBlock(), item, 1);
+        SpillToGround(landing.ToBlock(), item, 1);
         if (hit is not null && hitList is not null)
         {
             LandHit(session, hit, hitList, hitCreature, BlockThrow.Damage(weight), knockback: null, dir);
@@ -138,13 +141,11 @@ public sealed partial class GameServer
         {
             BlockThrow.PositionAt(from.X, from.Y, from.Z, dir.X * speed, dir.Y * speed, dir.Z * speed, t, out float x, out float y, out float z);
             var at = new Vector3f(x, y, z);
-            var cell = at.ToBlock();
-            if (!WithinBuildHeight(cell.Y) || IsCollidingBlock(_world.GetBlock(cell), fluidsPass: true, foliagePasses: true))
+            if (!ThrownPathFree(last, at, ref last))
             {
                 break;
             }
 
-            last = at;
             seconds = t;
             if (ThrownBlockTarget(at, dir, out hit, out hitList, out hitCreature))
             {
@@ -153,6 +154,67 @@ public sealed partial class GameServer
         }
 
         return last;
+    }
+
+    /// <summary>The heights over the feet a block may leave the hands at: over the head, else the chest, else the knees.</summary>
+    private static readonly float[] ThrowReleaseHeights = { BlockThrow.ReleaseHeight, 1.4f, 0.6f };
+
+    /// <summary>Where a thrown block leaves the hands: over the head — or, under a low ceiling, as high as there is room.
+    /// A release point inside the ceiling ended the flight before it began and left the block in the rock above.</summary>
+    private Vector3f ThrowReleasePoint(Vector3f feet)
+    {
+        foreach (float height in ThrowReleaseHeights)
+        {
+            var at = new Vector3f(feet.X, feet.Y + height, feet.Z);
+            if (!ThrownBlockStops(at.ToBlock()))
+            {
+                return at;
+            }
+        }
+
+        return new Vector3f(feet.X, feet.Y + ThrowReleaseHeights[^1], feet.Z);
+    }
+
+    /// <summary>A cell a flying block cannot enter: outside the build height, or a block the walking body cannot pass
+    /// (it flies through leaves, grass and water).</summary>
+    private bool ThrownBlockStops(Vector3i cell)
+        => !WithinBuildHeight(cell.Y) || IsCollidingBlock(_world.GetBlock(cell), fluidsPass: true, foliagePasses: true);
+
+    /// <summary>Walks the straight piece of the arc from <paramref name="a"/> to <paramref name="b"/> in steps of under
+    /// half a block and moves <paramref name="last"/> to the last free point. False when a block is in the way. Late in
+    /// the flight the block falls more than a cell per time step — sampled only at the steps, it passed thin floors.</summary>
+    private bool ThrownPathFree(Vector3f a, Vector3f b, ref Vector3f last)
+    {
+        float dx = b.X - a.X, dy = b.Y - a.Y, dz = b.Z - a.Z;
+        int parts = System.Math.Max(1, (int)System.MathF.Ceiling(System.MathF.Sqrt((dx * dx) + (dy * dy) + (dz * dz)) / 0.45f));
+        for (int i = 1; i <= parts; i++)
+        {
+            float k = i / (float)parts;
+            var at = new Vector3f(a.X + (dx * k), a.Y + (dy * k), a.Z + (dz * k));
+            if (ThrownBlockStops(at.ToBlock()))
+            {
+                return false;
+            }
+
+            last = at;
+        }
+
+        return true;
+    }
+
+    /// <summary>Whether anything lies under <paramref name="cell"/> for a dropped block to land on (a floor or a water
+    /// surface — the drop packet's own rule). Over the bottomless — a sky island's edge, a gas sea — nothing does.</summary>
+    private bool GroundBelow(Vector3i cell)
+    {
+        for (int y = cell.Y; WithinBuildHeight(y); y--)
+        {
+            if (!DropCellFree(new Vector3i(cell.X, y, cell.Z)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The body a flying block touches at <paramref name="at"/>, if any: a machine or a robber, or a wild animal

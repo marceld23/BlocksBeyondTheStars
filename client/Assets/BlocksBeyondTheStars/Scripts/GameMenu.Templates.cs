@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.Client
     /// the HUD mode with the frame templates of this world (#3318, <c>hudframe:&lt;key&gt;</c>) and the editor's Submit
     /// button (#3319). Wearing a skin template is wearing an outfit: the colours and the four paintings go down their
     /// normal paths — the figure and the settings at once, the paintings through the paced appearance queue (the server
-    /// takes one every 2 s) — and the face stays the player's own.
+    /// takes one every 2 s). A template that carries a face (#3770) replaces the player's own with it; without one the
+    /// face stays the player's.
     /// </summary>
     public sealed partial class GameMenu
     {
@@ -57,8 +58,9 @@ namespace BlocksBeyondTheStars.Client
 
         private List<SkinDefinition> WorldSkins() => AppearanceTemplates.OfferedSkins(Game?.Content, Unlocked);
 
-        /// <summary>Puts a skin template on: its colours (an empty entry keeps the player's own), its four paintings, the
-        /// player's face. Returns the outfit column's status line.</summary>
+        /// <summary>Puts a skin template on: its colours (an empty entry keeps the player's own), its four paintings and —
+        /// when the template carries one (#3770) — its face in place of the player's own; without one the face stays.
+        /// Returns the outfit column's status line.</summary>
         private string WearSkinTemplate(int index)
         {
             var skins = WorldSkins();

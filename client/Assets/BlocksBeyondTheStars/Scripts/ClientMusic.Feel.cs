@@ -31,10 +31,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Coming back aboard after a real outing (<see cref="HomeAwaySeconds"/> or longer) plays the homecoming
-        /// accent — stepping out for a minute and back in does not.</summary>
+        /// accent — stepping out for a minute and back in does not. Neither does waking up in the ship after a death:
+        /// the outing ends where the player fell. The death prompt's gate says so for a plain death (it is set by the
+        /// respawn notice, which arrives before the state that reads "aboard") and for a lost ship; health 0 for a
+        /// respawn choice that is still open; the watching for a fall in a Hard Survival world.</summary>
         private void TrackHomecoming(GameBootstrap game)
         {
-            if (game == null)
+            if (game == null || game.AwaitingRespawnConfirm || game.Health <= 0f || game.Spectating)
             {
                 _awaySince = -1f;
                 return;

@@ -319,6 +319,11 @@ public sealed partial class GameServer
         anyRemoved |= ResettleDropPackets(elapsed);
         foreach (var session in JoinedInActiveWorld())
         {
+            if (session.Watching)
+            {
+                continue; // a watcher's flying camera picks nothing up — an observing admin's as little as a fallen player's (#3765)
+            }
+
             SetCurrent(session); // per-player ship cursor: the cargo hold we spill into must be THEIR ship's
             bool tookAnything = false;
             bool fetched = false;

@@ -118,6 +118,22 @@ public sealed class SpaceManeuverTests : IDisposable
     }
 
     [Fact]
+    public void RollCooldown_CountsFromWhenTheRollWasDue_NotFromAnEarlyGrant()
+    {
+        // The server grants a roll a quarter of a second early (clock jitter). Restarting the cooldown from that grant
+        // made every roll come a little sooner than the last: the real period was the cooldown minus the slack.
+        var server = InSpace("roll_period");
+
+        Assert.True(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll)); // t = 0: due again at 4.0
+        Run(server, 3.8);
+        Assert.True(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll)); // inside the slack: granted, due again at 8.0
+        Run(server, 3.9);                                                // t = 7.7 — before 8.0 minus the slack
+        Assert.False(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll));
+        Run(server, 0.2);
+        Assert.True(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll));
+    }
+
+    [Fact]
     public void RollCooldown_ComesFromTheShipsHandling()
     {
         var courier = ShipManeuverRules.Stats(_content.GetShip("courier"), _content.GetShip("courier")!.Handling, null);

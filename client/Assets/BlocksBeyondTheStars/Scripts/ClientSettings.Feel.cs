@@ -68,14 +68,15 @@ namespace BlocksBeyondTheStars.Client
         public float RenderScale = 1f;
 
         /// <summary>Sets the pipeline's render scale: the preset's (<paramref name="presetScale"/>) times the player's
-        /// own, and — when the 3D view is rendered smaller than the screen on desktop — the sharpening upscaler
-        /// (FSR 1) instead of a plain stretch.</summary>
+        /// own, and — when the PLAYER turned the 3D resolution down on desktop — the sharpening upscaler (FSR 1)
+        /// instead of a plain stretch. A preset's own scale alone never asks for it: the cheapest preset renders
+        /// smaller to save time on a weak machine, and the upscaler is one more full-screen pass.</summary>
         private void ApplyRenderScale(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp, float presetScale)
         {
             bool browser = Application.platform == RuntimePlatform.WebGLPlayer;
-            float scale = browser ? presetScale : presetScale * Mathf.Clamp(RenderScale, RenderScaleMin, 1f);
-            urp.renderScale = Mathf.Clamp(scale, 0.35f, 1f);
-            urp.upscalingFilter = !browser && scale < 0.999f
+            float own = browser ? 1f : Mathf.Clamp(RenderScale, RenderScaleMin, 1f);
+            urp.renderScale = Mathf.Clamp(presetScale * own, 0.35f, 1f);
+            urp.upscalingFilter = own < 0.999f
                 ? UnityEngine.Rendering.Universal.UpscalingFilterSelection.FSR
                 : UnityEngine.Rendering.Universal.UpscalingFilterSelection.Auto;
         }

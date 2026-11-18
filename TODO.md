@@ -26,6 +26,62 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🩹 After the v2026.11.21 release check: 56 fixes in Hard Survival, block throwing, space combat, game feel and the interface — epic #3776 (#3777–#3784), ✅ 2026-11-18 (⚠ playtest open; server + client, one additive field and one emote id — no protocol bump, no save change, no new texts)
+
+A read-only check of the release (six reviewers plus re-checks in the code) found one serious and about a dozen
+medium defects in the three packages below, and some forty small ones. This entry is what was fixed.
+
+- **Hard Survival (#3765).** The restart at the ship works: the banner's restart line (`{key:Interact}: …`) went
+  through `string.Format` and threw every frame once the countdown reached zero, before the press was read — a lone
+  player could never restart (`FallenBanner.Line` in Client.Core now builds the line, tested with both languages'
+  texts). A fallen player touches nothing on the server either (`PlayerSession.Watching` = observing admin or fallen,
+  asked by the drop pickup, the rescue from rock, doors, sensors, sleeping animals and giants, Ressaw blocks, reward
+  crates and the discoveries); the banner no longer vanishes on a stray respawn notice; the fallen may hold the pause;
+  jetpack and cloak rest; a revive gives 45 health once (the pulse healed the revived twice), the hunger floor and an
+  empty exposure meter; leaving the mode by `/gamemode` lets the watching restart at once; no observer badge or
+  observer lines for the fallen; the next ordinary death flashes again.
+- **Throwing a block (#3766).** Lifting and throwing work on a gamepad and on touch (the actions list offers both, a
+  tablet shows ATTACK while the block is up); under a low ceiling the block leaves the hands lower instead of ending in
+  the rock above; the flight is sampled in steps of under half a block (it passed thin floors late in its fall); a
+  block thrown off the edge of the world drops at the thrower's feet; the client does not throw inside the server's
+  0.6 s gap (the two disagreed afterwards about the block being up).
+- **Space combat (#3762).** Each ship weapon has its own cooldown on the client (one timer for all made the ion
+  pulse's 5 s block every other weapon for longer than its 3.5 s stun); a stunned hostile no longer visibly fires; the
+  roll's cooldown counts from when it was due, not from an early grant; a heavy shot whose charge was never ticked (the
+  pilot left the helm) lapses instead of landing unannounced, and the first one waits for the first contact; letting
+  go of the boost gets through a held world and the client's roll and boost clocks stand still with it; the lean and
+  the chase camera start fresh with every flight; the charge glow ends with its hostile and a miss passes beside the
+  hull; "Reduce flashes" covers all the new flashes.
+- **Game feel (#3738).** Other players hear the pain grunt for a blow only, not with every paced flinch of ticking
+  damage (`PlayerEmote.Quiet`); a cloaked figure's emotes are not relayed; the killing blow gets its tick; a defeated
+  player's figure stays where it fell for a second; the mouth moves with voice chat; Sit cannot arrive inverted
+  (`PlayerEmotes.Stand`, a local pace in the wheel); emotes and the flinch no longer play late; the knees give only
+  after a fall; walk and jump state do not survive a menu; the held item's sway is frame-rate independent and rests
+  behind menus; the zero-g jump sounds again; a ladder is firm ground for the walk curve.
+- **Interface and settings.** The pause on losing the focus has the Esc route's guards (death screen, cutscene, menus,
+  chat); the Potato preset no longer always runs the FSR upscaler (only when the player lowers the 3D resolution);
+  "Story text size" reaches the speaker's box, the reading frame, banners and the credits; the crouch switch sneaks
+  only (`InputMap.DescendHeld` for sinking, climbing down and getting up); a drag in the inventory is never a click
+  and only the left button carries; the pad's tooltip goes with its menu; the F10 note shows under reduced effects;
+  "Reset this page" resets the 3D resolution; the pinned recipe counts like the crafting menu; the Interface slider
+  covers the `ui_` cues; `ui_toast` plays on a new message line (at most every 2 s); no homecoming accent after a
+  death; the stamina warning colour follows the colour-vision mode; the suit's chest panel shows on preview figures
+  and under flower bracelets.
+- **Creatures and people.** A Soundrak or a Schuppenhund bites the nearest player it can reach (it was always the
+  first in the session list); only weapons startle people (a drill "fired" counted as a shot), a place rests twelve
+  seconds whoever shoots, a walking NPC stands still for the fright, and the rest is kept on the NPC itself.
+- **Deliberately not touched:** the ship speed check (#3754 — a stricter budget could hold honest pilots back while
+  client and server keep separate boost meters; a task of its own with a test under latency) and the planet wrecks'
+  designs (#3764 meant the wrecks in space). **Not built, needs eyes, ears or a measurement:** the toast plate with
+  long lines, the pinned card with seven ingredients, the monitor row with two monitors, the placing sound of ice and
+  moss stone, the "hup" on every hop, the warning's timing for the heavy shot, step smoothing with "Camera motion"
+  off, tension music in the pause and for hostile animals, contact shadows on Potato, the closing fade of five
+  windows. **Open detail:** with the crouch switch on, a C press used to descend off the ground still flips the sneak
+  latch (the descent itself is a hold now).
+- **Verification so far:** affected server tests and the whole client suite green locally, `dotnet format` clean,
+  clean rebuild 0 warnings / 0 errors, the code-health ratchet green, the local Unity player build succeeded. The whole
+  server suite has NOT run (it runs in the PR checks). **Nothing of it has been seen or heard in the running game.**
+
 ### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking, armour, pick and blades, wrecks, crew labels, a skin template, startled NPCs, the figure's voice, throwing blocks, Hard Survival (#3750–#3752, #3763–#3770), PR #3771 (`a1eac587`) — ✅ released in v2026.11.21 (⚠ playtest open; server + client, appended messages and additive fields only — no protocol bump, no save change)
 
 Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations) became eleven issues; all are done:

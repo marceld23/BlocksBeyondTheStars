@@ -117,6 +117,7 @@ public sealed partial class GameServer
         else if (Rules.DeathPenalty == DeathPenalty.Revive)
         {
             Rules.DeathPenalty = DeathPenalty.Light; // leaving Hard Survival: the ordinary death again (the levels stay)
+            ReleaseFallenForRestart(); // whoever is watching right now may start again at the ship (GameServerFallen.cs)
         }
 
         Rules.GameMode = mode == WorldModeSandbox ? GameMode.Creative : GameMode.Survival;
@@ -125,6 +126,9 @@ public sealed partial class GameServer
         _meta.CreativeStartAllShips = extras;
         _meta.CreativeStarterKit = extras; // granted once per world (CreativeKitGranted) however often the mode flips
     }
+
+    /// <summary>Test seam: switches the world's mode as <c>/gamemode</c> does (the rules only, no command checks).</summary>
+    public void ApplyWorldModeForTest(string mode) => ApplyWorldMode(mode);
 
     /// <summary>Test seam: the world's current mode word.</summary>
     public string WorldModeForTest() => CurrentWorldMode();

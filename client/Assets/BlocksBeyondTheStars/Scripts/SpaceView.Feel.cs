@@ -27,6 +27,17 @@ namespace BlocksBeyondTheStars.Client
         private Vector3 _chasePos;
         private bool _chaseValid;
 
+        /// <summary>A new flight starts level and at rest: the last flight's lean, speed and chase-camera place are
+        /// forgotten, so its first helm frames do not ease out of where the ship before it was left.</summary>
+        private void ResetFlightFeel()
+        {
+            _flightVel = Vector3.zero;
+            _bank = 0f;
+            _bankPrevYaw = 0f;
+            _flightFeelFrame = -10; // the helm has not steered this flight yet
+            _chaseValid = false;    // the camera snaps to its place instead of gliding over from the old one
+        }
+
         /// <summary>The step the ship flies this frame for the helm's input: toward the wanted velocity at the spool
         /// rate, toward a stop at the coast rate. A frame without the helm (a menu, a transition) starts from rest.</summary>
         private Vector3 FlightStep(Quaternion heading, float fwd, float strafe)

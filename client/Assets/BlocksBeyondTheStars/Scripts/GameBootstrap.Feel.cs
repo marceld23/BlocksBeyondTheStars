@@ -53,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
         private static Canvas _canvas;
         private static CanvasGroup _group;
         private static Text _text;
+        private static HudOffNoteTimer _timer;
 
         public static void Show(string text)
         {
@@ -71,12 +72,22 @@ namespace BlocksBeyondTheStars.Client
                 _text = UiKit.AddText(_canvas.transform, 360f, 40f, 1200f, 40f, string.Empty, 24, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
                 _text.raycastTarget = false;
                 UiKit.AddOutline(_text);
+                _timer = _canvas.gameObject.AddComponent<HudOffNoteTimer>();
             }
 
             _text.text = text;
             _canvas.gameObject.SetActive(true);
             UiTween.Kill(_group);
             _group.alpha = 1f;
+            if (UiKit.ReducedMotion)
+            {
+                // A tween jumps to its end under reduced motion — delay and all — and would hide the note in the very
+                // frame it showed. So it stands for its time without a fade and then goes.
+                _timer.HideAt = Time.unscaledTime + ShowSeconds;
+                return;
+            }
+
+            _timer.HideAt = -1f;
             UiTween.Alpha(_group, 0f, 0.6f, UiTween.Ease.InQuad, ShowSeconds, Hide);
         }
 
@@ -86,6 +97,23 @@ namespace BlocksBeyondTheStars.Client
             {
                 UiTween.Kill(_group);
                 _canvas.gameObject.SetActive(false);
+            }
+        }
+    }
+
+    /// <summary>The note's own clock for players with reduced effects: it sits on the note's canvas (so it only runs
+    /// while the note shows) and hides it once <see cref="HideAt"/> has passed, in real time — the world may be held.</summary>
+    internal sealed class HudOffNoteTimer : MonoBehaviour
+    {
+        /// <summary>The unscaled time at which the note goes; negative = the fade takes care of it.</summary>
+        public float HideAt = -1f;
+
+        private void Update()
+        {
+            if (HideAt >= 0f && Time.unscaledTime >= HideAt)
+            {
+                HideAt = -1f;
+                HudOffNote.Hide();
             }
         }
     }

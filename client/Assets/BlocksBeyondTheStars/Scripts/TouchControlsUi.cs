@@ -313,9 +313,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Contextual buttons (#1042): shown only while their verb applies, so a tablet never carries a dead target.
         /// On foot: ROTATE with a rotatable block in hand, ATTACK with a weapon (or on the Guardian core, where the same hold
-        /// breaches it). In flight the helm-only verbs (land / ship / autopilot / map) give way to the EVA pair (place /
-        /// deploy) — SpaceView polls each set only in its own state, so a swapped-out button would be inert anyway. A boat
-        /// (#1215) has no hop and no cell: those two verbs would be dead buttons.</summary>
+        /// breaches it, or with a block held over the head, which it throws — #3766; lifting one goes through the actions
+        /// list, a FEED button for it would sit there whenever a block is selected). In flight the helm-only verbs (land /
+        /// ship / autopilot / map) give way to the EVA pair (place / deploy) — SpaceView polls each set only in its own
+        /// state, so a swapped-out button would be inert anyway. A boat (#1215) has no hop and no cell: those two verbs
+        /// would be dead buttons.</summary>
         private void ShowContextualButtons(TouchCluster cluster)
         {
             if (cluster == TouchCluster.Speeder)
@@ -329,7 +331,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 SetActive(_rotate?.gameObject, Player != null && Player.HeldRotatable);
                 var finale = Game.Views.Finale;
-                SetActive(_attack?.gameObject, (Player != null && Player.HoldsWeapon) || (finale != null && finale.BreachAvailable));
+                SetActive(_attack?.gameObject, (Player != null && (Player.HoldsWeapon || Player.CarryingBlock)) || (finale != null && finale.BreachAvailable));
                 SetActive(_feed?.gameObject, Player != null && Player.CanFeedCreature); // #2018
                 LightRunButton(Player != null && Player.SprintLatched); // #3376
             }

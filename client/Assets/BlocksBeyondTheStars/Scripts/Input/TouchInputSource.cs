@@ -38,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
         public bool JumpHeld() => Live && Ui.JumpHeld;
         public bool JumpDown() => Live && Ui.JumpDown;
         public bool CrouchHeld() => Live && Ui.DescendHeld;
+        public bool DescendHeld() => CrouchHeld(); // the on-screen button is always a hold
         public bool PrimaryDown() => Live && Ui.MineDown;
         public bool PrimaryHeld() => Live && Ui.MineHeld;
         public bool SecondaryDown() => Live && Ui.PlaceDown;

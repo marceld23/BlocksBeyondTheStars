@@ -290,6 +290,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _enemies.Remove(m.Id);
+            EnemyHealthBars.NoteDefeated(Game, m.Id); // the killing blow's tick: no list ever shows this hull empty
             EnemyHealthBars.Forget(m.Id);
             _gone[m.Id] = Time.time;
             if (en.IsBandit)

@@ -85,9 +85,11 @@ namespace BlocksBeyondTheStars.Client
             _toast.fontSize = ToastFont;
         }
 
-        /// <summary>Toast slide-in: a new message eases in from above and fades up.</summary>
+        /// <summary>Toast slide-in: a new message eases in from above and fades up — with a small ping when the line is
+        /// a new one (not the line already up, sent again) and the HUD shows.</summary>
         private void ShowToast(string msg)
         {
+            bool newLine = msg.Length > 0 && !string.Equals(_toast.text, msg, System.StringComparison.Ordinal);
             _toast.text = msg;
             _toastAge = msg.Length == 0 ? -1f : 0f; // #1860: arm the lifetime; an empty message has none
             _toastHold = HudToastPolicy.HoldSeconds(msg);
@@ -105,6 +107,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiTween.Alpha(_toastGroup, 1f, 0.22f, UiTween.Ease.OutQuad);
+            if (newLine && _canvas != null && _canvas.enabled)
+            {
+                UiSound.Toast(); // an interface sound (the Interface slider), and never a rattle: it keeps its own rest
+            }
         }
 
         /// <summary>Toast lifetime (#1860): the status line used to stay until the next server message replaced

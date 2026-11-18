@@ -56,8 +56,14 @@ namespace BlocksBeyondTheStars.Client
 
         public void OnBeginDrag(PointerEventData eventData)
         {
-            // A finger scrolls; an empty slot has nothing to carry: both hand the drag on to the list behind.
-            _passToScroll = eventData.pointerId >= 0 || !Filled;
+            // A drag is never a click. uGUI only drops the pending click by itself when the pressed object and the
+            // dragged one differ — and here they are the same slot, so a finger that scrolled the list on a slot (the
+            // slot moves along under it) or a mouse drag that ended on its own slot would still "click" it.
+            eventData.eligibleForClick = false;
+
+            // A finger scrolls; an empty slot has nothing to carry; only the left mouse button carries an item: all
+            // three hand the drag on to the list behind.
+            _passToScroll = eventData.pointerId >= 0 || !Filled || eventData.button != PointerEventData.InputButton.Left;
             if (_passToScroll)
             {
                 Pass(eventData, ExecuteEvents.beginDragHandler);

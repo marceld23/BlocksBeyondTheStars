@@ -50,6 +50,46 @@ public sealed partial class GameServer
         return sp.BiteDamage;
     }
 
+    /// <summary>Whether a hostile animal can bite this player right now: within <paramref name="prox"/> and in sight (no
+    /// bite through a wall — cover or a cave breaks it), and somebody it may bite at all. Cloaked, god-mode,
+    /// creative-override (#1121) and Sandbox (#2712) players aren't detected — nor is a body awaiting its respawn choice
+    /// (#3188): another bite would only replay the death. An animal in a duel or a pack defence bites its one player
+    /// only (#3365), and a Soundrak leaves the calm disc's wearer alone (#3354).</summary>
+    private bool BiteCanReach(CombatEntity creature, PlayerSession session, float prox)
+    {
+        var p = session.State;
+        return !HostilesIgnore(p) && !session.Respawn.ChoicePending && MayFight(creature, p.PlayerId)
+               && !BiteOverlooked(creature, session)
+               && WrapDistSq(p.Position, creature.Position) <= prox * prox
+               && HasLineOfSight(creature.Position, p.Position);
+    }
+
+    /// <summary>The player a chunk-biter's next bite goes to: the nearest one it can reach, or null. It used to be
+    /// whoever came first in the list — with two players in reach the same one took every bite and the other, even the
+    /// one it hunted, none (#3750 gave the Soundrak this rule too). Null while the bite is not due, so the sight lines
+    /// are only cast when one can land.</summary>
+    private PlayerSession? NearestBiteTarget(CombatEntity creature, List<PlayerSession> reactors, float prox)
+    {
+        if (creature.BiteCooldown > 0 || creature.DamagePerSecond <= 0f)
+        {
+            return null;
+        }
+
+        PlayerSession? nearest = null;
+        double best = double.MaxValue;
+        foreach (var session in reactors)
+        {
+            double d = WrapDistSq(session.State.Position, creature.Position);
+            if (d < best && BiteCanReach(creature, session, prox))
+            {
+                best = d;
+                nearest = session;
+            }
+        }
+
+        return nearest;
+    }
+
     /// <summary>Runs a chunk-biter's cooldown down — every tick, whatever else keeps it from biting right now.</summary>
     private static void TickBiteCooldown(CombatEntity creature, double dt)
     {

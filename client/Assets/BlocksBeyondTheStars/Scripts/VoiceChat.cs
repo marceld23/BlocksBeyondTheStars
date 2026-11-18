@@ -427,6 +427,7 @@ namespace BlocksBeyondTheStars.Client
 
             _speaking.Add(frame.FromPlayerId);
             _lastFrameTime[frame.FromPlayerId] = Time.unscaledTime;
+            RemotePlayers.Current?.Talk(frame.FromPlayerId); // the speaker's figure moves its mouth, if it is drawn here
 
 #if BBS_VOICE
             EnqueueForPlayback(frame);

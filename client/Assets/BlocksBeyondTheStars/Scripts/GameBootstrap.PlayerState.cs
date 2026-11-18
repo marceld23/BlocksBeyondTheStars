@@ -89,6 +89,46 @@ namespace BlocksBeyondTheStars.Client
         /// Never set locally: invisibility is the server's decision, and the client only reflects it.</summary>
         public bool Spectating { get; private set; }
 
+        /// <summary>True while <see cref="Spectating"/> means "fallen and watching" (#3765, the death rule of a Hard
+        /// Survival world) rather than the admin's observer mode: the server uses the same state for both, but a fallen
+        /// player is no observer — no OBSERVER badge and none of the two observer lines (the second one replaced "You
+        /// are back on your feet"). Set by the <c>RespawnOptions</c> that says <c>Fallen</c>, which the server sends
+        /// before the state update that starts the watching; over when the watching is.</summary>
+        public bool WatchingFallen { get; private set; }
+
+        /// <summary>The server switched the watching on or off: the state, and for the admin's observer mode (issue #487)
+        /// the line that says which mode this is — the visual difference (no hotbar, free flight) is easy to mistake for
+        /// a bug otherwise. A fallen player has the banner for that (<see cref="FallenView"/>).</summary>
+        private void ApplySpectating(bool spectating)
+        {
+            if (spectating == Spectating)
+            {
+                return;
+            }
+
+            Spectating = spectating;
+            if (!WatchingFallen)
+            {
+                LastMessage = Localizer?.Get(spectating ? "hud.observer.on" : "hud.observer.off") ?? LastMessage;
+            }
+
+            if (!spectating)
+            {
+                WatchingFallen = false;
+            }
+        }
+
+        /// <summary>A deferred death: the reason shows under the choice modal. A fall (#3765) has no modal — the player
+        /// watches from here on (<see cref="WatchingFallen"/>).</summary>
+        private void OnRespawnOptions(BlocksBeyondTheStars.Networking.Messages.RespawnOptions m)
+        {
+            LastMessage = ServerMessageText(m.Reason);
+            if (m.Fallen)
+            {
+                WatchingFallen = true;
+            }
+        }
+
         /// <summary>This world allows free flight (Creative/Sandbox, or the <c>/fly</c> cheat) —
         /// server-authoritative. Only while this is set does double-tapping jump toggle flight.</summary>
         public bool CanFly { get; private set; }
@@ -420,13 +460,7 @@ namespace BlocksBeyondTheStars.Client
             InTrain = m.InTrain ?? string.Empty; // #2113
             TrainSeat = m.TrainSeat;
 
-            // Observer mode toggled by the server (issue #487) — tell the player which mode they are in, since
-            // the visual difference (no hotbar, free flight) is easy to mistake for a bug otherwise.
-            if (m.Spectating != Spectating)
-            {
-                Spectating = m.Spectating;
-                LastMessage = Localizer?.Get(m.Spectating ? "hud.observer.on" : "hud.observer.off") ?? LastMessage;
-            }
+            ApplySpectating(m.Spectating); // observer mode (issue #487), or fallen and watching (#3765)
 
             CanFly = m.CanFly;
             _returnToShipReadyAt = _worldClock.Now + m.ReturnToShipCooldownSeconds; // #2286: 0 from the server = ready now; world clock, so it freezes with the hold
@@ -642,7 +676,7 @@ namespace BlocksBeyondTheStars.Client
                     ReturnToShipArrivals++; // #2559: the pause menu that asked closes now
                 }
             };
-            Network.RespawnOptionsReceived += m => LastMessage = ServerMessageText(m.Reason); // deferred death: reason shows under the choice modal
+            Network.RespawnOptionsReceived += OnRespawnOptions;
         }
     }
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -73,8 +74,14 @@ public sealed partial class GameServer
         // in the same poll as the join, before the next tick lifts the hold — dropping them left the newcomer in the
         // default colours with no face or paint for everyone.
         SetAppearanceIntent or SetFaceIntent or SetBodyPaintIntent or SetToolLookIntent => true,
-        _ => AdminViewMayPassAHold(message),
+        _ => LetsGoOfTheBoost(message) || AdminViewMayPassAHold(message),
     };
+
+    /// <summary>Letting go of the ship's boost — the client sends it the moment the pause menu takes the helm. Dropped,
+    /// the server kept the boost on and burned the charge behind the menu; then the two meters disagreed after the hold.
+    /// Only the "off": a roll or a boost asked for behind the hold stays a gameplay intent.</summary>
+    private static bool LetsGoOfTheBoost(object message)
+        => message is ShipManeuverIntent { Kind: ShipManeuverKinds.Boost, On: false };
 
     /// <summary>#3502: the admin view is reached from the pause menu (its Admin button, "Call an admin") and its panel may hold
     /// a singleplayer world. Entering or leaving admin mode moves nobody but the admin; the panel, the direct chat, the report

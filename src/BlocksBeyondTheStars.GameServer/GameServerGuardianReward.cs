@@ -147,7 +147,7 @@ public sealed partial class GameServer
     {
         var p = s.State;
         bool aboard = p.AboardShip && _worlds.Active.LandedShips.TryGetValue(p.PlayerId, out var landed) && landed.Placed;
-        return s.Joined && !s.Spectating && s.CurrentLocationId == _world.LocationId && !_world.Planet.Void
+        return s.Joined && !s.Watching && s.CurrentLocationId == _world.LocationId && !_world.Planet.Void
                && !aboard && !p.InEva && p.Health > 0f
                && !InSpace(p.PlayerId) && !InShipInterior(p.PlayerId) && !InStation(p.PlayerId);
     }

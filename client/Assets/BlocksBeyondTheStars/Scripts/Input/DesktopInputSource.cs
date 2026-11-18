@@ -33,6 +33,11 @@ namespace BlocksBeyondTheStars.Client
         public bool CrouchHeld() => InputMap.KeyboardCrouch(
             Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C),
             Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.C)); // held, or a toggle (Accessibility)
+
+        // The same keys as a plain hold. The toggle is for sneaking only: latched, it would keep a flight sinking and
+        // stand the player up from a seat the frame after sitting down.
+        public bool DescendHeld() => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C);
+
         public bool PrimaryDown() => Input.GetMouseButtonDown(0);
         public bool PrimaryHeld() => Input.GetMouseButton(0);
         public bool SecondaryDown() => Input.GetMouseButtonDown(1);

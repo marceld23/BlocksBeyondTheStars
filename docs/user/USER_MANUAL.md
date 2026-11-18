@@ -599,12 +599,15 @@ separate unlock; admins can still disable it through server world rules.
 
 - **Display & HUD** (desktop): **Resolution (fullscreen)** — the monitor's own or a smaller one, scaled up to the whole
   screen (a smaller one runs faster on a very sharp screen); **Monitor** — which screen the game uses; **Pause when the
-  window loses focus** — opens the pause menu when you switch to another window.
+  window loses focus** — opens the pause menu when you switch to another window (not while another menu, the chat,
+  the death screen or a cutscene is up — the same moments in which Esc does not open it).
 - **Graphics → 3D resolution** (desktop): draws the world at 50–100 % of the screen's resolution and sharpens it; the
   menus and the HUD stay crisp. Lower runs faster.
-- **Accessibility:** **Story text size** and a **dark box behind story text** for the cutscene and story lines;
+- **Accessibility:** **Story text size** and a **dark box behind story text** for the cutscene and story lines (the
+  size also applies to the speaker's box, the reading frame, banners and the credits; title cards keep theirs);
   **Colour vision** (*Standard · Red-green weakness · Blue-yellow weakness*) changes the signal colours for "good" and
-  "caution" to a pair you can tell apart; **Run / Crouch: press once instead of holding** (see §2).
+  "caution" to a pair you can tell apart; **Run / Crouch: press once instead of holding** (see §2 — the crouch switch
+  is for sneaking on the ground only: sinking, climbing down and getting up from a seat still follow the held key).
 - **Controls → Gamepad → button names:** *Automatic* reads the connected pad's name and shows what it found (Xbox,
   PlayStation or Nintendo); the three fixed sets stay for a pad whose name says nothing.
 - **Tooltips:** rest the mouse on an inventory slot and a small card names the item and says what it is for. On a
@@ -859,7 +862,8 @@ the game.
 
 The **Master** slider turns everything up or down. **Effects** turns every game sound up or down, including the
 ship's engine. Two sliders sit under it: **Ambience** (wind, rain, the planet's own background) and **Interface**
-(clicks, windows opening and closing, the little tick of a hit).
+(clicks, windows opening and closing, the pick of an inventory slot, the craft's confirm and reject, and a small
+ping when a new message line comes up — at most one every two seconds).
 
 **Variety and accents.**
 - Mining, placing, swinging, shooting, jumping and landing no longer sound the same every time: each has two or three
@@ -2063,7 +2067,7 @@ players.
   shot lands; the hull only takes damage once it is gone (it does not come back). An **ion pulse** drops it at once.
 - **Space stations are shielded.** A shot at an intact station ends on its shield bubble and does nothing — mining
   tools refuse to fire on a station at all. A **derelict station** or a **giant wreck** has no shield left: a combat
-  weapon's shot tears **blocks out of its hull** where it lands (one for a laser pulse, up to six for a missile).
+  weapon's shot tears **blocks out of its hull** where it lands (two for a laser pulse, up to six for a missile).
   The blocks are gone, not collected — mine a wreck by hand or with the mining laser if you want its materials.
 - **Wrecks and wreckage take hits from every weapon:** the system's derelict ship and the fragments a destroyed ship
   leaves lose plating to cannons, missiles and the scatter cannon too, not only to the mining laser (asteroids stay
@@ -2139,13 +2143,15 @@ players.
 - **Lift:** select a block in the hotbar and press **Feed** (**Q**) — you lift **one** block of the stack over your
   head with both hands. It is still part of the stack: nothing is taken yet. **Q** again puts it back; so does
   selecting another hotbar slot. Only on foot on a world — not seated, climbing, driving, on a train or in a ship.
-- **Throw:** the attack control (left mouse) throws it where you look. While the block is up your hands do nothing
+- **Throw:** the attack control (**F**; on a pad or a tablet *Attack* in the actions list, a tablet also shows **ATTACK** while the block is up) throws it where you look. While the block is up your hands do nothing
   else — no mining, no placing, no swing.
 - **What it does:** the first robot, robber or wild animal on its way is hurt by the block's **material** — a soft
   block (earth, sand, leaves) **4**, wood, stone and ordinary ore **7**, metal, obsidian and the hardest rock **10**
   (a wooden club does 6, the machete 7). A heavy block does not fly as far. At most one throw every 0.6 s.
 - **What it never does:** it never hits a tame animal, a Quali, an NPC or another player, and it is **never placed**
-  — it lies where it came down as an item, and you (or anyone) can pick it up again. Nothing is lost.
+  — it lies where it came down as an item, and you (or anyone) can pick it up again. Nothing is lost: a block thrown
+  off the edge of the world (a sky island, a gas sea) drops at your own feet instead. Under a low ceiling it leaves
+  your hands lower and lands sooner.
 - Other players see you hold the block up and see it fly.
 
 ### Glove weapons (shock gloves and energy gloves)
@@ -5111,15 +5117,16 @@ look up: what a mix does follows from what goes in, and the same things always g
   down, Bow**. Point at one and let go — or just tap P, then click a gesture (the middle closes the wheel). On a gamepad and on a tablet the wheel is in the action list. You see your own
   gesture in the third-person view (**V**).
 - Players near you see it (within about 48 blocks, and on the same side of a ship's hull). You can play one gesture
-  about every second. **Sit down** lasts until you move. Each gesture makes a small sound that the players near you
-  hear from where you stand.
+  about every second. **Sit down** lasts until you move — or pick it again to get up. Each gesture makes a small
+  sound that the players near you hear from where you stand (not while you are cloaked: a hidden figure tells nothing).
 - **Wave at a villager** and they wave back and say hello — if they are awake, not busy, can see you and are not
   angry with you.
 - **Fire or swing a weapon next to people** and they jump (an idea of Justus): the nearest ones throw both hands up,
   open their mouth wide and call out — "Watch out!", "Not here, please!", or they ask whether you are related to a
   certain bounty hunter. They are startled, not afraid: nobody runs away, nobody can be hurt, and a few seconds later
-  everybody carries on. A burst of fire is one fright, and the same person does not call out again for a while. The
-  fist and tools startle nobody.
+  everybody carries on — for those few seconds they stand still and look at you, even one who was walking somewhere.
+  A burst of fire is one fright: the people of one place rest for about twelve seconds, whoever shoots, and the same
+  person does not call out again for a while. The fist and tools startle nobody — a drill or a mining beam neither.
 - **Speech bubbles have a frame**: what a villager says floats above them on a dark, rounded plate with a light edge,
   so it reads over any wall or floor. The message line at the top of the screen sits on a plate too.
 - Figures show more of what happens to them: a player who is hurt **flinches**, one who is defeated **sinks down**,
@@ -5143,11 +5150,13 @@ and robbers and hard environmental hazards — in return oxygen and hunger run d
   Space/Ctrl, Shift fast), nothing hurts you, no enemy and no other player sees you, and you cannot touch anything.
   You can still chat.
 - **Another player brings you back**: with a **field medkit** used within a few blocks of the place where you fell.
-  You stand up right there, with part of your health. A light pulses at the place, and everybody is told in the
-  message line that you have fallen.
+  You stand up right there, with part of your health (45) and with the cold or heat meter empty. A light pulses at
+  the place, and everybody is told in the message line that you have fallen. While you watch, your jetpack and your
+  cloak are off, you pick nothing up, no door opens for you and no sleeper wakes; the game can still be paused.
 - **Nobody left who could help?** Playing alone (or when the others have left), a banner counts **60 seconds**
   down; then **Interact** (**E**) starts you again at your ship. If **every** player has fallen, all of them can
-  start again at their ships at once.
+  start again at their ships at once — and so can everybody who is watching when an admin switches the world to
+  another mode (a medkit no longer brings anybody back then).
 - A death in space flight, on a spacewalk, inside a ship or on a station, and a defeat by another player, work as
   in every other world. Leaving the game while fallen puts you back at your ship.
 - The world options you set for the world still apply; the mode sets *Alien enemies* and *Bandits* to Extreme,

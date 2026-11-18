@@ -55,6 +55,7 @@ namespace BlocksBeyondTheStars.Client
             public bool TimedOut;          // hidden because updates stopped (kept separate from Hidden: that
                                            // flag only toggles visibility on server-sent EDGES)
             public StepState Steps;        // #3239: footsteps read from the drawn body (RemotePlayers.Steps.cs)
+            public float FellUntil;        // defeated: held where it fell until then (Time.time; 0 = not held — RemotePlayers.Feel.cs)
         }
 
         // Presence arrives at ~10 Hz for every subject inside the viewer's area of interest. When the stream
@@ -249,7 +250,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var r in _remotes.Values)
             {
                 // #2113: a rider is placed relative to the wagon as THIS client draws it — nobody slides through a wall.
-                if (r.Frame.Length > 0 && Trains != null && Trains.TryGetWagon(r.Frame, out var wagon))
+                if (!HeldWhereItFell(r) && r.Frame.Length > 0 && Trains != null && Trains.TryGetWagon(r.Frame, out var wagon))
                 {
                     var aboard = wagon.TransformPoint(r.Local);
                     if (r.Seated)
@@ -266,7 +267,7 @@ namespace BlocksBeyondTheStars.Client
                         r.Go.transform.rotation = Quaternion.Euler(0f, wagonYaw, 0f);
                     }
                 }
-                else if (r.Interp.Sample(now, circ, out var pos, out var yaw))
+                else if (!HeldWhereItFell(r) && r.Interp.Sample(now, circ, out var pos, out var yaw)) // a defeated figure stays where it fell for a moment
                 {
                     var scene = Game != null ? Game.ScenePos(pos.X, pos.Y, pos.Z) : new Vector3(pos.X, pos.Y, pos.Z);
                     if (r.Seated)
@@ -491,7 +492,7 @@ namespace BlocksBeyondTheStars.Client
             if (m.Stealthed != r.Hidden)
             {
                 r.Hidden = m.Stealthed;
-                r.Avatar.SetVisible(!m.Stealthed);
+                r.Avatar.SetVisible(!m.Stealthed || HeldWhereItFell(r)); // the fall is seen to its end; the hold's end hides it then
             }
 
             // The worn gear on the remote avatar: the presence carries the shared GearLook mask, passed straight through.
@@ -684,6 +685,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
+            if (Current == this)
+            {
+                Current = null;
+            }
+
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.PlayerPresenceReceived -= OnPresence;

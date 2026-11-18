@@ -187,6 +187,38 @@ public sealed class BlockCarryThrowTests : IDisposable
         }
     }
 
+    [Fact]
+    public void UnderALowCeiling_TheBlockLeavesTheHandsLower_AndStillFlies()
+    {
+        // The release point is over the head (2.2 above the feet). In a two-block tunnel that is inside the ceiling: the
+        // flight ended before it began and the block was left in the rock above, hitting nothing.
+        string item = BlockItem(BlockWeight.Heavy);
+        var (server, repo, p, padY) = Stage("tunnel", item);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dx = -1; dx <= 8; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    server.World.SetBlock(new Vector3i(Cx + dx, padY + 3, Cz + dz), stone); // feet at padY + 1: two cells of room
+                }
+            }
+
+            // Close by: a block that leaves the hands at chest height lands sooner than one thrown from over the head.
+            server.SpawnPlanetEnemyAtForTest(new Vector3f(Cx + 2.5f, padY + 1, Cz + 0.5f), damagePerSecond: 0f);
+            var machine = server.PlanetEnemies.Single();
+            float before = machine.Hull;
+
+            server.CarryBlockForTest(p.State.PlayerId, true);
+            server.ThrowBlockForTest(p.State.PlayerId, 1f, 0f, 0f);
+
+            Assert.Equal(before - BlockThrow.Damage(BlockWeight.Heavy), machine.Hull, 3); // it flew under the ceiling and hit
+            var packet = server.DropPackets.Single(c => c.Items.Any(s => s.Item == item));
+            Assert.True(packet.Position.Y <= padY + 2, $"the block lies in the tunnel, not in the ceiling (y {packet.Position.Y}, floor {padY})");
+        }
+    }
+
     [Theory]
     [InlineData(BlockWeight.Light)]
     [InlineData(BlockWeight.Medium)]

@@ -544,9 +544,11 @@ namespace BlocksBeyondTheStars.Client
 
                 _hostileFireStale.Remove(e.Id);
                 var from = new Vector3(e.X, e.Y, e.Z);
-                if ((from - shipLp).sqrMagnitude > HostileFireRange * HostileFireRange)
+                // A hostile an ion pulse holds deals no damage on the server, so it draws no bolts either — re-armed
+                // like one out of range, so it does not fire the instant the stun ends.
+                if (e.Staggered || (from - shipLp).sqrMagnitude > HostileFireRange * HostileFireRange)
                 {
-                    _hostileFireCd[e.Id] = Random.Range(0.15f, 0.5f); // re-arm; no shot until it closes in
+                    _hostileFireCd[e.Id] = Random.Range(0.15f, 0.5f); // re-arm; no shot until it closes in / wakes up
                     continue;
                 }
 

@@ -40,6 +40,10 @@ public sealed class PlayerSessionRespawn
     public string FallenReason { get; set; } = string.Empty;
     public bool FallenSalvaged { get; set; }
 
+    /// <summary>The hunger the player fell with. The watching body is kept topped up like any invulnerable one, so the
+    /// revive reads this instead — otherwise everybody would stand up full.</summary>
+    public float FallenHunger { get; set; }
+
     /// <summary>Every player had fallen at some moment: this one may start again at the ship at once (it stays so).</summary>
     public bool FallenRestartNow { get; set; }
 

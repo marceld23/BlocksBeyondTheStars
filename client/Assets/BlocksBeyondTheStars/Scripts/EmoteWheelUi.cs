@@ -35,6 +35,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A key let go this soon, with no wedge under the pointer, was a tap: the wheel stays open, seconds.</summary>
         private const float TapSeconds = 0.3f;
 
+        /// <summary>The shortest time between two emotes, seconds. The server drops one that comes sooner than 0.8 s after
+        /// the last (its <c>EmoteCooldownSeconds</c>); a pick inside the pace is ignored here as well, so the own figure
+        /// never plays an emote the others did not get. A little over the server's number: the two clocks do not see the
+        /// gap between two messages alike (the network's jitter, the server's tick).</summary>
+        private const float PaceSeconds = 0.9f;
+
+        private float _playedAt = float.NegativeInfinity; // when the last emote went out (the world clock: it stands still with the server's)
         private bool _holdMode;
         private int _hover = -1;
         private float _openedAt;
@@ -160,9 +167,20 @@ namespace BlocksBeyondTheStars.Client
 
         private void Play(int index)
         {
+            if (Game.WorldTime - _playedAt < PaceSeconds)
+            {
+                return; // the server would drop it: the own figure must not show what the others do not get
+            }
+
+            _playedAt = Game.WorldTime;
             byte emote = Emotes[index].Emote;
-            Game.Network?.SendEmote(emote);
             var avatar = FindAnyObjectByType<PlayerController>()?.Avatar;
+            if (emote == PlayerEmotes.Sit && avatar != null && avatar.EmoteSitting)
+            {
+                emote = PlayerEmotes.Stand; // "sit" only ever sits down (a switch could arrive inverted): getting up is said outright
+            }
+
+            Game.Network?.SendEmote(emote);
             if (avatar != null)
             {
                 avatar.PlayEmote(emote); // the own figure at once — seen in third person
@@ -186,6 +204,7 @@ namespace BlocksBeyondTheStars.Client
             PlayerEmotes.Dance => "emote_dance",
             PlayerEmotes.Clap => "emote_clap",
             PlayerEmotes.Sit => "emote_sit",
+            PlayerEmotes.Stand => "emote_sit", // getting up sounds like sitting down, as it did while Sit was a switch
             PlayerEmotes.Bow => "emote_bow",
             _ => null,
         };

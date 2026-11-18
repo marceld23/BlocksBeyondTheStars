@@ -201,7 +201,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _continueClicked;
 
         private GalaxyChartWidget _chart;
-        private float _scale = -1f;
+        private float _scale = -1f, _readScale = -1f;
 
         private CutsceneScreen(CinematicFrame frame, string name)
         {
@@ -599,25 +599,30 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The fonts follow the player's UI scale (#2461 for the frame's own caption); the boxes keep their
-        /// absolute place, the texts wrap inside them and may grow past their bottom edge rather than be cut.</summary>
+        /// absolute place, the texts wrap inside them and may grow past their bottom edge rather than be cut. What is
+        /// READ — the speaker, the banner, the reading frame, the credits — also follows the story text's own size
+        /// (settings → Accessibility), like the frame's caption; the title card does not: it is display type, already
+        /// as large as its place allows.</summary>
         private void ApplyScale()
         {
             float s = UiKit.UserScale;
-            if (Mathf.Approximately(s, _scale))
+            float read = s * UiKit.CaptionScale;
+            if (Mathf.Approximately(s, _scale) && Mathf.Approximately(read, _readScale))
             {
                 return;
             }
 
             _scale = s;
-            Scale(_bannerKicker, 18, s);
-            Scale(_bannerLine, 24, s);
+            _readScale = read;
+            Scale(_bannerKicker, 18, read);
+            Scale(_bannerLine, 24, read);
             Scale(_titleKicker, 30, s);
             Scale(_title, 62, s);
-            Scale(_speakerName, 24, s);
-            Scale(_speakerText, 27, s);
-            Scale(_readerHeading, 28, s);
-            Scale(_readerBody, 26, s);
-            Scale(_credits, 26, s);
+            Scale(_speakerName, 24, read);
+            Scale(_speakerText, 27, read);
+            Scale(_readerHeading, 28, read);
+            Scale(_readerBody, 26, read);
+            Scale(_credits, 26, read);
         }
 
         private static void Scale(Text t, int size, float s) => t.fontSize = Mathf.RoundToInt(size * s);
