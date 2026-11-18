@@ -87,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
         // screenshot) — default F10; a note names the key while the HUD is away.
         ToggleHud,
 
-        // The emote wheel — the keyboard HOLDS it (default Y) and lets go over a wedge; the pad and the tablet open it
+        // The emote wheel — the keyboard HOLDS it (default P) and lets go over a wedge; the pad and the tablet open it
         // from the ContextActions list.
         EmoteWheel,
 
@@ -596,6 +596,12 @@ namespace BlocksBeyondTheStars.Client
         public static bool JumpHeld() => _desktop.JumpHeld() || _pad.JumpHeld() || _touch.JumpHeld();
         public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown() || _touch.JumpDown();
         public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld() || _touch.CrouchHeld();
+
+        /// <summary>The crouch control read as a plain hold, for everything it does besides sneaking: sinking in flight and
+        /// in zero-g, climbing down, letting go of a wall or the rope, standing up from a seat or a bed. Never the
+        /// <see cref="CrouchToggle"/> switch — that one is for sneaking on the ground (<see cref="CrouchHeld"/>) alone.</summary>
+        public static bool DescendHeld() => _desktop.DescendHeld() || _pad.DescendHeld() || _touch.DescendHeld();
+
         // #3346: while the melody bar is open the pad's shoulders are its "tones 5–8" modifier — they neither mine nor place.
         public static bool PrimaryDown() => _desktop.PrimaryDown() || (!MelodyBarCapture && _pad.PrimaryDown()) || _touch.PrimaryDown();
         public static bool PrimaryHeld() => _desktop.PrimaryHeld() || (!MelodyBarCapture && _pad.PrimaryHeld()) || _touch.PrimaryHeld();

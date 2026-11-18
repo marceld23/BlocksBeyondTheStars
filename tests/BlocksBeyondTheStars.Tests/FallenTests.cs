@@ -155,9 +155,69 @@ public sealed class FallenTests : IDisposable
             Assert.Equal(spot, a.State.Position);            // stands up where they fell
             Assert.False(a.State.AboardShip);
             Assert.False(a.State.GodMode || a.State.Fly);    // an ordinary player again
-            Assert.InRange(a.State.Health, 1f, 99f);         // the medkit's health, not a full reset
-            Assert.True(a.State.Hunger >= FallenRules.RevivedHunger);
+            Assert.Equal(45f, a.State.Health);               // the medkit's health once — the pulse does not heal the revived twice
+            Assert.Equal(FallenRules.RevivedHunger, a.State.Hunger); // fell hungry: the revive's floor, not the watcher's full bar
+            Assert.Equal(0f, a.State.Exposure);              // the cold that felled them does not strike again at once
             Assert.DoesNotContain(SvGameServer.FallenMarkerForTest, a.State.Milestones);
+        }
+    }
+
+    [Fact]
+    public void AWatcher_TouchesNothing_RestsTheSuit_AndMayHoldThePause()
+    {
+        // The server follows the watcher's camera (it streams the land around it), so the world's proximity rules must
+        // ask who is really there: the fallen picked drops up, opened doors, woke sleepers and were "rescued" out of rock.
+        Assert.True(SvGameServer.FallenMayHandleForTest(new PauseIntent())); // else nobody could pause while one watches
+
+        var (server, repo, padY) = World("watcher");
+        using (repo)
+        {
+            var a = Player(server, "Kid", padY, 0f);
+            var b = Player(server, "Friend", padY, 30f);
+            a.State.Jetpacking = true;
+            a.State.Stealthed = true;
+            a.State.Exposure = 1f;
+            server.KillPlayerForTest(a.State.PlayerId);
+
+            Assert.True(a.Watching);
+            Assert.False(b.Watching);
+            Assert.False(a.State.Jetpacking || a.State.Stealthed); // nothing drains the suit behind the banner
+
+            // A drop beside the watching camera stays where it lies; the standing friend still picks one up.
+            var cell = new Vector3i(Cx + 12, padY + 1, Cz);
+            server.SpillToGroundForTest(cell, "stone", 3);
+            a.State.Position = new Vector3f(cell.X + 0.5f, cell.Y, cell.Z + 0.5f);
+            server.TickForTest(1.0);
+            server.TickForTest(1.0);
+            Assert.Equal(0, a.State.Inventory.CountOf("stone"));
+            Assert.True(
+                server.DropPackets.Sum(c => c.Items.Where(s => s.Item == "stone").Sum(s => s.Count)) == 3,
+                "packets: " + string.Join(" | ", server.DropPackets.Select(c => c.Position + ":" + string.Join(",", c.Items.Select(s => s.Item + "x" + s.Count)))));
+
+            // Flying through rock is no emergency: no rescue teleport for a watcher.
+            var deep = new Vector3f(Cx + 0.5f, padY - 6f, Cz + 0.5f);
+            a.State.Position = deep;
+            server.RunVoidRescueForTest();
+            Assert.Equal(deep, a.State.Position);
+        }
+    }
+
+    [Fact]
+    public void LeavingHardSurvival_WhileSomebodyWatches_LetsThemStartAgainAtOnce()
+    {
+        var (server, repo, padY) = World("mode_change");
+        using (repo)
+        {
+            var a = Player(server, "Kid", padY, 0f);
+            Player(server, "Friend", padY, 30f);
+            server.KillPlayerForTest(a.State.PlayerId);
+            Assert.Equal(FallenRules.WaitForTeam, server.FallenRestartInForTest(a.State.PlayerId));
+
+            // The admin switches the world back: a medkit no longer revives, so the watcher must not wait for one.
+            server.ApplyWorldModeForTest("explorer");
+            Assert.Equal(0f, server.FallenRestartInForTest(a.State.PlayerId));
+            server.RestartFallenForTest(a.State.PlayerId);
+            Assert.False(server.IsFallenForTest(a.State.PlayerId));
         }
     }
 

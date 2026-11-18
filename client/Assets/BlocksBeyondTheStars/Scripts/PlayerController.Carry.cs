@@ -20,9 +20,24 @@ namespace BlocksBeyondTheStars.Client
         private int _carryTickFrame;    // the last frame the on-foot input ran while carrying
         private int _carryPrimaryFrame; // the frame whose attack press was the throw
         private int _carryRejectionsSeen;
+        private float _lastThrowAt = float.NegativeInfinity; // when the last throw went out (the world clock: it stands still with the server's)
+
+        /// <summary>The shortest time between two throws sent, seconds: the server's gap and a little more — the two clocks
+        /// do not see the time between two messages alike (the network's jitter, the server's tick).</summary>
+        private const float ThrowGap = (float)BlockThrow.ThrowGapSeconds + 0.1f;
 
         /// <summary>True while a block is held over the head.</summary>
         public bool CarryingBlock => _carryingBlock;
+
+        /// <summary>The on-foot input stood still for the action list — the pad's and the tablet's way to the carry's own
+        /// controls — and for nothing that takes the block out of the hands: the carry is not stale (<see cref="CarryTick"/>).</summary>
+        public void KeepCarry()
+        {
+            if (_carryingBlock)
+            {
+                _carryTickFrame = Time.frameCount;
+            }
+        }
 
         /// <summary>True if the hands are taken by the carry this frame: the block is up, or this frame's attack press
         /// threw it (the same press must not also mine or swing).</summary>
@@ -84,10 +99,13 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            if (InputMap.Down(InputAction.PrimaryFire) && Camera != null)
+            // The server takes one throw per BlockThrow.ThrowGapSeconds and drops a sooner one without a word — it then still
+            // has the block up while the hands here came down. Inside the gap the press does nothing: the block stays up.
+            if (InputMap.Down(InputAction.PrimaryFire) && Camera != null && Game.WorldTime - _lastThrowAt >= ThrowGap)
             {
                 var dir = Camera.transform.forward;
                 Game.Network?.SendThrowBlock(dir.x, dir.y, dir.z);
+                _lastThrowAt = Game.WorldTime;
                 _carryPrimaryFrame = Time.frameCount;
                 EndCarry(tellServer: false); // the server took the block; the hands come down
                 TriggerSwing();

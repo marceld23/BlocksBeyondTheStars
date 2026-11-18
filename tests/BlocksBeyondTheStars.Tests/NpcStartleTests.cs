@@ -92,7 +92,10 @@ public sealed class NpcStartleTests
             Fire(w, w.Player, FxActionKinds.Mine, "basic_drill");
             Fire(w, w.Player, FxActionKinds.Place, string.Empty);
             Fire(w, w.Player, FxActionKinds.Scan, "hand_scanner");
+            Fire(w, w.Player, FxActionKinds.Shot, "mining_beam");   // a tool "fired" at something sends a shot too
             Assert.Empty(Alerts(w, w.Player));
+            Assert.False(w.Server.StartlingEffect(FxActionKinds.Shot, "mining_beam"));
+            Assert.False(w.Server.StartlingEffect(FxActionKinds.Shot, "guardian_drill"));
 
             Fire(w, w.Player, FxActionKinds.Melee, "machete");      // a weapon swung
             Assert.Single(Alerts(w, w.Player));
@@ -121,6 +124,7 @@ public sealed class NpcStartleTests
             w.Server.AdvanceUptimeForTest(SvGameServer.StartleShooterGapSeconds + 0.5);
             Fire(w, w.Player, FxActionKinds.Shot, "scrap_pistol");
             Assert.Single(Alerts(w, w.Player)); // the shooter may startle again, but this NPC just called out
+            Assert.True(SvGameServer.StartlePlaceGapSeconds > SvGameServer.StartleShooterGapSeconds); // and the place rests longer than any one shooter
 
             w.Server.AdvanceUptimeForTest(SvGameServer.StartleNpcGapSeconds);
             Fire(w, w.Player, FxActionKinds.Shot, "scrap_pistol");

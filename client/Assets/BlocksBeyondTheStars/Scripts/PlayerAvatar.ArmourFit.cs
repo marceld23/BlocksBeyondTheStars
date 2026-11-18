@@ -27,8 +27,12 @@ namespace BlocksBeyondTheStars.Client
 
         private static Vector3 Size(AvatarBox box) => new Vector3(box.Width, box.Height, box.Depth);
 
-        /// <summary>Whether a chest piece of any set is worn — the suit's chest panel is under it then.</summary>
-        private bool ChestPieceWorn => GearLook.Has(_gearMask, GearLook.Chest);
+        /// <summary>Whether a chest piece that covers the chest is worn — the suit's chest panel is under it then. Not
+        /// while no mask was ever set (-1 would read as every bit: the figures that never get <see cref="SetGear"/> — the
+        /// editor's preview, the skin picture, a spacewalk suit — lost their panel), and not the flower bracelets: they
+        /// sit in the chest slot but only band the forearms.</summary>
+        private bool ChestPieceWorn
+            => _gearMask >= 0 && GearLook.Has(_gearMask, GearLook.Chest) && GearLook.ChestStyle(_gearMask) != GearLook.StyleFlower;
 
         /// <summary>Shows or hides a group of the suit's own parts (the life-support pack, the chest panel).</summary>
         private static void ShowSuitParts(List<GameObject> parts, bool shown)

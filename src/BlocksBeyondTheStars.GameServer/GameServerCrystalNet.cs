@@ -1896,7 +1896,7 @@ public sealed partial class GameServer
         _crystalPresence.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!InSpace(s.State.PlayerId) && !s.Spectating) // #3504: no sensor counts an invisible observer
+            if (!InSpace(s.State.PlayerId) && !s.Watching) // #3504: no sensor counts an invisible observer
             {
                 _crystalPresence.Add((s.State.Position, PresenceFilter.Players, s.State.PlayerId));
             }

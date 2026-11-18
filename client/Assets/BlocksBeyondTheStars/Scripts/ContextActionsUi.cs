@@ -66,14 +66,17 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.Disembark, u => u.OnFoot && u.Interactions != null && u.Interactions.CanDisembark),
             new Entry(InputAction.ToggleStationZeroG, u => u.OnFoot && u.Interactions != null && u.Interactions.CanToggleStationZeroG), // #1842
             new Entry(InputAction.LootContainer, u => u.OnFoot && u.Player != null && u.Player.NearContainer),
-            new Entry(InputAction.FeedCreature, u => u.OnFoot && u.Player != null && u.Player.CanFeedCreature), // #2018: food in hand + a begging animal near
+            // #2018: food in hand + a begging animal near. #3766: with nothing to feed the same control lifts the block in the
+            // hand and puts it back — it has no pad button and a tablet has no letters, so this list is their way to it.
+            new Entry(InputAction.FeedCreature, u => u.OnFoot && u.Player != null
+                && (u.Player.CanFeedCreature || u.Player.CanLiftBlock || u.Player.CarryingBlock)),
             new Entry(InputAction.DepositToCrate, u => u.OnFoot && u.Player != null && (u.Player.NearCrate || u.Player.CanStowToCargo)),
             new Entry(InputAction.RepairWreck, u => u.OnFoot && u.Player != null && (u.Player.NearWreck || u.Player.CanRepairOwnShip)), // own ship at its cockpit/console too (#1561 gave R that meaning; pads had no way in)
             new Entry(InputAction.StowVehicle, u => u.OnFoot && u.Player != null && u.Player.NearOwnParkedSpeeder),
             new Entry(InputAction.RecallVehicle, u => u.OnFoot && u.Player != null && u.Player.CanRecallVehicle), // at the cockpit (#1661)
             new Entry(InputAction.PingMarker, u => u.OnFoot), // "look here!" for allies + crew (#1217)
             new Entry(InputAction.EmoteWheel, u => u.OnFoot), // the emote wheel — the pad's and the tablet's way in
-            new Entry(InputAction.PrimaryFire, u => u.OnFoot && u.Player != null && u.Player.HoldsWeapon),
+            new Entry(InputAction.PrimaryFire, u => u.OnFoot && u.Player != null && (u.Player.HoldsWeapon || u.Player.CarryingBlock)), // #3766: with a block up it throws it
             new Entry(InputAction.ToggleThermal, u => u.OnFoot && u.Player != null && u.Player.BinocularsRaised),
             new Entry(InputAction.PlanetMap, u => u.OnFoot && !u.Game.InSpace),
             new Entry(InputAction.ToggleThirdPerson, u => u.OnFoot),
@@ -203,6 +206,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 DestroyCanvas();
                 SetMenuOwned(false);
+                if (Player != null)
+                {
+                    Player.KeepCarry(); // #3766: a block held up is still up — this list is the pad's way to throw it
+                }
             }
         }
 

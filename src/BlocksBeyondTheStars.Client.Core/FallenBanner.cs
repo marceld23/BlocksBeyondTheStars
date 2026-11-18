@@ -31,5 +31,21 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The banner's line: wait for a team-mate, the countdown (its <c>{0}</c> is the seconds), or the control.</summary>
         public static string LineKey(float secondsLeft)
             => secondsLeft < 0f ? "ui.fallen.wait" : secondsLeft > 0f ? "ui.fallen.countdown" : "ui.fallen.restart";
+
+        /// <summary>The banner's line as shown: the localized <paramref name="template"/> of <see cref="LineKey"/> with its
+        /// control tokens (<c>{key:Interact}</c>) expanded by <paramref name="expandKeys"/> and its <c>{0}</c> replaced by
+        /// the whole seconds left. The tokens go first and the number is put in by plain replacement: a control token is
+        /// no format item, and <c>string.Format</c> on it throws — which left the restart control dead.</summary>
+        public static string Line(string? template, float secondsLeft, System.Func<string, string>? expandKeys)
+        {
+            string text = template ?? string.Empty;
+            if (expandKeys != null)
+            {
+                text = expandKeys(text) ?? string.Empty;
+            }
+
+            int seconds = (int)System.Math.Ceiling(System.Math.Max(0f, secondsLeft));
+            return text.Replace("{0}", seconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 }

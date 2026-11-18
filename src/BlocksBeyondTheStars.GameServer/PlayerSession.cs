@@ -114,6 +114,13 @@ public sealed class PlayerSession
     /// admins may enter too — except on an official hosted world, where only a fleet admin goes invisible.</summary>
     public bool Spectating { get; set; }
 
+    /// <summary>True while the player only watches the world and is no part of it: an admin who observes
+    /// (<see cref="Spectating"/>) or a player who has fallen on a Hard Survival world (#3765). The world's proximity
+    /// rules ask this — doors, presence sensors, sleeping animals and giants, drops on the ground, the rescue from rock —
+    /// so a watcher's flying camera touches nothing. The server follows that camera (it streams the land around it),
+    /// which is why the position alone cannot tell.</summary>
+    public bool Watching => Spectating || Respawn.Fallen;
+
     /// <summary>The admin view (#3502): admin mode, its entry point, the open panel and the direct-chat conversations.</summary>
     public PlayerSessionAdmin Admin { get; } = new();
 

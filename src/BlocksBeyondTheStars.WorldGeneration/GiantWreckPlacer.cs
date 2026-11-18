@@ -24,8 +24,11 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// spacewalk — holds for it; a coined, language-neutral ship name (the localized kind "Giant ship wreck" stands beside it in
 /// every UI); a star-map spot beside a seeded planet, moon or asteroid field, clear of the other bodies.</item>
 /// </list>
-/// Which ship a wreck is (<see cref="PickDesign"/>) and the seed it is ruined with (<see cref="BuildSeed"/>) are pure functions
-/// of the world seed and the id too; the server pins the design the first time it builds the wreck.
+/// The seed a wreck is ruined with (<see cref="BuildSeed"/>) is a pure function of the world seed and the id too. Which ship it
+/// is (<see cref="PickDesign"/>) is a function of the seed, the id AND the designs it may still choose from: since #3764 a
+/// fresh pick avoids the designs the world's other wrecks already are (<see cref="Untaken"/>), so an unbuilt wreck's ship
+/// depends on which wrecks were built — and pinned — before it. The server pins the design the first time it builds the
+/// wreck; from then on it never changes.
 /// </summary>
 public static class GiantWreckPlacer
 {

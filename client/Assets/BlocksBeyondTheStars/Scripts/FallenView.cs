@@ -35,7 +35,6 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.RespawnOptionsReceived += OnRespawnOptions;
-                Game.Network.RespawnNoticeReceived += OnRespawn;
                 _subscribed = true;
             }
 
@@ -44,7 +43,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Standing again (revived, or back at the ship): the state update ends the watching.
+            // Standing again (revived, or back at the ship): the state update ends the watching — and nothing else does.
+            // A respawn notice is no sign of it: a rescue teleport sends one too, and the banner that hid on it never came
+            // back, which took the restart control with it.
             _sawSpectating |= Game.Spectating;
             if (_sawSpectating && !Game.Spectating)
             {
@@ -52,9 +53,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // The control token is expanded before the seconds go in (FallenBanner.Line): the restart line has a
+            // {key:Interact} and no {0}, and string.Format on it threw — every frame, before the press below was read.
             float left = FallenBanner.SecondsLeft(_restartIn, Time.unscaledTime - _toldAt);
-            _line.text = HudUi.ExpandKeyTokens(Game.Localizer,
-                string.Format(Tr(FallenBanner.LineKey(left)), Mathf.CeilToInt(Mathf.Max(0f, left))));
+            _line.text = FallenBanner.Line(Tr(FallenBanner.LineKey(left)), left, t => HudUi.ExpandKeyTokens(Game.Localizer, t));
             if (FallenBanner.MayRestart(left) && !Game.MenuOpen && !Game.ChatTyping && InputMap.Down(InputAction.Interact))
             {
                 Game.Network?.SendRespawnChoice(false); // the server checks it again and answers with the snap to the ship
@@ -75,14 +77,6 @@ namespace BlocksBeyondTheStars.Client
                 _fallen = true;
                 _sawSpectating = false;
                 Show();
-            }
-        }
-
-        private void OnRespawn(RespawnNotice m)
-        {
-            if (_fallen)
-            {
-                Hide(); // revived where we fell, or woken up at the ship
             }
         }
 
@@ -137,7 +131,6 @@ namespace BlocksBeyondTheStars.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.RespawnOptionsReceived -= OnRespawnOptions;
-                Game.Network.RespawnNoticeReceived -= OnRespawn;
             }
 
             // A scene-root canvas: it goes with the rig, or the banner stays over the main menu (#2936).

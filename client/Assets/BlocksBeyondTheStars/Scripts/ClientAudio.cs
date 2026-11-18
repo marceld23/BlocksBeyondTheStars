@@ -1045,7 +1045,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (clip != null)
             {
-                _src.PlayOneShot(clip, Mathf.Clamp01(vol * SfxVol()));
+                _src.PlayOneShot(clip, Mathf.Clamp01(vol * SfxVol() * UiShare(clip)));
             }
         }
 

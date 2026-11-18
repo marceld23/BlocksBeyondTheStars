@@ -257,7 +257,11 @@ namespace BlocksBeyondTheStars.Client
         private float _cargoFlash;        // pulses the cargo readout when salvage is tractored in
 
         // Ship-systems quick-bar (1–9 select, LMB use): fire the laser, sweep the tractor beam, …
-        private float _fireCd;            // shot/use cooldown
+        // The server keeps the cooldown per weapon, so each weapon waits for its own only — one shared timer left every
+        // weapon dead for the ion pulse's 5 s, longer than its stun lasts. The world time each one is ready again
+        // (the server's clock stands still while the world is held), and the tractor's own.
+        private readonly Dictionary<string, float> _weaponReadyAt = new Dictionary<string, float>();
+        private float _tractorReadyAt;
         private string _fireTargetId;     // the entity currently in the firing solution (for the reticle)
         private int _selectedSystem;      // index into _systems
         private readonly List<ShipSystem> _systems = new List<ShipSystem>();
@@ -284,6 +288,15 @@ namespace BlocksBeyondTheStars.Client
             var stats = Game.Content?.GetShipModule(weaponKey)?.Stats;
             return stats != null && stats.TryGetValue("weapon_cooldown", out var v) ? (float)v : FireRate;
         }
+
+        /// <summary>Whether this weapon's own cooldown has run out — whatever the others are doing, and whether or
+        /// not it was selected in between.</summary>
+        private bool WeaponReady(string weaponKey)
+            => !_weaponReadyAt.TryGetValue(weaponKey, out float readyAt) || Game.WorldTime >= readyAt;
+
+        /// <summary>The weapon fired: it, and only it, waits for its cooldown.</summary>
+        private void StartWeaponCooldown(string weaponKey)
+            => _weaponReadyAt[weaponKey] = Game.WorldTime + WeaponCooldownFor(weaponKey);
 
         private struct ShipSystem { public string Label; public string Kind; public string WeaponKey; }
 
@@ -547,8 +560,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _seq = 0f;
-            _yaw = 0f;
-            _pitch = 0f;
+            _yaw = _pitch = 0f;
+            ResetFlightFeel(); // the last flight's lean, speed and chase camera do not carry over (SpaceView.Feel.cs)
             _confirmLand = false;
             HideLandMap();
             _dockHandoff.Reset();

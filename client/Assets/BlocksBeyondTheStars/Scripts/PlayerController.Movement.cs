@@ -66,7 +66,7 @@ namespace BlocksBeyondTheStars.Client
                 move += Vector3.up * speed;
             }
 
-            if (InputMap.CrouchHeld())
+            if (InputMap.DescendHeld())
             {
                 move -= Vector3.up * speed;
             }
@@ -269,8 +269,7 @@ namespace BlocksBeyondTheStars.Client
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
-            bool inWater = IsSubmerged();
-            bool onLadder = !inWater && OnLadder();
+            ProbeFooting(out bool inWater, out bool onLadder); // swimming, or on a ladder out of the water
             UpdateFloorWait(grounded);
 
             // Crouch/sneak: shrink the capsule + slow the walk while held on the ground.
@@ -371,7 +370,7 @@ namespace BlocksBeyondTheStars.Client
                 // Climbing (Minecraft-style): no gravity while on a ladder. Hold Jump or push forward to go up,
                 // crouch (Ctrl/C) or pull back to go down; otherwise cling with a gentle slide. (#126)
                 bool up = InputMap.JumpHeld() || v > 0.1f;
-                bool down = InputMap.CrouchHeld() || v < -0.1f;
+                bool down = InputMap.DescendHeld() || v < -0.1f;
                 _verticalVelocity = up ? ClimbSpeed : (down ? -ClimbSpeed : -1f);
             }
             else if (roped)
@@ -393,7 +392,7 @@ namespace BlocksBeyondTheStars.Client
                 // Creative flight: no gravity at all. Jump rises, crouch (Ctrl/C) sinks, and letting go holds
                 // altitude — the same feel as Minecraft's creative flight. Collision stays ON (this is flight,
                 // not the observer mode's noclip), so you can still land on and build against things.
-                _verticalVelocity = (InputMap.JumpHeld() ? FlySpeed : 0f) - (InputMap.CrouchHeld() ? FlySpeed : 0f);
+                _verticalVelocity = (InputMap.JumpHeld() ? FlySpeed : 0f) - (InputMap.DescendHeld() ? FlySpeed : 0f);
             }
             else if (grounded)
             {
@@ -401,7 +400,7 @@ namespace BlocksBeyondTheStars.Client
                 bool tapped = _jumpAssist.BufferedPress;
                 if ((InputMap.JumpHeld() || tapped) && !_climbJumpLatch)
                 {
-                    BeginJump(cue: tapped); // the sound belongs to a press, not to a key held through a row of hops
+                    BeginJump(cue: tapped || InputMap.JumpDown()); // the sound belongs to a press, not to a key held through a row of hops
                 }
                 else
                 {
@@ -415,7 +414,7 @@ namespace BlocksBeyondTheStars.Client
                 // suit sinks slowly back toward the air (#2276) — walking off a summit that pokes into space used to
                 // float the player out at summit height with no idea how to get down. Jump still rises (tower building).
                 bool up = InputMap.JumpHeld();
-                bool down = InputMap.CrouchHeld();
+                bool down = InputMap.DescendHeld();
                 float lift = up || down
                     ? (up ? SpaceFloatSpeed : 0f) - (down ? SpaceFloatSpeed : 0f)
                     : (Game.OnFootAbovePlanet ? -SpaceSinkSpeed : 0f);
@@ -567,6 +566,26 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _wasGrounded = grounded;
+        }
+
+        private int _footingFrame = -1; // the frame the two answers below were probed in
+        private bool _footingInWater;
+        private bool _footingOnLadder;
+
+        /// <summary>Whether the body swims, or stands on a ladder out of the water (swimming wins) — probed once per frame.
+        /// The walk's curve (<see cref="ReadWalkInput"/>) asks at the top of <see cref="Move"/>, the movement chain a few
+        /// lines on with the body still in the same place; the second asker gets the first one's answer.</summary>
+        private void ProbeFooting(out bool inWater, out bool onLadder)
+        {
+            if (Time.frameCount != _footingFrame)
+            {
+                _footingFrame = Time.frameCount;
+                _footingInWater = IsSubmerged();
+                _footingOnLadder = !_footingInWater && OnLadder();
+            }
+
+            inWater = _footingInWater;
+            onLadder = _footingOnLadder;
         }
 
         /// <summary>True when the player's upper body sits in water — the cue to switch to swimming (sampled at chest

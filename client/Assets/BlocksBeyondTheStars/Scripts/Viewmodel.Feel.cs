@@ -12,7 +12,9 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class Viewmodel
     {
-        private const float SwayPerLook = 0.0035f;  // metres of trail per unit of look input
+        private const float SwayPerLook = 0.0035f;  // metres of trail per unit of look input, as a 60 fps frame delivers it
+        private const float SwayLookFrame = 1f / 60f; // the frame length SwayPerLook was tuned at, seconds
+        private const float SwayMinFrame = 0.002f;  // a frame shorter than this counts as this long (no blown-up look rate)
         private const float SwayLimit = 0.022f;     // the furthest the item trails, metres
         private const float SwayFollowRate = 11f;   // how fast the trail follows / settles (per second)
         private const float SwayTiltPerMetre = 220f; // degrees of roll and pitch per metre of trail
@@ -36,10 +38,13 @@ namespace BlocksBeyondTheStars.Client
             _prevVy = vy;
             _landDip *= Mathf.Exp(-LandDipRecover * dt);
 
-            var want = FxKit.CameraMotion
+            // The look input is what one FRAME turned, so the same turn reads twice as large at 30 fps as at 60: it is
+            // brought to the turn of a 60 fps frame first. Behind a menu the pointer moves, not the view — no trail then.
+            float perFrame = SwayPerLook * SwayLookFrame / Mathf.Max(dt, SwayMinFrame);
+            var want = FxKit.CameraMotion && !LookHeldElsewhere()
                 ? new Vector2(
-                    Mathf.Clamp(-InputMap.LookX() * SwayPerLook, -SwayLimit, SwayLimit),
-                    Mathf.Clamp(InputMap.LookY() * SwayPerLook, -SwayLimit, SwayLimit))
+                    Mathf.Clamp(-InputMap.LookX() * perFrame, -SwayLimit, SwayLimit),
+                    Mathf.Clamp(InputMap.LookY() * perFrame, -SwayLimit, SwayLimit))
                 : Vector2.zero;
             _sway = Vector2.Lerp(_sway, want, FlightFeel.Follow(SwayFollowRate, dt));
 
@@ -48,5 +53,11 @@ namespace BlocksBeyondTheStars.Client
             rot += new Vector3(-_sway.y * SwayTiltPerMetre, 0f, -_sway.x * SwayTiltPerMetre);
             posL += new Vector3(_sway.x, _sway.y - dip, 0f);
         }
+
+        /// <summary>True while the look input does not turn the view — a menu, the chat, a cutscene or the death screen
+        /// owns it (the cases in which <see cref="PlayerController"/> and the spacewalk stop looking around).</summary>
+        private bool LookHeldElsewhere()
+            => Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive || Game.AwaitingRespawnConfirm
+                                || GameBootstrap.CutsceneActive || OnScreenKeyboardUi.IsOpen);
     }
 }

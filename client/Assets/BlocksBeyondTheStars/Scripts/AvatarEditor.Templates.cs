@@ -35,8 +35,9 @@ namespace BlocksBeyondTheStars.Client
 
         private List<SkinDefinition> FreeSkins() => AppearanceTemplates.OfferedSkins(Shell?.Content, null);
 
-        /// <summary>Puts a skin template on the scratch look: its colours (an empty entry keeps the current one) and its
-        /// four paintings; the face stays. Returns the outfit column's status line.</summary>
+        /// <summary>Puts a skin template on the scratch look: its colours (an empty entry keeps the current one), its four
+        /// paintings and — when the template carries one (#3770) — its face, which replaces the scratch look's; without
+        /// one the face stays. Returns the outfit column's status line.</summary>
         private string WearSkinTemplate(int index)
         {
             var skins = FreeSkins();

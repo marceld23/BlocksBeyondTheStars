@@ -169,7 +169,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Grabbing is deliberate: in the air, pushing at the wall, not letting go, and not flying the jetpack —
                 // holding Jump with a jetpack keeps you flying; an empty tank at a cliff lets you grab it instead.
-                if (wish.sqrMagnitude < 0.09f || InputMap.CrouchHeld() || (holding && CanJetpack()))
+                if (wish.sqrMagnitude < 0.09f || InputMap.DescendHeld() || (holding && CanJetpack()))
                 {
                     return false;
                 }
@@ -204,7 +204,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Drop off on purpose (crouch), or because there is nothing left to hold.
-            if (InputMap.CrouchHeld())
+            if (InputMap.DescendHeld())
             {
                 LetGo(push: true);
                 return false;

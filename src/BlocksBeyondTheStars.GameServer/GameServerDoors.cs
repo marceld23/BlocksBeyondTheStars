@@ -268,7 +268,7 @@ public sealed partial class GameServer
         _doorTargets.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!InSpace(s.State.PlayerId) && !s.Spectating)
+            if (!InSpace(s.State.PlayerId) && !s.Watching)
             {
                 _doorTargets.Add(s.State.Position);
             }

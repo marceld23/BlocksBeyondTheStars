@@ -276,7 +276,6 @@ public sealed partial class GameServer
     /// world (a shared first-aid pulse) — item 36.</summary>
     private void UseFieldMedkit(PlayerSession user)
     {
-        ReviveFallenNear(user); // #3765: a Hard Survival world — whoever fell here stands up again
         foreach (var s in MedkitReach(user))
         {
             var t = s.State;
@@ -287,6 +286,10 @@ public sealed partial class GameServer
                 SendPlayerState(s);
             }
         }
+
+        // #3765: a Hard Survival world — whoever fell here stands up again. After the heal, not before it: a revived
+        // player is in the pulse's reach too and would be healed a second time (90 health instead of the 45 a revive gives).
+        ReviveFallenNear(user);
     }
 
     /// <summary>Freezes every creature within <see cref="StasisRadius"/> of the aim point for

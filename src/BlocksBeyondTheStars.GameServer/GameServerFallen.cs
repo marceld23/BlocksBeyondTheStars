@@ -52,12 +52,16 @@ public sealed partial class GameServer
         r.FallenSalvaged = salvaged;
         r.FallenRestartNow = false;
         r.FallenToldRestartIn = float.NaN;
+        r.FallenHunger = p.Hunger;
         p.Milestones.Add(FallenMarker);
 
-        // Watching: nothing hurts, nothing hunts, the body flies. The hands are empty.
+        // Watching: nothing hurts, nothing hunts, the body flies. The hands are empty — and the suit rests: a jetpack
+        // or a cloak left on would drain its energy to nothing while the client's "off" is no longer listened to.
         p.GodMode = true;
         p.Fly = true;
         p.Health = 100f;
+        p.Jetpacking = false;
+        p.Stealthed = false;
         p.Gliding = false;
         p.RopeAnchor = null;
         p.Seated = false;
@@ -260,7 +264,13 @@ public sealed partial class GameServer
         session.AwaitingSpawnAdopt = true; // ignore the watcher's pose until the client has snapped back (#865)
         p.Health = MedkitHealAmount;
         p.Oxygen = MaxOxygen(p);
-        p.Hunger = System.Math.Max(p.Hunger, FallenRules.RevivedHunger);
+        p.Hunger = System.Math.Max(session.Respawn.FallenHunger, FallenRules.RevivedHunger);
+        // The cold or the heat that felled them must not strike again in the first second: the meter starts empty, as
+        // it does aboard (TemperatureSystem).
+        p.Exposure = 0f;
+        session.Hazards.ExposureActive = false;
+        session.Hazards.ExposureFullSeconds = 0;
+        session.Hazards.ExposureWarned = 0;
         Send(session, new RespawnNotice { X = at.X, Y = at.Y, Z = at.Z, Reason = "@srv.fallen.revived", Died = false });
         SendPlayerState(session);
         Send(medic, new ServerMessage { Text = Localize(medic.Locale, "srv.fallen.you_revived").Replace("{player}", p.Name) });
@@ -306,11 +316,26 @@ public sealed partial class GameServer
         p.Health = 100f;
     }
 
+    /// <summary>The world leaves Hard Survival's death rule while somebody is watching (<c>/gamemode</c>): a medkit no
+    /// longer revives then, so every fallen player may start again at the ship at once — nobody is left waiting for a
+    /// rescue that cannot come.</summary>
+    private void ReleaseFallenForRestart()
+    {
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && s.Respawn.Fallen)
+            {
+                s.Respawn.FallenRestartNow = true; // TickFallen tells the client: the answer changed kind
+            }
+        }
+    }
+
     /// <summary>The intents a fallen player may still send: moving the watching camera, talking, the far view and the
-    /// star map to look at, asking for help — and the wish to start again.</summary>
+    /// star map to look at, asking for help, the pause — a fallen player counts for the hold like everybody
+    /// (RecomputePause), so without it nobody could pause while one watches — and the wish to start again.</summary>
     private static bool FallenMayHandle(object message) => message switch
     {
-        MoveIntent or ChatIntent or RespawnChoiceIntent or SelectHotbarIntent or BumpReport => true,
+        MoveIntent or ChatIntent or RespawnChoiceIntent or SelectHotbarIntent or BumpReport or PauseIntent => true,
         RequestStarMap or FarTerrainTileRequest => true,
         SetAppearanceIntent or SetFaceIntent => true,
         CallAdminIntent or PlayerReportIntent or DirectChatIntent => true,

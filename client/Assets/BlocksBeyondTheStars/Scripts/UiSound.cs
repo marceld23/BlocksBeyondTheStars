@@ -136,6 +136,25 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A tab or page changes.</summary>
         public static void Tab() => Play("ui_tab");
+
+        /// <summary>A new status line came up on the HUD: a small ping, at most one every
+        /// <see cref="ToastGapSeconds"/> — a run of server messages must not rattle.</summary>
+        public static void Toast()
+        {
+            float now = Time.unscaledTime;
+            if (now - _lastToast < ToastGapSeconds && now >= _lastToast)
+            {
+                return;
+            }
+
+            _lastToast = now;
+            Play("ui_toast");
+        }
+
+        /// <summary>The least time between two toast pings, seconds.</summary>
+        private const float ToastGapSeconds = 2f;
+
+        private static float _lastToast = -ToastGapSeconds;
     }
 
     /// <summary>Plays a UI hover blip when the pointer enters the element (added to UiKit buttons).</summary>

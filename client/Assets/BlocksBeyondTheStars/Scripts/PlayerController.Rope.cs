@@ -242,7 +242,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_rope.Pulling || _rope.Hanging)
             {
-                if (InputMap.CrouchHeld())
+                if (InputMap.DescendHeld())
                 {
                     ReleaseRope();
                     return false;

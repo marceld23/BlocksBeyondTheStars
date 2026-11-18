@@ -382,42 +382,38 @@ public sealed partial class GameServer
             // client's lunge and attack call use the same reach, so no bite lands silently any more.
             float prox = CreatureReach.BiteRange(sp.Size);
 
+            // A chunk-biter lands ONE bite per interval, on the nearest player it can reach (GameServerHounds.cs); a
+            // drainer hurts everybody in its reach (who may be bitten at all: BiteCanReach).
+            bool chunks = CreatureReach.BitesInChunks(sp);
+            var only = chunks ? NearestBiteTarget(creature, reactors, prox) : null;
             foreach (var session in reactors)
             {
                 var p = session.State;
-                // Cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected — nor is a body awaiting
-                // its respawn choice (#3188): another bite would only replay the death. #3365: an animal in a duel or a pack
-                // defence bites its one player only.
-                if (HostilesIgnore(p) || session.Respawn.ChoicePending || !MayFight(creature, p.PlayerId)
-                    || BiteOverlooked(creature, session)) // #3354: a Soundrak leaves the calm disc's wearer alone
+                if (chunks ? !ReferenceEquals(session, only) : !BiteCanReach(creature, session, prox))
                 {
                     continue;
                 }
 
-                if (WrapDistSq(p.Position, creature.Position) <= prox * prox
-                    && HasLineOfSight(creature.Position, p.Position)) // no bite through a wall — break sight (cover/cave) to stop it
+                float bite = BiteThisTick(creature, sp, dt); // #3326: the Schuppenhund bites in chunks, the rest drain
+                if (bite <= 0f && chunks)
                 {
-                    float bite = BiteThisTick(creature, sp, dt); // #3326: the Schuppenhund bites in chunks, the rest drain
-                    if (bite <= 0f && CreatureReach.BitesInChunks(sp))
-                    {
-                        continue; // between two bites
-                    }
+                    continue; // between two bites
+                }
 
-                    // While driving a speeder its hull soaks most of the bite (the player is shielded by the chassis).
-                    if (TryGetDrivenSpeeder(p, out var speeder))
-                    {
-                        DamageSpeeder(speeder, bite * SpeederCreatureDamageShare, "wildlife");
-                        bite *= 1f - SpeederCreatureDamageShare;
-                    }
+                // While driving a speeder its hull soaks most of the bite (the player is shielded by the chassis).
+                if (TryGetDrivenSpeeder(p, out var speeder))
+                {
+                    DamageSpeeder(speeder, bite * SpeederCreatureDamageShare, "wildlife");
+                    bite *= 1f - SpeederCreatureDamageShare;
+                }
 
-                    DamagePlayer(p, bite, mitigated: true);
-                    NoteCombat(session); // #2286
-                    NoteHitFrom(session, creature, creature.Position); // #2564: the HUD marker points at this animal
-                    MarkPlayerStateDirty(session); // #1530
-                    if (p.Health <= 0f)
-                    {
-                        RespawnPlayer(session, "@srv.death.wildlife");
-                    }
+                DamagePlayer(p, bite, mitigated: true);
+                NoteCombat(session); // #2286
+                NoteHitFrom(session, creature, creature.Position); // #2564: the HUD marker points at this animal
+                MarkPlayerStateDirty(session); // #1530
+                if (p.Health <= 0f)
+                {
+                    RespawnPlayer(session, "@srv.death.wildlife");
                 }
             }
         }
@@ -439,7 +435,7 @@ public sealed partial class GameServer
             if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
             {
                 _creatureTargets.Add(s);
-                if (!s.Spectating && !RidesTrain(s))
+                if (!s.Watching && !RidesTrain(s))
                 {
                     _creatureReactors.Add(s);
                 }

@@ -43,7 +43,8 @@ namespace BlocksBeyondTheStars.Client
         // Standard action buttons — the continuous/pointer core that was NOT rebindable before.
         bool JumpHeld();
         bool JumpDown();
-        bool CrouchHeld();    // descend / climb-down (Ctrl/C on keyboard)
+        bool CrouchHeld();    // sneak on the ground (Ctrl/C on keyboard — a hold, or a switch with InputMap.CrouchToggle)
+        bool DescendHeld();   // the same control as a plain hold: sink / climb down / let go / stand up — never the switch
         bool PrimaryDown();   // mine / attack / scan tap (left mouse)
         bool PrimaryHeld();   // keep-mining hold (left mouse held)
         bool SecondaryDown(); // place block / use held item (right mouse)

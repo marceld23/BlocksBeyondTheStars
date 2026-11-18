@@ -682,7 +682,7 @@ namespace BlocksBeyondTheStars.Client
                     if (e.Zzz != null) Destroy(e.Zzz);             // sleep label is under the game root too
                     Destroy(e.Root);
                     _creatures.Remove(id);
-                    EnemyHealthBars.Forget(id);
+                    EnemyHealthBars.Forget(Game, id, defeated); // a defeat (not a despawn) gives the killing blow's tick first
                     UnregisterGiant(id); // #1998
                 }
             }

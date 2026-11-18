@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.State;
+
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
@@ -113,6 +115,15 @@ public sealed class AvatarArmourFitTests
         Assert.Contains("_suitChest.Add(AddCube(\"SuitChestPanel\"", avatar);
         Assert.Contains("_suitChest.Add(AddCube(\"SuitStatusLight\"", avatar);
         Assert.Contains("ShowSuitParts(_suitChest, _visible && !ChestPieceWorn);", avatar);
-        Assert.Contains("private bool ChestPieceWorn => GearLook.Has(_gearMask, GearLook.Chest);", Script("PlayerAvatar.ArmourFit.cs"));
+
+        // A piece that covers the chest — not a mask nobody set yet (-1 reads as every bit: the preview figure, the skin
+        // picture and a spacewalk suit lost their panel), and not the flower bracelets, which sit in the chest slot but
+        // only band the forearms.
+        Assert.Contains(
+            "=> _gearMask >= 0 && GearLook.Has(_gearMask, GearLook.Chest) && GearLook.ChestStyle(_gearMask) != GearLook.StyleFlower;",
+            Script("PlayerAvatar.ArmourFit.cs"));
+        Assert.True(GearLook.Has(-1, GearLook.Chest)); // why the sign is asked first
+        int bracelets = GearLook.Chest | (GearLook.StyleFlower << GearLook.ChestStyleShift);
+        Assert.Equal(GearLook.StyleFlower, GearLook.ChestStyle(bracelets));
     }
 }

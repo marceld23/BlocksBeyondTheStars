@@ -80,6 +80,41 @@ public sealed class HardSurvivalWiringTests
         Assert.Contains("Game.Network?.SendRespawnChoice(false);", view);
         Assert.Contains("_sawSpectating && !Game.Spectating", view); // standing again ends it
         Assert.DoesNotContain("AwaitingRespawnConfirm", view);       // the watcher keeps flying: no gate, no cursor
+
+        // The line is built by FallenBanner.Line — never by string.Format on the localized text (see the test below) —
+        // and no stray RespawnNotice (a rescue teleport) may wipe the banner: only the state ends it.
+        Assert.Contains("FallenBanner.Line(Tr(FallenBanner.LineKey(left)), left,", view);
+        Assert.DoesNotContain("string.Format(", view);
+        Assert.DoesNotContain("RespawnNoticeReceived", view);
+    }
+
+    [Fact]
+    public void TheBannersLine_ExpandsItsControl_AndCountsDown_WithoutFormatting()
+    {
+        // The restart line is "{key:Interact}: start again at your ship". string.Format on it threw a FormatException
+        // every frame once the countdown reached zero — before the press was read — so a lone player could never
+        // restart. The real texts of both languages go through the line builder here.
+        foreach (string code in new[] { "en", "de" })
+        {
+            var table = ContentLoader.ParseLocaleTable(File.ReadAllText(Path.Combine(ClientTestPaths.DataDir(), "locales", code + ".json")));
+            static string Expand(string text) => text.Replace("{key:Interact}", "[E]");
+
+            string restart = FallenBanner.Line(table[FallenBanner.LineKey(0f)], 0f, Expand);
+            Assert.StartsWith("[E]", restart);
+            Assert.DoesNotContain("{", restart);
+
+            string countdown = FallenBanner.Line(table[FallenBanner.LineKey(12.3f)], 12.3f, Expand);
+            Assert.Contains("13", countdown); // whole seconds, rounded up
+            Assert.DoesNotContain("{0}", countdown);
+
+            string wait = FallenBanner.Line(table[FallenBanner.LineKey(FallenRules.WaitForTeam)], FallenRules.WaitForTeam, Expand);
+            Assert.Equal(table["ui.fallen.wait"], wait);
+        }
+
+        Assert.Equal(string.Empty, FallenBanner.Line(null, 5f, null));              // no text yet: nothing, not a crash
+        Assert.Equal("in 5 s", FallenBanner.Line("in {0} s", 4.2f, null));          // no expander: the number still goes in
+        string restartText = "{key:Interact}: go";
+        Assert.Throws<FormatException>(() => string.Format(System.Globalization.CultureInfo.InvariantCulture, restartText, 0)); // why the builder exists
     }
 
     [Fact]

@@ -203,6 +203,7 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _hover, _focus, _finger;
         private float _since;
+        private Canvas _canvas;
 
         public void OnPointerEnter(PointerEventData eventData)
         {
@@ -255,7 +256,23 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if ((!_hover && !_focus) || UiTooltip.IsShownFor(this))
+            if (!_hover && !_focus)
+            {
+                return;
+            }
+
+            // A window that closes by switching its canvas off (the Tab menu) leaves its slots active and the pad's
+            // focus on one of them: no deselect and no disable ever arrives, so the tooltip would stay — or pop up —
+            // beside a slot nobody sees.
+            if (!CanvasShowing())
+            {
+                _hover = false;
+                _focus = false;
+                UiTooltip.Hide(this);
+                return;
+            }
+
+            if (UiTooltip.IsShownFor(this))
             {
                 return;
             }
@@ -266,6 +283,25 @@ namespace BlocksBeyondTheStars.Client
                 UiTooltip.Show(this, besideElement: _focus && !_hover);
             }
         }
+
+        /// <summary>Whether the canvas this element is drawn on is showing — its own and the root above it. Looked up
+        /// once and kept (only asked while the element is pointed at or focused); an element without a canvas counts
+        /// as showing.</summary>
+        private bool CanvasShowing()
+        {
+            if (_canvas == null)
+            {
+                _canvas = GetComponentInParent<Canvas>();
+                if (_canvas == null)
+                {
+                    return true;
+                }
+            }
+
+            return _canvas.enabled && _canvas.rootCanvas.enabled;
+        }
+
+        private void OnTransformParentChanged() => _canvas = null; // moved to another window: look the canvas up again
 
         private void OnDisable()
         {

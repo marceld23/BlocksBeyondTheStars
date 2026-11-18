@@ -166,6 +166,70 @@ public sealed class PlayerEmoteTests : IDisposable
         Assert.Contains(PlayerEmotes.Down, EmotesTo(transport, watcher.ConnectionId).Select(e => e.Emote));
     }
     [Fact]
+    public void DamageThatTicks_IsSeenNotHeard_ABlowIsHeard_AndACloakedFigureTellsNothing()
+    {
+        var transport = new RecordingTransport();
+        var server = Started("emotes_quiet", transport);
+        var victim = server.AddLocalPlayer("Victim");
+        var watcher = server.AddLocalPlayer("Watcher");
+        victim.State.AboardShip = false;
+        watcher.State.AboardShip = false;
+        watcher.State.Position = victim.State.Position;
+        victim.State.Health = 100f;
+        server.TickForTest(1.0 / 15.0); // a real tick: the line between ticking damage and a blow is measured against its length
+        victim.State.Health = 100f;
+        transport.Sent.Clear();
+
+        // Thin air takes 5 health a second — a sliver per tick. The others see the flinch; a grunt with each would never stop.
+        server.HurtForTest("Victim", 5f / 15f);
+        var flinch = Assert.Single(EmotesTo(transport, watcher.ConnectionId));
+        Assert.Equal(PlayerEmotes.Hurt, flinch.Emote);
+        Assert.True(flinch.Quiet);
+
+        // A bite right behind it is heard — the silent flinch's pace does not swallow a blow.
+        transport.Sent.Clear();
+        server.HurtForTest("Victim", 12f);
+        var blow = Assert.Single(EmotesTo(transport, watcher.ConnectionId));
+        Assert.Equal(PlayerEmotes.Hurt, blow.Emote);
+        Assert.False(blow.Quiet);
+
+        // A cloaked figure is hidden on every other client; its emotes and flinches must not be heard where it stands.
+        victim.State.Stealthed = true;
+        transport.Sent.Clear();
+        server.TickForTest(SvGameServer.EmoteCooldownSeconds + 0.2);
+        victim.State.Stealthed = true; // the tick may have run the suit's energy down
+        transport.Sent.Clear();
+        server.HurtForTest("Victim", 12f);
+        server.EmoteForTest("Victim", PlayerEmotes.Wave);
+        Assert.Empty(EmotesTo(transport, watcher.ConnectionId));
+    }
+
+    [Fact]
+    public void GettingUpFromSitting_IsItsOwnEmote_ThatAPlayerMaySend()
+    {
+        // Sit as a switch could arrive inverted (a player who came near later saw the figure sit when it stood).
+        Assert.True(PlayerEmotes.MaySend(PlayerEmotes.Stand));
+        Assert.False(PlayerEmotes.IsPlayable(PlayerEmotes.Stand)); // not one of the wheel's nine
+        Assert.False(PlayerEmotes.MaySend(PlayerEmotes.Hurt));
+        Assert.False(PlayerEmotes.MaySend(PlayerEmotes.Down));
+        Assert.False(PlayerEmotes.MaySend(PlayerEmotes.Up));
+
+        var transport = new RecordingTransport();
+        var server = Started("emotes_stand", transport);
+        var player = server.AddLocalPlayer("Player");
+        var watcher = server.AddLocalPlayer("Watcher");
+        player.State.AboardShip = false;
+        watcher.State.AboardShip = false;
+        watcher.State.Position = player.State.Position;
+        transport.Sent.Clear();
+
+        server.EmoteForTest("Player", PlayerEmotes.Sit);
+        server.TickForTest(SvGameServer.EmoteCooldownSeconds + 0.2);
+        server.EmoteForTest("Player", PlayerEmotes.Stand);
+        Assert.Equal(new[] { PlayerEmotes.Sit, PlayerEmotes.Stand }, EmotesTo(transport, watcher.ConnectionId).Select(e => e.Emote));
+    }
+
+    [Fact]
     public void AHitAndAFall_AreHeardInTheFiguresOwnVoice()
     {
         // #3767: the voice travels with the colours; the server keeps it (sanitized) and hands it on with the flinch and

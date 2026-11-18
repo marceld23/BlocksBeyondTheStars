@@ -146,7 +146,7 @@ public sealed partial class GameServer
         _guardianGiantOnFoot.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (s.Spectating || InSpace(s.State.PlayerId) || s.State.Health <= 0f)
+            if (s.Watching || InSpace(s.State.PlayerId) || s.State.Health <= 0f)
             {
                 continue;
             }

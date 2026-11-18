@@ -707,7 +707,7 @@ public sealed partial class GameServer
 
             foreach (var s in JoinedInActiveWorld())
             {
-                if (!s.Spectating && OnFootHere(s)
+                if (!s.Watching && OnFootHere(s)
                     && WrapDistSq(s.State.Position, l.Center) <= LodgeRevealRange * (double)LodgeRevealRange)
                 {
                     RevealPoi(l.RevealKey);

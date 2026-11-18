@@ -25,6 +25,8 @@ namespace BlocksBeyondTheStars.Client
         private readonly WalkInertia _walk = new WalkInertia();
         private readonly StepSmoothing _stepSmooth = new StepSmoothing();
         private float _thirdPersonY = float.NaN; // the height the third-person camera has followed to (NaN = snap next frame)
+        private int _walkFrame = -1;       // the frame the walk input was last eased in (ReadWalkInput)
+        private int _jumpAssistFrame = -1; // the frame the jump assist was last fed in (TickJumpAssist)
 
         /// <summary>This frame's movement input: the raw keys and stick, eased by the walk's own curve. A capture walk
         /// (screenshots, clips) keeps its scripted values.</summary>
@@ -37,9 +39,23 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A menu, the chat, a seat, a bed, a speeder or the helm had the input and this step did not run: what the keys
+            // said before is no step now (on a ledge it would be one too many) — the body stands until it is asked again.
+            if (Time.frameCount - _walkFrame > 1)
+            {
+                _walk.Reset();
+            }
+
+            _walkFrame = Time.frameCount;
+
             // A hold under the feet or the hands answers at once; the air and the water carry the body on.
             bool firm = (Game != null && Game.Spectating)
                 || (_controller.enabled && _controller.isGrounded) || _climbing || _pullingUp || _flying;
+            if (!firm)
+            {
+                ProbeFooting(out _, out firm); // a ladder's rungs are a hold too
+            }
+
             _walk.Step(InputMap.MoveXRaw(), InputMap.MoveYRaw(), Time.deltaTime, firm);
             h = _walk.X;
             v = _walk.Y;
@@ -48,6 +64,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Feeds the jump's edge grace and remembered tap — only the free body (walking, falling) has them.</summary>
         private void TickJumpAssist(bool grounded, bool special)
         {
+            // The on-foot step was skipped (a menu, a seat, a pull-up): a tap or an edge from before it is no jump now.
+            if (Time.frameCount - _jumpAssistFrame > 1)
+            {
+                _jumpAssist.Clear();
+            }
+
+            _jumpAssistFrame = Time.frameCount;
             bool free = !special && !_flying && !_awaitingFloor && !(Game != null && Game.OnFootInSpace);
             _jumpAssist.Tick(Time.deltaTime, free, grounded, InputMap.JumpDown());
         }

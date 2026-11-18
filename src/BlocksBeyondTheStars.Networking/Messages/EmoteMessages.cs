@@ -27,6 +27,11 @@ public sealed class PlayerEmote
     /// <see cref="PlayerEmotes.Down"/> — the pain grunt and the fall are heard in it; 0 = the middle voice, and what an older
     /// server sends. Additive contractless field.</summary>
     public int Voice { get; set; }
+
+    /// <summary>A <see cref="PlayerEmotes.Hurt"/> that is seen but not heard: the damage ticks (thin air, cold, fire) and a
+    /// grunt with every flinch would never stop. False for a real blow — and what an older server sends, whose flinches
+    /// are all heard. Additive contractless field.</summary>
+    public bool Quiet { get; set; }
 }
 
 /// <summary>The emotes a player can play, and the body states the server reports through the same message.</summary>
@@ -56,7 +61,8 @@ public static class PlayerEmotes
     /// <summary>Clapping.</summary>
     public const byte Clap = 7;
 
-    /// <summary>Sits down where it stands; the next step or emote gets it up again.</summary>
+    /// <summary>Sits down where it stands; the next step or emote gets it up again — and so does <see cref="Stand"/>,
+    /// which the wheel sends when its Sit is picked by a figure that already sits.</summary>
     public const byte Sit = 8;
 
     /// <summary>A bow.</summary>
@@ -74,6 +80,14 @@ public static class PlayerEmotes
     /// <summary>Body state (server only): the figure is back on its feet.</summary>
     public const byte Up = 102;
 
-    /// <summary>Whether a player may send <paramref name="emote"/> itself.</summary>
+    /// <summary>Gets up from sitting. Its own id, because <see cref="Sit"/> as a switch could arrive inverted: a player
+    /// who came near later, or one press the pace dropped, and the figure sat for the others when it stood. A player
+    /// may send it (<see cref="MaySend"/>); an older client does not know the id and shows nothing.</summary>
+    public const byte Stand = 103;
+
+    /// <summary>Whether <paramref name="emote"/> is one of the wheel's emotes.</summary>
     public static bool IsPlayable(byte emote) => emote >= Wave && emote <= LastPlayable;
+
+    /// <summary>Whether a player may send <paramref name="emote"/> itself: the wheel's emotes and the rise from sitting.</summary>
+    public static bool MaySend(byte emote) => IsPlayable(emote) || emote == Stand;
 }

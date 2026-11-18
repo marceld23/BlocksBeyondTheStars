@@ -109,51 +109,17 @@ namespace BlocksBeyondTheStars.Client
             _pinBody.text = _pinText.ToString();
         }
 
-        /// <summary>How many of an ingredient the player carries, wears or has in the hold — a group ingredient (any
-        /// log) counts every member of its group, like the crafting menu does.</summary>
-        private int OwnedForPin(ItemAmount need)
-        {
-            int n = CountForPin(need.Item);
-            if (!string.IsNullOrEmpty(need.Group) && Game.Content != null)
-            {
-                foreach (var member in Game.Content.GroupMembersOf(need))
-                {
-                    if (member != need.Item)
-                    {
-                        n += CountForPin(member);
-                    }
-                }
-            }
+        /// <summary>How many of an ingredient the player may craft with — the crafting menu's own count
+        /// (<see cref="CraftGate.Owned(ItemAmount, in CraftGateInput)"/>, the server's material pool): the backpack, the
+        /// hold and the worn gear, each with the pieces the bio lab changed, and for a group ingredient (any log) every
+        /// member of its group. A count of its own missed the worn piece an upgrade consumes: the card read 0/1 where
+        /// the menu offered the craft, and never said that everything is there.</summary>
+        private int OwnedForPin(ItemAmount need) => CraftGate.Owned(need, PinGate());
 
-            return n;
-        }
-
-        private int CountForPin(string item)
-        {
-            int n = 0;
-            if (Game.Personal != null)
-            {
-                foreach (var s in Game.Personal)
-                {
-                    if (s.Item == item)
-                    {
-                        n += s.Count;
-                    }
-                }
-            }
-
-            if (Game.Cargo != null)
-            {
-                foreach (var s in Game.Cargo)
-                {
-                    if (s.Item == item)
-                    {
-                        n += s.Count;
-                    }
-                }
-            }
-
-            return n;
-        }
+        /// <summary>The craft gate's view of what the player holds (a struct — no allocation). Counting reads the content
+        /// and the three stack lists only, so the answers the menu binds for the gate's other checks (the market, the
+        /// factory terminal, the stations) stay empty here.</summary>
+        private CraftGateInput PinGate() => new CraftGateInput(Game.Content, false, Game.UnlockedBlueprints,
+            Game.Personal, Game.Cargo, Game.Equipment, Game.Aboard, 0, 0, null, null, null, null);
     }
 }

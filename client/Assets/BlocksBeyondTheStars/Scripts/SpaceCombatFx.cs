@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
             Vector3 head = nose;
             int light = FxLights.Track(() => head, look.Color, 2.2f, 9f, life + 0.05f);
             float smoke = 0f;
-            FxKit.Flash(nose, look.Color2, 1.6f, 0.12f);
+            FxKit.Flash(nose, look.Color2, 1.6f * FxKit.FlashScale, 0.12f);
             FxKit.Burst(FxKit.Kind.Smoke, nose, 4, -forward, 40f, 1f, 3f, 0.5f, 0.9f, 0.5f, 0.9f, new Color(0.55f, 0.55f, 0.58f));
             FxKit.Animate(life, t =>
             {
@@ -68,7 +68,7 @@ namespace BlocksBeyondTheStars.Client
         public static void MissileBurst(FxLook look, Vector3 at)
         {
             FxKit.Flash(at, Color.white, 3.2f * FxKit.FlashScale, 0.1f);
-            FxKit.Flash(at, look.Color, 5.5f, 0.35f);
+            FxKit.Flash(at, look.Color, 5.5f * FxKit.FlashScale, 0.35f);
             for (int i = 0; i < FxKit.Scaled(6); i++)
             {
                 FxKit.Emit(FxKit.Kind.Glow, at + (UnityEngine.Random.insideUnitSphere * 0.8f), UnityEngine.Random.insideUnitSphere * 1.5f,
@@ -91,8 +91,8 @@ namespace BlocksBeyondTheStars.Client
         {
             if (muzzle)
             {
-                FxKit.Flash(nose, look.Color2, 1.5f, 0.09f);
-                FxKit.Flash(nose + (forward * 0.4f), look.Color, 2.6f, 0.12f);
+                FxKit.Flash(nose, look.Color2, 1.5f * FxKit.FlashScale, 0.09f);
+                FxKit.Flash(nose + (forward * 0.4f), look.Color, 2.6f * FxKit.FlashScale, 0.12f);
                 FxKit.Burst(FxKit.Kind.Motes, nose, 14, forward, 32f, 14f, 30f, 0.07f, 0.12f, 0.12f, 0.25f, look.Color, look.Color2);
                 FxLights.Flash(nose, look.Color, 2f, 9f, 0.14f);
                 FxCamera.Kick(0.9f);
@@ -107,7 +107,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Vector3 dir = (target - nose).sqrMagnitude > 1e-4f ? (target - nose).normalized : Vector3.forward;
             FxKit.Ring(nose, dir, look.Color2, 0.2f, 2.4f, 0.3f, thickness: 0.16f, intensity: 2.6f);
-            FxKit.Flash(nose, look.Color, 1.4f, 0.12f);
+            FxKit.Flash(nose, look.Color, 1.4f * FxKit.FlashScale, 0.12f);
             FxLights.Flash(nose, look.Color, 1.8f, 8f, 0.2f);
             float life = Mathf.Clamp(Vector3.Distance(nose, target) / 160f, 0.05f, 0.6f);
             float ringAcc = 0f;
@@ -134,7 +134,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (strength >= 0.9f)
             {
-                FxKit.Flash(at, core, 2.4f, 0.12f);
+                FxKit.Flash(at, core, 2.4f * FxKit.FlashScale, 0.12f);
                 FxKit.Ring(at, Vector3.zero, color, 0.3f, 5f, 0.4f, thickness: 0.08f, intensity: 2f);
                 FxLights.Flash(at, color, 2.4f, 12f, 0.3f);
             }
@@ -152,16 +152,37 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A hostile's heavy shot gathering: light streams into a growing core at <paramref name="at"/> for
-        /// <paramref name="seconds"/> — the pilot's warning.</summary>
-        public static void HeavyCharge(Func<Vector3> at, float seconds, Color color)
+        /// <paramref name="seconds"/> — the pilot's warning. <paramref name="at"/> answers null once the hostile is gone
+        /// (destroyed while it charged): the glow and its light end there and then, instead of gathering somewhere else.</summary>
+        public static void HeavyCharge(Func<Vector3?> at, float seconds, Color color)
         {
+            Vector3? start = at();
+            if (start == null)
+            {
+                return;
+            }
+
             var core = Color.Lerp(color, Color.white, 0.7f);
             float acc = 0f;
-            Vector3 last = at();
+            Vector3 last = start.Value;
+            bool gone = false;
             int light = FxLights.Track(() => last, color, 2.4f, 12f, seconds + 0.05f);
             FxKit.Animate(seconds, t =>
             {
-                last = at();
+                if (gone)
+                {
+                    return;
+                }
+
+                Vector3? now = at();
+                if (now == null)
+                {
+                    gone = true;
+                    FxLights.Remove(light);
+                    return;
+                }
+
+                last = now.Value;
                 FxKit.Emit(FxKit.Kind.Glow, last, Vector3.zero, Mathf.Lerp(0.8f, 3.6f, t), 0.07f, color);
                 FxKit.Emit(FxKit.Kind.Glow, last, Vector3.zero, Mathf.Lerp(0.3f, 1.6f, t), 0.06f, core);
                 acc += Time.deltaTime * FxKit.Density;
@@ -182,7 +203,7 @@ namespace BlocksBeyondTheStars.Client
             var mat = FxKit.BeamMaterial("hostile_heavy", core, coreWidth: 0.45f, noiseScale: 0.4f, noiseSpeed: 20f, intensity: 3.6f);
             FxKit.Beam(from, to, color, 1.1f, 0.45f, mat);
             FxKit.Ring(from, Vector3.zero, color, 0.5f, 5f, 0.4f, thickness: 0.16f, intensity: 2.4f);
-            FxKit.Flash(from, core, 3f, 0.15f);
+            FxKit.Flash(from, core, 3f * FxKit.FlashScale, 0.15f);
             FxLights.Flash(from, color, 3f, 18f, 0.35f);
         }
 
@@ -191,8 +212,8 @@ namespace BlocksBeyondTheStars.Client
         public static void ShieldDeflect(Vector3 at, Vector3 outward, Color color)
         {
             var c = Color.Lerp(color, new Color(0.45f, 0.85f, 1f), 0.6f);
-            FxKit.Flash(at, Color.white, 1.2f, 0.08f);
-            FxKit.Flash(at, c, 2.4f, 0.16f);
+            FxKit.Flash(at, Color.white, 1.2f * FxKit.FlashScale, 0.08f);
+            FxKit.Flash(at, c, 2.4f * FxKit.FlashScale, 0.16f);
             FxKit.Ring(at, outward, c, 0.3f, 3.2f, 0.35f, thickness: 0.09f, intensity: 2f);
             FxKit.Burst(FxKit.Kind.Motes, at, 12, outward, 60f, 4f, 11f, 0.07f, 0.13f, 0.25f, 0.55f, c, Color.white);
             FxLights.Flash(at, c, 1.8f, 10f, 0.2f);

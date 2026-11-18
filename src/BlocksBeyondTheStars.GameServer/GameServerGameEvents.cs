@@ -179,7 +179,7 @@ public sealed partial class GameServer
             return; // the common case: no step listens to anything
         }
 
-        if (actor is null || !actor.Joined || actor.Spectating || actor.InJoinPlacement || amount <= 0 || string.IsNullOrEmpty(key))
+        if (actor is null || !actor.Joined || actor.Watching || actor.InJoinPlacement || amount <= 0 || string.IsNullOrEmpty(key))
         {
             return;
         }

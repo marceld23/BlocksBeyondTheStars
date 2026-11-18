@@ -225,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2823: a move stick/key or crouch is held — the "get up" inputs that are held rather than pressed.</summary>
         private static bool RestMoveHeld()
-            => InputMap.CrouchHeld() || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
+            => InputMap.DescendHeld() || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
 
         /// <summary>#2823: E or jump gets up at once; a move or crouch only once it was let go after lying down — a player
         /// still holding forward from walking up to the bed would otherwise be up again the very next frame.</summary>

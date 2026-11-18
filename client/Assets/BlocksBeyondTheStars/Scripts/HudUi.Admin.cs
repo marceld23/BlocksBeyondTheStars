@@ -32,7 +32,7 @@ namespace BlocksBeyondTheStars.Client
             byte mode = Game.Network != null ? Game.Network.AdminMode : AdminModes.Off;
             _observer.text = mode == AdminModes.Invisible ? loc.Get("ui.hud.admin")
                 : mode == AdminModes.Visible ? loc.Get("ui.hud.admin_visible")
-                : Game.Spectating ? loc.Get("ui.hud.observer")
+                : Game.Spectating && !Game.WatchingFallen ? loc.Get("ui.hud.observer") // a fallen player watches too, but is no observer (#3765)
                 : string.Empty;
 
             var panel = mode != AdminModes.Off ? Game.Context.Panel<AdminPanelUi>() : null;
