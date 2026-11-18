@@ -11,6 +11,88 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.22] — 2026-11-18
+
+The follow-up release. Last release brought a lot at once — the game feel, space fights that move and eleven wishes
+of one evening. We went through all of it again, line by line, and fixed what did not work as promised: most of all,
+**on a Hard Survival world you can start again at your ship** after 60 seconds — that control did nothing before.
+Throwing a block now works with a **gamepad and on a tablet**, the **ion pulse** no longer locks every other ship
+weapon, and friends no longer **groan every half second** while you freeze.
+
+ℹ️ **Compatibility:** no new blocks, no new texts — the **save version stays at 17**, the **terrain generation at 45**
+and the **network protocol at 12**. Players of the previous version can still play together with this one.
+
+### ⚔️ Hard Survival (#3777, #3778)
+
+- **The restart at the ship works.** Alone (or when everybody has fallen) the banner counted down and then froze;
+  **E** now starts you again at your ship.
+- **The fallen really touch nothing:** a watching player no longer picks up drops, opens doors, sets off sensors,
+  wakes sleeping animals or giants, or gets "rescued" out of rock — that rescue also wiped the banner.
+- The game can be **paused** while somebody watches; jetpack and cloak switch off when you fall.
+- **Brought back with a medkit** you stand up with **45** health (it was 90 by mistake), the hunger you fell with and
+  an empty cold/heat meter.
+- An admin who switches the world to another mode lets everybody who watches start again at once.
+- A fallen player no longer sees the admin's observer badge, and the next ordinary death flashes and sounds again.
+
+### 🧱 Throwing a block (#3779)
+
+- **Gamepad and tablet:** lift and throw through the actions list; a tablet also shows **ATTACK** while the block is
+  up.
+- Under a **low ceiling** the block leaves your hands lower instead of vanishing into the rock above.
+- It no longer slips through **thin floors**, and thrown off the edge of the world (a sky island, a gas sea) it drops
+  at your feet — never lost.
+- A second throw pressed too quickly no longer leaves the block "up" for the server and "down" for you.
+
+### 🚀 Space combat (#3780)
+
+- **Every ship weapon waits for its own cooldown.** After an **ion pulse** (5 s) the laser fires at once — before,
+  every weapon waited, and the stun was over before you could shoot.
+- An enemy silenced by the ion pulse **stops shooting** — it no longer looked as if the pulse did nothing.
+- **No heavy shot without a warning** (a charge from before you left the helm lapses), and a cruiser charges only a
+  little into the fight, not the moment you arrive.
+- The roll's cooldown no longer shrinks with every roll; **roll and boost stay in step across the pause menu**.
+- Each flight starts level; the charge glow ends with its ship; a missed heavy shot passes beside the hull; **Reduce
+  flashes** covers all the new flashes. The manual's number of hull blocks a laser pulse tears out is corrected (two).
+
+### 🧍 Figures and sounds (#3781)
+
+- **No pain grunt every half second.** Damage that ticks (thin air, cold, fire) shows as a flinch but is heard only
+  for a real blow.
+- A **cloaked** player's gestures stay silent; **the killing blow gets its hit tick**; a defeated friend is seen
+  sinking down for a second; **mouths move with voice chat**.
+- **Sit down** and **get up** are two gestures — the others no longer see you sitting when you stand.
+- A gesture or flinch no longer plays late after climbing or sitting, and the knees give only after a fall, not at the
+  top of every jump.
+
+### 🎮 Movement and controls (#3782)
+
+- **"Crouch: press once"** (Accessibility) only sneaks now: chairs, train seats and beds stay, flight and spacewalks
+  sink only while the key is held, ladders and ropes no longer let go by themselves.
+- No **phantom step or jump** after closing a menu; the held item's sway is the same at every frame rate and rests
+  behind menus; the jump sounds again in zero-g; walking on a ladder answers at once.
+
+### 🖥️ Interface and settings (#3783)
+
+- **Switching windows** no longer opens the pause menu behind the death screen, a cutscene, a menu or the chat.
+- The **Potato** preset no longer runs an extra upscaling pass unless you lower the 3D resolution yourself.
+- **Story text size** also reaches the speaker's box, the reading frame, banners and the credits.
+- **Inventory:** scrolling on a slot no longer picks it, only the left button drags, a gamepad tooltip closes with
+  its menu; the **pinned recipe** counts what you wear, like the crafting menu.
+- The **Interface** slider covers all interface sounds; a quiet ping marks a **new message line**; the F10 hint shows
+  with *Reduced effects* too; "Reset this page" resets the 3D resolution; no homecoming accent after a death; the
+  stamina colour follows the colour-vision setting; the suit's chest panel is back on the preview figures.
+
+### 🐾 Creatures and villagers (#3784)
+
+- A **Soundrak** (and a Schuppenhund) bites the **nearest** player — with two players it only ever bit one.
+- **Only weapons startle villagers** (a drill or a mining beam no longer does); a crowd rests **12 seconds** after a
+  fright; a villager on a walk stops and looks too.
+- The voice sliders' preview plays one breath at a time.
+
+### 🌍 What's new in fourteen languages
+
+- The *What's new?* notes of 2026.11.21 are available in all twelve community languages (#3775).
+
 ## [2026.11.21] — 2026-11-18
 
 The feel-and-fight release. **The game answers you now**: walking, jumping and flying feel tighter, every button
@@ -11135,7 +11217,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.21...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.22...HEAD
+[2026.11.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.21...v2026.11.22
 [2026.11.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.20...v2026.11.21
 [2026.11.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.19...v2026.11.20
 [2026.11.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.18...v2026.11.19
