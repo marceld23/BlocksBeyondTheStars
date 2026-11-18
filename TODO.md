@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🩹 After the v2026.11.21 release check: 56 fixes in Hard Survival, block throwing, space combat, game feel and the interface — epic #3776 (#3777–#3784), ✅ 2026-11-18 (⚠ playtest open; server + client, one additive field and one emote id — no protocol bump, no save change, no new texts)
+### 🩹 After the v2026.11.21 release check: 56 fixes in Hard Survival, block throwing, space combat, game feel and the interface — epic #3776 (#3777–#3784), PR #3785 (`2480781a`) — ✅ released in v2026.11.22 (⚠ playtest open; server + client, one additive field and one emote id — no protocol bump, no save change, no new texts)
 
 A read-only check of the release (six reviewers plus re-checks in the code) found one serious and about a dozen
 medium defects in the three packages below, and some forty small ones. This entry is what was fixed.
