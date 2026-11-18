@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "奔跑：按一下切换而非按住",
   "ui.settings.sprint_toggle_info": "奔跑键切换奔跑状态。",
   "ui.settings.crouch_toggle": "蹲下：按一下切换而非按住",
-  "ui.settings.crouch_toggle_info": "蹲下键切换蹲下状态。跳跃会让你站起。",
+  "ui.settings.crouch_toggle_info": "站在地面上时，蹲下键切换蹲下状态。在空中、水里和墙上，它仍然表示“向下”。跳跃会让你站起。",
   "ui.settings.music_style": "音乐 风格",
   "ui.settings.music_style.synth": "氛围 合成器",
   "ui.settings.music_style.tracks": "音乐 曲目",

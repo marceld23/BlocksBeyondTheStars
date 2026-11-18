@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Correr: pressione uma vez em vez de segurar",
   "ui.settings.sprint_toggle_info": "A tecla de correr alterna entre correr ligado e desligado.",
   "ui.settings.crouch_toggle": "Agachar: pressione uma vez em vez de segurar",
-  "ui.settings.crouch_toggle_info": "A tecla de agachar alterna entre agachar ligado e desligado. Pular faz você levantar.",
+  "ui.settings.crouch_toggle_info": "A tecla de agachar liga e desliga o agachamento enquanto você está no chão. No ar, na água e em uma parede ela continua significando “descer”. Pular faz você levantar.",
   "ui.settings.music_style": "Estilo musical",
   "ui.settings.music_style.synth": "Synth ambiente",
   "ui.settings.music_style.tracks": "Faixas musicais",

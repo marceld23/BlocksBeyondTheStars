@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Bieg: naciśnij raz zamiast przytrzymywać",
   "ui.settings.sprint_toggle_info": "Klawisz biegu przełącza bieganie włączone/wyłączone.",
   "ui.settings.crouch_toggle": "Kucanie: naciśnij raz zamiast przytrzymywać",
-  "ui.settings.crouch_toggle_info": "Klawisz kucania przełącza kucanie włączone/wyłączone. Skok ponownie ustawia cię w pozycji stojącej.",
+  "ui.settings.crouch_toggle_info": "Klawisz kucania włącza i wyłącza kucanie, gdy stoisz na ziemi. W powietrzu, w wodzie i na ścianie nadal oznacza „w dół”. Skok ponownie stawia cię na nogi.",
   "ui.settings.music_style": "Styl muzyki",
   "ui.settings.music_style.synth": "Ambient synth",
   "ui.settings.music_style.tracks": "Ścieżki muzyczne",

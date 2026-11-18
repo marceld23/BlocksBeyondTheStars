@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Koşma: basılı tutmak yerine bir kez bas",
   "ui.settings.sprint_toggle_info": "Koşma tuşu koşmayı açıp kapatır.",
   "ui.settings.crouch_toggle": "Eğilme: bas-çek yerine bir kez bas",
-  "ui.settings.crouch_toggle_info": "Eğilme tuşu eğilmeyi açıp kapatır. Zıplamak seni tekrar ayağa kaldırır.",
+  "ui.settings.crouch_toggle_info": "Eğilme tuşu, yerde dururken eğilmeyi açıp kapatır. Havada, suda ve duvarda yine “aşağı” anlamına gelir. Zıplamak seni tekrar ayağa kaldırır.",
   "ui.settings.music_style": "Müzik tarzı",
   "ui.settings.music_style.synth": "Ortam synth",
   "ui.settings.music_style.tracks": "Müzik parçaları",

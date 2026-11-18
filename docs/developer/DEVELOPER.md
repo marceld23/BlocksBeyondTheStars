@@ -50,7 +50,9 @@ soak tests marked `[Trait("Category", "Slow")]` for a fast gate, while every pus
 runners. The matrix lives in the reusable `.github/workflows/tests.yml` (#1067), called by `ci.yml`
 (PRs: fast tier + `-warnaserror` + duration guardrail; pushes to main: full tier) and by `release.yml`
 (the release gate: full tier, no `-warnaserror`) — so both run the identical build/filter/verify steps
-and the release gate finishes in ~10 min instead of the 33–36 min a single runner took.
+and the release gate finishes in ~10 min instead of the 33–36 min a single runner took. Every test job has a time
+limit and hang detection (#3792): a test that never returns fails its job within 15 minutes of silence and is named
+in the log — see [SERVER_TESTING.md](SERVER_TESTING.md) § *CI rules that will bite you*.
 `scripts/partition-tests.py` deterministically packs test classes onto shards with **tier-aware
 weights** (`scripts/test-shard-weights.json` = fast-tier seconds, `test-shard-weights-slow.json` = the
 `Slow` tests' seconds per class; `--tier fast|full` picks the sum that matches the run) and shard 1

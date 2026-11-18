@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Run: press once instead of holding",
   "ui.settings.sprint_toggle_info": "The run key switches running on and off.",
   "ui.settings.crouch_toggle": "Crouch: press once instead of holding",
-  "ui.settings.crouch_toggle_info": "The crouch key switches crouching on and off. A jump stands you up again.",
+  "ui.settings.crouch_toggle_info": "The crouch key switches crouching on and off while you stand on the ground. In the air, in water and on a wall it still means down. A jump stands you up again.",
   "ui.settings.music_style": "Music style",
   "ui.settings.music_style.synth": "Ambient synth",
   "ui.settings.music_style.tracks": "Music tracks",

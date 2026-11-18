@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "走り: 押しっぱなしではなく一度押す",
   "ui.settings.sprint_toggle_info": "走るキーで走りの切り替えができます。",
   "ui.settings.crouch_toggle": "しゃがみ: 押しっぱなしではなく一度押す",
-  "ui.settings.crouch_toggle_info": "しゃがみキーでしゃがみの切り替えができます。ジャンプすると立ちます。",
+  "ui.settings.crouch_toggle_info": "しゃがみキーは、地面に立っているあいだ、しゃがみを切り替えます。空中、水中、壁では今までどおり「下へ」です。ジャンプすると立ちます。",
   "ui.settings.music_style": "音楽スタイル",
   "ui.settings.music_style.synth": "アンビエント・シンセ",
   "ui.settings.music_style.tracks": "楽曲トラック",

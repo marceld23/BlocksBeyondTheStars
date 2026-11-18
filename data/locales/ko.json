@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "달리기: 누르고 있지 않고 한 번만 누르기",
   "ui.settings.sprint_toggle_info": "달리기 키가 달리기를 켜고 끕니다.",
   "ui.settings.crouch_toggle": "앉기: 누르기만 해도 전환",
-  "ui.settings.crouch_toggle_info": "앉기 키가 앉기 상태를 켜고 끕니다. 점프하면 다시 일어납니다.",
+  "ui.settings.crouch_toggle_info": "앉기 키는 땅에 서 있을 때 앉기 상태를 켜고 끕니다. 공중, 물속, 벽에서는 여전히 ‘아래로’입니다. 점프하면 다시 일어납니다.",
   "ui.settings.music_style": "음악 스타일",
   "ui.settings.music_style.synth": "앰비언트 신스",
   "ui.settings.music_style.tracks": "음악 트랙",

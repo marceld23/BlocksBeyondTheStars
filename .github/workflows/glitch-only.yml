@@ -66,6 +66,9 @@ jobs:
   test:
     name: Full test suite (store gate)
     runs-on: ubuntu-latest
+    # The whole suite on one runner. The limit is the second net behind the hang detection below (#3792,
+    # explained in tests.yml); GitHub's default would be six hours.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v5
 
@@ -83,15 +86,17 @@ jobs:
 
       - name: Test (full suite, Slow tier included)
         run: |
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --logger "trx;LogFileName=server.trx" --results-directory TestResults
-          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --logger "trx;LogFileName=server.trx" --results-directory TestResults --blame-hang --blame-hang-timeout 15m --blame-hang-dump-type none
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults --blame-hang --blame-hang-timeout 15m --blame-hang-dump-type none
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: glitch-test-results
-          path: TestResults/*.trx
+          path: |
+            TestResults/*.trx
+            TestResults/**/Sequence_*.xml
           if-no-files-found: ignore
 
   build:

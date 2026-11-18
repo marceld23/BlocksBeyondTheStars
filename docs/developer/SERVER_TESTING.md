@@ -148,6 +148,15 @@ first-PR traps:
 
 - Async test methods need an `Async` suffix (**VSTHRD200**).
 - Don't `await` a `TaskCompletionSource.Task` in tests (**VSTHRD003**) — use a `SemaphoreSlim`.
+- **A test that never returns turns its job red and is named** (#3792). Every `dotnet test` of the workflows runs
+  with `--blame-hang --blame-hang-timeout 15m --blame-hang-dump-type none`: once **no** test has started or
+  finished for 15 minutes the run aborts, the step fails, and the job log says *"The test running when the crash
+  occurred:"* followed by the test's name (a `Sequence_*.xml` with the order of the run is uploaded beside the
+  `.trx` files). It is an inactivity timer — a long shard is fine, and so is a test that is merely billed for
+  queue time. The jobs also have a `timeout-minutes` (shards 45, lanes 30, the store gate 150) for a hang outside
+  a test. Before this a hanging shard ran until someone cancelled it, and a cancelled job leaves no log at all.
+  To see it locally: `dotnet test … --filter <your test> --blame-hang --blame-hang-timeout 20s
+  --blame-hang-dump-type none`.
 - Any test not marked `[Trait("Category", "Slow")]` must finish **well under 120 s** — the PR
   gate ([`scripts/check-test-durations.py`](../../scripts/check-test-durations.py)) fails on it.
   Use the `Slow` trait for soak/heavy-worldgen tests; they still run on every push to `main`.

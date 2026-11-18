@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Correr: pulsa una vez en vez de mantener",
   "ui.settings.sprint_toggle_info": "La tecla de correr alterna el correr activado/desactivado.",
   "ui.settings.crouch_toggle": "Agacharse: pulsa una vez en vez de mantener",
-  "ui.settings.crouch_toggle_info": "La tecla de agacharse alterna agachado activado/desactivado. Un salto te pone de pie de nuevo.",
+  "ui.settings.crouch_toggle_info": "La tecla de agacharse activa y desactiva el agachado mientras estás en el suelo. En el aire, en el agua y en una pared sigue significando «bajar». Un salto te pone de pie de nuevo.",
   "ui.settings.music_style": "Estilo musical",
   "ui.settings.music_style.synth": "Sintetizador ambiental",
   "ui.settings.music_style.tracks": "Pistas musicales",

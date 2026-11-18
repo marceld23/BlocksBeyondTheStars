@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Rennen: één keer drukken in plaats van ingedrukt houden",
   "ui.settings.sprint_toggle_info": "De rentoets schakelt rennen aan en uit.",
   "ui.settings.crouch_toggle": "Hurken: één keer drukken in plaats van ingedrukt houden",
-  "ui.settings.crouch_toggle_info": "De hurktoets schakelt hurken aan en uit. Een sprong zet je weer rechtop.",
+  "ui.settings.crouch_toggle_info": "De hurktoets schakelt hurken aan en uit zolang je op de grond staat. In de lucht, in het water en aan een muur betekent hij nog steeds ‘omlaag’. Een sprong zet je weer rechtop.",
   "ui.settings.music_style": "Muziekstijl",
   "ui.settings.music_style.synth": "Ambient synth",
   "ui.settings.music_style.tracks": "Muziektracks",
