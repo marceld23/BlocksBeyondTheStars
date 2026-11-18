@@ -438,11 +438,17 @@ namespace BlocksBeyondTheStars.Client
         /// of being held. A jump stands the body up again.</summary>
         public static bool CrouchToggle;
 
+        /// <summary>#3793: a press of the crouch key may switch sneaking right now — the body is on foot on the ground
+        /// (PlayerController sets it every frame before it reads the crouch). Anywhere else the key means "down"
+        /// (<see cref="DescendHeld"/>) and a press leaves the switch as it is.</summary>
+        public static bool CrouchSwitchArmed = true;
+
         private static bool _crouchLatched;
         private static int _crouchLatchFrame = -1;
 
         /// <summary>The keyboard's crouch as the player set it: the key held, or — with <see cref="CrouchToggle"/> — a
-        /// state each press of the key flips (once per frame, however often it is asked) and a jump clears.</summary>
+        /// state each press of the key on the ground flips (once per frame, however often it is asked) and a jump clears
+        /// (<see cref="CrouchSwitch"/>).</summary>
         internal static bool KeyboardCrouch(bool held, bool pressed)
         {
             if (!CrouchToggle)
@@ -454,15 +460,7 @@ namespace BlocksBeyondTheStars.Client
             if (Time.frameCount != _crouchLatchFrame)
             {
                 _crouchLatchFrame = Time.frameCount;
-                if (pressed)
-                {
-                    _crouchLatched = !_crouchLatched;
-                }
-
-                if (Input.GetKeyDown(KeyCode.Space))
-                {
-                    _crouchLatched = false;
-                }
+                _crouchLatched = CrouchSwitch.Next(_crouchLatched, pressed, JumpDown(), CrouchSwitchArmed);
             }
 
             return _crouchLatched;

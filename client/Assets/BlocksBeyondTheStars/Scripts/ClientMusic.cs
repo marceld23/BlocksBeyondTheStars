@@ -147,7 +147,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _deep;
         private string _menuTabSeen;
         private float _menuTabSince;
-        private readonly HashSet<string> _visitedBodies = new();
+        private readonly SessionArrivals _arrivals = new SessionArrivals(); // which worlds this session has seen (#1174, #3795)
         private bool _arrivalPending;
         private float _duck = 1f;             // smoothed ducking multiplier (weather / hostile nearby)
         private bool _tension;
@@ -305,7 +305,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (game == null)
             {
-                _visitedBodies.Clear(); // a new session: the first landing opens with the sunrise track again
+                _arrivals.Reset(); // a new session: the first landing opens with the sunrise track again
                 _arrivalPending = false;
                 return Shell == null ? Silent : Shell.Phase switch
                 {
@@ -438,12 +438,12 @@ namespace BlocksBeyondTheStars.Client
             if (MusicLibrary.IsPlanet(surface))
             {
                 string body = game.StarMap?.ActiveLocationId;
-                if (!string.IsNullOrEmpty(body) && _visitedBodies.Add(body))
+                if (_arrivals.Arrive(body, out bool accent))
                 {
                     _arrivalPending = true;
-                    if (_visitedBodies.Count > 1)
+                    if (accent)
                     {
-                        ClientAudio.Instance?.Sting("sting_new_planet"); // another world reached this session
+                        ClientAudio.Instance?.Sting("sting_new_planet"); // another world reached — once per session (#3795)
                     }
                 }
             }

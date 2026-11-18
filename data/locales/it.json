@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Corsa: premi una volta invece di tenere premuto",
   "ui.settings.sprint_toggle_info": "Il tasto di corsa attiva o disattiva la corsa.",
   "ui.settings.crouch_toggle": "Accovacciarsi: premi una volta invece di tenere premuto",
-  "ui.settings.crouch_toggle_info": "Il tasto per accovacciarsi attiva o disattiva l'accovacciamento. Un salto ti fa rialzare.",
+  "ui.settings.crouch_toggle_info": "Il tasto per accovacciarsi attiva o disattiva l'accovacciamento finché sei a terra. In aria, in acqua e su una parete significa ancora «giù». Un salto ti fa rialzare.",
   "ui.settings.music_style": "Stile musicale",
   "ui.settings.music_style.synth": "Synth ambient",
   "ui.settings.music_style.tracks": "Tracce musicali",

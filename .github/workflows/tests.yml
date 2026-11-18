@@ -69,10 +69,23 @@ on:
 permissions:
   contents: read
 
+# Hang detection for every `dotnet test` of this workflow (#3792). A test that never returns used to
+# keep its job running until someone cancelled it by hand (no limit but GitHub's six hours), and a
+# cancelled job leaves no log - the hanging test stayed unknown. With these flags the run aborts once
+# NO test has started or finished for 15 minutes (an inactivity timer, so a long shard is fine and a
+# test that is merely billed for queue time is too), fails the step, and the log names the test:
+# "The test running when the crash occurred: <name>". No memory dump (`none`): the name is what is
+# needed, and a dump of the test host would fill the runner's disk and the artifact.
+env:
+  BLAME_HANG: --blame-hang --blame-hang-timeout 15m --blame-hang-dump-type none
+
 jobs:
   build-test:
     name: Build + test (shard ${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    # The second net behind BLAME_HANG (a hang outside a test: restore, build, a stuck runner). A shard
+    # takes 8-18 minutes; GitHub's default would be six hours.
+    timeout-minutes: 45
     strategy:
       fail-fast: false # one failing shard must not cancel the others' results
       matrix:
@@ -178,9 +191,9 @@ jobs:
         run: |
           SHARD_FILTER="$(python3 scripts/partition-tests.py filter --shard ${{ matrix.shard }} --shards ${{ strategy.job-total }} --tier ${{ inputs.tier }})"
           FILTER="${TIER:+$TIER&}$SHARD_FILTER"
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults $BLAME_HANG
           if [ "${{ matrix.shard }}" = "1" ]; then
-            dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${TIER:+--filter "$TIER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+            dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${TIER:+--filter "$TIER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults $BLAME_HANG
           fi
 
       # Fast-tier duration guardrail (PRs only — the full run legitimately contains Slow tests): fail when
@@ -204,5 +217,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.artifact-prefix }}-${{ matrix.shard }}
-          path: TestResults/*.trx
+          # The .trx files, and after a hang the sequence file that lists what ran in which order.
+          path: |
+            TestResults/*.trx
+            TestResults/**/Sequence_*.xml
           if-no-files-found: ignore

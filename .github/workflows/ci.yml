@@ -82,6 +82,16 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Hang detection for every `dotnet test` this workflow runs itself (#3792; the matrix has its own copy in tests.yml). A test that never returns used to
+# keep its job running until someone cancelled it by hand (no limit but GitHub's six hours), and a
+# cancelled job leaves no log - the hanging test stayed unknown. With these flags the run aborts once
+# NO test has started or finished for 15 minutes (an inactivity timer, so a long shard is fine and a
+# test that is merely billed for queue time is too), fails the step, and the log names the test:
+# "The test running when the crash occurred: <name>". No memory dump (`none`): the name is what is
+# needed, and a dump of the test host would fill the runner's disk and the artifact.
+env:
+  BLAME_HANG: --blame-hang --blame-hang-timeout 15m --blame-hang-dump-type none
+
 jobs:
   # Decides whether the PR diff contains anything other than documentation or images. Always runs (no
   # job-level `if:`) so that on a push to main it succeeds and the downstream `needs: changes` is met;
@@ -123,6 +133,7 @@ jobs:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.nondocs == 'true' && needs.changes.outputs.lane != 'full'
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # the second net behind BLAME_HANG; a lane runs a few minutes
     steps:
       - uses: actions/checkout@v5
 
@@ -160,7 +171,7 @@ jobs:
               exit 1
               ;;
           esac
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "Category!=Slow&$FILTER" --logger "trx;LogFileName=lane.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "Category!=Slow&$FILTER" --logger "trx;LogFileName=lane.trx" --results-directory TestResults $BLAME_HANG
           python3 scripts/lane-test-filter.py ran TestResults/lane.trx
 
       - name: Upload test results
@@ -168,7 +179,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: test-results-lane
-          path: TestResults/*.trx
+          path: |
+            TestResults/*.trx
+            TestResults/**/Sequence_*.xml
           if-no-files-found: ignore
 
   # The `client` lane's second half: the WHOLE Client.Tests suite (real NetworkClient against an
@@ -181,6 +194,7 @@ jobs:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.lane == 'client'
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # the second net behind BLAME_HANG; the client suite runs a few minutes
     steps:
       - uses: actions/checkout@v5
 
@@ -200,7 +214,7 @@ jobs:
 
       - name: Run the client suite
         run: |
-          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --filter "Category!=Slow" --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --filter "Category!=Slow" --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults $BLAME_HANG
           python3 scripts/lane-test-filter.py ran TestResults/clientcore.trx
 
       - name: Upload test results
@@ -208,7 +222,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: test-results-lane-client
-          path: TestResults/*.trx
+          path: |
+            TestResults/*.trx
+            TestResults/**/Sequence_*.xml
           if-no-files-found: ignore
 
   # Fan-in for branch protection: the ONE required check standing in for the whole test matrix.

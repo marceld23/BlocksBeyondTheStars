@@ -46,6 +46,11 @@ public sealed partial class GameServer
         float before = p.Health;
         p.Health = System.Math.Max(0f, p.Health - amount);
         float lost = before - p.Health;
+        if (mitigated)
+        {
+            NoteHitForHealing(p, lost); // #3794: a hit (what armour works against) makes the body's own healing wait
+        }
+
         NotePlayerHurt(p, lost); // the others see the flinch — or the fall (GameServerEmotes.cs)
         return lost;
     }

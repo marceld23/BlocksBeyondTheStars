@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Rennen: einmal drücken statt halten",
   "ui.settings.sprint_toggle_info": "Die Renn-Taste schaltet das Rennen ein und aus.",
   "ui.settings.crouch_toggle": "Ducken: einmal drücken statt halten",
-  "ui.settings.crouch_toggle_info": "Die Duck-Taste schaltet das Ducken ein und aus. Ein Sprung richtet dich wieder auf.",
+  "ui.settings.crouch_toggle_info": "Die Duck-Taste schaltet das Ducken ein und aus, solange du auf dem Boden stehst. In der Luft, im Wasser und an der Wand heißt sie weiter „runter“. Ein Sprung richtet dich wieder auf.",
   "ui.settings.music_style": "Musik-Stil",
   "ui.settings.music_style.synth": "Ambient-Synth",
   "ui.settings.music_style.tracks": "Musik-Tracks",

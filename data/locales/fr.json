@@ -3560,7 +3560,7 @@
   "ui.settings.sprint_toggle": "Courir : appuyer une fois au lieu de maintenir",
   "ui.settings.sprint_toggle_info": "La touche de course bascule le sprint activé/désactivé.",
   "ui.settings.crouch_toggle": "S'accroupir : appuyer une fois au lieu de maintenir",
-  "ui.settings.crouch_toggle_info": "La touche d'accroupissement bascule l'état accroupi. Un saut te relève.",
+  "ui.settings.crouch_toggle_info": "La touche d'accroupissement bascule l'état accroupi tant que tu es au sol. En l'air, dans l'eau et sur un mur, elle veut toujours dire « descendre ». Un saut te relève.",
   "ui.settings.music_style": "Style musical",
   "ui.settings.music_style.synth": "Synthé ambiant",
   "ui.settings.music_style.tracks": "Pistes musicales",

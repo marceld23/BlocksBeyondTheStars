@@ -2226,7 +2226,8 @@ public sealed partial class GameServer
                 // Health regen never revives a dead player (0 HP) — that would outrun the death check
                 // below and quietly skip the respawn on breathable worlds.
                 p.Oxygen = System.Math.Min(maxOxygen, p.Oxygen + (float)(dt * 25));
-                if (p.Health > 0f && session.Hazards.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f && !RessawStinging(session)) // 2026-09: toxic water, a full exposure meter and (#3335) Ressaw stop the regen
+                if (p.Health > 0f && session.Hazards.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f && !RessawStinging(session) // 2026-09: toxic water, a full exposure meter and (#3335) Ressaw stop the regen
+                    && !HealingPausedByHit(p)) // #3794: and it waits a few seconds after a hit
                 {
                     // #2202: a "tired" side effect takes natural healing away for as long as it lasts.
                     p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2) * Shared.Bio.PlayerEffects.NaturalHealingFactor(p.Effects));

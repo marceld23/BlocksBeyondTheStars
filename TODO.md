@@ -26,6 +26,33 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧹 Four follow-ups: a hang in CI names itself, the crouch switch, healing pauses after a hit, the "new planet" accent once per session — #3792–#3795, ✅ 2026-11-18 (⚠ playtest open; CI + server + client; no protocol or save change)
+
+- ✅ **#3792 A hanging test names itself.** A shard of the full suite once sat 40 minutes in its Test step on `main`;
+  the job had no limit (GitHub: six hours), nothing named the test, and a cancelled job leaves no log. Every
+  `dotnet test` of `tests.yml`, `ci.yml` (both lanes) and `glitch-only.yml` now runs with
+  `--blame-hang --blame-hang-timeout 15m --blame-hang-dump-type none` (an inactivity timer: no test started or
+  finished for 15 minutes → abort, red, the log names the running test), the jobs have `timeout-minutes` (45 / 30 /
+  150), and the sequence file is uploaded with the `.trx`. Shown once with a throw-away hanging test: exit code 1 and
+  *"The test running when the crash occurred: …NeverComesBack"*. Docs: `SERVER_TESTING.md` § *CI rules*.
+- ✅ **#3793 The crouch switch only switches on the ground.** With "Crouch: press once instead of holding" a press of
+  the key in the air, in water or on a wall — where it means *down* — still flipped the sneak switch: the figure landed
+  crouched, or stood up, unasked. The rule is `Client.Core/CrouchSwitch` now (a press flips only where sneaking can
+  start, a jump always stands up); `PlayerController` says each frame whether a press counts
+  (`InputMap.CrouchSwitchArmed`). The settings text says so in all 14 languages. Tests: `CrouchSwitchTests`.
+- ✅ **#3794 The body's own healing pauses 5 seconds after a hit.** 2 health a second in breathable air used to run
+  through every fight, so an attacker with 2 a second or less never moved the bar (the reason behind #3750). A hit —
+  `DamagePlayer` with `mitigated`: bites, machines, robbers, giants, PvP, falls, crashes, lava, fire — now makes the
+  healing wait (`Shared/NaturalHealing`, `GameServerHealingPause.cs`); every further hit starts the wait again.
+  Unmitigated damage (thin air, cold, heat, toxic air and water, hunger, weather) does not pause it, and heal tank,
+  bed, food, medkit and preparations heal as before. Not saved. The Codex's *Staying Alive* says it in all 14
+  languages. Tests: `HealingPauseTests` (and the existing bite tests, unchanged).
+- ✅ **#3795 The "new planet" accent plays once per session** — on the first landing on a second body, not on every
+  further one (`Client.Core/SessionArrivals`, used by `ClientMusic`). The sunrise track still opens every body's
+  first visit. Tests: `SessionArrivalsTests`.
+- ⚠ **Playtest open:** whether 5 seconds feel right (a weak hunter now hurts; a child's first fights get a little
+  harder), and the crouch switch on a real keyboard.
+
 ### 🏫 Credits: the head teacher and the IT officer of KuBa West in the school-club section — #3790, ✅ 2026-11-18, PR #3791
 
 - ✅ Michael Marx (head teacher of KuBa West, the school that hosts the club) and Andreas Selders (teacher and IT officer
@@ -104,8 +131,8 @@ medium defects in the three packages below, and some forty small ones. This entr
   long lines, the pinned card with seven ingredients, the monitor row with two monitors, the placing sound of ice and
   moss stone, the "hup" on every hop, the warning's timing for the heavy shot, step smoothing with "Camera motion"
   off, tension music in the pause and for hostile animals, contact shadows on Potato, the closing fade of five
-  windows. **Open detail:** with the crouch switch on, a C press used to descend off the ground still flips the sneak
-  latch (the descent itself is a hold now).
+  windows. The open detail of this package — with the crouch switch on, a C press used to descend off the ground still
+  flipped the sneak latch — is fixed by #3793.
 - **Verification so far:** affected server tests and the whole client suite green locally, `dotnet format` clean,
   clean rebuild 0 warnings / 0 errors, the code-health ratchet green, the local Unity player build succeeded. The whole
   server suite has NOT run (it runs in the PR checks). **Nothing of it has been seen or heard in the running game.**
@@ -188,9 +215,8 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations) became ele
   now (`SkinDefinition.Face`), `tools/gen_festive_skins.py --from-skin` adopts a skin 1:1, and the **Green spacesuit**
   is in `data/skins.json`, free for everybody (credited under the nickname in `NOTICES.md`). The submit dialog names
   both uses (template or pioneer look); all texts in 14 languages.
-- 📋 **Open decision for the maintainer (from #3750):** natural healing of 2 health a second on a breathable world also
-  makes every rolled hunter with 2 health a second harmless there. Whether healing should pause for a few seconds
-  after a hit is a balance decision for the whole game — not changed.
+- ✅ **Decided (from #3750, built as #3794):** natural healing of 2 health a second on a breathable world made every
+  rolled hunter with 2 health a second harmless there — it now pauses for 5 seconds after a hit.
 - 📋 **Decided, no change:** "too few planets with guardians or robbers" — Explorer worlds stay as calm as they are
   (machines are on every planet already, 2 per player; lone robbers roam 55 % of the bodies); the answer is the
   world options (machines / bandits up to Extreme) and the Hard Survival mode of this batch.
@@ -270,9 +296,8 @@ else is a first value.
   the emote key).
 - 📋 **Open — needs measurements first** (reference: a laptop with an 8 GB GPU at 3840×2400, 45 fps on Medium): a
   soft edge at the view distance, more view distance on Medium, cheaper tiers for the *Details (High)* switches.
-- 📋 **Open — decide:** the "new planet" accent plays on the first landing on another body per session, not once per
-  planet ever (that needs the knowledge store); the tension tracks are 128 kbit/s, the library's other ElevenLabs
-  tracks 192.
+- ✅ **Decided (#3795):** the "new planet" accent plays once per session, on the first landing on a second body.
+- 📋 **Open — decide:** the tension tracks are 128 kbit/s, the library's other ElevenLabs tracks 192.
 
 ### 🛤️ CI: a narrow lane for client-side PRs (2026-11-17) — PR #3735 (`1c3e19a5`) — ✅ released in v2026.11.20
 

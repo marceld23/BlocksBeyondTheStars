@@ -277,6 +277,8 @@ follow smoothly — and the thing in your hand trails a little when you look aro
 
 **Run and crouch as a switch.** *Settings → Accessibility → Keys* turns **Run** and **Crouch** into keys you press once
 instead of holding. Running then ends when you stop walking forward; a jump stands a crouching player up again.
+The crouch switch works **on the ground only**: in the air, in water and on a wall or a ladder the same key means
+*down* as always, and pressing it there changes nothing about sneaking after you land.
 
 ### Gamepad / controller (experimental)
 
@@ -1014,7 +1016,11 @@ round.
 ## 5. Game mechanics
 
 ### Survival
-- **Health** (max 100): regenerates aboard ship / in breathable air; drained by suffocation (−5/s at 0
+- **Health** (max 100): regenerates aboard ship / in breathable air (2 a second) — but **after a hit this healing
+  pauses for 5 seconds**, and every further hit starts the wait again. A hit is what armour works against: a bite,
+  a robot's or a robber's attack, a giant, another player's blow, a fall, a crash, lava and fire. Thin air, cold,
+  heat, toxic air or water, hunger and weather do not pause it; the heal tank, a bed, food, a medkit and lab
+  preparations heal as always. Drained by suffocation (−5/s at 0
   oxygen), lava (−15/s, reduced by armor), fire (−10/s, reduced by armor), and starvation (−3/s at 0
   hunger). At 0 → death (see below). **In Sandbox nothing hurts** (a Sandbox world, or a player an admin gave
   `/mode Player creative`): no oxygen runs out (not even on a spacewalk), and lava, fire, the gas sea, toxic water,

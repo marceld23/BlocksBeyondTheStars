@@ -951,7 +951,7 @@ mono; a few were re-rolled after the listening check), and the hover sound, whic
 | hit confirmation | `hit_confirm`, `hit_confirm_defeat` | ui | `HudUi.ShowHitMarker` |
 | interface set | `ui_click`, `ui_hover`, `ui_open`, `ui_close`, `ui_tab`, `ui_confirm`, `ui_back`, `ui_error`, `ui_success`, `ui_toast` | ui | `UiSound`; `UiPanel` plays open / close |
 | blueprint unlocked | `tech_unlock` | oneshot | the plain cue when the accent rests |
-| musical accents | `sting_new_planet`, `sting_site_found`, `sting_blueprint`, `sting_achievement`, `sting_home` | sting | `ClientAudio.Sting`: never two at once, 8 s of rest between any two, the music ducks to 40 % under one |
+| musical accents | `sting_new_planet`, `sting_site_found`, `sting_blueprint`, `sting_achievement`, `sting_home` | sting | `ClientAudio.Sting`: never two at once, 8 s of rest between any two, the music ducks to 40 % under one. `sting_new_planet` once per session, on the first landing on a second body (#3795) |
 | emotes | `emote_wave`, `emote_nod`, `emote_point`, `emote_head_shake`, `emote_dance`, `emote_clap`, `emote_sit`, `emote_cheer` (+ `_2`), `emote_bow` (+ `_2`) | foley | `EmoteSounds`: the own emote flat at the listener, another player's where the figure stands; cheer and bow rotate their two takes (`ClipTakes`) |
 
 Two sliders sit under the effects volume: **Ambience** (`ClientSettings.AmbienceVolume`, the beds) and **Interface**

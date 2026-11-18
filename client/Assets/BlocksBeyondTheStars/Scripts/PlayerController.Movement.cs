@@ -690,6 +690,8 @@ namespace BlocksBeyondTheStars.Client
         /// ceiling would block standing back up, snaps the collider to the crouched capsule, and eases the camera.</summary>
         private void UpdateCrouch(bool grounded, bool inWater, bool onLadder)
         {
+            // #3793: only here can a press of the crouch key mean "sneak" — in the air, in water and on a wall it is "down".
+            InputMap.CrouchSwitchArmed = grounded && !inWater && !onLadder;
             bool want = InputMap.CrouchHeld() && grounded && !inWater && !onLadder;
 
             // Don't stand up into a block: if crouched under a low ceiling, stay crouched until there's headroom.
