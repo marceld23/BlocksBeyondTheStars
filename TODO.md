@@ -26,13 +26,13 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏫 Credits: the head teacher and the IT officer of KuBa West in the school-club section — #3790, ✅ 2026-11-18, PR pending
+### 🏫 Credits: the head teacher and the IT officer of KuBa West in the school-club section — #3790, ✅ 2026-11-18, PR #3791
 
 - ✅ Michael Marx (head teacher of KuBa West, the school that hosts the club) and Andreas Selders (teacher and IT officer
   at KuBa West) — README §School club and `ui.credits.body` in all 14 locales (each has its own translated school-club
   block, so the two lines were set into every one by hand), before the club's IT support line.
 
-### 🚪 Start options: data folder and host port from the portable file or the shortcut — #3789, ✅ 2026-11-18, PR pending (⚠ playtest open; client + launchers; no protocol or save change, no new texts)
+### 🚪 Start options: data folder and host port from the portable file or the shortcut — #3789, ✅ 2026-11-18, PR #3791 (⚠ playtest open; client + launchers; no protocol or save change, no new texts)
 
 Marcel: the portable `portable_data_dir.txt` (#1285) should also set the port of home-network games, and the
 installed game should take command-line parameters for the port and the data folder.
@@ -1031,7 +1031,7 @@ content, authored in the town editor. New worlds only (terrain generation 37, sa
   from far away); `sample_mine` (shaft, sealed tunnels, cave-in); `sample_store` on an inhabited planet (keeper sells
   burgers only inside, blocks protected); the editor's landmark mode with the ruin preview; the browser build.
 
-### 🐟 "Still fish on dry land" — water one cell deep is no water to live in — Lyxette report 2026-11-18, #3788, ✅ 2026-11-18, PR pending (⚠ playtest open; server only, no protocol or save change)
+### 🐟 "Still fish on dry land" — water one cell deep is no water to live in — Lyxette report 2026-11-18, #3788, ✅ 2026-11-18, PR #3791 (⚠ playtest open; server only, no protocol or save change)
 
 Lyxette (v2026.11.22, after #3551–#3552): two awake fish of his water roster lay on his base floor 35 s after the world
 loaded, in plain view. #3552 worked as built (the fish neither slept nor roamed and would have left unseen), but nothing
