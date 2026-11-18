@@ -3120,6 +3120,10 @@ public sealed partial class GameServer
     /// <summary>Diagnostics (#1817): chunks the streamer adopted from a worker vs generated on the tick thread.</summary>
     public long ChunksFromWorkersForTest => _chunkGenPool?.AdoptedFromWorkers ?? 0;
 
+    /// <summary>#3799: the pool's worker threads — for the test that drops a server without <see cref="Stop"/>.</summary>
+    internal System.Threading.Thread[] ChunkWorkerThreadsForTest =>
+        _chunkGenPool?.ThreadsForTest ?? System.Array.Empty<System.Threading.Thread>();
+
     /// <summary>#1507: a settled view is re-enumerated at least this often (ticks) even when nothing observable
     /// changed — a cheap safety net against any sent-set change the count-based check could miss.</summary>
     private const int StreamSettledRecheckTicks = 30;

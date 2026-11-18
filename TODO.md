@@ -57,9 +57,15 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   memory and CPU and the runner's memory, swap and load; after 25 minutes the test host's managed stacks
   (`dotnet-stack`), then it stops the host, so the step fails by itself and log and artifacts survive. Proven on a
   throw-away commit with a short limit on one shard. Docs: `SERVER_TESTING.md` § *CI rules*.
-- 📋 **Open — the cause of the crawl itself.** Seen twice on `main` (full tier, shard 12, 2026-11-18), green on
-  every rerun; 47 test classes were in both shards. Not a spawned process (no server test starts one) and not one
-  stuck test. Next occurrence: read the watchdog's lines and stacks, then fix the cause.
+- ✅ **#3799 The cause of the crawl: every server a test forgot to stop stayed alive whole.** The watchdog's first
+  run named it — 134 threads in the stopped test host, 118 of them idle chunk-generation workers, after 1101
+  tests; the test host grew by 1.5–2 GB a minute and an ordinary shard ended with 1.5 GB of the runner's 16 GB
+  left. A worker thread held the pool, the pool its finished jobs, a job its world, the world's block events the
+  server — and about half of the suite never calls `Stop()`. The threads now see only their queues
+  (`ChunkGenerationPool.Crew`), and a small finalizable guard stops them when the pool is collected. The game is
+  unchanged: same chunks, same order, same workers; `Stop()` still releases them at once. Tests:
+  `ChunkGenerationPoolTests.ADroppedServer_IsCollected_AndItsWorkerThreadsEnd` (before the fix the server was
+  still there after 230 collections; now it is gone in 0.4 s). Docs: `SERVER_TESTING.md` § *CI rules*.
 - ⚠ **Playtest open:** whether 5 seconds feel right (a weak hunter now hurts; a child's first fights get a little
   harder), and the crouch switch on a real keyboard.
 

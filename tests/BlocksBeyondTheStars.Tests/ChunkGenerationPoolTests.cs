@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -92,7 +94,8 @@ public sealed class ChunkGenerationPoolTests : IDisposable
         }
     }
 
-    private (List<ChunkCoord> Order, int Dummy) Stream(string name, int workers, out SvGameServer server, out SqliteWorldRepository repo)
+    private (List<ChunkCoord> Order, int Dummy) Stream(string name, int workers, out SvGameServer server, out SqliteWorldRepository repo,
+        int ticks = 12)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -110,7 +113,7 @@ public sealed class ChunkGenerationPoolTests : IDisposable
         var p = server.AddLocalPlayer("Walker");
         var order = new List<ChunkCoord>();
         var seen = new HashSet<ChunkCoord>();
-        for (int tick = 0; tick < 12; tick++)
+        for (int tick = 0; tick < ticks; tick++)
         {
             server.TickForTest(0.1);
             // SentChunks is a set; rebuild the arrival order by diffing after each pass.
@@ -124,6 +127,49 @@ public sealed class ChunkGenerationPoolTests : IDisposable
         }
 
         return (order, 0);
+    }
+
+    /// <summary>#3799: about half of the suite's tests never stop their server. A worker thread is a GC root; while
+    /// it could reach the pool's jobs it held their world, and the world's block events point back at the server —
+    /// so every forgotten server stayed alive whole (threads, generators, worlds, chunks) until the process ended,
+    /// and the test host grew by 1.5–2 GB a minute. A dropped server must be collected, and its threads must end.
+    /// The test also fails when anything else starts to hold a dropped server (a static list, a timer, an event of
+    /// a longer-lived object): measured without worker threads, such a server is gone at the first collection.</summary>
+    [Fact]
+    public void ADroppedServer_IsCollected_AndItsWorkerThreadsEnd()
+    {
+        var (server, threads) = StreamAndDrop("dropped");
+        Assert.Equal(2, threads.Length);
+
+        // The workers first finish what was still queued (a queued job names its world); then a collection finds
+        // the server unreachable and the pool's guard stops the threads. Typically well under a second.
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        bool gone = false;
+        while (!gone && DateTime.UtcNow < deadline)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            gone = !server.IsAlive && threads.All(t => !t.IsAlive);
+            if (!gone)
+            {
+                Thread.Sleep(50);
+            }
+        }
+
+        Assert.False(server.IsAlive, "the dropped server is still reachable — something holds it");
+        Assert.All(threads, t => Assert.False(t.IsAlive, $"{t.Name} still runs after its server was collected"));
+    }
+
+    /// <summary>Its own frame, so no local of the test keeps the server alive (a Debug build holds locals to the
+    /// end of their method).</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private (WeakReference Server, Thread[] Threads) StreamAndDrop(string name)
+    {
+        // Three passes: the pool starts with the first one, and the view's next chunks are queued behind it.
+        Stream(name, workers: 2, out var server, out var repo, ticks: 3);
+        var threads = server.ChunkWorkerThreadsForTest;
+        repo.Dispose(); // what such a test typically does — and then forgets server.Stop()
+        return (new WeakReference(server), threads);
     }
 
     [Fact]
