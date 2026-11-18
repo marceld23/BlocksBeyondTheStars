@@ -32,7 +32,8 @@ Last updated: 2026-10-04.
   **picture of where you last were** (the game takes one after about half a minute of play, then every three minutes,
   when you open the pause menu and when you close the game window; never with the HUD, a menu or a cutscene in it; until
   a world has one, a planet stands in) — then **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
-  type a name, pick the mode (**Explorer**, **Creative** or **Sandbox** — each card says what it means), optionally open
+  type a name, pick the mode (**Explorer**, **Creative**, **Sandbox** or **Hard Survival** — each card says what it
+  means; for Hard Survival see *Death & respawn*), optionally open
   **World options…**, then **Create & play** — or press the dice button **Random** for a surprise world, under the name
   you typed, or as `world_<number>` when the name box is empty, still says `new_world` or holds the name of a world you
   already have. The screen opens at once even with hundreds of saves; while the list is still being read, the left side
@@ -5132,6 +5133,26 @@ look up: what a mix does follows from what goes in, and the same things always g
   at the death site to recover cargo, per the active rules.
 - Alive but stuck? You never have to wait to suffocate — see *Back to my ship (stuck on foot)* above.
 
+#### Hard Survival: falling and being brought back (an idea of Justus)
+
+**Hard Survival** is the fourth mode of the new-world screen, for players who want it hard: extremely many machines
+and robbers and hard environmental hazards — in return oxygen and hunger run down slowly. And a death is different:
+
+- If you die on foot on a world, you do **not** wake up at your ship. You have **fallen**: your things stay where it
+  happened (the salvage capsule), and you **watch** — you fly freely over the world (as in the observer view: WASD,
+  Space/Ctrl, Shift fast), nothing hurts you, no enemy and no other player sees you, and you cannot touch anything.
+  You can still chat.
+- **Another player brings you back**: with a **field medkit** used within a few blocks of the place where you fell.
+  You stand up right there, with part of your health. A light pulses at the place, and everybody is told in the
+  message line that you have fallen.
+- **Nobody left who could help?** Playing alone (or when the others have left), a banner counts **60 seconds**
+  down; then **Interact** (**E**) starts you again at your ship. If **every** player has fallen, all of them can
+  start again at their ships at once.
+- A death in space flight, on a spacewalk, inside a ship or on a station, and a defeat by another player, work as
+  in every other world. Leaving the game while fallen puts you back at your ship.
+- The world options you set for the world still apply; the mode sets *Alien enemies* and *Bandits* to Extreme,
+  *Environmental hazards* to Hard, *Oxygen* and *Hunger* to Slow and the death rule on top.
+
 ---
 
 ## 6. Editors (main menu → Editors)
@@ -5735,7 +5756,7 @@ and that option is off by default on hosted worlds.
 | `/festival` · `/festival Key` · `/festival calendar` · `/festival on\|off` | What festival is on · switch one on for the whole world (e.g. `christmas` — it brings the Advent calendar —, `halloween`, `hanami`) · back to the date · festivals on or off. Saved with the world and announced to everyone; see *Festivals* in §5 (reachable from chat since #3389) |
 | `/announce Message` · `/restart Minutes [Message]` · `/cancelrestart` | A notice to everyone online · a restart countdown with warnings · call the countdown off |
 | `/mode Player survival\|creative\|world` | Per-player game mode — see *Per-player mode* below |
-| `/gamemode explorer\|creative\|sandbox` | The whole world's mode — see *World mode* below. Alone it names the current mode |
+| `/gamemode explorer\|creative\|sandbox\|hard` | The whole world's mode — see *World mode* below. Alone it names the current mode |
 
 #### `/silence` — a pause instead of a kick
 
@@ -5774,6 +5795,9 @@ The three modes of the new-world screen can be switched later: **`/gamemode sand
 **Sandbox** adds free crafting, no oxygen or hunger (not even on a spacewalk), no planet machines or bandits and **no
 damage at all** — no lava or fall hurts you, aggressive animals and space hostiles leave you and your ship alone — and the
 inventory's **All items** page.
+**`/gamemode hard`** (also `überlebenskampf`) turns the world into **Hard Survival** (see *Death & respawn*): machines
+and bandits Extreme, hazards Hard, oxygen and hunger Slow, and a death means watching until revived. Switching to
+another mode ends that death rule; the levels stay as they are until you change them in the world rules.
 The change is saved with the world and reaches everyone online at once. Going back to Explorer takes nothing away:
 unlocked blueprints, ships and kit items stay. World admins only; it works with cheats off.
 

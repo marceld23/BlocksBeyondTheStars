@@ -2093,6 +2093,7 @@ public sealed partial class GameServer
 
     private void TickEnvironment(double dt)
     {
+        TickFallen(); // #3765: who may start again, the light where somebody fell
         FlushBioRegister(force: false); // #2201: a changed species register is written a little later, once
         if (ReconcileSpeeders()) // materialise present owners' speeders / despawn departed owners' (hover vehicles)
         {
@@ -2624,7 +2625,7 @@ public sealed partial class GameServer
         // #3188: a body that is still choosing where to wake up has died already. A creature, machine or robber left beside it
         // used to run this again every tick — a fresh death flash and sound, a reset choice deadline, a save and a log line
         // each time, and a "no salvage capsule" note after the choice although one lies at the death spot.
-        if (session.Respawn.ChoicePending)
+        if (session.Respawn.ChoicePending || session.Respawn.Fallen) // #3765: or is already watching
         {
             return;
         }
@@ -2645,7 +2646,7 @@ public sealed partial class GameServer
 
         var p = session.State;
         bool dropSalvage = !Rules.KeepInventoryOnDeath && !session.Respawn.SparedByPvp && // #2972: a PvP defeat costs nothing
-                           Rules.DeathPenalty is DeathPenalty.Normal or DeathPenalty.Hard;
+                           Rules.DeathPenalty is DeathPenalty.Normal or DeathPenalty.Hard or DeathPenalty.Revive;
 
         bool salvaged = false;
         if (dropSalvage)
@@ -2694,6 +2695,11 @@ public sealed partial class GameServer
         // relocation is DEFERRED — the death screen offers ship vs home and answers with RespawnChoiceIntent.
         // Until then the player lies at the death spot at 0 HP: the environment tick skips pending players
         // (no drains, no re-death) and enforces the timeout fallback to the ship.
+        if (FallInsteadOfRespawn(session, reason, salvaged, sameWorld))
+        {
+            return; // #3765: a Hard Survival world — the player watches until revived (GameServerFallen.cs)
+        }
+
         if (!string.IsNullOrEmpty(p.CustomSpawnBodyId))
         {
             p.Health = 0f;
@@ -2774,7 +2780,7 @@ public sealed partial class GameServer
                 Z = p.RespawnPoint.Z,
                 Reason = reason,
                 SalvageCapsuleDropped = salvaged,
-                Died = true, // an actual death → client plays the red death flash + sound
+                Died = !session.Respawn.FallenRestarting, // an actual death → client plays the red death flash + sound (#3765: not twice)
             });
             SendInventory(session);
             SendPlayerState(session);
@@ -2795,6 +2801,12 @@ public sealed partial class GameServer
     /// or late packet can't double-respawn).</summary>
     private void HandleRespawnChoice(PlayerSession session, RespawnChoiceIntent choice)
     {
+        if (session.Respawn.Fallen)
+        {
+            RestartFallenAtShip(session); // #3765: only once nobody is left who could revive
+            return;
+        }
+
         if (session.Respawn.RespawnChoiceDeadline <= 0)
         {
             return;
@@ -3990,6 +4002,11 @@ public sealed partial class GameServer
         if (session.Spectating && !SpectatorMayHandle(message))
         {
             return;
+        }
+
+        if (session.Respawn.Fallen && !FallenMayHandle(message))
+        {
+            return; // #3765: the fallen watch — they move their camera and talk, nothing else
         }
 
         // #995: while every player holds the world paused, the simulation is frozen — so gameplay intents
@@ -6774,7 +6791,7 @@ public sealed partial class GameServer
             InSpeeder = p.InSpeeder,
             InTrain = p.InTrain, // #2113
             TrainSeat = p.TrainSeat,
-            Spectating = session.Spectating,
+            Spectating = session.Spectating || session.Respawn.Fallen, // #3765: the fallen fly the observer's camera
             Role = (byte)p.Role, // #3503: the client learns its own role (self only, never in the presence)
             AdminMode = session.Admin.Mode,
             AdminModeAvailable = AdminModeAvailableFor(session),

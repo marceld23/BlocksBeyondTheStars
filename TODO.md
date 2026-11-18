@@ -26,9 +26,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking past sleepers, armour that no longer flickers, a pick that chops, wrecks that differ, crew that is not called traders (#3750–#3752, #3763–#3770), 🚧 in work (⚠ playtest open; server + client)
+### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking, armour, pick and blades, wrecks, crew labels, a skin template, startled NPCs, the figure's voice, throwing blocks, Hard Survival (#3750–#3752, #3763–#3770), ✅ 2026-11-18 (⚠ playtest open; server + client, appended messages and additive fields only — no protocol bump, no save change)
 
-Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so far:
+Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations) became eleven issues; all are done:
 
 - ✅ **#3750 The Soundrak strikes.** "The Soundraks do no damage": 3 health a second (2.1 behind the obsidian chest
   plate) against 2 a second of natural healing never moved the health bar. Its record now strikes in chunks like the
@@ -56,8 +56,23 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations). Done so f
 - ✅ **#3768 Nobody who cannot trade is called a trader.** A station's crew and the residents of a traders settlement
   wore the label of their place's theme ("Trader" — in German the vendor's word) but only talk. Station crew is "Crew"
   now (`npc.role.station_crew`, all 14 languages), the settlement's people "Settler"; clothes still follow the theme.
-- 🚧 **Still to build in this batch (decisions recorded in the issue):** #3765 Hard Survival (a fourth world mode: many
-  enemies, slow needs, death = watching until a team-mate revives with a medkit; alone 60 s).
+- ✅ **#3765 Hard Survival — a fourth world mode; a death means watching until revived.** Creative stays. The
+  new-world screen has four mode cards; the fourth launches the world with machines and bandits Extreme, hazards
+  Hard, oxygen and hunger Slow and the new death rule `DeathPenalty.Revive` (appended to the enum; no new option
+  row; `/gamemode hard` sets the same on a running world; the mode is read back from the rule in the server, the
+  sidecar and the world list). **The fallen** (`GameServerFallen.cs`, rules in `Shared/FallenRules`): a player who
+  dies on foot on a world keeps the capsule at the place of death and watches — invulnerable, flying (the client
+  uses the observer camera via `PlayerStateUpdate.Spectating`), invisible to the others, every intent but moving and
+  talking dropped; deliberately not the admins' observer mode. Back: another player's medkit within its radius of
+  the place of death (stands up there, 45 health); alone after 60 s, or at once when everybody has fallen, a
+  restart at the ship — always the player's own intent, checked by the server. A leaving or crashed watcher is put
+  back at the ship. `RespawnOptions` gained three additive fields; no new message, no protocol bump, no save
+  change. Texts in all 14 languages. Docs: [docs/developer/HARD_SURVIVAL.md](docs/developer/HARD_SURVIVAL.md), the
+  manual's *Death & respawn*. Tests: `FallenTests`, `HardSurvivalWiringTests`.
+  ⚠ Playtest open: the mode has never been seen in the running game — the four narrower mode cards in every
+  language, the banner, whether Extreme machines plus Extreme bandits is fun. Not built (see the doc's *Open*): the
+  fallen are not marked in the player list, the place of death has no map marker, *Frontier danger* and
+  *Aggressive creatures* of the issue's first table are not part of the mode (no launch switch / no reader).
 - ✅ **#3766 Carry a block over the head and throw it.** The Feed control (Q) with a block in the hand and nothing to
   feed lifts ONE block of the selected stack with both hands — a stance, the block stays in the stack — and puts it
   back; the attack control throws it. The server flies it (`GameServerCarryThrow.cs`, rules in `Shared/BlockThrow`):

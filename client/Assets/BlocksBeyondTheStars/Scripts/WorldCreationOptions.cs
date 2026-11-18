@@ -77,6 +77,11 @@ namespace BlocksBeyondTheStars.Client
         public int Hazards = 2;        // Normal
         public int DeathPenalty = 1;   // Light (server default)
 
+        /// <summary>#3765, Hard Survival: the world's death rule is <c>Revive</c> — a player who dies watches until a
+        /// team-mate brings them back with a medkit. Set only by <see cref="HardSurvival"/> (the new-world screen's
+        /// fourth mode); it replaces the <see cref="DeathPenalty"/> step, which has no fifth position.</summary>
+        public bool ReviveOnDeath;
+
         /// <summary>Space combat (world rule): ON makes spawned space enemies actually fightable — enabling it
         /// sets both <c>SpaceCombat=PvE</c> and <c>ShipWeapons=NpcsOnly</c> (the server defaults BOTH to Off, so
         /// without this you can meet space NPCs you cannot damage). Default ON since the standard panel already
@@ -111,6 +116,22 @@ namespace BlocksBeyondTheStars.Client
 
         public static WorldCreationOptions Standard() => new WorldCreationOptions();
 
+        /// <summary>#3765: the Hard Survival mode on top of whatever the player set in the world options — extremely
+        /// many machines and robbers, hard hazards, oxygen and hunger that run down slowly, and a death that means
+        /// watching until revived. The same six rules the server's <c>/gamemode hard</c> sets.</summary>
+        public static WorldCreationOptions HardSurvival(WorldCreationOptions basis)
+        {
+            var o = new WorldCreationOptions();
+            o.CopyFrom(basis ?? new WorldCreationOptions());
+            o.PlanetEnemies = 4; // Extreme
+            o.Bandits = 4;       // Extreme
+            o.Hazards = 3;       // Hard
+            o.Oxygen = 1;        // Slow
+            o.Hunger = 1;        // Slow
+            o.ReviveOnDeath = true;
+            return o;
+        }
+
         public static WorldCreationOptions Hostile()
             => new WorldCreationOptions
             {
@@ -130,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
             TerrainGeneration = other.TerrainGeneration;
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
+            ReviveOnDeath = other.ReviveOnDeath;
             SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip; AutoAim = other.AutoAim;
             Stories.CopyFrom(other.Stories);
             StartPlanetType = other.StartPlanetType;
@@ -225,7 +247,8 @@ namespace BlocksBeyondTheStars.Client
             if (Oxygen != 2) Arg("oxygen", OxygenSteps[Oxygen]);
             if (Hunger != 2) Arg("hunger", HungerSteps[Hunger]);
             if (Hazards != 2) Arg("hazards", HazardSteps[Hazards]);
-            if (DeathPenalty != 1) Arg("death-penalty", DeathSteps[DeathPenalty]);
+            if (ReviveOnDeath) Arg("death-penalty", "Revive"); // #3765
+            else if (DeathPenalty != 1) Arg("death-penalty", DeathSteps[DeathPenalty]);
 
             // Space combat: enabling it flips BOTH server rules so spawned space enemies are fightable. The server
             // defaults both to Off, so we emit the overrides whenever the toggle is on (= the panel default).

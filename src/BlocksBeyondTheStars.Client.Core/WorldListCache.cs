@@ -23,6 +23,10 @@ namespace BlocksBeyondTheStars.Client
         /// (<c>WorldSaveSummary.ModeSandbox</c>).</summary>
         public const string ModeSandbox = "sandbox";
 
+        /// <summary>The sidecar's <see cref="Mode"/> of a Hard Survival world (#3765,
+        /// <c>WorldSaveSummary.ModeHard</c>).</summary>
+        public const string ModeHard = "hard";
+
         public SavedWorld(string name, DateTime lastWriteUtc, long playtimeSeconds)
             : this(name, lastWriteUtc, playtimeSeconds, string.Empty)
         {
@@ -67,6 +71,11 @@ namespace BlocksBeyondTheStars.Client
             if (string.Equals(mode, ModeCreative, StringComparison.OrdinalIgnoreCase))
             {
                 return "ui.save.mode_creative";
+            }
+
+            if (string.Equals(mode, ModeHard, StringComparison.OrdinalIgnoreCase))
+            {
+                return "ui.save.mode_hard"; // #3765
             }
 
             return string.Equals(mode, ModeSandbox, StringComparison.OrdinalIgnoreCase) ? "ui.save.mode_sandbox" : string.Empty;

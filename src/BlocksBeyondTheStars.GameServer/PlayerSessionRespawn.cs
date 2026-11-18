@@ -26,4 +26,27 @@ public sealed class PlayerSessionRespawn
     /// <summary>#2972: set only around the respawn of a player defeated by another player — that respawn keeps every item,
     /// whatever the world's death penalty says.</summary>
     public bool SparedByPvp { get; set; }
+
+    // --- The fallen (#3765, DeathPenalty.Revive — GameServerFallen.cs) ---
+
+    /// <summary>The player died on a Hard Survival world and watches until revived. Connection-scoped.</summary>
+    public bool Fallen { get; set; }
+
+    /// <summary>Where the player fell — where a medkit brings them back, and where they then stand up.</summary>
+    public BlocksBeyondTheStars.Shared.Geometry.Vector3f FallenAt { get; set; }
+
+    /// <summary>The uptime of the fall (the alone-timer counts from it), and the death's context for a restart at the ship.</summary>
+    public double FallenSince { get; set; }
+    public string FallenReason { get; set; } = string.Empty;
+    public bool FallenSalvaged { get; set; }
+
+    /// <summary>Every player had fallen at some moment: this one may start again at the ship at once (it stays so).</summary>
+    public bool FallenRestartNow { get; set; }
+
+    /// <summary>Set around the restart at the ship of a player who had fallen: that wake-up is no second death (no
+    /// death flash, no "you have died" gate — they have watched long enough).</summary>
+    public bool FallenRestarting { get; set; }
+
+    /// <summary>The <c>RestartInSeconds</c> the client was last told (NaN: nothing yet).</summary>
+    public float FallenToldRestartIn { get; set; } = float.NaN;
 }

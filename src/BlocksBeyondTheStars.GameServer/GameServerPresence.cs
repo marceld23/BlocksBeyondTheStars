@@ -438,7 +438,7 @@ public sealed partial class GameServer
             Legs = s.LegColor,
             // A player flying up in SPACE keeps their world id but must not keep standing on the pad
             // as a frozen ghost — mark them stealthed (clients hide stealthed avatars + nameplates).
-            Stealthed = p.Stealthed || InSpace(p.PlayerId),
+            Stealthed = p.Stealthed || InSpace(p.PlayerId) || s.Respawn.Fallen, // #3765: nobody sees the fallen
             Jetpacking = p.Jetpacking,
             Gliding = p.Gliding, // #2296
             Roped = p.RopeAnchor.HasValue, // #2319: the energy rope other players see

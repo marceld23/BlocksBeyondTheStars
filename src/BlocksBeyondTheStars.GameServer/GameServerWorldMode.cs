@@ -21,18 +21,24 @@ public sealed partial class GameServer
     internal const string WorldModeCreative = "creative";
     internal const string WorldModeSandbox = "sandbox";
 
+    /// <summary>#3765: Hard Survival — Explorer with many enemies, slow needs and the death rule
+    /// <see cref="DeathPenalty.Revive"/> (which is what names the mode).</summary>
+    internal const string WorldModeHard = "hard";
+
     /// <summary>A typed mode word — English as on the new-world screen, the German words, and "survival" for Explorer.</summary>
     internal static string? WorldModeFromWord(string? word) => (word ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "explorer" or "entdecker" or "survival" or "überleben" or "ueberleben" => WorldModeExplorer,
         "creative" or "kreativ" => WorldModeCreative,
         "sandbox" or "sandkasten" => WorldModeSandbox,
+        "hard" or "hardsurvival" or "überlebenskampf" or "ueberlebenskampf" => WorldModeHard,
         _ => null,
     };
 
     /// <summary>The world's mode in those words, read back from the switches it sets.</summary>
     private string CurrentWorldMode()
         => Rules.GameMode == GameMode.Creative ? WorldModeSandbox
+            : Rules.DeathPenalty == DeathPenalty.Revive ? WorldModeHard
             : Rules.CreativeFlight || _meta.CreativeUnlockAllBlueprints || _meta.CreativeStartAllShips || _meta.CreativeStarterKit
                 ? WorldModeCreative
                 : WorldModeExplorer;
@@ -96,7 +102,23 @@ public sealed partial class GameServer
     /// <summary>The switches behind a mode — exactly what the new-world screen passes at creation.</summary>
     private void ApplyWorldMode(string mode)
     {
-        bool extras = mode != WorldModeExplorer;
+        bool hard = mode == WorldModeHard;
+        bool extras = mode != WorldModeExplorer && !hard;
+        if (hard)
+        {
+            // Exactly what the new-world screen's fourth card launches a world with.
+            Rules.PlanetEnemies = AlienActivity.Extreme;
+            Rules.Bandits = AlienActivity.Extreme;
+            Rules.EnvironmentalHazards = HazardLevel.Hard;
+            Rules.OxygenConsumption = OxygenConsumption.Slow;
+            Rules.HungerConsumption = HungerConsumption.Slow;
+            Rules.DeathPenalty = DeathPenalty.Revive;
+        }
+        else if (Rules.DeathPenalty == DeathPenalty.Revive)
+        {
+            Rules.DeathPenalty = DeathPenalty.Light; // leaving Hard Survival: the ordinary death again (the levels stay)
+        }
+
         Rules.GameMode = mode == WorldModeSandbox ? GameMode.Creative : GameMode.Survival;
         Rules.CreativeFlight = extras;
         _meta.CreativeUnlockAllBlueprints = extras;
