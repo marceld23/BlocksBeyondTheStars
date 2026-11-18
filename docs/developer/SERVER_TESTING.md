@@ -157,6 +157,19 @@ first-PR traps:
   a test. Before this a hanging shard ran until someone cancelled it, and a cancelled job leaves no log at all.
   To see it locally: `dotnet test … --filter <your test> --blame-hang --blame-hang-timeout 20s
   --blame-hang-dump-type none`.
+- **A shard that crawls ends by itself and says why** (#3797). The hang detection above does not see a test
+  host that still finishes a test now and then — and that is what happened twice on 2026-11-18: 36–40 minutes
+  in the Test step, no reaction to a cancel for five minutes, and a job cancelled from outside (by hand or by
+  `timeout-minutes`) leaves **no log and no artifact**. So the Test step of `tests.yml` runs
+  [`scripts/ci-test-watchdog.sh`](../../scripts/ci-test-watchdog.sh) beside `dotnet test`:
+  - every minute one line — `[watchdog 07:00] test host: 5120 MB, 380% CPU | runner memory: used …, available …,
+    swap used … | load …`. Read the trend: memory climbing towards the runner's 16 GB with swap in use means the
+    shard's tests hold too much at once; CPU near 0 % with idle load means the threads wait on each other.
+  - after 25 minutes: the busiest processes, the **managed stacks of the test host** (`dotnet-stack`), then it
+    stops the host. `dotnet test` fails by itself, names the tests that were running and writes the `.trx` of
+    what had finished; log and artifacts survive. Look for many threads in the same `Monitor.Enter` / lock
+    frame (a shared static cache, see below), or in `Wait`/`Result` (sync over async).
+  - The script refuses to run outside GitHub Actions: it stops every test host on the machine.
 - Any test not marked `[Trait("Category", "Slow")]` must finish **well under 120 s** — the PR
   gate ([`scripts/check-test-durations.py`](../../scripts/check-test-durations.py)) fails on it.
   Use the `Slow` trait for soak/heavy-worldgen tests; they still run on every push to `main`.

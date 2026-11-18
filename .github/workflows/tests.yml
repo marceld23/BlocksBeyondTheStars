@@ -191,10 +191,20 @@ jobs:
         run: |
           SHARD_FILTER="$(python3 scripts/partition-tests.py filter --shard ${{ matrix.shard }} --shards ${{ strategy.job-total }} --tier ${{ inputs.tier }})"
           FILTER="${TIER:+$TIER&}$SHARD_FILTER"
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults $BLAME_HANG
-          if [ "${{ matrix.shard }}" = "1" ]; then
-            dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${TIER:+--filter "$TIER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults $BLAME_HANG
+          # The watchdog (scripts/ci-test-watchdog.sh): one line a minute about the test host's memory and the
+          # runner's, and after 25 minutes - a shard's tests take 6-13 - the test host's stacks, then it stops the
+          # host so that THIS step fails by itself. A job cancelled from outside leaves no log and no artifact.
+          DONE="$RUNNER_TEMP/tests-done"
+          bash scripts/ci-test-watchdog.sh 1500 "$DONE" &
+          WATCHDOG=$!
+          rc=0
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults $BLAME_HANG || rc=$?
+          if [ "$rc" = "0" ] && [ "${{ matrix.shard }}" = "1" ]; then
+            dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${TIER:+--filter "$TIER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults $BLAME_HANG || rc=$?
           fi
+          touch "$DONE"
+          wait "$WATCHDOG" || true
+          exit "$rc"
 
       # Fast-tier duration guardrail (PRs only — the full run legitimately contains Slow tests): fail when
       # any non-Slow test exceeds the per-test budget, so the fast tier cannot silently decay again (it once
