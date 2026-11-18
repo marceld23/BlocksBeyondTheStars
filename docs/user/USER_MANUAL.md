@@ -55,7 +55,9 @@ Last updated: 2026-10-04.
   you are the world's admin (the very first player of a fresh world is its **WorldAdmin**; the host's
   name is additionally passed as a server admin). The same address is announced again in chat and as a
   HUD toast once you are in ("Hosting — friends can join at ip:port"). The session ends (and the world
-  saves) when the host quits. Friends outside your LAN need a port forward of that UDP port.
+  saves) when the host quits. Friends outside your LAN need a port forward of that UDP port. The port is
+  **31550** unless you set another one as a start option (see *Start options* below) — useful when 31550 is taken
+  or blocked on your computer.
   **Windows Firewall:** singleplayer and joining a server need no permission. Hosting does, because your
   friends connect to your computer — if Windows would not let them in, the game says so before the world
   starts: **Allow now** asks Windows once (this takes an administrator account, so ask a grown-up) and adds
@@ -171,6 +173,40 @@ Last updated: 2026-10-04.
   (`..\BBTS-Data`); `%ENV%` variables are expanded, `#` lines are comments. Existing data is **not** moved
   automatically — copy the old folder over once if you want to keep it. A folder that cannot be written falls
   back to the default with a warning in `Player.log`. Not available in the browser version.
+- **Start options: data folder and port for home-network games.** Two things can be set before the game starts:
+  where it keeps its data, and the **port** its own server uses for singleplayer and for *Host on your network*
+  (default **31550**). Friends then join at `your-ip:that-port` — the host screen shows the right address. Change
+  the port when the game says *"The world server could not be started … another program is using its port"*, or
+  when 31550 is blocked on your network.
+
+  | Option | In `portable_data_dir.txt` | On the command line / shortcut |
+  |---|---|---|
+  | Data folder | one line with the folder (see above) | `-dataDir "<folder>"` |
+  | Server port (1024–65535) | a line `port=<number>` | `-hostPort <number>` |
+
+  - **Portable copy** — the file next to the game, for example:
+
+    ```text
+    # keep everything on the stick, host on port 31600
+    ..\BBTS-Data
+    port=31600
+    ```
+
+    The lines can come in any order. A file with only the `port=` line still keeps the data in `userdata` next to
+    the game.
+  - **Installed game** — its program folder is replaced by every update, so put the options on the shortcut:
+    right-click it → *Properties* → *Target*, and add them after the program path, e.g.
+    `…\BlocksBeyondTheStars.Launcher.exe -dataDir "D:\Games\BBTS-Data" -hostPort 31600` (either option alone works
+    too). Use a full path for the folder; `%USERPROFILE%`-style variables are expanded. On Linux, add the same
+    options to the command that starts the game (`./BlocksBeyondTheStars.AppImage -hostPort 31600`). The options
+    are kept when the game restarts after an update.
+  - The options are also accepted as `-hostPort=31600`, with two dashes, or as `--host-port` / `--data-dir`, in
+    any upper/lower case. The command line wins over the file.
+  - A wrong value (a port outside 1024–65535, a folder that cannot be created or written) is ignored with a
+    warning in `Player.log`, and the game starts with the default. When an option works, `Player.log` says so:
+    `[AppPaths] Data folder from -dataDir: '…'` and `[AppPaths] Port of the bundled server from -hostPort: 31600`.
+  - A new port needs the Windows Firewall permission once more — the host screen asks (see *Hosting a world*
+    above). Friends joining you type your new port into *Join a server*. Not available in the browser version.
 
 ### Crashes and blue screens — what to send
 

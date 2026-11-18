@@ -26,6 +26,12 @@ namespace BlocksBeyondTheStars.Client
     {
         public const int DefaultPort = 31550;
 
+        /// <summary>The port the bundled server listens on for singleplayer and in-game hosting: <see cref="DefaultPort"/>,
+        /// or the one the player set as a start option (<c>port=</c> in <c>portable_data_dir.txt</c>, <c>-hostPort</c> on
+        /// the command line — <see cref="LaunchOptions"/>). The join side keeps <see cref="DefaultPort"/> as its hint: it
+        /// describes what a friend's game uses, and that one knows nothing of this machine's options.</summary>
+        public static int ConfiguredPort => AppPaths.Launch.HostPort ?? DefaultPort;
+
         private Process _process;
 
         public string Host { get; } = "127.0.0.1";

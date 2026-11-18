@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
         private static void HostThroughFirewall(AppShell shell, Transform root, System.Action host)
         {
             string exe = LocalServerLauncher.ServerExePath();
-            int port = LocalServerLauncher.DefaultPort;
+            int port = LocalServerLauncher.ConfiguredPort; // the port the server will really open (a start option may move it)
             var state = HostFirewall.Skipped ? HostFirewallState.Allowed : HostFirewall.Check(exe, port);
             if (state == HostFirewallState.Allowed)
             {

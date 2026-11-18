@@ -210,7 +210,10 @@ namespace BlocksBeyondTheStars.Client
                 // force-closed it, whereupon the update applied cleanly. So: hand the asset to Update.exe off
                 // the main thread, let the shell stop its local server, then let UNITY quit the process.
                 var asset = info.TargetFullRelease;
-                await Task.Run(() => mgr.WaitExitThenApplyUpdates(asset, silent: false, restart: true));
+                // The restart keeps the start options the shortcut gave (-dataDir, -hostPort): the restarted launcher hands
+                // them on to the game like any launch (GameArguments). Velopack starts it without the original arguments.
+                string[] restartArgs = AppPaths.Launch.RestartArguments();
+                await Task.Run(() => mgr.WaitExitThenApplyUpdates(asset, silent: false, restart: true, restartArgs));
                 PrepareRestart?.Invoke();
                 Application.Quit();
             }

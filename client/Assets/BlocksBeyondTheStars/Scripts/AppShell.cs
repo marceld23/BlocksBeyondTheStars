@@ -936,7 +936,7 @@ namespace BlocksBeyondTheStars.Client
             // show the loading screen first (below), then spawn it on a background thread. Otherwise the
             // blocking Process.Start (a Defender first-scan of the freshly-built EXE can stall it for seconds)
             // would freeze the menu so "nothing happens" before the loading screen appears.
-            if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed,
+            if (_localServer.Prepare(LocalServerLauncher.ConfiguredPort, Settings.ViewDistanceChunks, worldName, seed,
                     creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions?.ToArgs(),
                     maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName, creativeFlight))
                     // #3021: no operator override any more — "My festivals" rides on the join and the live intent, so a change
@@ -1135,9 +1135,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The "ip:port" a friend on the same network types into Connect — the host screen shows
         /// it BEFORE the world launches (#984), and <see cref="HostInfo"/> repeats it in-game. Reads the
-        /// live interface list on each call, so switching from cable to Wi-Fi is picked up.</summary>
-        public static string LanJoinAddress(int port = LocalServerLauncher.DefaultPort)
-            => LocalLanIp() + ":" + port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        /// live interface list on each call, so switching from cable to Wi-Fi is picked up. The port is the one the
+        /// bundled server will listen on — a start option may have moved it (<see cref="LocalServerLauncher.ConfiguredPort"/>).</summary>
+        public static string LanJoinAddress()
+            => LocalLanIp() + ":" + LocalServerLauncher.ConfiguredPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         public void StartJoin()
         {
