@@ -22,6 +22,11 @@ public sealed class PlayerEmote
 
     /// <summary>One of <see cref="PlayerEmotes"/>.</summary>
     public byte Emote { get; set; }
+
+    /// <summary>#3767: the figure's voice (<c>PlayerVoice.Pack</c>) with a <see cref="PlayerEmotes.Hurt"/> and a
+    /// <see cref="PlayerEmotes.Down"/> — the pain grunt and the fall are heard in it; 0 = the middle voice, and what an older
+    /// server sends. Additive contractless field.</summary>
+    public int Voice { get; set; }
 }
 
 /// <summary>The emotes a player can play, and the body states the server reports through the same message.</summary>

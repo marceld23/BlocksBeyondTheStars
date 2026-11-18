@@ -71,6 +71,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            _startled = false; // the arms-up gesture is the cheer again, not a startle (#3769)
+            _armsUpSeconds = AvatarGestures.CheerSeconds;
             _cheerTimer = AvatarGestures.CheerSeconds;
             _waveTimer = 0f;
         }
@@ -394,7 +396,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_mouth != null)
             {
-                float open = now < _talkUntil ? 1f + (2.6f * EmoteCurves.MouthOpen(now)) : 1f;
+                float open = Mathf.Max(GaspFactor(), now < _talkUntil ? 1f + (2.6f * EmoteCurves.MouthOpen(now)) : 1f); // #3769: a startle holds it wide
                 SetScaleY(_mouth, _mouthScale, open);
             }
         }

@@ -112,8 +112,10 @@ public static class SoundiRules
 /// bud-like mouth pointing up at the top and tentacles on its back. <b>Hostile from the start</b> (#3424, Justus: "evil from the
 /// start"): a player who comes into its patch hears a short, loud scream (loud, never shrill); one it notices within
 /// <see cref="NoticeRange"/> hears the scream as a warning and, still there <see cref="WarningSeconds"/> later, is attacked
-/// (<see cref="AlertFor"/>). The calm disc and the Resonance Blaster calm it (<c>GameServer.CalmCreature</c>). One about at a
-/// time.
+/// (<see cref="AlertFor"/>). It <b>strikes</b> (#3750): its record carries <c>biteDamage</c> and <c>biteInterval</c>, so a hit
+/// takes a visible chunk of health every couple of seconds (<c>CreatureReach.BitesInChunks</c>) — the 3 health a second it
+/// drained before sat just above the player's natural healing and never showed on the health bar. The calm disc and the
+/// Resonance Blaster calm it (<c>GameServer.CalmCreature</c>). One about at a time.
 /// </summary>
 public static class SoundrakRules
 {

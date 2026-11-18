@@ -177,6 +177,24 @@ instead of at the sky. A swing, a blow, the bow, a gesture or the rope moves the
 again. NPCs keep their tools at their side, and every pose with its own arms (asleep, climbing, seated, gliding) drops
 the carry.
 
+### Stances: blades and the pick (#3763)
+
+Every held model is built along +Z, and one rest pose for all of them made a sword point into the screen like a gun (a
+narrow blade shrank to a short stick) and hid the pickaxe's head behind its handle. `HeldStances` (Client.Core) gives a
+held kind its stance:
+
+| Stance | Kinds | First person | Third person | Use |
+|---|---|---|---|---|
+| `Level` | guns, drills, scanners, gadgets, blocks, the hand | the shared rest pose | carried level | as before |
+| `Raised` | `Blade` | tipped up 34° (`RestTurn`), a little lower and nearer (`RestShift`) | tipped up 38° in the hand (`CarryTip`) | the diagonal slash |
+| `Pick` | `Pick` | tipped up 44° | tipped up 48° | an overhead **chop** (`ChopPitch`: wind-up, strike at 55 % of the swing, back to rest) |
+
+**A pick is its own held kind, recognised from the data — never from a key:** a drill-kind tool whose own `heldModel`
+has no bit on its axis (`HeldStances.IsPickModel`, the `HeldDrillBit.SpinParts` rule that already kept its head from
+spinning). The wooden pickaxe is the only one. It is drawn from its model like a drill (`HeldItemShapes.IsShapedKind`),
+has **no flourish** and no `drill_spinup`, and mining with it does not keep the `drill_loop` alive
+(`PlayerController._heldPick`). The server knows nothing of this: to it the pickaxe stays a tier-1 drill.
+
 ## 4. Putting it away and taking out the next one (#2778)
 
 `HeldSwap` (Client.Core) is the one animation for every item, used by `Viewmodel` and `PlayerAvatar` alike:
@@ -226,7 +244,8 @@ Once a draw has brought a drill, a gun or a blade into the hand, it plays a shor
   `HeldItem.MuzzleOf` read positions, which stay. `HeldDrillBit.SpinParts` finds the bit from the boxes alone: the
   foremost box on the axis, roughly square across, plus the other square boxes on the axis at or ahead of its back face
   (a chuck, a collar, the mining beam's emitter ring). A box off the axis that reaches into that length makes it a pick
-  — the wooden pickaxe is a `Drill` by its tool kind and has no bit — and then nothing spins.
+  — the wooden pickaxe is a drill by its tool kind and has no bit — and then nothing spins; since #3763 such an item is
+  the held kind `Pick` (see "Stances").
 - **The bit spins while mining**: every swing (`Viewmodel.Swing`, `PlayerAvatar.Swing`, so other players' drills too)
   drives it for the swing's length; it spins up in 0.25 s to three turns a second and coasts down over 0.6 s
   (`HeldDrillBit.NextSpeed`). The component sleeps while the bit stands still.
@@ -261,6 +280,9 @@ The Sounders story pack adds one held gadget and a handful of items the hand sho
   scanners held by their handle (#2799).
 - `WeaponTests.IsRanged_GoesByTheWeaponsRange` — gun or blade by range (#2800), and no weapon in the data sits at the
   melee reach.
+- `HeldStancesTests` (#3763) — the pick recognised from the shipped data (every real drill stays a drill), drawn from its
+  model without a flourish, the stance per kind, blades and the pick tipped up, the chop at rest at both ends and without
+  a jump, and the Unity wiring as source text.
 - `HeldSwapTests` — timing, one swap per switch, fast scrolling, turning round, draw-only, cutting it short.
 - `HeldFlourishTests` (#3095) — the flourish per kind, each short with a cue and at rest at both ends, no jumps between
   frames, cutting it short, only the blade's idle repeat and its random pause, the bit of every drill in the data (none

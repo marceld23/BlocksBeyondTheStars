@@ -47,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildToast(Transform root)
         {
             // #3668: ONE toast lane, top centre (HudZones B) — the line used to sit in the status column under the vitals.
+            BuildToastPlate(root); // #3769: a plate behind the line, so it reads over a name tag (HudUi.ToastPlate.cs)
             _toast = UiText.Add(root, (W / 2f) - (ToastW / 2f), ToastY, ToastW, 24, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
             _toast.richText = false; // carries developer/player text (reply toasts, chat echoes) — shown verbatim (#1368)
             _toastGroup = _toast.gameObject.AddComponent<CanvasGroup>();
@@ -113,6 +114,7 @@ namespace BlocksBeyondTheStars.Client
         /// text and sequence). The slide-in tween is long finished by the time the fade drives the alpha.</summary>
         private void UpdateToast(float dt)
         {
+            SyncToastPlate(); // #3769
             if (_toastAge < 0f)
             {
                 return;

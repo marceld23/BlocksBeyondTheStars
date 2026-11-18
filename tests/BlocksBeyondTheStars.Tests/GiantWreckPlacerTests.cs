@@ -137,6 +137,54 @@ public sealed class GiantWreckPlacerTests
         Assert.Null(GiantWreckPlacer.PickDesign(new List<StructureTemplate>(), 77, "x"));
     }
 
+    [Fact]
+    public void TheWrecksOfOneWorld_AreDifferentShips_WhileADesignIsLeft()
+    {
+        // #3764 (Justus: "in every system I have a wreck I already know from the first one"): each wreck picked on its own,
+        // so two wrecks of a world were the same ship about one time in four. Now a wreck picks among the designs no other
+        // wreck of the world is yet.
+        StructureTemplate Ship(string key, int weight) => new() { Key = key, GiantShip = true, Weight = weight };
+        var pool = new List<StructureTemplate> { Ship("carrier", 3), Ship("battleship", 3), Ship("liner", 3), Ship("ark", 1), Ship("squid", 1) };
+        int repeatsBefore = 0;
+        for (long seed = 1; seed <= 300; seed++)
+        {
+            var taken = new HashSet<string>();
+            var alone = new HashSet<string>();
+            for (int sys = 0; sys < pool.Count; sys++)
+            {
+                string id = GiantWreckPlacer.BodyId("sys" + sys, 0);
+                var before = taken.ToList();
+                var pick = GiantWreckPlacer.PickDesign(GiantWreckPlacer.Untaken(pool, taken), seed, id)!;
+                Assert.True(taken.Add(pick.Key), $"seed {seed}: {id} repeats '{pick.Key}' although a design was free");
+                Assert.Same(pick, GiantWreckPlacer.PickDesign(GiantWreckPlacer.Untaken(pool, before), seed, id)); // stable
+                repeatsBefore += alone.Add(GiantWreckPlacer.PickDesign(pool, seed, id)!.Key) ? 0 : 1;
+            }
+
+            // Once every design is in the world, a sixth wreck may be any of them again.
+            Assert.NotNull(GiantWreckPlacer.PickDesign(GiantWreckPlacer.Untaken(pool, taken), seed, GiantWreckPlacer.BodyId("sys9", 0)));
+        }
+
+        Assert.True(repeatsBefore > 300, "the old independent pick repeated a design in most worlds with five wrecks");
+
+        // A pinned ship counts as taken, and nothing taken leaves the pool as it is.
+        Assert.Same(pool, GiantWreckPlacer.Untaken(pool, null));
+        Assert.Same(pool, GiantWreckPlacer.Untaken(pool, new List<string>()));
+        Assert.Equal(new[] { "battleship", "liner", "ark", "squid" }, GiantWreckPlacer.Untaken(pool, new[] { "carrier" }).Select(t => t.Key));
+        Assert.Same(pool, GiantWreckPlacer.Untaken(pool, pool.Select(t => t.Key).ToList())); // none left: all of them again
+
+        // The weights still decide among the free designs: with the carrier taken, the two heavy ships lead.
+        var counts = new Dictionary<string, int>();
+        var free = GiantWreckPlacer.Untaken(pool, new[] { "carrier" });
+        for (int i = 0; i < 1600; i++)
+        {
+            string key = GiantWreckPlacer.PickDesign(free, 77, GiantWreckPlacer.BodyId("sys" + (i % 40), i / 40))!.Key;
+            counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
+        }
+
+        Assert.All(new[] { "battleship", "liner" }, k => Assert.InRange(counts[k], 450, 750)); // 3 of 8 ≈ 600
+        Assert.All(new[] { "ark", "squid" }, k => Assert.InRange(counts[k], 120, 290));        // 1 of 8 ≈ 200
+    }
+
     // ---------------- in flight ----------------
 
     /// <summary>The largest giant ship (256 a side) beside three of the largest derelicts, the NPC station hulls ahead, The Long

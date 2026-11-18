@@ -34,8 +34,9 @@ public sealed partial class CombatEntity
 /// <item><b>The Qualis</b> are untouchable: no hit, no push (<see cref="UntouchableCreature"/>); passive, high in the sky.</item>
 /// <item><b>The Soundrak</b> is hostile from the start (#3424): a player within <see cref="SoundrakRules.TerritoryRange"/> hears
 /// its short, loud scream; one it notices within <see cref="SoundrakRules.NoticeRange"/> hears the scream as a warning and,
-/// still there <see cref="SoundrakRules.WarningSeconds"/> later, is attacked (provoked into the classic charge and bite; only
-/// where planet enemies are on — never in Peaceful or Creative). No story progress is needed. A player who soothes Soundraks
+/// still there <see cref="SoundrakRules.WarningSeconds"/> later, is attacked (provoked into the classic charge; it strikes in
+/// chunks like the Schuppenhund, #3750 — <see cref="BiteThisTick"/>, the values are its record's; only where planet enemies
+/// are on — never in Peaceful or Creative). No story progress is needed. A player who soothes Soundraks
 /// (the calm disc in the obsidian chest's socket — the items pack's hook <see cref="SoothesSoundraks"/>) is ignored; the whole
 /// obsidian set's quiet steps let a player come closer before it notices.</item>
 /// <item><b>The calm</b> — <see cref="CalmCreature"/> / <see cref="CalmCreaturesNear"/> (the Resonance Blaster, a story beat):

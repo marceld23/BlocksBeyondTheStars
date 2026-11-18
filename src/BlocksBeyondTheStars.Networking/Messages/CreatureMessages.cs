@@ -270,6 +270,12 @@ public sealed class WorldFx
     /// <summary>The NPC id that caused the effect (#2645: the hunter whose arrow it is, so the client plays its release
     /// gesture); 0 = none.</summary>
     public int SourceId { get; set; }
+
+    /// <summary>#3766, kind <c>"block_throw"</c>: the item key of the block that flies from X/Y/Z to
+    /// <see cref="ToX"/>/<see cref="ToY"/>/<see cref="ToZ"/> (the client draws it with that block's faces);
+    /// <see cref="Strength"/> is the flight's seconds and <see cref="Radius"/> 1 if it hit a body. Null for every
+    /// other kind — an additive field of a contractless message.</summary>
+    public string? Item { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>

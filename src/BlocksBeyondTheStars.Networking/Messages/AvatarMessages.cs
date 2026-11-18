@@ -13,6 +13,10 @@ public sealed class SetAppearanceIntent
 
     /// <summary>Ship hull colour (packed 0xRRGGBB) — tints the player's ship hull (item 32). 0 = unset.</summary>
     public int Hull { get; set; }
+
+    /// <summary>#3767: the figure's voice — the pitch and the age slider packed by <c>PlayerVoice.Pack</c>. 0 = not set (an
+    /// older client): the middle voice. Additive contractless field.</summary>
+    public int Voice { get; set; }
 }
 
 /// <summary>Client tells the server its custom pixel face (drawn in the in-game face editor) so other

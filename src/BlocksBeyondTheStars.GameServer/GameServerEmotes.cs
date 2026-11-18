@@ -65,6 +65,8 @@ public sealed partial class GameServer
     private void BroadcastPlayerEmote(PlayerState p, byte emote)
     {
         double rangeSq = (double)EmoteRange * EmoteRange;
+        // #3767: a hit and a fall are heard in the figure's own voice.
+        int voice = emote is PlayerEmotes.Hurt or PlayerEmotes.Down ? FindSessionByPlayerId(p.PlayerId)?.Voice ?? 0 : 0;
         foreach (var s in JoinedInActiveWorld())
         {
             var other = s.State;
@@ -74,7 +76,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            Send(s, new PlayerEmote { PlayerId = p.PlayerId, Emote = emote });
+            Send(s, new PlayerEmote { PlayerId = p.PlayerId, Emote = emote, Voice = voice });
         }
     }
 
@@ -155,4 +157,7 @@ public sealed partial class GameServer
             HandleEmote(session, new PlayerEmoteIntent { Emote = emote });
         }
     }
+
+    /// <summary>Test seam (#3767): a player's appearance (colours and voice) as the dispatch would hand it over.</summary>
+    internal void AppearanceForTest(PlayerSession session, SetAppearanceIntent intent) => HandleSetAppearance(session, intent);
 }

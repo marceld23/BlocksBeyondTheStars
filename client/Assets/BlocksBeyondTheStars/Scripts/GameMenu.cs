@@ -422,7 +422,7 @@ namespace BlocksBeyondTheStars.Client
 
             Settings.Save();
             Game.Network?.SendAppearance(Rgb(Settings.SkinColor), Rgb(Settings.TorsoColor),
-                Rgb(Settings.ArmColor), Rgb(Settings.LegColor), Rgb(Settings.HullColor));
+                Rgb(Settings.ArmColor), Rgb(Settings.LegColor), Rgb(Settings.HullColor), Settings.VoicePacked); // voice: #3767
         }
 
         /// <summary>Cycles the ship hull colour — called from the uGUI Ship tab's paint category (item 32).</summary>

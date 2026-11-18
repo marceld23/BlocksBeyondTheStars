@@ -170,6 +170,42 @@ public sealed class StationTradeAndGiverTests : IDisposable
         return station;
     }
 
+    [Fact]
+    public void NobodyWhoCannotTrade_IsLabelledATrader()
+    {
+        // #3768 (Justus: "above this NPC it says trader, and I can only talk to him"): a place's theme picks its people's
+        // clothes; as a label, "npc.theme.traders" promised a shop on every crew member of a station.
+        var server = Started(Gen, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            BoardFirstStation(server, "Pilot");
+            var labels = server.NpcLabelsForTest();
+            Assert.Contains(labels, l => l.Role == "settler"); // the crew that keeps no shop
+            Assert.Contains(labels, l => l.Role == "vendor");
+            Assert.DoesNotContain(labels, l => l.NameKey == "npc.theme.traders");
+            Assert.All(labels.Where(l => l.Role == "settler"),
+                l => Assert.True(l.NameKey == SvGameServer.StationCrewNameKey || NpcProfessions.All.Any(p => p.NameKey == l.NameKey), l.NameKey));
+        }
+
+        // The rule itself: the traders theme labels settlers; every other theme keeps its own word.
+        Assert.Equal("npc.role.settler", SvGameServer.ThemeNameKey("traders"));
+        Assert.Equal("npc.theme.miners", SvGameServer.ThemeNameKey("miners"));
+        Assert.Equal("npc.theme.researchers", SvGameServer.ThemeNameKey("researchers"));
+        Assert.Equal("npc.theme.settlers", SvGameServer.ThemeNameKey("settlers"));
+
+        // "Crew" exists in both mandatory languages, and no label of a non-trading NPC reads like the vendor's.
+        var en = _content.CreateLocalizer(BlocksBeyondTheStars.Shared.Localization.GameLocale.English);
+        var de = _content.CreateLocalizer(BlocksBeyondTheStars.Shared.Localization.GameLocale.German);
+        Assert.Equal("Crew", en.Get(SvGameServer.StationCrewNameKey));
+        Assert.Equal("Besatzung", de.Get(SvGameServer.StationCrewNameKey));
+        foreach (var table in new[] { en, de })
+        {
+            Assert.NotEqual(table.Get("npc.role.vendor"), table.Get(SvGameServer.StationCrewNameKey));
+            Assert.NotEqual(table.Get("npc.role.vendor"), table.Get(SvGameServer.SettlerNameKey));
+        }
+    }
+
     [Theory]
     [InlineData(OldGen)]
     [InlineData(Gen)]

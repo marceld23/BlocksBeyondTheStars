@@ -79,6 +79,12 @@ public enum DeathPenalty
     Light,
     Normal,
     Hard,
+
+    /// <summary>#3765, the death rule of a Hard Survival world: the things stay at the place of death as with
+    /// <see cref="Hard"/>, and a player who dies on foot on a world does not wake up at the ship — they watch until
+    /// another player brings them back with a medkit (<c>Shared.Definitions.FallenRules</c>). Appended, so the
+    /// stored values of the others keep their meaning.</summary>
+    Revive,
 }
 
 public enum StructureDamageMode

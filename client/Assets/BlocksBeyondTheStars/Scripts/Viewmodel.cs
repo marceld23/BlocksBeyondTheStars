@@ -224,7 +224,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildHeld(HeldItem.Kind kind, Color tint, string blockKey, string itemKey,
             System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look)
         {
-            _kind = kind;
+            SetKind(kind); // the kind and its stance (#3763, Viewmodel.Stance.cs)
 
             if (_mesh != null)
             {
@@ -574,8 +574,8 @@ namespace BlocksBeyondTheStars.Client
                 Mathf.Sin(_bobPhase * 2f) * 0.012f * moving - 0.004f * moving,
                 0f);
 
-            var rot = RestEuler;
-            var posOff = RestPos + bob;
+            var rot = RestEuler + _stanceTurn; // #3763: a blade and a pick rest tipped up (Viewmodel.Stance.cs)
+            var posOff = RestPos + _stanceShift + CarryShift() + bob; // #3766: a carried block rises to the top of the view
             var rotL = MirroredEuler(RestEuler);
             var posL = Mirrored(RestPos) + new Vector3(-bob.x, bob.y, 0f); // one shared bob, mirrored across
 
@@ -632,10 +632,9 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    // Tools / drill / block: a forward-down jab.
+                    // Tools / drill / block: a forward-down jab; a pick chops over the head (#3763).
                     aroundForearm = _grip != null;
-                    posOff += new Vector3(-0.05f, -0.06f, 0.12f) * jab;
-                    rot += new Vector3((aroundForearm ? 34f : 55f) * jab, -8f * jab, 0f);
+                    PoseJabOrChop(t, jab, aroundForearm, ref posOff, ref rot);
                 }
             }
 

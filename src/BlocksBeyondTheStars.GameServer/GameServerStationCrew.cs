@@ -26,6 +26,35 @@ public sealed partial class GameServer
     /// <summary>How far around a lounge marker the evening seats are collected.</summary>
     private const int LoungeSeatReach = 8;
 
+    /// <summary>The name-plate label of a station's crew member who keeps no shop (#3768).</summary>
+    internal const string StationCrewNameKey = "npc.role.station_crew";
+
+    /// <summary>The label of the residents of a traders settlement who keep no shop (#3768): plain settlers.</summary>
+    internal const string SettlerNameKey = "npc.role.settler";
+
+    /// <summary>
+    /// The name-plate label an NPC takes from its place's theme (#3768 — Justus: "above this NPC it says trader, and I can
+    /// only talk to him"). A place's theme picks its people's clothes; as a label, <c>npc.theme.traders</c> ("Trader", in
+    /// German the same word as the vendor's) promised a shop on everybody at a station and in a traders settlement. Only an
+    /// NPC of the vendor role trades, so the traders theme labels its other people settlers; every other theme is a trade
+    /// nobody mistakes for a shop (settler, miner, researcher).
+    /// </summary>
+    internal static string ThemeNameKey(string theme)
+        => theme == "traders" ? SettlerNameKey : "npc.theme." + theme;
+
+    /// <summary>A station's crew member who keeps no shop and gives no jobs is "Crew" (#3768). Called right after
+    /// <see cref="MakeNpc"/>; a profession or an authored character applied afterwards still names itself.</summary>
+    private static void LabelStationCrew(ServerNpc npc)
+    {
+        if (npc.Role == "settler")
+        {
+            npc.NameKey = StationCrewNameKey;
+        }
+    }
+
+    /// <summary>Test seam (#3768): the role and the name-plate label key of every NPC of the active world.</summary>
+    public IReadOnlyList<(string Role, string NameKey)> NpcLabelsForTest() => _npcs.Select(n => (n.Role, n.NameKey)).ToList();
+
     private void SpawnKitStationCrew(BoardableStation station)
     {
         _stationCrewSpotsTaken.Clear();
@@ -81,6 +110,7 @@ public sealed partial class GameServer
                 ? StationCrewSpot(station, posts[i].Pos, rng, jitter: 0)
                 : StationCrewSpot(station, station.Spawn, rng, jitter: 2);
             var npc = MakeNpc(role, theme, robotic, work, rng);
+            LabelStationCrew(npc); // #3768: "Crew", not "Trader" — a profession below still names its own job
             npc.Rest = cabinSpot;
             npc.Work = work;
             npc.HasWork = true;

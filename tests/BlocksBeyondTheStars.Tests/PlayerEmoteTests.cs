@@ -165,4 +165,37 @@ public sealed class PlayerEmoteTests : IDisposable
         server.FallDamageForTest("Victim", 60f);
         Assert.Contains(PlayerEmotes.Down, EmotesTo(transport, watcher.ConnectionId).Select(e => e.Emote));
     }
+    [Fact]
+    public void AHitAndAFall_AreHeardInTheFiguresOwnVoice()
+    {
+        // #3767: the voice travels with the colours; the server keeps it (sanitized) and hands it on with the flinch and
+        // the fall, so the others play the pain grunt and the fall in THAT player's voice. A wave carries none.
+        var transport = new RecordingTransport();
+        var server = Started("emotes_voice", transport);
+        var victim = server.AddLocalPlayer("Victim");
+        var watcher = server.AddLocalPlayer("Watcher");
+        victim.State.AboardShip = false;
+        watcher.State.AboardShip = false;
+        watcher.State.Position = victim.State.Position;
+        victim.State.Health = 100f;
+
+        int voice = BlocksBeyondTheStars.Shared.Definitions.PlayerVoice.Pack(80, 20);
+        server.AppearanceForTest(victim, new SetAppearanceIntent { Skin = 1, Torso = 2, Arms = 3, Legs = 4, Voice = voice });
+        Assert.Equal(voice, victim.Voice);
+        transport.Sent.Clear();
+
+        server.FallDamageForTest("Victim", 18f);
+        var hurt = Assert.Single(EmotesTo(transport, watcher.ConnectionId));
+        Assert.Equal((PlayerEmotes.Hurt, voice), (hurt.Emote, hurt.Voice));
+
+        transport.Sent.Clear();
+        server.EmoteForTest("Victim", PlayerEmotes.Wave);
+        Assert.All(EmotesTo(transport, watcher.ConnectionId), e => Assert.Equal(0, e.Voice));
+
+        // A client that sends none (an older one) keeps the middle; a foreign value is clamped, never trusted.
+        server.AppearanceForTest(victim, new SetAppearanceIntent { Skin = 1, Torso = 2, Arms = 3, Legs = 4 });
+        Assert.Equal(0, victim.Voice);
+        server.AppearanceForTest(victim, new SetAppearanceIntent { Voice = 0x7FFF_FFFF });
+        Assert.Equal(BlocksBeyondTheStars.Shared.Definitions.PlayerVoice.Pack(100, 100), victim.Voice);
+    }
 }

@@ -444,6 +444,10 @@ namespace BlocksBeyondTheStars.Client
             var respawnPrompt = root.AddComponent<RespawnPrompt>();
             respawnPrompt.Game = boot;
 
+            // #3765: the fallen player's banner on a Hard Survival world (watching until revived).
+            var fallenView = root.AddComponent<FallenView>();
+            fallenView.Game = boot;
+
             // "Launch into space?" — E at the cockpit of a landed ship asks instead of only opening the map (#1455).
             var launchPrompt = root.AddComponent<LaunchPrompt>();
             boot.Views.LaunchPrompt = launchPrompt;

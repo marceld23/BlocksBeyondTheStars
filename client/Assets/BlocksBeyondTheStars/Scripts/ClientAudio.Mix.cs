@@ -65,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float level = vol;
+            int voice = PlayerVoice.IsVoiceClip(id) ? OwnVoice : 0; // #3767: the figure's own mouth and breath, in the chosen voice
             if (InVacuum)
             {
                 clip = SampleKit.Variant(clip, null, VoiceOp.Dull, 0, tail: 0);
@@ -72,12 +73,16 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (Game != null && Game.Aboard)
             {
-                clip = SampleKit.Variant(clip, null, VoiceOp.None, 0, tail: 1); // the cabin's small metal room
+                clip = VoiceTimbre(clip, voice, tail: 1); // the cabin's small metal room (and the voice's age)
+            }
+            else
+            {
+                clip = VoiceTimbre(clip, voice);
             }
 
             var src = OwnSource();
             src.clip = clip;
-            src.pitch = Mathf.Clamp(pitch, 0.5f, 2f);
+            src.pitch = Mathf.Clamp(pitch * PlayerVoice.Factor(voice), 0.5f, 2f);
             src.volume = Mathf.Clamp01(level * SfxVol());
             src.Play();
         }

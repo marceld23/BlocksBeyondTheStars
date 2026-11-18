@@ -101,5 +101,11 @@ public static partial class NetCodec
         // older client drops the heavy shot (it still takes the damage). The next message after these takes 353.
         Register(351, typeof(ShipManeuverIntent));           // Client -> Server
         Register(352, typeof(SpaceHeavyShot));               // Server -> Client
+
+        // #3766 a block carried over the head and thrown. No protocol bump — an older server drops both intents (the
+        // block is never lifted), and the flight reaches an older client as a WorldFx kind it ignores. The next
+        // message after these takes 355.
+        Register(353, typeof(CarryBlockIntent));             // Client -> Server
+        Register(354, typeof(ThrowBlockIntent));             // Client -> Server
     }
 }

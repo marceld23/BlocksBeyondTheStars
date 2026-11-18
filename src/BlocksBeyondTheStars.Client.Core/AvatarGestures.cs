@@ -79,6 +79,29 @@ namespace BlocksBeyondTheStars.Client
             return (Envelope(c, 0.15f, 0.8f), (float)Math.Sin(2.0 * Math.PI * CheerBobPeriods * c));
         }
 
+        /// <summary>#3769: a startle lasts this long — both hands up, the mouth wide open, then back to rest.</summary>
+        public const float HandsUpSeconds = 1.6f;
+
+        /// <summary>How far the startled arms go up (degrees of roll from hanging; the cheer's V is 150).</summary>
+        public const float HandsUpLift = 172f;
+
+        /// <summary>How wide the mouth opens at a startle: its resting height times this.</summary>
+        public const float GaspMouth = 5f;
+
+        /// <summary>The startle at progress <paramref name="c"/> (#3769): <c>Blend</c> throws both arms straight up — in over
+        /// the first 10 %, held, down over the last 30 % — and <c>Gasp</c> (0..1) opens the mouth at once, holds it wide
+        /// for the first 60 % and has it closed by 80 %. Both 0 at the ends and outside 0..1.</summary>
+        public static (float Blend, float Gasp) HandsUp(float c)
+        {
+            if (!(c > 0f && c < 1f))
+            {
+                return (0f, 0f);
+            }
+
+            float gasp = c < 0.6f ? Math.Min(1f, c / 0.08f) : c < 0.8f ? 1f - ((c - 0.6f) / 0.2f) : 0f;
+            return (Envelope(c, 0.10f, 0.7f), gasp);
+        }
+
         /// <summary>A hunter's bow shot lasts this long (#2647): the draw, the release, a moment's follow-through, the bow
         /// lowered again.</summary>
         public const float BowShotSeconds = 0.9f;

@@ -95,6 +95,11 @@ namespace BlocksBeyondTheStars.Client
         /// "wake up at &lt;home&gt;" vs "wake up at your ship" instead of the plain continue gate.</summary>
         private void OnRespawnOptions(RespawnOptions m)
         {
+            if (m.Fallen)
+            {
+                return; // #3765: a Hard Survival world — no modal, the player watches (FallenView)
+            }
+
             _choiceMode = true;
             _choiceLabel = m.CustomLabel ?? string.Empty;
             Arm("ui.death.title", ShowDelay);

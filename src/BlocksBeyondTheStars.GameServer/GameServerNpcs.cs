@@ -261,7 +261,7 @@ public sealed partial class GameServer
             "vendor" => "npc.role.vendor",
             "quartermaster" => "npc.role.quartermaster",
             "guardian" => "npc.role.guardian",
-            _ => $"npc.theme.{theme}",
+            _ => ThemeNameKey(theme), // #3768: the place's theme — but nobody who cannot trade is called a trader
         };
 
         // A deterministic personal name from the same seeded rng (robots get a unit designation).

@@ -98,6 +98,8 @@ public sealed partial class GameServer
         On<SwitchShipIntent>(map, (gs, s, m) => gs.HandleSwitchShip(s, m));
         On<ConsumeItemIntent>(map, (gs, s, m) => gs.HandleConsume(s, m));
         On<ThrowFoodIntent>(map, (gs, s, m) => gs.HandleThrowFood(s, m)); // #2018: the Feed action
+        On<CarryBlockIntent>(map, (gs, s, m) => gs.HandleCarryBlock(s, m)); // #3766: a block over the head
+        On<ThrowBlockIntent>(map, (gs, s, m) => gs.HandleThrowBlock(s, m)); // #3766: … and thrown
         On<UseGadgetIntent>(map, (gs, s, m) => gs.HandleUseGadget(s, m));
         On<BioLabIntent>(map, (gs, s, m) => gs.HandleBioLab(s, m)); // #2203
         On<DiscardSampleIntent>(map, (gs, s, m) => gs.HandleDiscardSample(s, m)); // #2301
@@ -219,6 +221,7 @@ public sealed partial class GameServer
         int previousSlot = session.State.SelectedHotbarSlot;
         session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1);
         ClearRopeIfNotHeld(session.State); // #2319: putting the rope gun away drops the rope
+        session.CarryingBlock = false;     // #3766: another slot in the hand — the lifted block goes back to its stack
         // #2525: a resync (the client re-sending the slot it shows after a join or world change) is no pick.
         if (session.State.SelectedHotbarSlot != previousSlot && !hotbar.Resync)
         {

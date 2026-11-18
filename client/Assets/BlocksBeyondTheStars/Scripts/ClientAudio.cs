@@ -1035,7 +1035,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_lastHealth >= 0f && m.Health < _lastHealth - 0.5f && m.Health > 0f)
             {
-                Cue("hurt_player");
+                Voice("hurt_player"); // #3767: in the figure's own voice
             }
 
             _lastHealth = m.Health;

@@ -20,5 +20,21 @@ namespace BlocksBeyondTheStars.Client
                 n.Avatar.Talk(Mathf.Max(0.25f, clipSeconds));
             }
         }
+
+        /// <summary>The two arms-up gestures (#2593 the cheer, #3769 the startle); the NPC's work swings wait meanwhile.</summary>
+        private static void PlayArmsUp(Npc n, byte gesture)
+        {
+            bool startled = gesture == BlocksBeyondTheStars.Networking.Messages.NpcGestures.HandsUp;
+            if (startled)
+            {
+                n.Avatar.Startle();
+            }
+            else
+            {
+                n.Avatar.Cheer();
+            }
+
+            n.GestureTimer = Mathf.Max(n.GestureTimer, startled ? 2f : 1.5f);
+        }
     }
 }

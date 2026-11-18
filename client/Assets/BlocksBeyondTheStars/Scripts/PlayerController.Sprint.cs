@@ -95,7 +95,7 @@ namespace BlocksBeyondTheStars.Client
             if (_sprintBreathTimer <= 0f)
             {
                 _sprintBreathTimer = Mathf.Lerp(2.2f, 1.3f, _stamina.Strain);
-                audio.Cue("climb_strain", 0.12f + (0.12f * _stamina.Strain));
+                audio.Voice("climb_strain", 0.12f + (0.12f * _stamina.Strain));
             }
         }
 

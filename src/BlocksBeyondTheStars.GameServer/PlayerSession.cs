@@ -190,6 +190,10 @@ public sealed class PlayerSession
     public int ArmColor { get; set; } = 0x3372CC;
     public int LegColor { get; set; } = 0x40404F;
 
+    /// <summary>#3767: the figure's voice as the client sent it with its colours (<c>PlayerVoice.Pack</c>, sanitized); 0 = not
+    /// set, the middle voice. Session memory like the colours: the client sends it again at every join.</summary>
+    public int Voice { get; set; }
+
     /// <summary>Ship hull colour (packed 0xRRGGBB), relayed so other players see this player's ship tinted
     /// (item 32). Default = the steel tint the ship hull used before hull colours existed.</summary>
     public int HullColor { get; set; } = 0xD1D6E0;
@@ -263,6 +267,14 @@ public sealed class PlayerSession
     /// <summary>The suit lamp is switched on (client-reported via <c>SetLampIntent</c>; the server only sees
     /// whether the lamp is CARRIED otherwise). Session-scoped — a rejoin starts with the lamp off, like the client.</summary>
     public bool LampOn { get; set; }
+
+    /// <summary>#3766: the player holds one block of the selected hotbar stack over the head with both hands. A stance
+    /// of this connection (not persisted): the block is still in the stack. Shown to the others as the
+    /// <c>GearLook.CarryingOverhead</c> bit, and only while the player still can carry (<c>CanCarryBlock</c>).</summary>
+    public bool CarryingBlock { get; set; }
+
+    /// <summary>#3766: the uptime the next throw is allowed at.</summary>
+    public double NextBlockThrowAt { get; set; }
 
     /// <summary>Zero-g construction mode on the boarded player-built station (#1842): the suit floats everywhere
     /// on the station, not only beyond its gravity volume. Per player, session-only and deliberately never

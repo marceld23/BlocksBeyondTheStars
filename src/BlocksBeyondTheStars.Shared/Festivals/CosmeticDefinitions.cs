@@ -72,7 +72,8 @@ public sealed class SkinCatalog
 
 /// <summary>
 /// A character skin template: the four appearance colours and the body paint of the four parts (torso, arms, legs, helmet —
-/// the same payloads the character editor paints, <c>BodyPaint</c>); the player's own face stays.
+/// the same payloads the character editor paints, <c>BodyPaint</c>). A template may carry a <see cref="Face"/> (#3770: a
+/// player's submitted skin is a whole look); without one the player's own face stays.
 /// </summary>
 public sealed class SkinDefinition
 {
@@ -87,6 +88,13 @@ public sealed class SkinDefinition
 
     /// <summary>Body paint payloads by part (0 torso, 1 arms, 2 legs, 3 helmet); empty = unpainted.</summary>
     public string[] Paint { get; set; } = Array.Empty<string>();
+
+    /// <summary>The painted face (#3770): one 32 × 32 chunk of pixel symbols, as the editor's Face tab paints it; empty =
+    /// the template has none and the player keeps their own.</summary>
+    public string Face { get; set; } = string.Empty;
+
+    /// <summary>Whether the template brings a face of its own.</summary>
+    public bool HasFace => !string.IsNullOrEmpty(Face);
 
     /// <summary>Locale key of the template's name.</summary>
     public string NameKey => "skin." + Key + ".name";

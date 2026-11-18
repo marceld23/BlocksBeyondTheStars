@@ -972,6 +972,29 @@ does not rattle. The generated attempts' prompts stay in the batch file as the r
 An emote's clip is optional by design: an emote without one plays silently. `emote_bow` (take 1) is a quiet cloth
 rustle that was low-passed at 5 kHz before it was raised by 20 dB, so the gain does not bring up hiss.
 
+## 40. The figure's voice (#3767) — *retuned clips + four ElevenLabs clips*
+
+The player's figure breathes, strains and grunts with ONE set of clips, recorded in a neutral voice; the voice a
+player picks in the character editor (Figure tab) retunes them. It is two sliders, 0…100, the middle 50
+(`PlayerVoice` in Shared, `ClientSettings.VoicePitch` / `VoiceAge`):
+
+- **Pitch** — the playback pitch, up to ±5 semitones. **Age** — ±1.5 semitones the other way (young a touch higher)
+  and a timbre baked into the clip with `SampleKit.Variant`: young `Thin` (amount 2 up to 15, 1 up to 35), the
+  middle dry, old `Dull` (1 from 65, 2 from 85). One bake per clip and timbre, cached — the browser hears it too.
+- **Which clips** (`PlayerVoice.IsVoiceClip`): `breath_*`, `surface_gasp`, `climb_strain`, `hurt_player*`,
+  `player_death`. `land_heavy` (boots first) and `jump` (the suit) keep their pitch.
+- **How** — `ClientAudio.PlayOwn` applies the voice to every such clip; the cues that went through `Cue` (which cannot
+  pitch: the pain grunt, the fall, the strain) come through `ClientAudio.Voice`. In vacuum the suit's dull bake wins
+  over the age's timbre.
+- **Other players** hear a hit and a fall in the sufferer's voice: the voice travels with the colours
+  (`SetAppearanceIntent.Voice`, packed, 0 = not set), the server keeps it in the session and hands it on with the
+  `PlayerEmote` of `Hurt` and `Down` (`ClientAudio.VoiceAt`, 3D, the remote-player budget). Breathing stays local.
+- **New clips** (`tools/audio/voice_batch.py` keeps the prompts): two more pain takes `hurt_player_2`/`_3` (the
+  family rotates) and `breath_effort`/`_2` — a short "hup" on a jump, at most every 2.5 s while the stamina is worn
+  and every 9 s otherwise (`PlayerController.Voice.cs`; the body layer stays light). 38 KB in all.
+- **The editor** plays one `breath_exhale` in the voice the sliders show on every change and on **Listen** — through
+  `ClientAudio.VoiceSample` in a world, through `UiSound.VoiceSample` in the main menu's designer.
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

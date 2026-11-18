@@ -26,6 +26,91 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking, armour, pick and blades, wrecks, crew labels, a skin template, startled NPCs, the figure's voice, throwing blocks, Hard Survival (#3750–#3752, #3763–#3770), ✅ 2026-11-18 (⚠ playtest open; server + client, appended messages and additive fields only — no protocol bump, no save change)
+
+Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations) became eleven issues; all are done:
+
+- ✅ **#3750 The Soundrak strikes.** "The Soundraks do no damage": 3 health a second (2.1 behind the obsidian chest
+  plate) against 2 a second of natural healing never moved the health bar. Its record now strikes in chunks like the
+  Schuppenhund — `biteDamage` 12 every `biteInterval` 2 s (`attackDamage` 6 as the per-second equivalent); the warning
+  scream, backing away, its slow walk and the calm stay. About four strikes per attack before it gives up the chase. The
+  client lunges on every strike (`CreatureReach.LungesOnHit`, shared rule instead of a hard-coded "Hound").
+  Tests: `SoundersFaunaServerTests` (a strike per interval, with and without armour, nothing in between),
+  `SoundersCreaturesTests`, `CreatureStrikeWiringTests`.
+- ✅ **#3751 Sneaking past sleeping animals.** A sleeping animal woke for any player within 4 blocks. A sneaking
+  (crouching, on foot, no jetpack, no speeder) player no longer wakes it; a standing one does, whoever else sneaks.
+  Everything else that wakes a sleeper is unchanged, and so are the giants (`GameServerSneaking.cs`,
+  `SneakingPastSleepersTests`).
+- ✅ **#3752 Worn armour no longer flickers.** The chest plate's back lay in the plane of the body's back, the leg
+  plates' front and back in the pelvis' planes (z-fighting, every set), and the suit's status light stuck 5 mm out of
+  the plate. The body boxes under the plates and the two plate boxes live in `Client.Core/AvatarArmourFit.cs` now;
+  every set draws them; the suit's chest panel hides under a chest piece (`AvatarArmourFitTests`).
+- ✅ **#3763 The pickaxe is a pick, blades are held up.** The wooden pickaxe is a `drill` by its tool kind and got
+  the drill's spin-up flourish and sound, the forward jab and the drill loop; every blade pointed into the screen like a
+  gun. A drill-kind tool whose own model has no bit is the held kind `Pick` now (from the data, never a key): held head
+  up, an overhead chop, no drill sounds. Blades rest tipped up in first and third person (`Client.Core/HeldStances.cs`,
+  `HeldStancesTests`).
+- ✅ **#3764 The wrecks of one world are different ships.** Each giant wreck in space picked one of the five designs on
+  its own, so two wrecks of a world were the same ship about one time in four. A fresh pick now only chooses among the
+  designs no other wreck of the world is yet; pinned wrecks keep theirs (`GiantWreckPlacer.Untaken`).
+- ✅ **#3768 Nobody who cannot trade is called a trader.** A station's crew and the residents of a traders settlement
+  wore the label of their place's theme ("Trader" — in German the vendor's word) but only talk. Station crew is "Crew"
+  now (`npc.role.station_crew`, all 14 languages), the settlement's people "Settler"; clothes still follow the theme.
+- ✅ **#3765 Hard Survival — a fourth world mode; a death means watching until revived.** Creative stays. The
+  new-world screen has four mode cards; the fourth launches the world with machines and bandits Extreme, hazards
+  Hard, oxygen and hunger Slow and the new death rule `DeathPenalty.Revive` (appended to the enum; no new option
+  row; `/gamemode hard` sets the same on a running world; the mode is read back from the rule in the server, the
+  sidecar and the world list). **The fallen** (`GameServerFallen.cs`, rules in `Shared/FallenRules`): a player who
+  dies on foot on a world keeps the capsule at the place of death and watches — invulnerable, flying (the client
+  uses the observer camera via `PlayerStateUpdate.Spectating`), invisible to the others, every intent but moving and
+  talking dropped; deliberately not the admins' observer mode. Back: another player's medkit within its radius of
+  the place of death (stands up there, 45 health); alone after 60 s, or at once when everybody has fallen, a
+  restart at the ship — always the player's own intent, checked by the server. A leaving or crashed watcher is put
+  back at the ship. `RespawnOptions` gained three additive fields; no new message, no protocol bump, no save
+  change. Texts in all 14 languages. Docs: [docs/developer/HARD_SURVIVAL.md](docs/developer/HARD_SURVIVAL.md), the
+  manual's *Death & respawn*. Tests: `FallenTests`, `HardSurvivalWiringTests`.
+  ⚠ Playtest open: the mode has never been seen in the running game — the four narrower mode cards in every
+  language, the banner, whether Extreme machines plus Extreme bandits is fun. Not built (see the doc's *Open*): the
+  fallen are not marked in the player list, the place of death has no map marker, *Frontier danger* and
+  *Aggressive creatures* of the issue's first table are not part of the mode (no launch switch / no reader).
+- ✅ **#3766 Carry a block over the head and throw it.** The Feed control (Q) with a block in the hand and nothing to
+  feed lifts ONE block of the selected stack with both hands — a stance, the block stays in the stack — and puts it
+  back; the attack control throws it. The server flies it (`GameServerCarryThrow.cs`, rules in `Shared/BlockThrow`):
+  the first machine, robber or wild animal on the arc takes the material's damage (hardness < 1 → 4, < 4 → 7, else
+  10; speed 15 / 13 / 11), booked through `LandHit` — the part of the attack after its checks, split out of
+  `AttackCombatEntity` into `GameServerHitLanding.cs`, so loot, samples, achievements, events and the story follow
+  the same rules as a blow. Tame animals, Qualis, NPCs and players are never hit; the block always ends as a drop
+  packet (never placed). Two appended intents (353 / 354), the flight as `WorldFx` kind `block_throw` with a new
+  additive `Item` field, the pose as bit 29 of the presence's gear mask (`GearLook.CarryingOverhead`) — no protocol
+  bump, no save change. Client: `PlayerController.Carry.cs`, `PlayerAvatar.CarryBlock.cs`, `Viewmodel.Carry.cs`,
+  `WorldEntities.ThrownBlocks.cs`; pose numbers in `Client.Core/BlockCarryPose`. Texts and the Codex's *Combat &
+  Defence* article in all 14 languages. Tests: `BlockCarryThrowTests`, `BlockCarryWiringTests`.
+  ⚠ Playtest open: the pose (where the block sits over the head, first-person view), the arc and the three damage
+  values are first values, never seen in the running game.
+- ✅ **#3767 The figure's voice.** The character editor's Figure tab has a voice column: a **pitch** and an **age**
+  slider (steps of ten, the middle = the old sound) with Low · Middle · High quick buttons — sliders instead of
+  "man / woman" categories, by decision. The figure's own breath, strain, pain and fall clips are retuned (pitch as
+  playback pitch, age as a baked timbre; `PlayerVoice` in Shared); the voice travels with the colours, and others hear
+  a hit and a fall in it (`PlayerEmote.Voice`). Four new clips in a neutral voice (two pain takes, two breaths of
+  effort on a jump; `tools/audio/voice_batch.py`). Both wire fields are additive — no protocol bump.
+  ⚠ The four clips were generated without a listening check by the maintainer — to hear in the playtest.
+- ✅ **#3769 Startled NPCs, framed speech bubbles.** A shot or a weapon's swing next to NPCs makes the nearest three
+  throw both hands up, open their mouth wide and call out (`npc.startle.1…8`, 14 languages; one line names the
+  shooter) — startled and funny, never afraid, paced per shooter and per NPC (`GameServerNpcStartle.cs`, gesture
+  `NpcGestures.HandsUp`). Every speech bubble sits on a framed plate, and so does the status toast, which ran through
+  the name tags.
+- ✅ **#3770 A submitted skin is the first free template.** The note on the submission asked for "a template for people
+  who are not good at this", but the only adoption path made a pioneer NPC's look of it. A template may carry a face
+  now (`SkinDefinition.Face`), `tools/gen_festive_skins.py --from-skin` adopts a skin 1:1, and the **Green spacesuit**
+  is in `data/skins.json`, free for everybody (credited under the nickname in `NOTICES.md`). The submit dialog names
+  both uses (template or pioneer look); all texts in 14 languages.
+- 📋 **Open decision for the maintainer (from #3750):** natural healing of 2 health a second on a breathable world also
+  makes every rolled hunter with 2 health a second harmless there. Whether healing should pause for a few seconds
+  after a hit is a balance decision for the whole game — not changed.
+- 📋 **Decided, no change:** "too few planets with guardians or robbers" — Explorer worlds stay as calm as they are
+  (machines are on every planet already, 2 per player; lone robbers roam 55 % of the bodies); the answer is the
+  world options (machines / bandits up to Extreme) and the Hard Survival mode of this batch.
+
 ### 🚀 Space combat that moves: barrel roll, boost, livelier enemies, more ship weapons — epic #3762 (#3753–#3761), ✅ 2026-11-17 (⚠ playtest open; server + client, two appended messages, no protocol bump, no new block — saves stay compatible)
 
 How it works: [docs/developer/SPACE_COMBAT_CONCEPT.md](docs/developer/SPACE_COMBAT_CONCEPT.md) § *Manoeuvres, the heavy

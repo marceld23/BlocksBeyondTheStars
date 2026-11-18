@@ -17,12 +17,15 @@ namespace BlocksBeyondTheStars.Client
 
             // Mode: Explorer (normal) vs Creative (everything unlocked + a starter set; survival mechanics stay on) vs
             // Sandbox (#662: free crafting, no oxygen/hunger, peaceful, everything unlocked).
-            private int _mode; // 0 Explorer · 1 Creative · 2 Sandbox
+            private int _mode; // 0 Explorer · 1 Creative · 2 Sandbox · 3 Hard Survival (#3765)
             private readonly bool[] _optBlueprints = { true };
             private readonly bool[] _optShips = { true };
             private readonly bool[] _optKit = { true };
-            private readonly Button[] _modeCards = new Button[3];
-            private GameObject _creativePanel, _sandboxHint;
+            private readonly Button[] _modeCards = new Button[4];
+            private GameObject _creativePanel, _sandboxHint, _hardHint;
+
+            // Four cards share the row the three used to fill (#3765).
+            private const float ModeCardW = 229f, ModeCardH = 124f, ModeCardStep = 239f;
             private readonly WorldCreationOptions _worldOptions = new WorldCreationOptions();
             private GameObject _optionsOverlay;
             private Text _lanHint;
@@ -55,13 +58,13 @@ namespace BlocksBeyondTheStars.Client
                 BuildNameRow(c);
 
                 UiKit.AddText(c, 32f, 148f, 600f, 24f, _shell.L("ui.save.mode"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-                string[] titles = { "ui.save.mode_explorer", "ui.save.mode_creative", "ui.save.mode_sandbox" };
-                string[] lines = { "ui.save.mode_explorer_line", "ui.save.mode_creative_line", "ui.save.mode_sandbox_line" };
-                string[] icons = { "btn_singleplayer", "btn_editors", "cat_blocks" };
-                for (int i = 0; i < 3; i++)
+                string[] titles = { "ui.save.mode_explorer", "ui.save.mode_creative", "ui.save.mode_sandbox", "ui.save.mode_hard" };
+                string[] lines = { "ui.save.mode_explorer_line", "ui.save.mode_creative_line", "ui.save.mode_sandbox_line", "ui.save.mode_hard_line" };
+                string[] icons = { "btn_singleplayer", "btn_editors", "cat_blocks", "cat_weapons" };
+                for (int i = 0; i < _modeCards.Length; i++)
                 {
                     int mode = i;
-                    _modeCards[i] = AddModeCard(c, 32f + i * 320f, 176f, _shell.L(titles[i]), _shell.L(lines[i]), icons[i], () =>
+                    _modeCards[i] = AddModeCard(c, 32f + i * ModeCardStep, 176f, _shell.L(titles[i]), _shell.L(lines[i]), icons[i], () =>
                     {
                         _mode = mode;
                         RefreshMode();
@@ -117,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
             /// buttons neither explained themselves nor showed which one was chosen).</summary>
             private Button AddModeCard(Transform parent, float x, float y, string title, string line, string icon, System.Action pick)
             {
-                const float w = 304f, h = 112f;
+                const float w = ModeCardW, h = ModeCardH;
                 var card = UiKit.AddTierButton(parent, x, y, w, h, title, pick, ButtonTier.Secondary, icon);
                 foreach (var image in card.GetComponentsInChildren<Image>(true))
                 {
@@ -129,9 +132,12 @@ namespace BlocksBeyondTheStars.Client
 
                 var label = card.GetComponentInChildren<Text>();
                 UiKit.Place(label.gameObject, 56f, 10f, w - 66f, 36f);
-                var text = UiKit.AddText(card.transform, 14f, 50f, w - 28f, h - 56f, line, 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+                label.resizeTextForBestFit = true; // a long mode name ("Hard Survival" in some languages) shrinks, not clips
+                label.resizeTextMinSize = 12;
+                label.resizeTextMaxSize = label.fontSize;
+                var text = UiKit.AddText(card.transform, 14f, 50f, w - 28f, h - 56f, line, 14, UiKit.CyanDim, TextAnchor.UpperLeft);
                 text.horizontalOverflow = HorizontalWrapMode.Wrap;
-                text.text = UiKit.Ellipsize(line, w - 28f, h - 56f, 15);
+                text.text = UiKit.Ellipsize(line, w - 28f, h - 56f, 14);
                 return card;
             }
 
@@ -145,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
 
                 _creativePanel.SetActive(_mode == 1);
                 _sandboxHint.SetActive(_mode == 2);
+                _hardHint.SetActive(_mode == 3);
             }
 
             // Creative sub-options (a checklist; shown only when Creative is selected) and the Sandbox hint.
@@ -166,6 +173,12 @@ namespace BlocksBeyondTheStars.Client
                     UiKit.CyanDim, TextAnchor.UpperLeft);
                 sh.horizontalOverflow = HorizontalWrapMode.Wrap;
                 _sandboxHint = sh.gameObject;
+
+                // Hard Survival (#3765): no checklist either — a few lines say what the mode sets and how a death works.
+                var hh = UiKit.AddText(c, 32f, 304f, 946f, 150f, _shell.L("ui.save.hard_hint"), 15,
+                    UiKit.CyanDim, TextAnchor.UpperLeft);
+                hh.horizontalOverflow = HorizontalWrapMode.Wrap;
+                _hardHint = hh.gameObject;
             }
 
             private static void AddToggle(Transform parent, float y, string label, bool[] state)
@@ -185,7 +198,10 @@ namespace BlocksBeyondTheStars.Client
             private bool UnlockAll() => _mode == 2 || (_mode == 1 && _optBlueprints[0]);
             private bool AllShips() => _mode == 2 || (_mode == 1 && _optShips[0]);
             private bool Kit() => _mode == 2 || (_mode == 1 && _optKit[0]);
-            private bool Flight() => _mode != 0;
+            private bool Flight() => _mode == 1 || _mode == 2;
+
+            /// <summary>The world options the launch uses: the player's own — under Hard Survival with that mode's rules on top.</summary>
+            private WorldCreationOptions LaunchOptions() => _mode == 3 ? WorldCreationOptions.HardSurvival(_worldOptions) : _worldOptions;
 
             // Create validates instead of half-working: an empty name and a name that already exists both say so, right
             // above the box, and nothing is launched.
@@ -209,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                Launch(world, UnlockAll(), AllShips(), Kit(), _mode == 2, _worldOptions, Flight());
+                Launch(world, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight());
             }
 
             // "Random world" honours a name the player actually typed (#2522): an edited, free name gets a random seed under
@@ -222,7 +238,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var pick = RandomWorldName.Resolve(SanitizeWorldName(_name), RandomWorldName.DefaultName, _list.Names(), new System.Random());
-                Launch(pick.Name, UnlockAll(), AllShips(), Kit(), _mode == 2, _worldOptions, Flight(), pick.Seed);
+                Launch(pick.Name, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight(), pick.Seed);
             }
 
             // ── Open to friends (hosting, #3664) — under both views ─────────────────────────────

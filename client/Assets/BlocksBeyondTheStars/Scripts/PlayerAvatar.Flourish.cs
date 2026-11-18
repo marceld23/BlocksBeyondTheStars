@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly HeldFlourish _flourish = new HeldFlourish();
         private HeldFlourishKind _flourishKind;
         private HeldSpin _heldSpin;
+        private float _carryTip; // degrees the carried item tips up from level in the hand (#3763, HeldStances.CarryTip)
 
         /// <summary>A new held model is about to be built (<see cref="BuildHeld"/>): the old one's flourish and moving parts
         /// go with it.</summary>
@@ -34,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _flourish.Cancel();
             _heldSpin = null;
+            _carryTip = HeldStances.CarryTip(HeldStances.For(kind.ToString())); // #3763: a blade and a pick are carried tipped up
             _flourishKind = kind == HeldItem.Kind.Gloves || _fightGloves ? HeldFlourishKind.None : HeldFlourishes.ForKind(kind.ToString());
         }
 

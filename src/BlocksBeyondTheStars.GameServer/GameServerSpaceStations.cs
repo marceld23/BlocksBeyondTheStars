@@ -1266,6 +1266,7 @@ public sealed partial class GameServer
             // standable cell beside it that holds air (#1775).
             var standing = StationCrewSpot(station, pos, rng, jitter: 0);
             var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
+            LabelStationCrew(npc); // #3768: "Crew", not "Trader" — a profession below still names its own job
             if (role == "quartermaster")
             {
                 npc.Name = StationGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
@@ -1303,6 +1304,7 @@ public sealed partial class GameServer
             var home = StationCrewSpot(station, b, rng, jitter: 2); // #1775: a standable cell in the post's air, never inside the hull
             bool robot = rng.NextDouble() < 0.3; // ~30% androids
             var npc = MakeNpc("settler", "traders", robot, home, rng);
+            LabelStationCrew(npc); // #3768
             npc.Size = 0.9f + (float)rng.NextDouble() * 0.22f;
             npc.RoutineEnabled = true; // #1867
             _npcs.Add(npc);

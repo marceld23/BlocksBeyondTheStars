@@ -158,16 +158,21 @@ public sealed partial class GameServer
     private void RegisterGiantDerelictSites()
     {
         _giantDerelicts.Clear();
+        // #3764: the wrecks of one world are different ships while a design is left. The pinned ones first (a wreck built
+        // once keeps its ship), then every other wreck in the systems' order picks among the designs still free.
+        var taken = PinnedGiantDesignKeys();
         foreach (var sys in _galaxy.Systems)
         {
             foreach (var body in sys.Bodies.Where(b => GiantShipRules.IsGiantWreckId(b.Id)).ToList())
             {
-                var template = ResolveGiantDesign(body.Id);
+                var template = ResolveGiantDesign(body.Id, taken);
                 if (template is null)
                 {
                     sys.Bodies.Remove(body);
                     continue;
                 }
+
+                taken.Add(template.Key);
 
                 _giantDerelicts[body.Id] = new GiantDerelictSite
                 {

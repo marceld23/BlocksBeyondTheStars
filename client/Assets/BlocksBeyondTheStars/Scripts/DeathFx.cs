@@ -87,16 +87,21 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f); // a red death wash
-            ClientAudio.Instance?.Cue("player_death");
+            ClientAudio.Instance?.Voice("player_death");
         }
 
         private void OnRespawnOptions(RespawnOptions m)
         {
             // Deferred respawn (issue #462): the death happens NOW — the RespawnNotice only follows once
             // the player picks where to wake up, so the death feedback belongs to this message.
+            if (m.FallenAgain)
+            {
+                return; // #3765: an update for a player who is already watching — no second death
+            }
+
             _optionsPending = true;
             Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f);
-            ClientAudio.Instance?.Cue("player_death");
+            ClientAudio.Instance?.Voice("player_death");
         }
 
         private void OnSpaceClosed(SpaceClosed m)

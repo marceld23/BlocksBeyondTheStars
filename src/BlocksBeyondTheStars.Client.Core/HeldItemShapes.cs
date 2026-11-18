@@ -69,9 +69,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The kind name (<c>HeldItem.Kind</c>) of a gadget (#2837).</summary>
         public const string GadgetKind = "Gadget";
 
-        /// <summary>True for the kinds that are built from parts ("Drill", "Gun", "Blade", "Scanner" and, since #2837,
-        /// "Gadget") — the ones an item model or a player's tool look can replace.</summary>
-        public static bool IsShapedKind(string kind) => kind is "Drill" or "Gun" or "Blade" or "Scanner" or GadgetKind;
+        /// <summary>True for the kinds that are built from parts ("Drill", "Gun", "Blade", "Scanner", since #2837
+        /// "Gadget" and since #3763 "Pick" — a drill-kind tool without a bit, <see cref="HeldStances"/>) — the ones an item
+        /// model or a player's tool look can replace.</summary>
+        public static bool IsShapedKind(string kind)
+            => kind is "Drill" or "Gun" or "Blade" or "Scanner" or GadgetKind or HeldStances.PickKind;
 
         /// <summary>
         /// The parts for a held item of <paramref name="kind"/>, or null for a kind that is not built from parts
@@ -95,7 +97,7 @@ namespace BlocksBeyondTheStars.Client
 
             return kind switch
             {
-                "Drill" => new List<Part>
+                "Drill" or HeldStances.PickKind => new List<Part> // a pick always has a model of its own; a player's empty look falls back here
                 {
                     P(0f, 0f, 0.04f, 0.16f, 0.16f, 0.26f, Metal),
                     P(0f, 0f, 0.24f, 0.09f, 0.09f, 0.18f, tint),

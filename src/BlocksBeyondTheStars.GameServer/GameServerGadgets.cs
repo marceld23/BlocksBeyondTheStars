@@ -259,7 +259,7 @@ public sealed partial class GameServer
                 continue; // piloting in space, not on foot
             }
 
-            if (WrapDistSq(origin, s.State.Position) > MedkitRadius * MedkitRadius || s.State.Health <= 0f)
+            if (WrapDistSq(origin, s.State.Position) > MedkitRadius * MedkitRadius || s.State.Health <= 0f || s.Respawn.Fallen)
             {
                 continue;
             }
@@ -269,12 +269,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2957: true when the pulse would heal anyone — someone it reaches is hurt.</summary>
-    private bool MedkitWouldHeal(PlayerSession user) => MedkitReach(user).Any(s => s.State.Health < 100f);
+    private bool MedkitWouldHeal(PlayerSession user)
+        => MedkitReach(user).Any(s => s.State.Health < 100f) || FallenInMedkitReach(user); // #3765: or revive somebody
 
     /// <summary>Heals the user and every other on-foot player within <see cref="MedkitRadius"/> in the same
     /// world (a shared first-aid pulse) — item 36.</summary>
     private void UseFieldMedkit(PlayerSession user)
     {
+        ReviveFallenNear(user); // #3765: a Hard Survival world — whoever fell here stands up again
         foreach (var s in MedkitReach(user))
         {
             var t = s.State;

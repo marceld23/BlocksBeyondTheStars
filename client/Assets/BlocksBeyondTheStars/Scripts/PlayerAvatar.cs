@@ -263,15 +263,15 @@ namespace BlocksBeyondTheStars.Client
             // Torso, tapered: pelvis → abdomen → wider chest. All five cubes are one paintable part: the
             // torso painting projects onto them as one box, shoulders sampling its outer edges (#874).
             RegisterPaint(BodyPaint.Torso, 0,
-                AddCube("Pelvis", transform, new Vector3(0f, 0.97f, 0f), new Vector3(0.46f, 0.22f, 0.28f), _legs));
+                AddCube("Pelvis", transform, AvatarArmourFit.Pelvis, _legs)); // #3752: the boxes the plates must clear
             RegisterPaint(BodyPaint.Torso, 0,
-                AddCube("Abdomen", transform, new Vector3(0f, 1.18f, 0f), new Vector3(0.46f, 0.26f, 0.30f), _torso));
+                AddCube("Abdomen", transform, AvatarArmourFit.Abdomen, _torso));
             RegisterPaint(BodyPaint.Torso, 0,
-                AddCube("Chest", transform, new Vector3(0f, 1.45f, 0.0f), new Vector3(0.58f, 0.40f, 0.34f), _torso));
+                AddCube("Chest", transform, AvatarArmourFit.Chest, _torso));
             RegisterPaint(BodyPaint.Torso, 0,
-                AddCube("ShoulderL", transform, new Vector3(-0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso));
+                AddCube("ShoulderL", transform, AvatarArmourFit.Shoulder.From(-2f * AvatarArmourFit.Shoulder.X, 0f), _torso));
             RegisterPaint(BodyPaint.Torso, 0,
-                AddCube("ShoulderR", transform, new Vector3(0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso));
+                AddCube("ShoulderR", transform, AvatarArmourFit.Shoulder, _torso));
 
             // Neck + head + the face (its lower part — breather strip, facial hair or grille — see BuildLowerFace).
             // Suited players get a suit-coloured neck seal (no bare skin between collar and helmet); NPCs keep the
@@ -314,8 +314,8 @@ namespace BlocksBeyondTheStars.Client
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _handL);
             _armR = AddArm("ArmRight", 0.32f, out _elbowR, out _handR);
-            _legL = AddLeg("LegLeft", -0.13f, out _kneeL);
-            _legR = AddLeg("LegRight", 0.13f, out _kneeR);
+            _legL = AddLeg("LegLeft", -AvatarArmourFit.HipX, out _kneeL);
+            _legR = AddLeg("LegRight", AvatarArmourFit.HipX, out _kneeR);
 
             if (_suit)
             {
@@ -445,11 +445,11 @@ namespace BlocksBeyondTheStars.Client
             // Collar ring where the helmet locks onto the suit (world units — child of the body root).
             AddCube("SuitCollar", transform, new Vector3(0f, 1.645f, 0f), new Vector3(0.32f, 0.11f, 0.32f), _torso);
 
-            // Chest control panel + a small status light.
+            // Chest control panel + a small status light — hidden under a worn chest piece (#3752, ApplySuitPackVisible).
             var panel = OwnLit(new Color(0.15f, 0.17f, 0.20f), _armorTex);
-            AddCube("SuitChestPanel", transform, new Vector3(0f, 1.50f, 0.185f), new Vector3(0.22f, 0.14f, 0.04f), panel);
-            AddCube("SuitStatusLight", transform, new Vector3(0.075f, 1.50f, 0.205f), new Vector3(0.045f, 0.045f, 0.02f),
-                OwnLit(new Color(0.30f, 0.90f, 0.50f), null));
+            _suitChest.Add(AddCube("SuitChestPanel", transform, new Vector3(0f, 1.50f, 0.185f), new Vector3(0.22f, 0.14f, 0.04f), panel));
+            _suitChest.Add(AddCube("SuitStatusLight", transform, new Vector3(0.075f, 1.50f, 0.205f), new Vector3(0.045f, 0.045f, 0.02f),
+                OwnLit(new Color(0.30f, 0.90f, 0.50f), null)));
 
             // Life-support backpack with twin tanks; swapped out for the armor pack gear when carried.
             var packMat = OwnLit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
@@ -507,11 +507,11 @@ namespace BlocksBeyondTheStars.Client
         private Transform AddLeg(string name, float x, out Transform knee)
         {
             int row = x < 0f ? 0 : 1; // editor rows: top = left limb, bottom = right limb
-            var hip = NewPivot(name, transform, new Vector3(x, 0.92f, 0f));
+            var hip = NewPivot(name, transform, new Vector3(x, AvatarArmourFit.HipY, 0f));
             RegisterPaint(BodyPaint.Legs, row,
-                AddCube(name + "Upper", hip, new Vector3(0f, -0.23f, 0f), new Vector3(0.22f, 0.46f, 0.22f), _legs),
+                AddCube(name + "Upper", hip, AvatarArmourFit.UpperLeg, _legs),
                 new Vector3(0f, -0.23f, 0f));
-            knee = NewPivot(name + "Knee", hip, new Vector3(0f, -0.46f, 0f));
+            knee = NewPivot(name + "Knee", hip, new Vector3(0f, AvatarArmourFit.KneeDrop, 0f));
             RegisterPaint(BodyPaint.Legs, row,
                 AddCube(name + "Lower", knee, new Vector3(0f, -0.21f, 0f), new Vector3(0.2f, 0.42f, 0.2f), _legs),
                 new Vector3(0f, -0.67f, 0f));
@@ -791,11 +791,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (_cheerTimer > 0f)
+            if (_cheerTimer > 0f || CarryShows) // #3766: a carried block keeps the arms up
             {
                 _cheerTimer -= dt;
-                var (k, bob) = AvatarGestures.Cheer(1f - Mathf.Clamp01(_cheerTimer / AvatarGestures.CheerSeconds));
-                float lift = (150f + 12f * bob) * k;             // both arms up in a V, pumping
+                var (k, bob, up) = ArmsUp();                     // the cheer's pumping V — or a startle's hands straight up (#3769)
+                float lift = (up + 12f * bob) * k;
                 float forearm = (10f + 15f * Mathf.Max(0f, bob)) * k;
                 armL = Mathf.Lerp(armL, -10f, k);
                 armR = Mathf.Lerp(armR, -10f, k);
@@ -829,15 +829,15 @@ namespace BlocksBeyondTheStars.Client
                 rollR = yawR = elbowRollR = 0f; // the rope arm stays straight at its anchor, whatever else plays
             }
 
-            if (_swingTimer > 0f || _punchTimer > 0f || _bowTimer > 0f || _waveTimer > 0f || _cheerTimer > 0f || _roped)
+            if (_swingTimer > 0f || _punchTimer > 0f || _bowTimer > 0f || _waveTimer > 0f || _cheerTimer > 0f || _roped || CarryShows)
             {
                 level = 0f;
             }
 
-            if (_held != null && !_fightGloves) // the gloves are turned onto the hands once (BuildAvatarGlove)
+            if (_held != null && !_fightGloves && !PoseCarriedBlock()) // the gloves are turned onto the hands once (BuildAvatarGlove); #3766
             {
-                // #2777: undo the arm's pitch on the held item, so a carried tool points ahead, not at the sky.
-                _held.transform.localRotation = Quaternion.Euler(-(armR + elbowR) * level, 0f, 0f);
+                // #2777: undo the arm's pitch on the held item, so a carried tool points ahead, not at the sky — a blade
+                _held.transform.localRotation = Quaternion.Euler((-(armR + elbowR) - _carryTip) * level, 0f, 0f); // or a pick tipped up (#3763)
             }
 
             _armL.localRotation = Quaternion.Euler(armL, yawL, rollL);
@@ -1303,7 +1303,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool titan = GearLook.Has(mask, GearLook.TitanChest);
                 var m = titan ? _gearTitan : _gearPlate;
-                _gear.Add(AddCube("GearChest", transform, new Vector3(0f, 1.45f, 0.02f), new Vector3(0.62f, 0.42f, 0.38f), m));
+                _gear.Add(AddCube("GearChest", transform, AvatarArmourFit.ChestPlate, m));
                 if (titan)
                 {
                     // #2294: shoulder pads over the suit's shoulder blocks (top at 1.64).
@@ -1316,13 +1316,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool titan = GearLook.Has(mask, GearLook.TitanLegs);
                 var m = titan ? _gearTitan : _gearPlate;
-                _gear.Add(AddCube("GearLegL", _legL, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), m));
-                _gear.Add(AddCube("GearLegR", _legR, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), m));
+                _gear.Add(AddCube("GearLegL", _legL, AvatarArmourFit.LegPlate, m));
+                _gear.Add(AddCube("GearLegR", _legR, AvatarArmourFit.LegPlate, m));
                 if (titan && _kneeL != null && _kneeR != null)
                 {
                     // #2294: knee guards on the knee pivots (the lower leg's front is at z 0.10), bending with the knee.
-                    _gear.Add(AddCube("GearKneeL", _kneeL, new Vector3(0f, -0.02f, 0.12f), new Vector3(0.22f, 0.16f, 0.06f), m));
-                    _gear.Add(AddCube("GearKneeR", _kneeR, new Vector3(0f, -0.02f, 0.12f), new Vector3(0.22f, 0.16f, 0.06f), m));
+                    _gear.Add(AddCube("GearKneeL", _kneeL, AvatarArmourFit.KneePad, m));
+                    _gear.Add(AddCube("GearKneeR", _kneeR, AvatarArmourFit.KneePad, m));
                 }
             }
 
@@ -2030,17 +2030,8 @@ namespace BlocksBeyondTheStars.Client
         /// replaces it on the back). Idempotent — called from <see cref="SetGear"/> and <see cref="SetVisible"/>.</summary>
         private void ApplySuitPackVisible()
         {
-            foreach (var p in _suitPack)
-            {
-                if (p != null)
-                {
-                    var r = p.GetComponent<Renderer>();
-                    if (r != null)
-                    {
-                        r.enabled = _visible && !_gearPack;
-                    }
-                }
-            }
+            ShowSuitParts(_suitPack, _visible && !_gearPack);
+            ShowSuitParts(_suitChest, _visible && !ChestPieceWorn); // #3752: the panel and its light are under the plate
         }
 
         // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin, the titanium plates (#2294) and

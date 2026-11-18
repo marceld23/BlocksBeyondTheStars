@@ -31,6 +31,19 @@ public sealed class RespawnOptions
 
     /// <summary>Display label of the home spawn (base/station name; empty → client shows a generic word).</summary>
     public string CustomLabel { get; set; } = string.Empty;
+
+    /// <summary>#3765: no choice at all — the player has <b>fallen</b> on a Hard Survival world and watches (the
+    /// client flies the observer's camera, told by <c>PlayerStateUpdate.Spectating</c>) until another player brings
+    /// them back with a medkit. Additive: an older client shows its choice screen, whose answer the server refuses
+    /// until a restart is allowed.</summary>
+    public bool Fallen { get; set; }
+
+    /// <summary>With <see cref="Fallen"/>: this is an update for a player who is already watching (no new death flash).</summary>
+    public bool FallenAgain { get; set; }
+
+    /// <summary>With <see cref="Fallen"/>: seconds until the player may start again at the ship (the choice intent) —
+    /// 0 now, a positive count while nobody else is there, -1 while a team-mate still stands (no restart).</summary>
+    public float RestartInSeconds { get; set; }
 }
 
 /// <summary>The player's pick on the death screen (client → server): home spawn or the ship.</summary>

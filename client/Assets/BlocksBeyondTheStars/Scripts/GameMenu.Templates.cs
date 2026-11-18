@@ -21,6 +21,7 @@ namespace BlocksBeyondTheStars.Client
             editor.SkinTemplateNames = () => AppearanceTemplates.Names(WorldSkins(), s => s.NameKey, L);
             editor.OnWearSkinTemplate = WearSkinTemplate;
             editor.SubmitSettings = Settings;
+            editor.UseVoiceOf(Settings, ApplyAppearance); // #3767: the voice sliders — saved and sent with the colours
             editor.HudHost = new HudFrameEditorHost
             {
                 Settings = Settings,
@@ -75,7 +76,12 @@ namespace BlocksBeyondTheStars.Client
                 ApplyBodyPaint(part, look.GetBodyPaint(part)); // each painting through the paced queue
             }
 
-            return L("ui.avatar.skin_worn").Replace("{name}", L(skins[index].NameKey));
+            if (skins[index].HasFace)
+            {
+                ApplyFace(look.FacePixels); // #3770: a template with a face brings the whole look
+            }
+
+            return L(AppearanceTemplates.WornKey(skins[index])).Replace("{name}", L(skins[index].NameKey));
         }
     }
 }

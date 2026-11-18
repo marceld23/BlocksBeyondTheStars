@@ -42,6 +42,7 @@ public sealed partial class GameServer
         new("ship interior", static (g, s, _) => g.ForgetShipInterior(s.State.PlayerId)), // #2722: the walk inside ends too
         new("trades", static (g, s, _) => g.CancelTradesFor(s.State.PlayerId)),
         new("npc conversation", static (g, s, _) => g.EndNpcConversation(s, tellClient: false)), // #2616: back to its day
+        new("fallen", static (g, s, _) => g.FallenOnLeave(s)), // #3765: a watching player is saved at the ship
         new("fleet save", static (g, s, _) => g.SaveLeaverFleet(s)),
         new("player save", static (g, s, _) => g.SaveLeaver(s)),
     };
@@ -138,6 +139,7 @@ public sealed partial class GameServer
     private PlayerState LoadJoiningPlayer(string name)
     {
         var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
+        UndoFallenInSave(state); // #3765: a save written while its player was watching (a crash)
         ClampInventory(state.Inventory, $"player '{name}' inventory");
         EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
         state.InTrain = string.Empty;      // #2113: a train bond never survives a join — the player stands where they were

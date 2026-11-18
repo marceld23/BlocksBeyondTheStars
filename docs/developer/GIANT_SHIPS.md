@@ -251,7 +251,11 @@ made moves and an older save gains its wrecks at its next start:
   back as it was when the switch is on again.
 
 **Which ship, pinned** (GameServerGiantDerelictPins.cs). `GiantWreckPlacer.PickDesign` — a weighted pick by a hash of the
-world seed and the id over the pool in key order (never a pin-only ship). A wreck stores only the players' changes over its
+world seed and the id over the pool in key order (never a pin-only ship). **The wrecks of one world are different ships
+while a design is left** (#3764): the registration walks the wrecks in the systems' order with the set of designs already
+taken — every pinned ship first — and a fresh pick only chooses among `GiantWreckPlacer.Untaken` (all of them again once
+none is free). Each wreck used to pick on its own, so two wrecks of a world were the same ship about one time in four.
+A wreck stores only the players' changes over its
 base build, and the base is rebuilt every server run, so the first build pins everything it depends on in
 `WorldMetadata.GiantWreckDesigns`: `key|fingerprint|r<ruin revision>|d<ship-decay revision>|b<base hash>`
 (`GiantShipGenerator.RuinRevision`, `DerelictGenerator.ShipDecayRevision`, `GiantDerelictLayout.BaseHash` — the decayed

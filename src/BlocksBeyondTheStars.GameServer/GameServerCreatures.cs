@@ -1201,10 +1201,10 @@ public sealed partial class GameServer
 
             ApplyHoundCharge(creature, sp, aggressor, prey, ref profile); // #3326: the Schuppenhund charges the last metres
 
-            // A creature in its off-phase is asleep — but a player coming within wake distance stirs it (being
-            // hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.
+            // A creature in its off-phase is asleep — but a player coming within wake distance stirs it, unless they sneak
+            // (#3751; being hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.
             if (!SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0 && nearest is { } wakePos
-                && WrapDistSq(creature.Position, wakePos) <= CreatureWakeDistance * CreatureWakeDistance
+                && SleeperWokenByAPlayer(targets, creature.Position, wakePos)
                 && !Shared.Sounders.SoundelingRules.IsSoundeling(sp)) // #3366: a Soundeling stays curled up all night
             {
                 creature.AwakeOverrideTimer = CreatureWakeSeconds;

@@ -32,7 +32,8 @@ Last updated: 2026-10-04.
   **picture of where you last were** (the game takes one after about half a minute of play, then every three minutes,
   when you open the pause menu and when you close the game window; never with the HUD, a menu or a cutscene in it; until
   a world has one, a planet stands in) — then **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
-  type a name, pick the mode (**Explorer**, **Creative** or **Sandbox** — each card says what it means), optionally open
+  type a name, pick the mode (**Explorer**, **Creative**, **Sandbox** or **Hard Survival** — each card says what it
+  means; for Hard Survival see *Death & respawn*), optionally open
   **World options…**, then **Create & play** — or press the dice button **Random** for a surprise world, under the name
   you typed, or as `world_<number>` when the name box is empty, still says `new_world` or holds the name of a world you
   already have. The screen opens at once even with hundreds of saves; while the list is still being read, the left side
@@ -198,7 +199,7 @@ Last updated: 2026-10-04.
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
 | **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. Not while crouched, swimming, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. **Sneaking is quiet:** a sleeping animal does not wake when you sneak up to it (see *Creatures*), and the sandworms do not hear your steps. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** or the **Quantum Teleporter** selected it opens the destination picker — ship, allies, bases, beam blocks, beacons and map markers, and with the Quantum Teleporter typed coordinates or the map waypoint, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -209,7 +210,7 @@ Last updated: 2026-10-04.
 | **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` or **Ressaw lamp** — a module slot on the Suit tab; without one a hint says so; the Ressaw lamp also gives night sight while it is on). It is a calm white LED on the right of your helmet: a bright spot where you look with a soft halo around it — near rock is bright, rock far away stays dim, and wet stone, ore, ice, metal and water glint in it. While it is on, your eyes get used to the lit spot, so a dark cave around the beam looks a little darker (never black), and specks of dust in front of your visor sparkle in the light. **Under water** the lamp shows as a cone in the water: on every setting the specks floating in the water light up in its beam, and on **High** the water itself glows along the beam, tinted like the water around you (blue-green in the sea, red in red fluid) and fading out after about ten metres. Other players see your beam and the glowing lamp on your helmet, and you see theirs |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container — take everything out of the nearest storage crate; at an **empty** crate a short message says *The crate is empty.* |
-| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
+| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); never wastes food. With a **block** in your hand and nothing to feed: **lift the block over your head** (and put it back) — the attack control then throws it (see *Throwing a block*) — rebindable (Settings → Controls → *Feed an animal / lift a block*) |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**; with nothing of that kind in your bag a message says so); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors); **talk to the person you're looking at**; **aim at a mission board** to open its jobs (Tab → Missions). **What you aim at comes first**: a person, a board, a crate, a bed or a chair under the crosshair wins over a door, a ship station or somebody merely standing nearby — and the prompt at the bottom of the screen always names exactly what **E** will do |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
@@ -1667,7 +1668,7 @@ players.
   + 6 plant fibre — the crafting list shows it as **Wooden boat** next to the workshop's **Boat**; both make the
   same boat), the **wooden tools** and all three **baits** (forage bait, meat bait, nectar lure). The wooden
   tools (#2536) are the **wooden pickaxe** (3 logs + 2 plant fibre + 1 stone — mines what the basic drill mines,
-  only slower, and needs no energy), the **wooden club** (2 logs + 1 plant fibre — close combat, a little weaker than
+  only slower, and needs no energy; you hold it head up and **swing it over your head**, and nothing in it whirrs), the **wooden club** (2 logs + 1 plant fibre — close combat, a little weaker than
   the machete) and the **wooden spear** (2 logs + 2 plant fibre + 1 stone — close combat with a longer reach, swings
   a little slower).
 - The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
@@ -2133,6 +2134,20 @@ players.
 - **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
   auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
 
+### Throwing a block (an idea of Justus)
+
+- **Lift:** select a block in the hotbar and press **Feed** (**Q**) — you lift **one** block of the stack over your
+  head with both hands. It is still part of the stack: nothing is taken yet. **Q** again puts it back; so does
+  selecting another hotbar slot. Only on foot on a world — not seated, climbing, driving, on a train or in a ship.
+- **Throw:** the attack control (left mouse) throws it where you look. While the block is up your hands do nothing
+  else — no mining, no placing, no swing.
+- **What it does:** the first robot, robber or wild animal on its way is hurt by the block's **material** — a soft
+  block (earth, sand, leaves) **4**, wood, stone and ordinary ore **7**, metal, obsidian and the hardest rock **10**
+  (a wooden club does 6, the machete 7). A heavy block does not fly as far. At most one throw every 0.6 s.
+- **What it never does:** it never hits a tame animal, a Quali, an NPC or another player, and it is **never placed**
+  — it lies where it came down as an item, and you (or anyone) can pick it up again. Nothing is lost.
+- Other players see you hold the block up and see it fly.
+
 ### Glove weapons (shock gloves and energy gloves)
 Two weapons you wear on **both hands** — hold them in the hotbar like any weapon; in first person you see both
 gloves. Research both in the **Weapon** category and craft them at the workshop; the energy gloves need the shock
@@ -2203,7 +2218,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 ### Stations: boarding & docking
 - **Space stations**: approach in space and press **E** to board. A station is its **own place in orbit** —
   you arrive inside it, floating in space (black sky, no planet/weather, life support), and can walk the
-  interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. Press **U** to leave and
+  interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. The name tag tells you who trades:
+  a **Vendor** (or a shopkeeper, an arms dealer …) opens a shop, the **Crew** only talks. Press **U** to leave and
   travel back down to your ship on the planet. **Quit the game aboard a station and you come back aboard** — at
   the spot where you stood; your ship waits at the planet the station orbits.
 - **What you see from the cockpit is the station you walk.** Every station floats in space as its real hull, block
@@ -3056,7 +3072,8 @@ with a game version that has generation 35 get them — an older world never cha
   with a flight deck and hangars, a **cruise liner** with pools under glass domes, a **battleship** whose huge cannon you
   can walk through like a tunnel, a **terraforming ark** full of greenhouses, and — rarely — a strange **crystal squid**
   that nobody knows the builders of. **Nobody can build one**: there is no blueprint and no way to craft it. They were
-  abandoned a very long time ago, and **everyone aboard got away safely**.
+  abandoned a very long time ago, and **everyone aboard got away safely**. The wrecks drifting in one world's space are
+  **different ships** — you only meet the same kind twice once all five are out there.
 - **On planets** (worlds created since generation 42): about **every 20th planet** has one, lying crashed on the ground,
   its keel sunk into the rock — broken open, scorched in places, sometimes in two or three pieces, and no two wrecks are
   alike. Also on moons and asteroids without air when they are big enough; never on a gas giant. Walk in through its
@@ -3901,7 +3918,7 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    **the Eldest** — the tallest Sounder — in the village **Mirun**.
    **Watch out for the Soundraks** — the ten-metre giants are dangerous from the very start. When one notices you (about
    11 blocks away) it **screams: that is the warning**. Back away and it lets you go; stay close and a few seconds later it
-   charges and bites. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
+   charges and strikes — every strike takes a clear step off your health. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
    obsidian chest or a pulse of the Resonance Blaster calms it. In **Peaceful** it only screams.
 8. **The Bridge Song.** At the **Choir Tower** the Young Voices want to sing the Final Song again. Talk to **Roll** — the
    things the Echoes told you are your best answers — then climb the tower and strike one of its eight pipes: the choir
@@ -4323,6 +4340,11 @@ controls line at the bottom leaves out the quick-bar keys.
   Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
   (the same airtight rooms the base core supplies with air), no single species fills the whole area, and
   an animal you wall or floor in while it sleeps wakes up and steps clear.
+- **Sleeping animals and sneaking** (an idea of Justus). An animal asleep in the off-hours of its day (the *z z z*
+  above it) wakes when you walk up to it — within about 4 blocks. **Sneak (crouch) and it sleeps on**, however close you
+  come; stand up next to it and it wakes. A friend walking beside you wakes it too. A hit, a shot next to it, a ship's
+  jets, a train's horn or fire wake it as before, and the jetpack and a speeder are never quiet. The giants do not care
+  about any of this: they follow their own rules, and a guardian giant wakes when you mine its body.
 - **Animals and your base.** No ground or cave animal spawns within 24 blocks of a base core. Farther out, wild
   animals stay out of a base's sealed rooms and of a **closed ring of walls** (at least 2 blocks high, closed all
   round at feet level) as far out as you have built around the core — at least 48 blocks, at most 192. **No ground
@@ -4420,8 +4442,9 @@ controls line at the bottom leaves out the quick-bar keys.
   settings) it does not bite at all.
 - **The Soundrak** — Justus' ten-metre, light-blue giant of **Soaniri** (*The Sounders' Song*), and **dangerous from the
   start**: when it notices you (about 11 blocks) it **screams — the warning**. Back away and it lets you go; stay close and
-  a few seconds later it charges and bites (about 3 health a second). It is slow, so you can always walk away, and it gives
-  up after a short chase. The scanner says "Dangerous — it screams, then attacks". The *calm disc* and the Resonance
+  a few seconds later it charges and **strikes: about 12 health every two seconds**, a clear step on your health bar
+  (armour softens every strike — the whole obsidian set leaves about 4). It is slow, so you can always walk away, and it
+  gives up after a short chase — about four strikes if you just stand there. The scanner says "Dangerous — it screams, then attacks". The *calm disc* and the Resonance
   Blaster calm it; with **planet enemies off** it only screams.
 
 ### Giants (the colossus, the sandworm, the leviathan and the sky giant)
@@ -5003,6 +5026,12 @@ look up: what a mix does follows from what goes in, and the same things always g
   Designer** is the same screen; there your changes stay on the designer's figure until **Save** makes them yours.
   The **Figure** tab holds the body colours (← and → step through them), the gear preview and, in the menu, your
   figure's name and the export.
+- **Voice** (an idea of Justus) — on the **Figure** tab, beside the colours: how your figure sounds when it breathes
+  out after a run, strains on a wall, puffs on a jump, grunts at a hit or falls. Two sliders in steps of ten:
+  **Pitch** from low to high and **Age** from young to old. **Low · Middle · High** set the pitch with one click, and
+  every position in between works — the middle of both is the voice the game always had. You hear each change at
+  once (and with **Listen**), and it applies at once, without Save. Other players near you hear your grunt at a hit
+  and your fall in **your** voice. The voice is yours, not a part of an outfit: changing outfits keeps it.
 - **Base colour** — every tab has the part's colour right beside the canvas: 30 swatches, or the **colour
   wheel** for any colour at all (skin and suit colours are not limited to the list). Unpainted pixels are drawn
   in that colour on the canvas, because that is what will show through. The helmet takes the torso colour.
@@ -5045,14 +5074,17 @@ look up: what a mix does follows from what goes in, and the same things always g
   server-persistent, so your look follows you to any world. When you put a whole outfit on in the game your own
   figure changes at once; the other players' screens catch up over the next few seconds, one part at a time.
   When you join a world, the others see your whole look straight away — colours, face and every painted part.
-- **Skin templates** — ready-made looks under the outfits (**SKIN TEMPLATES**): the **Christmas outfit** (green,
-  white and gold with red buttons) appears there once door 6 of the **Advent calendar** is open in this world. A click
-  puts it on — the four colours and all four paintings; your **face stays your own** — and you can paint on from there
-  like on any outfit. A template cannot be deleted; save your changes as your own outfit.
+- **Skin templates** — ready-made looks under the outfits (**SKIN TEMPLATES**), for everybody who would rather start
+  from something finished: the **Green spacesuit** (a whole look with a dark visor face, painted by a player and sent
+  in with *Submit*) is always there, in the main menu's designer too; the **Christmas outfit** (green, white and gold
+  with red buttons) appears once door 6 of the **Advent calendar** is open in this world. A click puts a template on —
+  the colours and all four paintings. A template **with a face** brings it along (the status line says so); with one
+  that has none your **face stays your own**. You can paint on from there like on any outfit. A template cannot be
+  deleted; save your changes as your own outfit.
 - **Submit** — the header button sends your skin (from the figure tabs) or your HUD frame (from the **HUD frame** tab)
   to the developers, in the menu and inside a world alike — the same dialog as the other editors (nickname, an
-  optional note, three confirmations; no e-mail, no real name, no location). Good ones may become templates for
-  everybody.
+  optional note, three confirmations; no e-mail, no real name, no location). A good skin may become a **template for
+  everybody** or the look of pioneers in other worlds; a good frame a template.
 
 ### HUD frame (a decorated edge around your view)
 - An idea of the school club: you can put a **frame around the edge of your screen** — the inside of your helmet's
@@ -5083,6 +5115,13 @@ look up: what a mix does follows from what goes in, and the same things always g
   hear from where you stand.
 - **Wave at a villager** and they wave back and say hello — if they are awake, not busy, can see you and are not
   angry with you.
+- **Fire or swing a weapon next to people** and they jump (an idea of Justus): the nearest ones throw both hands up,
+  open their mouth wide and call out — "Watch out!", "Not here, please!", or they ask whether you are related to a
+  certain bounty hunter. They are startled, not afraid: nobody runs away, nobody can be hurt, and a few seconds later
+  everybody carries on. A burst of fire is one fright, and the same person does not call out again for a while. The
+  fist and tools startle nobody.
+- **Speech bubbles have a frame**: what a villager says floats above them on a dark, rounded plate with a light edge,
+  so it reads over any wall or floor. The message line at the top of the screen sits on a plate too.
 - Figures show more of what happens to them: a player who is hurt **flinches**, one who is defeated **sinks down**,
   one in water **swims**, and everybody gives a little in the knees on landing. Faces **blink**, and a mouth moves
   while its owner speaks. (A pixel face you drew yourself stays exactly as you drew it.)
@@ -5093,6 +5132,26 @@ look up: what a mix does follows from what goes in, and the same things always g
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop
   at the death site to recover cargo, per the active rules.
 - Alive but stuck? You never have to wait to suffocate — see *Back to my ship (stuck on foot)* above.
+
+#### Hard Survival: falling and being brought back (an idea of Justus)
+
+**Hard Survival** is the fourth mode of the new-world screen, for players who want it hard: extremely many machines
+and robbers and hard environmental hazards — in return oxygen and hunger run down slowly. And a death is different:
+
+- If you die on foot on a world, you do **not** wake up at your ship. You have **fallen**: your things stay where it
+  happened (the salvage capsule), and you **watch** — you fly freely over the world (as in the observer view: WASD,
+  Space/Ctrl, Shift fast), nothing hurts you, no enemy and no other player sees you, and you cannot touch anything.
+  You can still chat.
+- **Another player brings you back**: with a **field medkit** used within a few blocks of the place where you fell.
+  You stand up right there, with part of your health. A light pulses at the place, and everybody is told in the
+  message line that you have fallen.
+- **Nobody left who could help?** Playing alone (or when the others have left), a banner counts **60 seconds**
+  down; then **Interact** (**E**) starts you again at your ship. If **every** player has fallen, all of them can
+  start again at their ships at once.
+- A death in space flight, on a spacewalk, inside a ship or on a station, and a defeat by another player, work as
+  in every other world. Leaving the game while fallen puts you back at your ship.
+- The world options you set for the world still apply; the mode sets *Alien enemies* and *Bandits* to Extreme,
+  *Environmental hazards* to Hard, *Oxygen* and *Hunger* to Slow and the death rule on top.
 
 ---
 
@@ -5697,7 +5756,7 @@ and that option is off by default on hosted worlds.
 | `/festival` · `/festival Key` · `/festival calendar` · `/festival on\|off` | What festival is on · switch one on for the whole world (e.g. `christmas` — it brings the Advent calendar —, `halloween`, `hanami`) · back to the date · festivals on or off. Saved with the world and announced to everyone; see *Festivals* in §5 (reachable from chat since #3389) |
 | `/announce Message` · `/restart Minutes [Message]` · `/cancelrestart` | A notice to everyone online · a restart countdown with warnings · call the countdown off |
 | `/mode Player survival\|creative\|world` | Per-player game mode — see *Per-player mode* below |
-| `/gamemode explorer\|creative\|sandbox` | The whole world's mode — see *World mode* below. Alone it names the current mode |
+| `/gamemode explorer\|creative\|sandbox\|hard` | The whole world's mode — see *World mode* below. Alone it names the current mode |
 
 #### `/silence` — a pause instead of a kick
 
@@ -5736,6 +5795,9 @@ The three modes of the new-world screen can be switched later: **`/gamemode sand
 **Sandbox** adds free crafting, no oxygen or hunger (not even on a spacewalk), no planet machines or bandits and **no
 damage at all** — no lava or fall hurts you, aggressive animals and space hostiles leave you and your ship alone — and the
 inventory's **All items** page.
+**`/gamemode hard`** (also `überlebenskampf`) turns the world into **Hard Survival** (see *Death & respawn*): machines
+and bandits Extreme, hazards Hard, oxygen and hunger Slow, and a death means watching until revived. Switching to
+another mode ends that death rule; the levels stay as they are until you change them in the world rules.
 The change is saved with the world and reaches everyone online at once. Going back to Explorer takes nothing away:
 unlocked blueprints, ships and kit items stay. World admins only; it works with cheats off.
 

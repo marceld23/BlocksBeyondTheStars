@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
@@ -11,6 +12,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Sounders;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -251,8 +253,61 @@ public sealed class SoundersFaunaServerTests : IDisposable
             Hold(server, p, rak, padY, 5f, 1.5);
             Assert.True(server.NetCreatureForTest(rak.Id).Hostile, "warned and still there: it attacks");
             Hold(server, p, rak, padY, 4f, 3.0);
-            Assert.True(p.State.Health < health, "the Soundrak bites");
-            Assert.True(p.State.Health > health - 20f, "a fair bite, no instant kill");
+            Assert.True(p.State.Health < health - 10f, "the Soundrak strikes — a step the health bar shows (#3750)");
+            Assert.True(p.State.Health > health - 30f, "two strikes at most by now: fair, no instant kill");
+        }
+    }
+
+    /// <summary>The player held <paramref name="away"/> blocks east of the Soundrak for <paramref name="seconds"/>; returns the
+    /// health lost in every 0.1 s tick.</summary>
+    private static List<float> HoldAndLog(SvGameServer server, PlayerSession p, CombatEntity rak, int padY, float away, double seconds)
+    {
+        var drops = new List<float>();
+        for (int i = 0; i < (int)Math.Round(seconds * 10.0); i++)
+        {
+            float before = p.State.Health;
+            p.State.Position = new Vector3f(rak.Position.X + away, padY + 1, rak.Position.Z);
+            server.TickForTest(0.1);
+            drops.Add(before - p.State.Health);
+        }
+
+        return drops;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ASoundrak_StrikesInChunks_AStepOnTheHealthBarEveryCoupleOfSeconds(bool obsidianChest)
+    {
+        // #3750 (Justus: "the Soundraks do no damage when they attack me"): 3 health a second, behind the obsidian chest
+        // plate 2.1, against 2 a second of natural healing — the bar never moved. One strike per interval shows.
+        var (server, repo, p, rak, padY) = RakStage(obsidianChest ? "rak_strike_chest" : "rak_strike", 4f);
+        using (repo)
+        {
+            var record = _content.AuthoredCreatures[SoundersIds.Soundrak];
+            float strike = record.BiteDamage;
+            if (obsidianChest)
+            {
+                p.State.Equipment.SetSlot((int)EquipSlot.Chest, new ItemStack(SoundersIds.ObsidianChest, 1));
+                strike *= 1f - _content.GetItem(SoundersIds.ObsidianChest)!.ArmorResistance;
+            }
+
+            // The warning scream, the 2.5 s to back away, then the attack until it gives up the chase.
+            var drops = HoldAndLog(server, p, rak, padY, 4f, 0.5 + SoundrakRules.WarningSeconds + 6.0);
+
+            string log = string.Join(" ", drops.Select(d => d.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
+            var strikes = drops.Select((d, i) => (d, i)).Where(x => x.d >= strike - 0.5f).ToList();
+            Assert.True(strikes.Count is >= 3 and <= 4, "a strike every two seconds — drops: " + log);
+            Assert.All(strikes, s => Assert.InRange(s.d, strike - 0.5f, strike + 0.05f)); // a tick's healing comes off it
+            Assert.True(strikes[0].d >= 8f, "a clear step on the bar, armour or not: " + log);
+            Assert.True(drops.Where(d => d > 0f && d < strike - 0.5f).Sum() < 0.5f, "nothing in between, no drain: " + log);
+            int ticksApart = (int)Math.Round(record.BiteInterval * 10.0);
+            for (int k = 1; k < strikes.Count; k++)
+            {
+                Assert.InRange(strikes[k].i - strikes[k - 1].i, ticksApart - 1, ticksApart + 1);
+            }
+
+            Assert.True(p.State.Health > 40f, "a whole attack never kills a healthy player who just stands there: " + log);
         }
     }
 

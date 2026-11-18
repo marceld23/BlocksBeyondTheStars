@@ -20,6 +20,7 @@ namespace BlocksBeyondTheStars.Client
             editor.SkinTemplateNames = () => AppearanceTemplates.Names(FreeSkins(), s => s.NameKey, L);
             editor.OnWearSkinTemplate = WearSkinTemplate;
             editor.SubmitSettings = settings;
+            editor.UseVoiceOf(settings, () => settings.Save()); // #3767: the voice sliders of the Figure tab
             editor.LookName = () => _name;
             if (settings != null)
             {

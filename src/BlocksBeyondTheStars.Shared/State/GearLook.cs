@@ -117,6 +117,11 @@ public static class GearLook
     /// disc, which picks <see cref="StyleObsidianGlow"/>.</summary>
     public const int SocketDisc = 1 << 28;
 
+    /// <summary>#3766: the player holds a block over the head with both hands (the block is the presence's held item).
+    /// Like <see cref="LampLit"/> a state, not a piece of gear — only the server's presence sets it, <see cref="Mask"/>
+    /// never does — and a bit of this mask because a presence may not grow a field.</summary>
+    public const int CarryingOverhead = 1 << 29;
+
     /// <summary>The style of the head piece in <paramref name="mask"/> (0 = classic).</summary>
     public static int HeadStyle(int mask) => (mask >> HeadStyleShift) & StyleBits;
 

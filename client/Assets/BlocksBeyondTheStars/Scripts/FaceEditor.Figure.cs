@@ -74,6 +74,7 @@ namespace BlocksBeyondTheStars.Client
                 raw.raycastTarget = false;
             }
 
+            BuildVoiceColumn(card); // #3767: the figure's voice, beside the colour rows (FaceEditor.Voice.cs)
             BuildFigureExtras?.Invoke(card, y + 12f);
         }
 

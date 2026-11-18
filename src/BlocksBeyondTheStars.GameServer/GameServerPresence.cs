@@ -62,6 +62,7 @@ public sealed partial class GameServer
         session.TorsoColor = intent.Torso;
         session.ArmColor = intent.Arms;
         session.LegColor = intent.Legs;
+        session.Voice = Shared.Definitions.PlayerVoice.Sanitize(intent.Voice); // #3767: heard by the others on a hit and a fall
         if (intent.Hull != 0 && intent.Hull != session.HullColor)
         {
             session.HullColor = intent.Hull; // item 32 (0 = a client that didn't send one — keep the default)
@@ -437,7 +438,7 @@ public sealed partial class GameServer
             Legs = s.LegColor,
             // A player flying up in SPACE keeps their world id but must not keep standing on the pad
             // as a frozen ghost — mark them stealthed (clients hide stealthed avatars + nameplates).
-            Stealthed = p.Stealthed || InSpace(p.PlayerId),
+            Stealthed = p.Stealthed || InSpace(p.PlayerId) || s.Respawn.Fallen, // #3765: nobody sees the fallen
             Jetpacking = p.Jetpacking,
             Gliding = p.Gliding, // #2296
             Roped = p.RopeAnchor.HasValue, // #2319: the energy rope other players see
@@ -448,7 +449,7 @@ public sealed partial class GameServer
             Climbing = p.Climbing && p.InTrain.Length == 0,
             Crouching = p.Crouching && !p.Seated && !p.Climbing, // #2435: a seat or a wall wins over the squat
             Pitch = p.Pitch,                                     // #2434: where the player looks
-            Gear = GearMask(p) | (s.LampOn && WearsLamp(p) ? GearLook.LampLit : 0), // #3234: switched on AND worn (#3339: any lamp)
+            Gear = GearMask(p) | (s.LampOn && WearsLamp(p) ? GearLook.LampLit : 0) | CarryBit(s), // #3234: switched on AND worn (#3339: any lamp); #3766
             Held = HeldItemKey(p),
             FrameId = p.InTrain, // #2113: aboard a train — the wagon frame and the rider's offset in it
             LocalX = p.TrainLocalX,

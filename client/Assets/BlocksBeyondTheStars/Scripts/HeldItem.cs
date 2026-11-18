@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Client
         /// in-world look, and the extruded icon of any other item without a model. <see cref="Axe"/> and <see cref="Bow"/>
         /// (#2647) are the wilderness folk's NPC tools (<see cref="HeldItemShapes.NpcToolParts"/>). <see cref="Lump"/> (#2838)
         /// is a mined ore held as a small lump of its block (<see cref="HeldItemShapes.Lump"/>).</summary>
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon, Axe, Bow, Lump }
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon, Axe, Bow, Lump, Pick }
 
         /// <summary>What a working NPC carries (#1869), from the server's <c>NetNpc.Held</c> hint — not an item:
         /// the gardener's hoe, the craftsman's hammer, the guard's blade.</summary>
@@ -137,7 +137,10 @@ namespace BlocksBeyondTheStars.Client
 
             switch (tool.Kind)
             {
-                case ToolKind.Drill: return (Kind.Drill, new Color(0.62f, 0.66f, 0.72f), null);
+                // #3763: a drill-kind tool whose own model has no bit on its axis is a pick (the wooden pickaxe) — read from
+                // the model, never from the key. It is held tipped up and chops; it has no drill flourish and no drill sound.
+                case ToolKind.Drill:
+                    return (HeldStances.IsPickModel(ModelResolver?.Invoke(itemKey)) ? Kind.Pick : Kind.Drill, new Color(0.62f, 0.66f, 0.72f), null);
                 case ToolKind.Scanner: return (Kind.Scanner, new Color(0.45f, 0.85f, 0.95f), null);
                 // #2800: a gun or a blade by the weapon's range, the server's rule — the key used to decide, and the plasma
                 // sword ("plasma") was held like a gun.

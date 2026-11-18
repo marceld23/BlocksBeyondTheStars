@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
             "weapon_laser", "weapon_plasma", "weapon_gauss", "weapon_scrap",
             "land", "jump",
             "emote_cheer", "emote_bow",
+            "hurt_player", "breath_effort", // #3767: the figure's voice — three pain grunts, two breaths of effort
         };
 
         /// <summary>The clip name of take <paramref name="take"/> (1-based; take 1 is the plain name).</summary>

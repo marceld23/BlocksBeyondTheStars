@@ -77,6 +77,9 @@ namespace BlocksBeyondTheStars.Client
         /// as the server knows): the player controller folds the wing it opened.</summary>
         public int GliderRejections { get; private set; }
 
+        /// <summary>#3766: how often the server refused to let a block be lifted — PlayerController lowers the hands.</summary>
+        public int CarryRejections { get; private set; }
+
         /// <summary>#2321: the rope gun is held and a block the rope can stick to is under the crosshair within range — the
         /// HUD tints the reticle. Set by the player controller every frame it holds the gun.</summary>
         public bool RopeAimValid { get; set; }
@@ -373,6 +376,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (m.Action == "glider")
                 {
                     GliderRejections++; // #2296: no glider worn as the server sees it — PlayerController folds the wing
+                }
+                else if (m.Action == "carry")
+                {
+                    CarryRejections++; // #3766: the server did not let the block up — PlayerController lowers the hands
                 }
                 else if (m.Action == "visit")
                 {

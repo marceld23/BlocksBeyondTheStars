@@ -72,7 +72,7 @@ public static class NpcGreetingKinds
     /// <summary>A visitor at the player's base speaks.</summary>
     public const byte Guest = 5;
 
-    /// <summary>An alarm (a guard spotting bandit scouts).</summary>
+    /// <summary>An alarm (a guard spotting bandit scouts) — or a startled call-out at a weapon fired nearby (#3769).</summary>
     public const byte Alert = 6;
 }
 
@@ -90,4 +90,8 @@ public static class NpcGestures
 
     /// <summary>Both arms up and bobbing (~1.2 s).</summary>
     public const byte Cheer = 3;
+
+    /// <summary>#3769: startled — both hands straight up and the mouth wide open for a moment (~1.6 s). An older client
+    /// does not know the value and plays no gesture; the line still shows.</summary>
+    public const byte HandsUp = 4;
 }

@@ -25,6 +25,10 @@ public sealed class WorldSaveSummary
     /// <summary><see cref="Mode"/> of a sandbox world: the world's rules run in <see cref="GameMode.Creative"/>.</summary>
     public const string ModeSandbox = "sandbox";
 
+    /// <summary><see cref="Mode"/> of a Hard Survival world (#3765): its rules carry the death rule
+    /// <see cref="DeathPenalty.Revive"/>.</summary>
+    public const string ModeHard = "hard";
+
     public string WorldName { get; set; } = string.Empty;
     public long PlaytimeSeconds { get; set; }
 
@@ -44,6 +48,11 @@ public sealed class WorldSaveSummary
         if (metadata.RulesOverride?.GameMode == GameMode.Creative)
         {
             return ModeSandbox;
+        }
+
+        if (metadata.RulesOverride?.DeathPenalty == DeathPenalty.Revive)
+        {
+            return ModeHard; // #3765: the death rule is what makes a world Hard Survival
         }
 
         return metadata.CreativeUnlockAllBlueprints || metadata.CreativeStartAllShips || metadata.CreativeStarterKit
