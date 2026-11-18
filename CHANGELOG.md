@@ -11,6 +11,89 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.21] — 2026-11-18
+
+The feel-and-fight release. **The game answers you now**: walking, jumping and flying feel tighter, every button
+clicks, there are 62 new sounds and an **emote wheel**. **Space fights are flown, not sat out**: a **barrel roll**, a
+**boost**, enemies that circle and charge a heavy shot, four new ship weapons and enemy shields. And eleven wishes of
+one evening from a young tester: a new world mode **Hard Survival**, **blocks you can throw**, a **voice** for your
+figure, startled villagers and more.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 17**, the **terrain generation at 45** and the
+**network protocol at 12**. Every world gets all of it; Hard Survival is a mode for **new** worlds (an admin can
+switch a running world with `/gamemode hard`).
+
+### 🎮 Game feel (#3738–#3748)
+
+- **On foot:** a walk that starts and stops crisply, a short grace after stepping off an edge and a jump that is
+  remembered when pressed a moment too early, steps that glide instead of popping, a camera that follows softly, a
+  held item that trails the view and dips on a landing, and a tiny hold when your blow lands.
+- **The ship:** it reaches top speed in under half a second and comes to a stop instead of drifting forever, slides
+  along what it touches, banks into a turn, and the chase camera follows softly.
+- **Sound:** 62 new clips — several takes for mining, melee, the weapons, jumping and landing, placing by material,
+  an interface set, five musical accents and a sound for every emote; three tension tracks for dangerous moments;
+  the music ducks under speech; new **Ambience** and **Interface** volume sliders.
+- **Interface:** a visible click on every menu button, tooltips on inventory slots, **drag and drop** with the mouse,
+  windows that fade out, a **gear comparison**, a recipe you can **pin to the HUD**, **HUD off** with F10; new
+  settings for resolution, monitor, pause on focus loss and 3D resolution, story text size and backdrop, signal
+  colours for colour-vision deficiencies, run and crouch as a switch.
+- **Figures:** an **emote wheel** (hold or tap **P**, nine emotes) — villagers wave back; flinch, fall, swimming and
+  landing poses, eased legs, faces that blink and talk, contact shadows. New Codex article *Emotes and Body Language*.
+
+### 🚀 Space combat that moves (#3753–#3761)
+
+- **Barrel roll** — **Space** (gamepad A, touch ROLL; steer left or right first to pick the side). For a moment every
+  enemy shot misses; nimble ships can roll more often.
+- **Boost** — hold **Left Shift** while thrusting (gamepad L3, touch BOOST). Much faster until the charge is empty;
+  it refills by itself. Two small bars above the speed readout show when both are ready.
+- **Enemies circle** you instead of standing still, and cruisers and raiders **charge a heavy shot** with a clear
+  warning — roll just before it fires. Their steady fire is lighter in return.
+- **Four new ship weapons**, each with its blueprint: a homing **missile launcher**, a **scatter cannon** (up to three
+  targets), an **ion pulse** (drops a shield and silences the target) and a **point-defence turret** that fires by
+  itself. Ship Cannon I hits harder (20 → 28) — it was weaker than the free starter laser.
+- **Shields:** cruisers, raiders and the elite UFO carry one; intact stations are protected; abandoned stations and
+  wrecks lose blocks to combat weapons.
+- **Two upgrade modules:** an afterburner (longer boost) and manoeuvring thrusters (roll sooner). Each ship class has
+  its own weapon damage, boost and roll values and a fitting start weapon; the ship pane shows them.
+- New Codex article *Space Combat*.
+
+### 🧒 Eleven wishes of one evening (#3750–#3752, #3763–#3770)
+
+- **Hard Survival — a fourth world mode** (Creative stays). Extremely many machines and robbers and hard hazards; in
+  return oxygen and hunger run down slowly. If you die on foot, you do not wake up at your ship: you have **fallen**
+  and watch — flying freely, unseen, touching nothing — until **another player brings you back with a medkit** at the
+  place where you fell. Playing alone, you can start again at your ship after 60 seconds; if everybody has fallen,
+  all start again at once.
+- **Carry a block over your head and throw it.** With a block in your hand, **Q** lifts one block with both hands;
+  the attack control throws it. A robot, a robber or a wild animal it hits is hurt by the material — earth a little
+  (4), stone more (7), metal the most (10). Pets, villagers and players are never hit, and the block always lies
+  where it landed, to pick up again.
+- **A voice for your figure.** The character editor has a **pitch** and an **age** slider with three quick buttons
+  (Low · Middle · High). Your figure breathes, strains and grunts in that voice, and other players hear a hit and a
+  fall in it. Four new voice clips.
+- **Startled villagers.** A shot or a weapon's swing next to NPCs makes the nearest raise their hands, open their
+  mouth wide and say a funny line. Speech bubbles and the message line got a readable plate.
+- **The first skin made by a player ships as a free template:** the *Green spacesuit*. Templates can carry a face now.
+- **The Soundrak really strikes.** Its 3 damage a second vanished in the natural healing; it now bites in chunks
+  (12 every 2 seconds) like the Schuppenhund.
+- **Sneaking past sleeping animals** no longer wakes them.
+- **Worn armour no longer flickers** on the back and the hips.
+- **The pickaxe is held and swung like a pickaxe**, and blades rest tipped up instead of pointing into the screen.
+- **The giant wrecks of one world are different ships** instead of the same one several times.
+- **Station crew is called "Crew"**, not "Trader" — only those who trade are called traders.
+
+### 🔧 Also
+
+- The portal's legal-notice example shows the correct street name (#3772).
+
+### ⚠️ Known limits
+
+- The numbers of the feel pass, of space combat, of throwing and of Hard Survival are first values — tell us with
+  **F1** what feels wrong.
+- On a German keyboard the emote wheel sits on **P** on purpose (Y and Z swap places there).
+- A fallen player is not marked in the player list, and the place of death has no map marker — a pulsing light and
+  the message line show it.
+
 ## [2026.11.20] — 2026-11-17
 
 The lab-symbols release. **The bio lab speaks in pictures now**: every effect has its own icon in the colour of its
@@ -11052,7 +11135,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.20...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.21...HEAD
+[2026.11.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.20...v2026.11.21
 [2026.11.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.19...v2026.11.20
 [2026.11.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.18...v2026.11.19
 [2026.11.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.17...v2026.11.18
