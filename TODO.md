@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking, armour, pick and blades, wrecks, crew labels, a skin template, startled NPCs, the figure's voice, throwing blocks, Hard Survival (#3750–#3752, #3763–#3770), ✅ 2026-11-18 (⚠ playtest open; server + client, appended messages and additive fields only — no protocol bump, no save change)
+### 📬 Justus' reports 2026-11-17 evening — Soundrak strikes, sneaking, armour, pick and blades, wrecks, crew labels, a skin template, startled NPCs, the figure's voice, throwing blocks, Hard Survival (#3750–#3752, #3763–#3770), PR #3771 (`a1eac587`) — ✅ released in v2026.11.21 (⚠ playtest open; server + client, appended messages and additive fields only — no protocol bump, no save change)
 
 Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations) became eleven issues; all are done:
 
@@ -111,7 +111,7 @@ Sixteen F1 reports of one evening (v2026.11.20, Soaniri and stations) became ele
   (machines are on every planet already, 2 per player; lone robbers roam 55 % of the bodies); the answer is the
   world options (machines / bandits up to Extreme) and the Hard Survival mode of this batch.
 
-### 🚀 Space combat that moves: barrel roll, boost, livelier enemies, more ship weapons — epic #3762 (#3753–#3761), ✅ 2026-11-17 (⚠ playtest open; server + client, two appended messages, no protocol bump, no new block — saves stay compatible)
+### 🚀 Space combat that moves: barrel roll, boost, livelier enemies, more ship weapons — epic #3762 (#3753–#3761), PR #3773 (`a35aebd7`) — ✅ released in v2026.11.21 (⚠ playtest open; server + client, two appended messages, no protocol bump, no new block — saves stay compatible)
 
 How it works: [docs/developer/SPACE_COMBAT_CONCEPT.md](docs/developer/SPACE_COMBAT_CONCEPT.md) § *Manoeuvres, the heavy
 shot and weapon behaviours*. Every number is a first value; the eight new sounds were generated without a listening
@@ -150,7 +150,7 @@ check.
 - Hostile fire is still a damage field: bolts drawn at the ship are decoration (they pass it during a roll).
 - Not built: missiles that can be shot down, enemy missiles, a lock-on warning, weapon energy that really limits.
 
-### 🎮 Game feel: movement, flight, sound, interface and figures that answer — epic #3738 (#3739–#3748), ✅ 2026-11-17, PR #3749 (⚠ playtest open; server + client, two appended messages, no protocol bump, saves stay compatible)
+### 🎮 Game feel: movement, flight, sound, interface and figures that answer — epic #3738 (#3739–#3748), PR #3749 (`48a0b6e8`) — ✅ released in v2026.11.21 (⚠ playtest open; server + client, two appended messages, no protocol bump, saves stay compatible)
 
 How it works: [docs/developer/GAME_FEEL.md](docs/developer/GAME_FEEL.md). The sounds and the music went through
 listening checks; the hover sound and the button click were tuned in a first play session the same evening. Everything
