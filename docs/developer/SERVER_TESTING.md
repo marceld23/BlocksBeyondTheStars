@@ -170,6 +170,18 @@ first-PR traps:
     what had finished; log and artifacts survive. Look for many threads in the same `Monitor.Enter` / lock
     frame (a shared static cache, see below), or in `Wait`/`Result` (sync over async).
   - The script refuses to run outside GitHub Actions: it stops every test host on the machine.
+- **Stop your server — a forgotten `Stop()` no longer costs the suite its memory, but it is still yours to
+  call** (#3799). A server starts two chunk-generation threads on its first streaming pass, each with its own
+  generator (20–45 MB). Until 2026-11-18 a server that a test dropped without `Stop()` stayed alive **whole**:
+  the threads held the pool, the pool its finished jobs, a job its world, and the world's block events the
+  server. About half of the suite does that; the watchdog's first run showed 118 such threads after 1101 tests
+  and a test host growing by 1.5–2 GB a minute — that was the crawl. Now the threads see only their queues
+  (`ChunkGenerationPool.Crew`), so a dropped server is collected, and the pool's guard ends its threads
+  (`ChunkGenerationPoolTests.ADroppedServer_IsCollected_AndItsWorkerThreadsEnd`). That test also fails when
+  something else starts to hold a dropped server — a static list, a timer, an event of a longer-lived object;
+  if you add one of those to the server, release it in `Shutdown()` **and** make sure it does not hold the
+  server. Still call `server.Stop()` in a `finally` or `Dispose()`: it saves, closes the transport and frees
+  the threads at once instead of at the next collection.
 - Any test not marked `[Trait("Category", "Slow")]` must finish **well under 120 s** — the PR
   gate ([`scripts/check-test-durations.py`](../../scripts/check-test-durations.py)) fails on it.
   Use the `Slow` trait for soak/heavy-worldgen tests; they still run on every push to `main`.

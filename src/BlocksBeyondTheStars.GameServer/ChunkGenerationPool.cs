@@ -55,15 +55,125 @@ internal sealed class ChunkGenerationPool : IDisposable
         public long ReadyAtPass;
     }
 
-    private readonly object _lock = new();
-    private readonly LinkedList<Job> _priority = new();
-    private readonly LinkedList<Job> _speculative = new();
+    /// <summary>All a worker thread may reach: the two queues and the generator template — never the pool (#3799).
+    /// A running thread is a GC root. While the threads ran a method of the pool they held <see cref="_jobs"/>, every
+    /// finished job its <see cref="ServerWorld"/>, and the world's block events point back at the server: a server
+    /// that was dropped without <c>Stop()</c> — about half of the test suite does that — stayed alive whole, threads,
+    /// generators, worlds and chunks, and the test host grew by 1.5–2 GB a minute. Finished jobs are known to the pool
+    /// only, so once the workers have drained the queues nothing here leads to a world.</summary>
+    private sealed class Crew
+    {
+        public readonly object Lock = new();
+        public readonly LinkedList<Job> Priority = new();
+        public readonly LinkedList<Job> Speculative = new();
+        public readonly WorldGenerator Template;
+
+        /// <summary>The streaming pass the pool is in (guarded by <see cref="Lock"/>); stamps a finished job.</summary>
+        public long Pass;
+
+        /// <summary>Set once, under <see cref="Lock"/>: the workers leave.</summary>
+        public bool Stopped;
+
+        public Crew(WorldGenerator template) => Template = template;
+
+        /// <summary>A worker thread's body.</summary>
+        public void Run()
+        {
+            var generator = Template.CreateSibling();
+            while (RunOne(ref generator))
+            {
+            }
+        }
+
+        /// <summary>Waits for a job, generates it and reports it; false once the crew is stopped. A method of its own
+        /// and never inlined: while a thread waits, no frame of it may still name the job it finished last (a Debug
+        /// build keeps a local to the end of its method) — that job names a world.</summary>
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private bool RunOne(ref WorldGenerator generator)
+        {
+            Job job;
+            lock (Lock)
+            {
+                while (!Stopped && Priority.Count == 0 && Speculative.Count == 0)
+                {
+                    Monitor.Wait(Lock);
+                }
+
+                if (Stopped)
+                {
+                    return false;
+                }
+
+                var list = Priority.Count > 0 ? Priority : Speculative;
+                job = list.First!.Value;
+                list.RemoveFirst();
+                job.Claimed = true;
+            }
+
+            try
+            {
+                if (!generator.SharesGlobalSettingsWith(Template))
+                {
+                    generator = Template.CreateSibling(); // a setter ran on the server's generator after start
+                }
+
+                generator.SetWorldMode(job.Circumference, job.Cratered, job.Pads, job.LocationId, job.OreBoost, job.Sites);
+                job.Chunk = generator.Generate(job.Planet, job.Coord);
+            }
+            catch (Exception e)
+            {
+                job.Error = e;
+            }
+
+            lock (Lock)
+            {
+                job.Done = true;
+                job.ReadyAtPass = Pass;
+                Monitor.PulseAll(Lock);
+            }
+
+            return true;
+        }
+
+        public void Stop()
+        {
+            lock (Lock)
+            {
+                Stopped = true;
+                Monitor.PulseAll(Lock);
+            }
+        }
+    }
+
+    /// <summary>Stops the crew when the pool is collected without <see cref="ChunkGenerationPool.Dispose"/> — its
+    /// server was dropped, not stopped (#3799). An object of its own on purpose: a finalizer keeps everything it can
+    /// reach for one more collection, and that has to be the crew, not the pool with its finished jobs and their
+    /// worlds.</summary>
+    private sealed class DropGuard : IDisposable
+    {
+        private readonly Crew _crew;
+
+        public DropGuard(Crew crew) => _crew = crew;
+
+#pragma warning disable MA0055 // a finalizer on purpose: only the collector knows that the pool was dropped
+        ~DropGuard() => _crew.Stop();
+#pragma warning restore MA0055
+
+        public void Dispose()
+        {
+            _crew.Stop();
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    private readonly Crew _crew;
+    private readonly DropGuard _guard;
+    private readonly object _lock;                 // the crew's lock: every field below changes under it
+    private readonly LinkedList<Job> _priority;    // the crew's queues, filled here and emptied by the workers
+    private readonly LinkedList<Job> _speculative;
     private readonly Dictionary<(ServerWorld World, ChunkCoord Coord), Job> _jobs = new();
     private readonly List<Thread> _threads = new();
-    private readonly WorldGenerator _template;
     private readonly int _workers;
-    private long _pass;
-    private bool _disposed;
 
     /// <summary>Chunks adopted from a worker vs generated on the calling thread (diagnostics + tests).</summary>
     public long AdoptedFromWorkers { get; private set; }
@@ -71,9 +181,16 @@ internal sealed class ChunkGenerationPool : IDisposable
 
     public int Workers => _workers;
 
+    /// <summary>The worker threads (tests, #3799).</summary>
+    internal Thread[] ThreadsForTest => _threads.ToArray();
+
     private ChunkGenerationPool(WorldGenerator template, int workers)
     {
-        _template = template;
+        _crew = new Crew(template);
+        _guard = new DropGuard(_crew);
+        _lock = _crew.Lock;
+        _priority = _crew.Priority;
+        _speculative = _crew.Speculative;
         _workers = workers;
     }
 
@@ -91,7 +208,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         {
             for (int i = 0; i < workers; i++)
             {
-                var thread = new Thread(pool.WorkerLoop)
+                var thread = new Thread(pool._crew.Run) // the crew, not the pool: see Crew
                 {
                     IsBackground = true,
                     Name = $"chunk-gen-{i}",
@@ -115,7 +232,7 @@ internal sealed class ChunkGenerationPool : IDisposable
     {
         lock (_lock)
         {
-            _pass++;
+            _crew.Pass++;
             if (_jobs.Count == 0)
             {
                 return;
@@ -124,7 +241,7 @@ internal sealed class ChunkGenerationPool : IDisposable
             List<(ServerWorld, ChunkCoord)>? stale = null;
             foreach (var kv in _jobs)
             {
-                if (kv.Value.Done && _pass - kv.Value.ReadyAtPass > ReadyTtlPasses)
+                if (kv.Value.Done && _crew.Pass - kv.Value.ReadyAtPass > ReadyTtlPasses)
                 {
                     (stale ??= new List<(ServerWorld, ChunkCoord)>()).Add(kv.Key);
                 }
@@ -226,7 +343,7 @@ internal sealed class ChunkGenerationPool : IDisposable
             lock (_lock)
             {
                 var started = System.Diagnostics.Stopwatch.StartNew();
-                while (!job.Done && !_disposed)
+                while (!job.Done && !_crew.Stopped)
                 {
                     if (started.ElapsedMilliseconds > WorkerStallMs)
                     {
@@ -372,60 +489,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         list.Remove(job);
     }
 
-    private void WorkerLoop()
-    {
-        var generator = _template.CreateSibling();
-        while (true)
-        {
-            Job job;
-            lock (_lock)
-            {
-                while (!_disposed && _priority.Count == 0 && _speculative.Count == 0)
-                {
-                    Monitor.Wait(_lock);
-                }
-
-                if (_disposed)
-                {
-                    return;
-                }
-
-                var list = _priority.Count > 0 ? _priority : _speculative;
-                job = list.First!.Value;
-                list.RemoveFirst();
-                job.Claimed = true;
-            }
-
-            try
-            {
-                if (!generator.SharesGlobalSettingsWith(_template))
-                {
-                    generator = _template.CreateSibling(); // a setter ran on the server's generator after start
-                }
-
-                generator.SetWorldMode(job.Circumference, job.Cratered, job.Pads, job.LocationId, job.OreBoost, job.Sites);
-                job.Chunk = generator.Generate(job.Planet, job.Coord);
-            }
-            catch (Exception e)
-            {
-                job.Error = e;
-            }
-
-            lock (_lock)
-            {
-                job.Done = true;
-                job.ReadyAtPass = _pass;
-                Monitor.PulseAll(_lock);
-            }
-        }
-    }
-
-    public void Dispose()
-    {
-        lock (_lock)
-        {
-            _disposed = true;
-            Monitor.PulseAll(_lock);
-        }
-    }
+    /// <summary>Stops the worker threads (the server's <c>Stop()</c>). A pool that is never disposed stops them too,
+    /// once it is collected — see <see cref="DropGuard"/>.</summary>
+    public void Dispose() => _guard.Dispose();
 }
