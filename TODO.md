@@ -50,6 +50,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - ✅ **#3795 The "new planet" accent plays once per session** — on the first landing on a second body, not on every
   further one (`Client.Core/SessionArrivals`, used by `ClientMusic`). The sunrise track still opens every body's
   first visit. Tests: `SessionArrivalsTests`.
+- ✅ **#3797 A shard that crawls ends by itself and says why.** #3792 did not cover the case it was written for: the
+  same evening the same shard sat 36 minutes in its Test step again, `--blame-hang` never fired (tests still
+  trickled through — a crawl, not a standstill), and cancelling it left no log and no artifact a second time.
+  `scripts/ci-test-watchdog.sh` now runs beside `dotnet test` in `tests.yml`: a line a minute with the test host's
+  memory and CPU and the runner's memory, swap and load; after 25 minutes the test host's managed stacks
+  (`dotnet-stack`), then it stops the host, so the step fails by itself and log and artifacts survive. Proven on a
+  throw-away commit with a short limit on one shard. Docs: `SERVER_TESTING.md` § *CI rules*.
+- 📋 **Open — the cause of the crawl itself.** Seen twice on `main` (full tier, shard 12, 2026-11-18), green on
+  every rerun; 47 test classes were in both shards. Not a spawned process (no server test starts one) and not one
+  stuck test. Next occurrence: read the watchdog's lines and stacks, then fix the cause.
 - ⚠ **Playtest open:** whether 5 seconds feel right (a weak hunter now hurts; a child's first fights get a little
   harder), and the crouch switch on a real keyboard.
 
