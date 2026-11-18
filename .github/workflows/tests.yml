@@ -195,7 +195,7 @@ jobs:
           # runner's, and after 25 minutes - a shard's tests take 6-13 - the test host's stacks, then it stops the
           # host so that THIS step fails by itself. A job cancelled from outside leaves no log and no artifact.
           DONE="$RUNNER_TEMP/tests-done"
-          bash scripts/ci-test-watchdog.sh ${{ matrix.shard == 12 && 240 || 1500 }} "$DONE" & # TEMPORARY PROOF: shard 12 is stopped after 4 minutes
+          bash scripts/ci-test-watchdog.sh 1500 "$DONE" &
           WATCHDOG=$!
           rc=0
           dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults $BLAME_HANG || rc=$?
