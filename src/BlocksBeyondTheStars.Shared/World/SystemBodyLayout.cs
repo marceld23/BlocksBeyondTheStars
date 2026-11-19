@@ -50,6 +50,35 @@ public static class SystemBodyLayout
     public static float MinOrbitFor(float parentRadius, float bodyRadius)
         => parentRadius + bodyRadius + ClearGapFor(parentRadius, bodyRadius) * MoonOrbitGapFactor;
 
+    // ---- the flight scene's own numbers (#3824): shared, so the server can send an NPC ship to a body ----
+
+    /// <summary>Where the body the pilot launched from hangs in the flight scene: below the flight plane, a little
+    /// astern. The scene is centred on it, so this never changes.</summary>
+    public const float HomeX = 0f;
+
+    /// <inheritdoc cref="HomeX"/>
+    public const float HomeY = -150f;
+
+    /// <inheritdoc cref="HomeX"/>
+    public const float HomeZ = -20f;
+
+    /// <summary>The launch body is drawn this much bigger than the same body seen from another world's flight.</summary>
+    public const float HomeDiameterFactor = 3.2f;
+
+    /// <summary>How far outside a body's surface a ship is held (it cannot fly into the sphere).</summary>
+    public const float KeepOutMargin = 10f;
+
+    /// <summary>The land prompt shows within body radius + <see cref="KeepOutMargin"/> + this band.</summary>
+    public const float LandBand = 40f;
+
+    /// <summary>A body's drawn diameter from its walkable circumference: ~13 (an asteroid) … ~23 (a moon) … ~46–62
+    /// (a planet; a lone giant reaches ~81).</summary>
+    public static float OrbitDiameter(int circumference) => 8f + (circumference / 220f);
+
+    /// <summary>Centre distance at which a ship is well inside a body's landing range — where the autopilot stops and
+    /// where an NPC ship begins its descent.</summary>
+    public static float LandApproachDistance(float bodyRadius) => bodyRadius + KeepOutMargin + (LandBand * 0.5f);
+
     /// <summary>
     /// Relaxes overlapping bodies apart in the x-z plane until every pair has its
     /// <see cref="ClearGapFor"/> of clear space, nudging both halves of a pair by half the deficit.

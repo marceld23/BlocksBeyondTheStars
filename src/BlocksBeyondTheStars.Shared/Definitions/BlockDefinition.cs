@@ -166,6 +166,14 @@ public sealed class BlockDefinition
     public string? Climb { get; set; }
 
     /// <summary>
+    /// This block keeps its hold in the rain (#3827): soil, grass, wood and the like stay rough when wet, while rock,
+    /// ore, metal and every other block with a plain hold turn slick (<see cref="ClimbSurfaces.SlickWhenWet"/>) — a
+    /// climber on a wet wall of those gets only a few blocks up. False (the default) = the rule decides. Set in
+    /// <c>data/blocks.json</c> as <c>"wetGrip": true</c>.
+    /// </summary>
+    public bool WetGrip { get; set; }
+
+    /// <summary>
     /// Whether this block holds air as a wall of a sealed base room (#794). Airtight blocks are what the
     /// base's sealed-room life-support fill stops against; everything else leaks. Defaults are derived by
     /// the content registry from the category — terrain/building/ore/machine/light seal (natural rock

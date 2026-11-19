@@ -221,6 +221,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Trader positions are instance-local (the same space remote poses use), so map through _root.
                 var at = _root.transform.TransformPoint(new Vector3(fx.X, fx.Y, fx.Z));
+                if (fx.Style == "descent" && BeginNpcDescent(fx))
+                {
+                    continue; // #3824: a landing trader dives into its body — no flash
+                }
+
                 if (fx.Style == "wormhole")
                 {
                     WormholeVisuals.FlashAt(at, fx.Arriving); // #2242: another pilot vanishing into / shooting out of a rift

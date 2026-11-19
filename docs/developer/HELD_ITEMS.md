@@ -195,6 +195,20 @@ spinning). The wooden pickaxe is the only one. It is drawn from its model like a
 has **no flourish** and no `drill_spinup`, and mining with it does not keep the `drill_loop` alive
 (`PlayerController._heldPick`). The server knows nothing of this: to it the pickaxe stays a tier-1 drill.
 
+### A block carried over the head (#3766, #3828)
+
+The carry is a pose of both views. Third person: `PlayerAvatar.CarryBlock.cs` raises both arms and puts the held
+block above the head (`BlockCarryPose.ArmLift`, `BlockHeight`, `BlockEdge`). First person (`Viewmodel.Carry.cs`): the
+right holder moves from its rest pose to the top middle of the view (`ViewBlockPos`), level (`ViewBlockPitch`) and
+bigger (`ViewBlockScale`); the one palm under the block is hidden and two arms are built for the time the block is up
+(`HeldItem.BuildCarryArm`: the suit fist on a long forearm, `ViewForearm`), posed at the block's lower corners
+(`ViewArmPos`, `ViewArmEuler`; the left one mirrored), rising from below with the same ease as the block. #3828 was
+the report "lifting looks odd from first person": the first version only shifted the one-handed rest pose by
+(−0.27, 0.25, 0.06), which put the block on the aim point with the open end of its forearm in the middle of the view.
+`BlockCarryViewTests` rebuilds the pose with the view's maths (Unity's angle order, the 60° reference field of view)
+and checks what the player must see: the block's lower edge above the aim point, no part of an arm in the middle of
+the view, the fists at the block's lower corners, the forearms' ends outside the view.
+
 ## 4. Putting it away and taking out the next one (#2778)
 
 `HeldSwap` (Client.Core) is the one animation for every item, used by `Viewmodel` and `PlayerAvatar` alike:

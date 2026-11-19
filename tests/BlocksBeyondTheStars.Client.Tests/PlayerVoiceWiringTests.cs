@@ -72,10 +72,60 @@ public sealed class PlayerVoiceWiringTests
                      {
                          "ui.avatar.voice", "ui.avatar.voice_low", "ui.avatar.voice_middle", "ui.avatar.voice_high",
                          "ui.avatar.voice_pitch", "ui.avatar.voice_age", "ui.avatar.voice_listen",
+                         "ui.avatar.voice_1", "ui.avatar.voice_2",
                      })
             {
                 Assert.True(table.TryGetValue(key, out string? text) && !string.IsNullOrWhiteSpace(text), code + ": " + key);
             }
         }
+    }
+
+    // ---------------- #3826: the second recorded voice ----------------
+
+    private static string AudioDir() => Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "Resources", "audio");
+
+    [Fact]
+    public void EveryVoiceSound_IsBundledInBothRecordedVoices()
+    {
+        var first = Directory.GetFiles(AudioDir(), "*.mp3").Select(Path.GetFileNameWithoutExtension)
+            .Where(id => PlayerVoice.IsVoiceClip(id) && !id!.StartsWith(PlayerVoice.SecondVoicePrefix, StringComparison.Ordinal))
+            .Select(id => id!)
+            .ToList();
+        Assert.True(first.Count >= 11, "the first voice lost a clip: " + string.Join(", ", first));
+
+        var missing = first.Where(id => !File.Exists(Path.Combine(AudioDir(), PlayerVoice.ClipFor(id, 1) + ".mp3"))).ToList();
+        Assert.True(missing.Count == 0, "voice sounds without a second-voice recording: " + string.Join(", ", missing));
+
+        // And no second-voice clip without a first one — it could never be played.
+        var orphans = Directory.GetFiles(AudioDir(), PlayerVoice.SecondVoicePrefix + "*.mp3").Select(Path.GetFileNameWithoutExtension)
+            .Where(id => !first.Contains(id!.Substring(PlayerVoice.SecondVoicePrefix.Length)))
+            .ToList();
+        Assert.True(orphans.Count == 0, "second-voice clips without a first-voice twin: " + string.Join(", ", orphans));
+
+        // The rotating takes rotate in both voices.
+        Assert.Contains(PlayerVoice.ClipFor("hurt_player", 1), ClipTakes.Families);
+        Assert.Contains(PlayerVoice.ClipFor("breath_effort", 1), ClipTakes.Families);
+    }
+
+    [Fact]
+    public void TheChosenVoice_PicksTheClip_ForTheOwnFigureTheOthersAndTheSample()
+    {
+        string voice = Script("ClientAudio.Voice.cs");
+        Assert.Contains("PlayOwn(Take(VoiceClip(id, OwnVoice)), vol, pitch);", voice);       // the own grunts and breaths of effort
+        Assert.Contains("Take(VoiceClip(id, packedVoice))", voice);                           // another player's hit and fall
+        Assert.Contains("VoiceClip(\"breath_exhale\", packedVoice)", voice);                  // the editor's sample in a world
+        Assert.Contains("PlayerVoice.ClipFor(id, PlayerVoice.KindOf(packedVoice))", voice);
+        Assert.Contains("return _clips.ContainsKey(clip) ? clip : id;", voice);               // a missing clip falls back, never silence
+        Assert.Contains("id = VoiceClip(id, OwnVoice);", Script("ClientAudio.Mix.cs"));       // every own body sound that is a voice sound
+        Assert.Contains("PlayerVoice.ClipFor(\"breath_exhale\", PlayerVoice.KindOf(packedVoice))", Script("UiSound.cs")); // the menu's designer
+
+        string settings = Script("ClientSettings.Voice.cs");
+        Assert.Contains("public int VoiceKind;", settings); // 0 from an older settings file: the first voice
+        Assert.Contains("PlayerVoice.Pack(VoicePitch, VoiceAge, VoiceKind)", settings);
+
+        string column = Script("FaceEditor.Voice.cs");
+        Assert.Contains("L(\"ui.avatar.voice_1\"), L(\"ui.avatar.voice_2\")", column);
+        Assert.Contains("PlayerVoice.ClampKind(_voiceSettings.VoiceKind), ChangeVoiceKind", column);
+        Assert.Contains("_voiceSettings.VoiceKind = PlayerVoice.ClampKind(kind);", column);
     }
 }

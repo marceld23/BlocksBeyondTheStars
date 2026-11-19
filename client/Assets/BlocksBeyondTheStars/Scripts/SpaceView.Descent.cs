@@ -162,7 +162,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void ResolveDescentBody(Vector3 fwd, out Vector3 body, out float radius, out string name)
         {
-            body = new Vector3(0f, -150f, -20f);
+            body = new Vector3(BlocksBeyondTheStars.Shared.World.SystemBodyLayout.HomeX, BlocksBeyondTheStars.Shared.World.SystemBodyLayout.HomeY,
+                BlocksBeyondTheStars.Shared.World.SystemBodyLayout.HomeZ);
             radius = 60f;
             name = string.Empty;
             string want = _landDestBody ?? string.Empty;

@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.Client
     /// The voice column of the appearance screen's Figure tab (#3767 — Justus: "I want to choose in the skin editor what
     /// the sounds the figure makes with its mouth are like"). Two sliders instead of categories (<see cref="PlayerVoice"/>):
     /// the <b>pitch</b> from low to high and the <b>age</b> from young to old, in steps of ten, with three quick buttons
-    /// — Low · Middle · High — that set the pitch. Every change is heard at once (one breath in the new voice) and
+    /// — Low · Middle · High — that set the pitch. Above them the choice between the two recorded voices (#3826: a
+    /// slider cannot turn one recording into another person's voice). Every change is heard at once (one breath in the new voice) and
     /// applies at once: the voice is the player's, not a part of the painted look, so it is not waiting for Save.
     /// The column stands beside the colour rows (x 490…790), where both hosts — the menu's designer and the in-world
     /// screen — have room.
@@ -44,6 +45,10 @@ namespace BlocksBeyondTheStars.Client
             float y = 20f;
             UiKit.AddKicker(card, VoiceX, y, VoiceW, L("ui.avatar.voice"));
             y += 34f;
+            // #3826: the two recorded voices — numbered, not named; the sliders below work on either.
+            UiKit.AddSegmented(card, VoiceX, y, VoiceW, 44f, new[] { L("ui.avatar.voice_1"), L("ui.avatar.voice_2") },
+                PlayerVoice.ClampKind(_voiceSettings.VoiceKind), ChangeVoiceKind, gap: VoiceButtonGap);
+            y += 56f;
             string[] keys = { "ui.avatar.voice_low", "ui.avatar.voice_middle", "ui.avatar.voice_high" };
             int[] pitches = { PlayerVoice.Low, PlayerVoice.Middle, PlayerVoice.High };
             for (int i = 0; i < keys.Length; i++)
@@ -106,6 +111,14 @@ namespace BlocksBeyondTheStars.Client
         {
             _voiceSettings.VoicePitch = PlayerVoice.Clamp(pitch);
             _voiceSettings.VoiceAge = PlayerVoice.Clamp(age);
+            _voiceChanged?.Invoke();
+            PlayVoiceSample();
+        }
+
+        /// <summary>The other recorded voice was picked: keep it, tell the host, and let it be heard.</summary>
+        private void ChangeVoiceKind(int kind)
+        {
+            _voiceSettings.VoiceKind = PlayerVoice.ClampKind(kind);
             _voiceChanged?.Invoke();
             PlayVoiceSample();
         }

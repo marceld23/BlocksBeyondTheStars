@@ -24,6 +24,7 @@ internal enum NpcTraderPhase
 {
     Cruising,   // heading for its destination (a station to dock at, or an inner waypoint to pass)
     Departing,  // heading back out to the system edge to warp away
+    Descending, // #3824: its pad is reserved — it holds at the body while the clients draw the dive
     Done,       // reached its end this tick — removed after the sweep
 }
 
@@ -44,6 +45,9 @@ internal sealed class NpcTrader
     public Vector3f Target;
     public float Yaw;
     public NpcTraderPhase Phase = NpcTraderPhase.Cruising;
+
+    /// <summary>#3824: uptime the dive into the destination body is over (the trader then leaves the flight scene).</summary>
+    public double DescentEndsAt;
 
     /// <summary>The station body id this trader is flying in to dock at — empty = no station leg.</summary>
     public string DestStationId = string.Empty;
@@ -358,6 +362,7 @@ public sealed partial class GameServer
             float r2 = 40f + (float)_traderRng.NextDouble() * 60f;
             trader.Target = new Vector3f(
                 (float)System.Math.Cos(a2) * r2, (float)(_traderRng.NextDouble() * 30 - 10), (float)System.Math.Sin(a2) * r2);
+            AimTraderAtBody(instance, trader); // #3824: a trader that lands flies to its body, not to a point in the void
         }
 
         trader.Phase = NpcTraderPhase.Cruising;
@@ -457,16 +462,24 @@ public sealed partial class GameServer
                     }
                     else if (dist <= TraderWaypointRange)
                     {
-                        if (!string.IsNullOrEmpty(t.DestBodyId) && TryLandTraderOnBody(instance, t))
+                        if (!string.IsNullOrEmpty(t.DestBodyId) && TryLandTraderOnBody(t))
                         {
-                            t.Phase = NpcTraderPhase.Done; // descended to the surface — it leaves the flight view
-                            (finished ??= new List<NpcTrader>()).Add(t);
+                            BeginTraderDescent(instance, t); // #3824: seen diving into its body, then gone
                         }
                         else
                         {
                             SetExitTarget(t); // no pad free / no landable body → pass through and warp out
                             t.Phase = NpcTraderPhase.Departing;
                         }
+                    }
+
+                    break;
+
+                case NpcTraderPhase.Descending:
+                    if (_uptime >= t.DescentEndsAt)
+                    {
+                        t.Phase = NpcTraderPhase.Done; // down on the surface — it leaves the flight view without a flash
+                        (finished ??= new List<NpcTrader>()).Add(t);
                     }
 
                     break;
@@ -668,8 +681,9 @@ public sealed partial class GameServer
     /// is free there (player- or NPC-occupied pads don't count). It takes the same pad a planet-side arrival takes
     /// (<see cref="PickTraderPad"/>, K12/#3175) — a Market base pad, else the communal pad nearest a base owner's core within
     /// the reach — and the hail names the distance when that is not near the owner's base. On success it reserves the pad and
-    /// registers a landed trader (its parked ship + pilot materialize on that surface); on failure the caller departs.</summary>
-    private bool TryLandTraderOnBody(SpaceInstance instance, NpcTrader t)
+    /// registers a landed trader (its parked ship + pilot materialize on that surface); on failure the caller departs.
+    /// How the ship leaves the flight scene is the caller's (<see cref="BeginTraderDescent"/>, #3824).</summary>
+    private bool TryLandTraderOnBody(NpcTrader t)
     {
         var body = _galaxy.FindBody(t.DestBodyId);
         if (body is null || _landedTraders.ContainsKey(t.DestBodyId) || UserShipTooWideToLand(t.ShipType))
@@ -692,7 +706,6 @@ public sealed partial class GameServer
         var lt = RegisterLandedTrader(t, t.DestBodyId, pad, _uptime, _traderRng, marketPad);
         lt.ArrivalFxPending = OccupiedLocations().Contains(t.DestBodyId); // descend with watchers present
 
-        BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
         _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is setting down on {t.DestBodyId} (pad {pad}).");
         NpcRadioOnTraderLanded(t.DestBodyId, t.Name, owner => FarTraderHail(owner, lt, body.Name)); // #1120: the base owners' hail
         return true;
@@ -1504,7 +1517,7 @@ public sealed partial class GameServer
     /// player must be flying in a space instance. Rolls the real dwell, unlike <see cref="LandTraderForTest"/>.</summary>
     public bool LandTraderFromFlightForTest(string playerId, string bodyId)
     {
-        if (!_playerInstance.TryGetValue(playerId, out var iid) || !_spaceInstances.TryGetValue(iid, out var inst))
+        if (!_playerInstance.TryGetValue(playerId, out var iid) || !_spaceInstances.ContainsKey(iid))
         {
             return false;
         }
@@ -1516,7 +1529,7 @@ public sealed partial class GameServer
             Name = "Flight Trader",
             DestBodyId = bodyId,
         };
-        return TryLandTraderOnBody(inst, trader);
+        return TryLandTraderOnBody(trader);
     }
 
     /// <summary>Test hook: dock a trader at a station through the REAL registration (#1904), rolling its dwell.</summary>

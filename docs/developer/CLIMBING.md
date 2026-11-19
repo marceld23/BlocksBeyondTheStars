@@ -88,6 +88,12 @@ static class of climbing tuning; the value lives in `BodyStamina`, client-only, 
 - Drain per second at 1 g on a normal wall: up 0.10 (≈ 10 s ≈ 20 blocks), sideways 0.07, hanging 0.04, down 0.03.
 - It is multiplied by the world's gravity factor (asteroid 0.35–0.55, moon 0.55–0.85, planet 0.8–1.6), ×2 on a
   slippery wall, and × (1 − gear grip), with the gear capped at 0.8.
+- **Wet walls (#3827, a young player's idea).** On a wall wet from the rain the factor is ×6 (`ClimbGrip.WetFactor`)
+  instead: from a full stamina 18 / 6 = **3 blocks** up at 1 g, then the usual slide. A wall is wet when all of this
+  holds (`PlayerController.ClimbWallWet`): what falls is water (`ClimbGrip.RainWets`: `rain`, `drizzle`, `acid` — not
+  snow, hail, dust or ash), nothing is overhead (`Game.ExposedToSky`), the hold is a plain one, no climbing claws are
+  worn, and the block at the hands or the knees turns slick when wet (`ClimbSurfaces.SlickWhenWet`). The slip says why
+  once (`ui.hud.climb_wet`, at most every 45 s).
 - Refill (`BodyStamina.Rest`): only at rest — on the ground or a ladder, not running, not on the wall — after a
   1 s pause, then slowly: 6 s from empty to full. In the air there is no refill, so letting go and grabbing again
   gains nothing, and a long run up to a cliff leaves less for the climb.
@@ -101,6 +107,10 @@ static class of climbing tuning; the value lives in `BodyStamina`, client-only, 
   includes force fields and energy fences), non-solid blocks, and `"climb": "none"` (glass).
 - `"climb": "icy"` (ice) holds only with claws. Granular blocks (sand, snow, ash) are `Slippery` unless the data
   says otherwise. Everything else holds normally.
+- `ClimbSurfaces.SlickWhenWet` (#3827): a block with a plain hold turns slick in the rain — rock, ore, metal, every
+  building block — unless it is a plant (category `flora`) or the data marks it `"wetGrip": true`
+  (`BlockDefinition.WetGrip`): soil, grass, mud, wood, cloth and the like stay rough. A block with no hold, an icy one
+  and a loose one keep their own rule, wet or dry. A new soft block needs the mark in `data/blocks.json`.
 - The client additionally requires a collider (`PlayerController.IsCollidingKey`), so props, plants and walk-through
   tree crowns give no hold. Both are folded into one table per block id, rebuilt when the world or the content
   changes.
@@ -130,6 +140,9 @@ anchor → hand), the first-person gun turns toward the anchor (`Viewmodel.SetRo
   2-block jump pull-up; a jump flown frame by frame (#2385): a two-block wall is pulled over on the way up, a one-block
   step and a jump that clears the wall are landed on, a three-block edge is reached only at the top of the jump, a
   four-block wall is no pull-up and the grab waits for the top of the jump.
+- `tests/BlocksBeyondTheStars.Client.Tests/WetWallClimbTests.cs` (#3827): about three blocks up a wet wall from a
+  full stamina, wet only on a plain hold, which precipitation wets, which blocks turn slick (and that the data's
+  `wetGrip` only marks blocks with a plain hold), and the Unity wiring as source text.
 - `tests/BlocksBeyondTheStars.Client.Tests/ClimbGripTests.cs`: drain per motion, gravity, slippery walls and gear;
   the slide of a let-go Jump vs. a spent held grip, and that it never hurts (#2384). `BodyStaminaTests.cs`: slow,
   strain, the rest pause and the slow refill, the sprint restart threshold and the stamina shared with running (#3373).

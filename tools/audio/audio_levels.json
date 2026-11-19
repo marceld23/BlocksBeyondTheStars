@@ -3267,6 +3267,72 @@
    "peak": -10.0,
    "sha256": "45654cf807e363dc9f31ebaa28bdec5f018df94cc369637128560e0e743409c4"
   },
+  "v2_breath_effort": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -3.6,
+   "sha256": "bb188006e8b6c281930f68ae31cadb604db2e540b0429ee6ca3a110f619b5a72"
+  },
+  "v2_breath_effort_2": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -7.2,
+   "sha256": "90c41fe993ee6484320c9df515347c25e076ab44f24d293c447247f53d596c51"
+  },
+  "v2_breath_exhale": {
+   "class": "foley",
+   "level": -20.4,
+   "peak": -9.3,
+   "sha256": "8d5884ac381af673f8b7ce660ca345e9788c47431f41e460405f86a4ffbf369d"
+  },
+  "v2_breath_exhale_2": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -7.4,
+   "sha256": "80ee0ce0987040d54a3544b5d3fe29edad518b2904010dd798d2ddd4e1b98f95"
+  },
+  "v2_breath_quick": {
+   "class": "foley",
+   "level": -20.7,
+   "peak": -9.0,
+   "sha256": "c8e72889f6243f1db39bd1264a9f8a32d5b7e6dfa3d94392f72db4f4dbf12023"
+  },
+  "v2_climb_strain": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -8.8,
+   "sha256": "dfe300250894743c0e64d4b1a1c47e8cca1b98b0c3868ed87f69b512f3b7d382"
+  },
+  "v2_hurt_player": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": 0.8,
+   "sha256": "66b629fd01a38caa2b2040143283a46b25a24cc3933ba14ef8432cc2bcffd294"
+  },
+  "v2_hurt_player_2": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -0.4,
+   "sha256": "9e8cf4e1e5163a080945d6ea3ea5511166d03c448d314850d801599ab8f5f552"
+  },
+  "v2_hurt_player_3": {
+   "class": "oneshot",
+   "level": -13.3,
+   "peak": -1.3,
+   "sha256": "713b1bd5ed464926e93af2827bf0a33fc3a81f9cc0bd79266d99b6b4a8fd6348"
+  },
+  "v2_player_death": {
+   "class": "oneshot",
+   "level": -12.9,
+   "peak": -7.8,
+   "sha256": "b1b04c3c89167c9095ff3e0f7a2ee1d909cad2923893f69fcd843ddad1b506fd"
+  },
+  "v2_surface_gasp": {
+   "class": "foley",
+   "level": -20.5,
+   "peak": -7.8,
+   "sha256": "2041c58210f0aa19d53b590eac9df7a5dfcaa46192d7208720279f37760028c2"
+  },
   "vega_chatter_1": {
    "class": "voice",
    "level": -11.6,

@@ -82,6 +82,8 @@ namespace BlocksBeyondTheStars.Client
                         av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
                     }
 
+                    PoseNpcDescent(rp.PlayerId, av, now); // #3824: a landing trader is drawn on its dive into the body
+
                     // Upgrade the generic hull to the pilot's REAL voxel ship once its design arrived
                     // (the server cross-sends every instance member's design as "ship_remote"), and re-mesh
                     // it when the pilot repaints the hull mid-flight (the paint lives in the mesh, item 32).
@@ -149,7 +151,8 @@ namespace BlocksBeyondTheStars.Client
                     // Grace period (#955): poses are only written by ShipMove, so a player can drop out
                     // of a single snapshot without having left — destroying instantly caused visible
                     // avatar popping (rebuilt as a generic cube ship first). 2 s ≈ ten missed snapshots.
-                    if (!_remoteSeen.Contains(kv.Key) && now - kv.Value.LastSeen > 2.0)
+                    // #3824: a ship whose dive is over went into the clouds — it goes at once.
+                    if (!_remoteSeen.Contains(kv.Key) && (now - kv.Value.LastSeen > 2.0 || NpcDescentOver(kv.Key, now)))
                     {
                         _remoteRemove.Add(kv.Key);
                     }
@@ -170,6 +173,7 @@ namespace BlocksBeyondTheStars.Client
 
                     _remotePlayers.Remove(id);
                     _remoteLerp.Remove(id);
+                    _npcDescents.Remove(id);
                 }
             }
         }
