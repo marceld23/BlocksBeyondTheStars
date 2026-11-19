@@ -38,8 +38,8 @@ namespace BlocksBeyondTheStars.Client.Playtests
 
         /// <summary>
         /// The world options a catalogue may set — the create-world panel's sliders by the names of the client's
-        /// options. A name that is not here is ignored. The value is the slider's index, cut to
-        /// <see cref="MaxOptionIndex"/>.
+        /// options. A name that is not here is ignored. The value is the slider's index, cut to the slider's last step
+        /// (<see cref="MaxIndexOf"/>).
         /// </summary>
         public static readonly IReadOnlyList<string> AllowedOptions = new[]
         {
@@ -48,8 +48,16 @@ namespace BlocksBeyondTheStars.Client.Playtests
             "DeathPenalty", "UniverseSize",
         };
 
-        /// <summary>The highest slider index a catalogue may ask for.</summary>
-        public const int MaxOptionIndex = 5;
+        /// <summary>The highest index any slider has (the five-step ones: Off … Extreme, Off … Frequent).</summary>
+        public const int MaxOptionIndex = 4;
+
+        /// <summary>
+        /// The last step of the slider <paramref name="option"/>: the client turns an index into the server's word by
+        /// looking it up in the slider's own table, so an index past the end would throw while the test world is being
+        /// created (#3840). The life-support and danger sliders have four steps, the others five.
+        /// </summary>
+        public static int MaxIndexOf(string option)
+            => option == "Oxygen" || option == "Hunger" || option == "Hazards" || option == "DeathPenalty" ? 3 : MaxOptionIndex;
 
         public PlaytestWorldRefusal Refusal { get; private set; }
 
@@ -110,7 +118,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
             {
                 if (Contains(AllowedOptions, option.Key))
                 {
-                    plan.Options[option.Key] = Math.Max(0, Math.Min(option.Value, MaxOptionIndex));
+                    plan.Options[option.Key] = Math.Max(0, Math.Min(option.Value, MaxIndexOf(option.Key)));
                 }
             }
 

@@ -62,6 +62,10 @@ namespace BlocksBeyondTheStars.Client.Playtests
         /// Takes a fetched (or cached) catalogue: keeps the tasks that are switched on and whose version window holds
         /// <paramref name="gameVersion"/>. A catalogue that is switched off shows nothing. The task being worked on is
         /// dropped when it is no longer among them.
+        /// <para>A step's check that names an event THIS build does not know is taken off, so the step is the player's
+        /// to tick off (#3833): the catalogue is newer than any build, and a step that waits for an event nobody raises
+        /// could never be closed. That is done here and not in the reader, because the inbox reads with the same reader
+        /// before it serves — an inbox older than an event must not take the check away from every client.</para>
         /// </summary>
         public void SetCatalog(PlaytestCatalog catalog, string gameVersion)
         {
@@ -72,6 +76,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
                 {
                     if (task.Enabled && PlaytestVersion.InRange(gameVersion, task.MinVersion, task.MaxVersion))
                     {
+                        DropUnknownChecks(task);
                         visible.Add(task);
                     }
                 }
@@ -81,6 +86,17 @@ namespace BlocksBeyondTheStars.Client.Playtests
             if (_progress.ActiveTaskId.Length > 0 && Find(_progress.ActiveTaskId) is null)
             {
                 _progress.SetActive(string.Empty);
+            }
+        }
+
+        private static void DropUnknownChecks(PlaytestTask task)
+        {
+            foreach (var step in task.Steps)
+            {
+                if (step.Check is { } check && !PlaytestCatalogValidator.IsKnownEvent(check.Event))
+                {
+                    step.Check = null;
+                }
             }
         }
 

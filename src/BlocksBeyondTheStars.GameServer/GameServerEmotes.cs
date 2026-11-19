@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -59,11 +60,32 @@ public sealed partial class GameServer
 
         _emoteReadyAt[p.PlayerId] = _uptime + EmoteCooldownSeconds;
         BroadcastPlayerEmote(p, intent.Emote);
+        if (EmoteEventArg(intent.Emote) is { } arg)
+        {
+            RaiseGameEvent(session, GameEventKeys.EmotePlayed, arg); // #3832
+        }
+
         if (intent.Emote == PlayerEmotes.Wave)
         {
             WaveBack(session);
         }
     }
+
+    /// <summary>The argument of <see cref="GameEventKeys.EmotePlayed"/> for an emote of the wheel; null for anything
+    /// else a client may send (getting up from sitting is the end of an emote, not one).</summary>
+    internal static string? EmoteEventArg(byte emote) => emote switch
+    {
+        PlayerEmotes.Wave => "wave",
+        PlayerEmotes.Nod => "nod",
+        PlayerEmotes.Cheer => "cheer",
+        PlayerEmotes.Point => "point",
+        PlayerEmotes.HeadShake => "head_shake",
+        PlayerEmotes.Dance => "dance",
+        PlayerEmotes.Clap => "clap",
+        PlayerEmotes.Sit => "sit",
+        PlayerEmotes.Bow => "bow",
+        _ => null,
+    };
 
     /// <summary>Tells every other player near <paramref name="p"/> that its figure plays <paramref name="emote"/>.
     /// Aboard and outside do not see each other: the ship's hull is in between. A cloaked player's figure is hidden on

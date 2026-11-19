@@ -1,0 +1,85 @@
+{
+  "id": "texture-draft",
+  "rev": 1,
+  "enabled": false,
+  "sort": 90,
+  "area": "editor",
+  "editor": "texture",
+  "title": { "de": "Malen und wiederfinden", "en": "Paint and find it again" },
+  "intro": {
+    "de": "Im Textur-Editor malst du die Blöcke des Spiels neu an. Was du nicht speicherst, hebt der Editor als Entwurf für dich auf. Probiere aus, ob dein Bild wirklich wieder da ist.",
+    "en": "In the Texture Editor you repaint the game's blocks. What you do not save, the editor keeps for you as a draft. Find out whether your picture really comes back."
+  },
+  "minutes": 10,
+  "steps": [
+    {
+      "id": "open",
+      "text": {
+        "de": "Öffne im Hauptmenü unter „Editoren“ den Textur-Editor.",
+        "en": "Open the Texture Editor under “Editors” in the main menu."
+      },
+      "check": { "event": "editor:opened", "arg": "texture" }
+    },
+    {
+      "id": "paint",
+      "text": { "de": "Wähle eine Textur aus und male etwas darauf.", "en": "Pick a texture and paint something on it." }
+    },
+    {
+      "id": "undo",
+      "text": {
+        "de": "Mach einen Strich und nimm ihn mit „Rückgängig“ wieder weg.",
+        "en": "Draw a stroke and take it back with “Undo”."
+      }
+    },
+    {
+      "id": "leave",
+      "text": { "de": "Verlasse den Editor, ohne zu speichern.", "en": "Leave the editor without saving." }
+    },
+    {
+      "id": "again",
+      "text": { "de": "Öffne den Textur-Editor noch einmal.", "en": "Open the Texture Editor once more." },
+      "check": { "event": "editor:opened", "arg": "texture", "required": 2 }
+    },
+    {
+      "id": "draft",
+      "text": {
+        "de": "Der Editor fragt, ob du am Entwurf weitermachen willst. Sag ja. Ist dein Bild wieder da?",
+        "en": "The editor asks whether you want to continue your draft. Say yes. Is your picture back?"
+      }
+    },
+    {
+      "id": "save",
+      "text": { "de": "Speichere deine Textur.", "en": "Save your texture." },
+      "check": { "event": "editor:saved", "arg": "texture" }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß macht das Malen im Editor?", "en": "How much fun is painting in the editor?" }
+    },
+    {
+      "id": "draft",
+      "type": "choice",
+      "text": { "de": "War dein Entwurf wieder da?", "en": "Was your draft back?" },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja, alles", "en": "Yes, all of it" } },
+        { "id": "partly", "text": { "de": "Nur ein Teil", "en": "Only a part" } },
+        { "id": "no", "text": { "de": "Nein", "en": "No" } }
+      ]
+    },
+    {
+      "id": "found",
+      "type": "choice",
+      "text": { "de": "Hast du gleich gefunden, was du gesucht hast?", "en": "Did you find what you were looking for straight away?" },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja", "en": "Yes" } },
+        { "id": "mostly", "text": { "de": "Meistens", "en": "Mostly" } },
+        { "id": "no", "text": { "de": "Nein", "en": "No" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -60,15 +61,26 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!CanCarryBlock(session.State, out _, out _))
+        if (!CanCarryBlock(session.State, out _, out var block) || block is null)
         {
             session.CarryingBlock = false;
             Reject(session, "carry", "@srv.carry.cannot");
             return;
         }
 
+        if (!session.CarryingBlock)
+        {
+            RaiseGameEvent(session, GameEventKeys.CarryLifted, block.Key); // #3832: the lift, not a repeated wish
+        }
+
         session.CarryingBlock = true;
     }
+
+    /// <summary>What a thrown block hit, in the words of <see cref="GameEventKeys.DefeatAny"/>.</summary>
+    private static string ThrowHitArg(CombatEntity hit, bool isCreature)
+        => isCreature ? (hit.IsGiant ? GameEventKeys.DefeatGiant : GameEventKeys.DefeatCreature)
+            : hit.IsBandit ? GameEventKeys.DefeatBandit
+            : hit.Kind == CombatEntityKind.GuardianGiant ? GameEventKeys.DefeatGiant : GameEventKeys.DefeatMachine;
 
     private void HandleThrowBlock(PlayerSession session, ThrowBlockIntent intent)
     {
@@ -121,8 +133,10 @@ public sealed partial class GameServer
 
         // The block first, the hit after: a beaten enemy's loot then lies beside the block, not under a rule of its own.
         SpillToGround(landing.ToBlock(), item, 1);
+        RaiseGameEvent(session, GameEventKeys.ThrowAny, block.Key); // #3832
         if (hit is not null && hitList is not null)
         {
+            RaiseGameEvent(session, GameEventKeys.ThrowHit, ThrowHitArg(hit, hitCreature)); // before the blow: a defeat follows it
             LandHit(session, hit, hitList, hitCreature, BlockThrow.Damage(weight), knockback: null, dir);
         }
     }

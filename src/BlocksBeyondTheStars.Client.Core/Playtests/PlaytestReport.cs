@@ -123,10 +123,14 @@ namespace BlocksBeyondTheStars.Client.Playtests
         /// <summary>
         /// Builds the report for <paramref name="task"/> from this install's <paramref name="progress"/> and the
         /// dialog's <paramref name="form"/> — or names why not: a step still open, or a question unanswered.
+        /// <paramref name="graphics"/> is how the game was drawn (the node an in-game bug report carries, #3838): the
+        /// caller passes it for a report sent from inside a world and leaves it out in the menu and the editors —
+        /// "too shaky" reads differently at the lowest preset, and nothing in a menu depends on it.
         /// </summary>
         public static PlaytestReportResult Build(
             PlaytestTask task, PlaytestProgress progress, PlaytestReportForm form,
-            string gameVersion, string replyKey, string sessionId, string platform, DateTime utcNow)
+            string gameVersion, string replyKey, string sessionId, string platform, DateTime utcNow,
+            GraphicsReportInfo? graphics = null)
         {
             if (progress.OpenSteps(task) > 0)
             {
@@ -155,6 +159,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
             };
             report.ReportJson["reportType"] = ReportType;
             report.ReportJson["playtest"] = Node(task, progress, form, freeText, utcNow);
+            graphics?.WriteTo(report.ReportJson);
 
             if (form.ScreenshotJpg is { Length: > 0 } shot && shot.Length <= MaxScreenshotBytes)
             {

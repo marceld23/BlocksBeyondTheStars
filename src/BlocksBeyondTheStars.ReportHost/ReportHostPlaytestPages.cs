@@ -255,6 +255,11 @@ public static class ReportHostPlaytestPages
         sb.Append($"<tr><th>Task</th><td><a href='/admin/playtests/{E(data.TaskId)}'>{E(title)}</a> <span class='sub'>{E(data.TaskId)} · answered rev {data.Rev}" +
                   $"{(task != null && task.Rev != data.Rev ? $" (the task is at rev {task.Rev} now)" : string.Empty)}</span></td></tr>");
         sb.Append($"<tr><th>Time taken</th><td>{data.Seconds / 60} min {data.Seconds % 60} s · language {E(data.Locale)}</td></tr>");
+        if (data.Graphics.Length > 0)
+        {
+            sb.Append($"<tr><th>Graphics</th><td>{E(data.Graphics)}</td></tr>");
+        }
+
         AppendOutcomes(sb, data, task);
         AppendAnswers(sb, data, task);
         if (data.FreeText.Length > 0)

@@ -5653,6 +5653,8 @@ with none at all that you need one.
     the game**; a step that counts ("Break three asteroids") shows how far you are.
   - Other steps only you can judge ("Does the shot feel heavy?"): press **Done** — or **Did not work** and say in
     a sentence what happened. A step that did not work counts just as much; those reports help the most.
+  - A step your game version — or the server you play on — cannot notice yet shows the same two buttons, so a task
+    never gets stuck on it.
   - While you play, the current step stays on the screen as a small **Test Pilot** card at the right. In an
     editor, a **Test Pilot** chip in the top-right corner shows how far you are; a click opens the list.
 - Some tasks bring a **test world**: **Create test world** makes a world of its own for the task and starts it.
@@ -5660,7 +5662,9 @@ with none at all that you need one.
 - When every step is closed, **Write report**: a few questions (stars, or picking an answer — all of them are
   needed), a line in your own words if you like, and a nickname if you like. No e-mail is asked for. From an
   editor you can tick **Send my work along** — only so the developers can find a fault, it is never put into the
-  game.
+  game. A report sent from inside a world also says how the game was drawn (graphics preset, render scale, screen
+  size) — the same technical data a bug report (**F1**) carries; "too shaky" means something else at the lowest
+  preset.
 - Every sent report earns a **badge** (blue). When the developers confirm it, a message tells you and the badge
   turns **gold**. Badges add up to a **rank**: Test Pilot Cadet (1), Test Pilot (3), First Test Pilot (10), Chief
   Test Pilot (25). Badges are a thank-you — they give nothing in the game world.

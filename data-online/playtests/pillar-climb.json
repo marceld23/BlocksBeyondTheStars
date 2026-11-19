@@ -1,0 +1,88 @@
+{
+  "id": "pillar-climb",
+  "rev": 1,
+  "enabled": false,
+  "sort": 100,
+  "area": "ingame",
+  "title": { "de": "Hoch hinaus auf der Säulenwelt", "en": "Up high on the Pillar World" },
+  "intro": {
+    "de": "Diese Testwelt ist eine Säulenwelt: lauter hohe Felssäulen. In deinem Inventar liegen Kletterhandschuhe, eine Energieseilpistole und ein Gleiter. Klettere nach oben, gleite hinunter und sag uns, wie es sich anfühlt.",
+    "en": "This test world is a Pillar World: nothing but tall rock pillars. In your inventory are climbing gloves, an energy rope gun and a glider. Climb up, glide down and tell us how it feels."
+  },
+  "minutes": 15,
+  "world": {
+    "seed": 20261123,
+    "startPlanet": "pillar_world",
+    "preset": "peaceful",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "10:00" },
+      { "cmd": "give_item", "arg": "climbing_gloves", "count": 1 },
+      { "cmd": "give_item", "arg": "energy_rope_gun", "count": 1 },
+      { "cmd": "give_item", "arg": "glider", "count": 1 }
+    ]
+  },
+  "steps": [
+    {
+      "id": "wear",
+      "text": {
+        "de": "Öffne dein Inventar und lege die Kletterhandschuhe und den Gleiter an.",
+        "en": "Open your inventory and put on the climbing gloves and the glider."
+      }
+    },
+    {
+      "id": "climb",
+      "text": {
+        "de": "Klettere 20 Meter an einer Felswand hoch: Spring an die Wand und halte die Sprungtaste.",
+        "en": "Climb 20 metres up a rock wall: jump at the wall and hold the jump key."
+      },
+      "check": { "event": "move:climbed", "required": 20 }
+    },
+    {
+      "id": "rope",
+      "text": {
+        "de": "Schieße das Energieseil an eine Wand über dir und zieh dich daran hoch.",
+        "en": "Shoot the energy rope at a wall above you and pull yourself up on it."
+      }
+    },
+    {
+      "id": "top",
+      "text": {
+        "de": "Erreiche die Krone einer Säule. Schaffst du es nicht, wähle „Ging nicht“.",
+        "en": "Reach the crown of a pillar. If you cannot, choose “Did not work”."
+      }
+    },
+    {
+      "id": "glide",
+      "text": {
+        "de": "Spring ab und halte im Fallen die Sprungtaste: Der Gleiter öffnet sich.",
+        "en": "Jump off and hold the jump key while you fall: the glider opens."
+      },
+      "check": { "event": "move:airborne", "arg": "glider" }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß machen Klettern und Gleiten?", "en": "How much fun are climbing and gliding?" }
+    },
+    {
+      "id": "climb",
+      "type": "choice",
+      "text": { "de": "Wie schwer ist das Klettern?", "en": "How hard is the climbing?" },
+      "options": [
+        { "id": "easy", "text": { "de": "Zu leicht", "en": "Too easy" } },
+        { "id": "fits", "text": { "de": "Passt", "en": "It fits" } },
+        { "id": "tough", "text": { "de": "Zu schwer", "en": "Too hard" } }
+      ]
+    },
+    {
+      "id": "look",
+      "type": "stars",
+      "text": { "de": "Wie gefällt dir die Säulenwelt?", "en": "How much do you like the Pillar World?" }
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

@@ -669,6 +669,16 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `chamber:opened` | — | a sound chamber opened with the Resonance Blaster, once per monument (#3353) | `GameServerSoundChambers.cs`, `GameServerSounderWorld.Ornasa.cs` |
 | `echo:questioned` | Echo id (`elora`, `kamo`, `feya`, `tini`) | an Echo questioned to the end of its dialog, once per Echo and player (#3356) | the Echo dialogs (the Sounders pack's code) |
 | `dialog:done` | dialog key | an NPC dialog reached an end node — a reply without a follow-up, or a line without (visible) replies (#3349) | `GameServerNpcDialogs.Packs.cs` (`DialogReachedEnd`) |
+| **#3831 / #3832 — what a playtest task wants to recognise** | | | |
+| `ship:rolled` | — | a barrel roll was granted (a roll inside its cooldown raises nothing) | `GameServerSpaceManeuvers.cs` (`ShipManeuver`) |
+| `ship:boosted` | — | the boost came on (once per boost, not while it is held) | `GameServerSpaceManeuvers.cs` (`TickPilotManeuvers`) |
+| `ship:evaded` | `heavy` | a heavy shot that would have hit missed because the pilot was inside the roll's evade window | `GameServerSpaceManeuvers.cs` (`FireHeavyShot`) |
+| `carry:lifted` | block key | the selected block lifted over the head (a repeated wish while it is up raises nothing) | `GameServerCarryThrow.cs` (`HandleCarryBlock`) |
+| `throw:any` | block key | the carried block thrown (a throw inside the throw gap raises nothing) | `GameServerCarryThrow.cs` (`HandleThrowBlock`) |
+| `throw:hit` | `creature` \| `giant` \| `machine` \| `bandit` | the thrown block hit a body, raised before the blow lands (a defeat follows as `defeat:any`) | `GameServerCarryThrow.cs` (`HandleThrowBlock`) |
+| `emote:played` | `wave` \| `nod` \| `cheer` \| `point` \| `head_shake` \| `dance` \| `clap` \| `sit` \| `bow` | an emote of the wheel passed its pace (the server's own body states and getting up from sitting raise nothing) | `GameServerEmotes.cs` (`HandleEmote`) |
+| `player:fallen` | — | the player fell in a Hard Survival world and watches (raised before the watching begins — a watcher raises nothing); the restart at the ship is `player:respawned` | `GameServerFallen.cs` (`FallInsteadOfRespawn`) |
+| `player:revived` | `fallen` \| `medic` | a medkit brought a fallen player back — raised for the one who stood up and for the one whose medkit it was | `GameServerFallen.cs` (`ReviveFallen`) |
 
 Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
 went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.

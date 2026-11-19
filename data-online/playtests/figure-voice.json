@@ -1,0 +1,80 @@
+{
+  "id": "figure-voice",
+  "rev": 1,
+  "enabled": false,
+  "sort": 60,
+  "area": "editor",
+  "editor": "avatar",
+  "title": { "de": "Die Stimme deiner Figur", "en": "Your figure's voice" },
+  "intro": {
+    "de": "Deine Figur hat eine eigene Stimme: Du hörst sie, wenn sie springt, landet oder getroffen wird. Im Avatar-Designer stellst du sie ein. Sag uns, ob du eine Stimme findest, die zu deiner Figur passt.",
+    "en": "Your figure has a voice of its own: you hear it when the figure jumps, lands or is hit. You set it in the Avatar Designer. Tell us whether you find a voice that fits your figure."
+  },
+  "minutes": 5,
+  "steps": [
+    {
+      "id": "open",
+      "text": {
+        "de": "Öffne im Hauptmenü unter „Editoren“ den Avatar-Designer.",
+        "en": "Open the Avatar Designer under “Editors” in the main menu."
+      },
+      "check": { "event": "editor:opened", "arg": "avatar" }
+    },
+    {
+      "id": "find",
+      "text": {
+        "de": "Suche bei deiner Figur den Bereich „Stimme“.",
+        "en": "Look for the “Voice” section beside your figure."
+      }
+    },
+    {
+      "id": "quick",
+      "text": {
+        "de": "Probiere die drei Knöpfe „Tief“, „Mittel“ und „Hoch“ aus.",
+        "en": "Try the three buttons “Low”, “Middle” and “High”."
+      }
+    },
+    {
+      "id": "sliders",
+      "text": {
+        "de": "Stelle mit den zwei Reglern für Tonhöhe und Alter eine eigene Stimme ein.",
+        "en": "Use the two sliders for pitch and age to set a voice of your own."
+      }
+    },
+    {
+      "id": "listen",
+      "text": {
+        "de": "Höre dir deine Stimme mit „Anhören“ an. Klingt sie so, wie du es eingestellt hast?",
+        "en": "Listen to your voice with “Listen”. Does it sound the way you set it?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fits",
+      "type": "stars",
+      "text": { "de": "Wie gut passt die Stimme zu deiner Figur?", "en": "How well does the voice fit your figure?" }
+    },
+    {
+      "id": "clear",
+      "type": "choice",
+      "text": { "de": "Hast du gleich verstanden, was die Regler tun?", "en": "Did you understand straight away what the sliders do?" },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja", "en": "Yes" } },
+        { "id": "mostly", "text": { "de": "Nach etwas Probieren", "en": "After trying a little" } },
+        { "id": "no", "text": { "de": "Nein", "en": "No" } }
+      ]
+    },
+    {
+      "id": "range",
+      "type": "choice",
+      "text": { "de": "Gibt es genug verschiedene Stimmen?", "en": "Are there enough different voices?" },
+      "options": [
+        { "id": "enough", "text": { "de": "Ja, genug", "en": "Yes, enough" } },
+        { "id": "more", "text": { "de": "Ich hätte gern mehr", "en": "I would like more" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

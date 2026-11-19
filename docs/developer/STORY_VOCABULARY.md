@@ -93,7 +93,7 @@ Without a `type` the objective is a game event (`objective.event`, below).
 
 ## Game events (`objective.event`)
 
-116 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
+125 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
 names a key (or a `prefix*` pattern) and, optionally, the arguments it accepts (`"arg": "a|b"`); the amount
 adds up towards `required`. Nothing is raised for an observer, before the join is complete, or for a non-positive
 amount.
@@ -110,6 +110,7 @@ amount.
 | `build:any` | A block was placed. Arg: the block key (a blueprint paste: `blueprint_paste`, amount = blocks). |
 | `build:rotated` | A form or prop block was placed with an explicit turn of the rotate key. Arg: the block key. |
 | `cargo:stowed` | The player stowed items into the ship's cargo hold. Arg: the item key, or `all` for "stow all". |
+| `carry:lifted` | The player lifted the selected block over the head. Arg: the block key. |
 | `chamber:opened` | A sound chamber under a monument was opened with the Resonance Blaster (once per monument). No arg. |
 | `chat:sent` | A chat line of the player's went out on the radio (not a command, not a line the filter dropped). |
 | `companion:cared` | The player looked after a companion: named it (`named`) or fed it (`fed`). |
@@ -140,6 +141,7 @@ amount.
 | `door:opened` | A hand-operated door (wood, hinge) was opened by the player. Arg: the door kind. |
 | `eat:any` | Real food was eaten (an item with hunger value). Arg: the item key. |
 | `echo:questioned` | An Echo (a vanished Sounder) was questioned to the end of its dialog, once per Echo and player. Arg: the Echo id (`elora`, `kamo`, `feya`, `tini`). |
+| `emote:played` | The player played an emote from the wheel (not inside its cooldown; the body states the server sets by itself — hurt, down, up — are none). Arg: the emote — `wave`, `nod`, `cheer`, `point`, `head_shake`, `dance`, `clap`, `sit` or `bow`. |
 | `eva:started` | A spacewalk began. Arg: `hatch` (out through the hatch of the floating ship) or `flight` (from the flight view). |
 | `factory:claimed` | A spawned factory claimed with an access (SPS) code — it became the player's base. Arg: the factory's name. |
 | `flight:flown` | The player's ship flew in space. Amount: whole flight units (a hyperjump or a warp never counts). |
@@ -179,7 +181,9 @@ amount.
 | `paint:block` | The paint tool painted a design onto a placed block (or wiped one off). Arg: the block key. |
 | `planet:scanned` | A world's overview card was read — the ship scanner held on a planet, or the Map's planet scan. Arg: the body id. |
 | `plant:any` | Something was planted: a flora block (a sapling, a seed, a bred seedling) placed into the ground. Arg: the block key. |
+| `player:fallen` | The player fell in a Hard Survival world and watches until brought back (any other death rule respawns and raises `player:respawned` only). |
 | `player:respawned` | The player woke up again after fainting (any respawn). |
+| `player:revived` | A medkit brought a fallen player back where they fell. Raised for both. Arg: `fallen` (who stood up) or `medic` (who used the medkit). |
 | `player:zero_g` | The player floated up above a planet's atmosphere line on foot (raised right before VEGA's `zero_g` hint). |
 | `poi:reached` | The player stands near a buried vault's entrance or a crashed wreck on a world (the 1 Hz check behind VEGA's `poi` hint, raised right before it). |
 | `relay:commissioned` | An SPS relay the player contributed to was completed. Arg: the station id. |
@@ -191,11 +195,14 @@ amount.
 | `scan:block` | A block, plant or tree scanned with the hand scanner, once per CELL per player (a client that names the cell; an older one raises nothing here; since #3020 only for a cell within the scanner's reach that really holds the block). Arg: the block key. To count trees use `scan:tree` — a crown has many cells. |
 | `scan:performed` | Any scan, first or repeat (hand scanner, ship scanner). Arg: the readout kind (`flora`, `creature`, `block`, `monument`, `asteroid`, `anomaly`, `wreck`, `wormhole` …). |
 | `scan:tree` | A tree scanned with the hand scanner, once per TREE per player — the server walks from the scanned leaf or log to the trunk's foot and remembers that; a crown without a natural trunk does not count. Arg: the tree's kind by its crown — `conifer` (pine needles), `broadleaf`, `palm`, or the crown's block key. |
+| `ship:boosted` | The pilot's boost came on (once per boost, not while it is held). |
 | `ship:commissioned` | A self-built ship was commissioned. Arg: the ship id. |
 | `ship:edited` | A block was built onto (or into) the player's parked ship on foot — the ship grows. Arg: the block key. |
+| `ship:evaded` | Hostile fire missed the pilot's ship because of a barrel roll. Arg: `heavy` (a heavy shot that would have hit). |
 | `ship:keel_placed` | A ship keel was laid: the construction site of a self-built ship. Arg: the new fleet id. |
 | `ship:repaired` | The player repaired their own ship (the hull points, or a hole refilled). Arg: `all` (the console's "repair everything affordable") or `cell` (one hole refilled on a walk-around or EVA). |
 | `ship:returned` | The player got back to their landed ship. Arg: `menu` ("Back to my ship"), `teleport` (the suit teleporter) or `walk` (walked back aboard or close to it after having been far away). |
+| `ship:rolled` | The pilot's barrel roll was granted (a roll inside its cooldown raises nothing). |
 | `ship:switched` | The player switched their active ship in the fleet. Arg: the ship id switched to. |
 | `space:enter` | The player entered space flight. Arg: `launch`, `hyperjump`, `wormhole` or `resume`. |
 | `spawn:set` | A bed, a heal tank or a crew bunk became the player's spawn point. Arg: `bed`, `heal_tank` or `crew_bunk`. |
@@ -208,6 +215,8 @@ amount.
 | `suit:auto_feed` | The suit fed a stored ration to a starving player. Arg: the item key. |
 | `suit:climate` | The suit's climate control started fighting the weather. Arg: `cold` or `heat`. |
 | `tame:any` | A creature was tamed. Arg: the species id (`au_sreekmakra` for the shapeshifter — also when it follows the tame of the animal it imitated, which raises its own event first). |
+| `throw:any` | The player threw the carried block. Arg: the block key. |
+| `throw:hit` | A thrown block hit a body. Arg: what it hit, in the words of `defeat:any` — `creature`, `giant`, `machine` or `bandit`. |
 | `trade:barter` | A barter at a settlement or station market stall. Arg: the recipe key. |
 | `trade:player` | A completed trade with another player. Arg: the other player's id. |
 | `travel:landed` | The player's ship set down on a body. Arg: `flight`, `quick` or `admin`. The join placement raises nothing. |

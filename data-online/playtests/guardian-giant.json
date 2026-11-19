@@ -1,0 +1,92 @@
+{
+  "id": "guardian-giant",
+  "rev": 1,
+  "enabled": false,
+  "sort": 110,
+  "area": "ingame",
+  "minVersion": "2026.11.23",
+  "title": { "de": "Der Wächter-Gigant", "en": "The guardian giant" },
+  "intro": {
+    "de": "In dieser Testwelt liegt ein Wächter-Gigant, der noch aufwachen kann. Du landest direkt bei ihm, mit einer Laserpistole im Inventar. Wecke ihn, kämpfe gegen ihn und sag uns, ob der Kampf spannend und fair ist. Er warnt vor jedem Angriff.",
+    "en": "In this test world lies a guardian giant that can still wake up. You land right beside it, with a laser pistol in your inventory. Wake it, fight it and tell us whether the fight is exciting and fair. It warns you before every attack."
+  },
+  "minutes": 20,
+  "world": {
+    "seed": 42,
+    "startPlanet": "rocky",
+    "preset": "standard",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "10:00" },
+      { "cmd": "give_item", "arg": "laser_pistol", "count": 1 },
+      { "cmd": "teleport_to_named", "arg": "giant1" }
+    ]
+  },
+  "steps": [
+    {
+      "id": "found",
+      "text": {
+        "de": "Geh zu dem liegenden Giganten, bis er auf deiner Planetenkarte steht.",
+        "en": "Walk to the lying giant until it is on your planet map."
+      },
+      "check": { "event": "guardian_giant:found" }
+    },
+    {
+      "id": "wake",
+      "text": {
+        "de": "Geh näher heran, bis seine Lichter angehen und er aufsteht.",
+        "en": "Go closer until its lights come on and it stands up."
+      }
+    },
+    {
+      "id": "warn",
+      "text": {
+        "de": "Achte auf seine Warnungen: Er hebt einen Fuß, duckt sich, oder sein Visier glüht. Erkennst du, was gleich kommt?",
+        "en": "Watch its warnings: it lifts a foot, crouches, or its visor glows. Can you tell what is coming?"
+      }
+    },
+    {
+      "id": "fight",
+      "text": {
+        "de": "Kämpfe gegen ihn. Triff ihn zwischen seinen Angriffen.",
+        "en": "Fight it. Hit it between its attacks."
+      }
+    },
+    {
+      "id": "win",
+      "text": {
+        "de": "Besiege ihn. Ist er zu stark für dich, wähle „Ging nicht“.",
+        "en": "Defeat it. If it is too strong for you, choose “Did not work”."
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie spannend ist der Kampf gegen den Giganten?", "en": "How exciting is the fight against the giant?" }
+    },
+    {
+      "id": "hard",
+      "type": "choice",
+      "text": { "de": "Wie schwer ist der Gigant?", "en": "How hard is the giant?" },
+      "options": [
+        { "id": "easy", "text": { "de": "Zu leicht", "en": "Too easy" } },
+        { "id": "fits", "text": { "de": "Schwer, aber fair", "en": "Hard, but fair" } },
+        { "id": "tough", "text": { "de": "Zu schwer", "en": "Too hard" } }
+      ]
+    },
+    {
+      "id": "warn",
+      "type": "choice",
+      "text": { "de": "Hast du seine Warnungen rechtzeitig erkannt?", "en": "Did you spot its warnings in time?" },
+      "options": [
+        { "id": "always", "text": { "de": "Fast immer", "en": "Nearly always" } },
+        { "id": "sometimes", "text": { "de": "Manchmal", "en": "Sometimes" } },
+        { "id": "never", "text": { "de": "Fast nie", "en": "Hardly ever" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

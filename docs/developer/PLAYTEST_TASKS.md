@@ -33,7 +33,8 @@ land, so its admin page can show a task next to its numbers.
 
 What can change without a release: tasks, texts, questions, order, the version window, the kill switch, every
 step the player ticks off himself. What cannot: a **new event** a step is recognised by (a new server game event
-or a new editor event needs code).
+or a new editor event needs code) — and a task that waits for such an event needs a `minVersion` (see
+*An event newer than a client* below).
 
 ## The catalogue
 
@@ -65,7 +66,10 @@ the client and the tests):
   anything) and cut, lists cut to `PlaytestLimits`, entries it cannot use left out (a step without an id, a
   question type it does not know — every question is mandatory, so an unaskable one must not exist). A catalogue of
   a higher `schema` reads as switched off.
-- **A check this build cannot use** leaves the step for the player to tick off.
+- **A check this build cannot use** leaves the step for the player to tick off: the reader drops a check without
+  an event, and the client takes a check off whose event it does not know (`PlaytestTracker.SetCatalog`, #3833). Not
+  the reader: the inbox reads with the same reader before it serves, and an inbox older than an event must not take
+  the check away from every client.
 - **`rev`** counts up when what players read or do changed. A report names the revision it answered.
 - **`retest`** with a higher `rev` opens a finished task again ("please test again").
 - **Validation** (`PlaytestCatalogValidator`) is the one rule set for the admin page, the scriptable routes and the
@@ -82,6 +86,41 @@ the client and the tests):
 A UI moment (`ui:menu_open` …) is counted by the client itself: `NetworkClient.SendUiTutorialEvent` raises the same
 flag as a signal.
 
+**A recognised step has no buttons.** It closes when the event comes and not otherwise — the tester cannot answer
+"did not work". So recognise only what a tester can always bring about (walking, mining, opening an editor,
+launching) and leave everything that depends on luck or skill to the two buttons ("find a raider ship", "defeat
+the giant").
+
+#### An event newer than a client
+
+The catalogue is newer than any build. Three things keep a step from waiting for an event nobody raises (#3833):
+
+| Who does not know the event | What happens |
+|---|---|
+| The client (a build older than the event) | `PlaytestTracker.SetCatalog` takes the check off; the step shows its two buttons |
+| The server (a new client on an older multiplayer server) | The server leaves the pattern out of its `PlaytestWatchAck`; `PlaytestWatchSync.Reports` says no; the step shows its two buttons |
+| The **first** Test Pilot client, v2026.11.23 | It does neither: the step shows no buttons and never closes. **It must not be shown such a task** |
+
+Hence the rule the validator enforces as an **error**: a step that waits for an event newer than v2026.11.23 needs a
+`minVersion` at or above the release that event shipped in. The table is `PlaytestEventVersions`
+(`Shared/Playtests/PlaytestCatalogValidator.Events.cs`); **a new game event a playtest may wait for gets a row
+there**. Today it holds the nine events of #3831/#3832 (first possible release: 2026.11.24):
+
+| Event | Arg | Raised when |
+|---|---|---|
+| `ship:rolled` | — | a barrel roll was granted |
+| `ship:boosted` | — | the boost came on (once per boost) |
+| `ship:evaded` | `heavy` | a heavy shot missed because of the roll |
+| `carry:lifted` | block key | the selected block lifted over the head |
+| `throw:any` | block key | the carried block thrown |
+| `throw:hit` | `creature` \| `giant` \| `machine` \| `bandit` | the thrown block hit a body |
+| `emote:played` | `wave` … `bow` | an emote of the wheel played |
+| `player:fallen` | — | fallen in a Hard Survival world (the restart at the ship is `player:respawned`, an old event) |
+| `player:revived` | `fallen` \| `medic` | a medkit brought a fallen player back (both hear it) |
+
+The tasks in the repository use none of them yet, so they work on v2026.11.23. A later revision of a task can switch
+a hand-ticked step to one of them together with a `minVersion`.
+
 ### Test worlds
 
 `world` lets a task bring a prepared singleplayer world. `PlaytestWorldPlan` (Client.Core) checks it: the planet
@@ -94,6 +133,34 @@ missions between the tester and the steps. A task that tests the story's beginni
 `"story": true` in its `world`; anything else leaves it off, and a client older than the switch ignores it. The
 commands run **once**, a few seconds after the world came up, **only** in a local world this install created for a
 task (its name starts with `Testpilot - ` AND the progress file knows it) — never in a player's own world.
+
+- **The presets.** `standard`, `peaceful` (animals, but no machines, robbers or hostile ships; easy hazards),
+  `hard` (Hard Survival) and `sandbox`. A **sandbox** world runs the server in Creative mode: nothing hurts the
+  player and hostiles do not see them — a step about a fall can never happen there, and a fight is one-sided. The
+  validator warns about such a step (`CheckWorldFitsSteps`, #3837); a fight belongs in `standard` or `hard`.
+- **World options** are the sliders of the new-world screen by name, as a step index. Each is cut to the last step
+  of its own slider (`PlaytestWorldPlan.MaxIndexOf`: five steps for the activity and frequency sliders, four for
+  oxygen, hunger, hazards and the death penalty) — the client looks the index up in the slider's own table, and one
+  past the end would stop the world from being created (#3840).
+
+#### Seed-bound tasks
+
+Something rare — a guardian giant that can still wake, one of the school club's giant buildings — is only in a test
+world by its **seed**: the list of start commands has no "spawn" on purpose. Such a task names the seed and takes the
+tester there with `teleport_to_named` (`giant1`, `landmark1` — the words `/tp` lists).
+
+- **Finding a seed:** `BBS_PLAYTEST_SEED_SEARCH=<planet>:<kind>:<from>-<to>` (`rocky:giant:1-60`) and
+  `dotnet test tests/BlocksBeyondTheStars.Tests --filter PlaytestSeedBoundTasksTests.SeedSearch` prints the seeds
+  of the range whose start world holds such a place (and whether a giant can wake, which building a landmark is)
+  into `bbs_playtest_seed_search.txt` in the temp folder. About eight seconds per seed.
+- **The guard:** `PlaytestSeedBoundTasksTests` builds the world of every task that teleports to a generated place
+  the way the bundled server does and fails when the place is missing. Such a task uses the `standard` preset, no
+  world options and names its start planet — a slider can move the place away, and the guard rebuilds exactly that.
+- **A seed-bound task ages.** A test world is created with the terrain generation of the build that plays it. After
+  a generation step the same seed may no longer hold the place, the teleport moves nobody and the task cannot be done.
+  **So when a change raises the terrain generation and this guard goes red:** search a new seed, count the task's
+  `rev` up and set its `minVersion` to the release that will carry the generation — clients of the old generation
+  no longer see the task then, which is right: its world is gone for them too.
 
 ## The inbox side (`src/BlocksBeyondTheStars.ReportHost/`)
 
@@ -126,7 +193,8 @@ task (its name starts with `Testpilot - ` AND the progress file knows it) — ne
   only ever learns about a report through its thread — the reply poll returns threads with an unread developer
   entry and nothing else — so a bare status change would never reach the tester.
 - **The report card** on the detail page (`ReportHostPlaytestPages.ReportCard`) shows the steps with their outcome
-  and note, the answers in words, the attached work and the confirm form. `PlaytestStats` adds a task's reports up
+  and note, the answers in words, how the game was drawn (a report from a world: preset, render scale, screen,
+  graphics API — #3838), the attached work and the confirm form. `PlaytestStats` adds a task's reports up
   for the list and the editing page.
 
 Deploy the reports image **before** a client release with the page: an older inbox files these reports as plain
@@ -141,9 +209,9 @@ Logic (Client.Core, `Playtests/`, tested headless):
 | `PlaytestCatalogClient` | Fetches the catalogue (ETag, at most every 6 h by itself, always when the player opens the page), caches it in `playtests/catalog.json`; `FetchMine` |
 | `PlaytestProgress` | `playtests/progress.json` per install: step states, the report draft, the sent report, badges, the task being worked on, test worlds, and whether the page was ever opened (`Visited` — only then is the catalogue fetched at a start, see *Privacy*) |
 | `PlaytestWork` | "Send my work along": the editor's work as the report's one attachment (below) |
-| `PlaytestTracker` | The tasks for this build (version window), activating a task, events → ticked steps, the server watch patterns, applying the inbox's list of own reports |
-| `PlaytestReport` | Builds the report body: refused while a step is open or a question unanswered; the description is the whole report as plain text (the inbox requires one, and an operator can read it without a special view); no e-mail, no install token (`playerId` empty — the reply key is the anonymous id), the nickname instead of the in-game name |
-| `PlaytestWatchSync` | Paces the watch list and decides whether the server reports events (ack) or is an older one (silence → the player ticks those steps) |
+| `PlaytestTracker` | The tasks for this build (version window), taking off a check whose event this build does not know, activating a task, events → ticked steps, the server watch patterns, applying the inbox's list of own reports |
+| `PlaytestReport` | Builds the report body: refused while a step is open or a question unanswered; the description is the whole report as plain text (the inbox requires one, and an operator can read it without a special view); no e-mail, no install token (`playerId` empty — the reply key is the anonymous id), the nickname instead of the in-game name; the `graphics` node when the caller hands it over (a report sent from inside a world, #3838) |
+| `PlaytestWatchSync` | Paces the watch list and decides whether the server reports events (ack) or is an older one (silence → the player ticks those steps), and which patterns of the list the server took (`Reports`) |
 | `PlaytestWorldPlan`, `PlaytestDevInbox` | The checked test world; a development build's own inbox (`BBS_REPORTS_DEV_URL` + `BBS_REPORTS_DEV_KEY`, loopback or https only, never in a release build) |
 
 Unity (`client/Assets/BlocksBeyondTheStars/Scripts/`):
@@ -184,7 +252,8 @@ with `PlaytestWatchAck` (356). It stores nothing, pays nothing, counts nothing: 
 word, only the tick mark is the client's — and a badge buys nothing, so the server has no say in it. No protocol
 bump: an older server drops the intent, no ack comes, and the client lets the player tick those steps off.
 
-- At most 16 patterns, published server events only (UI and editor events are the client's own).
+- At most 16 patterns, published server events only (UI and editor events are the client's own). The ack names the
+  patterns the server took; one it does not know is left out, and the client then offers that step's two buttons.
 - Passes a held singleplayer world (`PausedMayHandle`): the page is reached from the pause menu.
 - The listener leaves the bus with the session (`LeaveCleanupSteps`).
 - Registering it is what makes the "measured only while a step listens" events (`move:walked`, `flight:flown` …)
@@ -195,6 +264,9 @@ bump: an older server drops the intent, no ack comes, and the client lets the pl
 | Suite | File |
 |---|---|
 | Model, reader, validator, command list, version window | `tests/BlocksBeyondTheStars.Tests/PlaytestCatalogTests.cs` |
+| The validator's rules about a step's event: newer than the first client, a world that cannot bring it about | `PlaytestCatalogEventRulesTests.cs` |
+| The new events on a live server | `PlayerActionEventTests.cs`, `SpaceManeuverTests.cs` |
+| Seed-bound tasks: the named place stands in the world of the seed (and the seed search) | `PlaytestSeedBoundTasksTests.cs` |
 | Inbox: store, catalogue routes | `ReportHostPlaytestTests.cs` |
 | Inbox: category, attachment, pairing | `ReportHostPlaytestReportTests.cs` |
 | Inbox: report data, stats, confirm, `mine`, admin pages, retention | `ReportHostPlaytestAdminTests.cs` |
@@ -224,5 +296,8 @@ PR CI: run it locally after a change to these screens or to a task's texts
 
 A playtest report carries the answers, each step's outcome and note, the time the task took, the game version and
 platform, the reply key, an optional nickname and — only when the tester ticked it — the editor work. No e-mail
-field exists. In a world the server's `/bump` snapshot goes out as with an F1 report. The audience includes
+field exists. In a world the server's `/bump` snapshot goes out as with an F1 report, and the report itself carries
+the `graphics` node of an F1 report (preset, render scale, anti-aliasing, screen size, graphics API — no device
+name): the privacy text promises "the same technical game data as an in-game bug report" for exactly that case. A
+report from the main menu or an editor carries none (`PlaytestHub.BuildReport`, #3838). The audience includes
 children: task texts never ask for personal data, and the admin page says so on the editing form.

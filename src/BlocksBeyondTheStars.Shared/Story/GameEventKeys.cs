@@ -361,6 +361,48 @@ public static class GameEventKeys
     /// <c>poi</c> hint, raised right before it).</summary>
     public const string PoiReached = "poi:reached";
 
+    /// <summary>The pilot's barrel roll was granted (a roll inside its cooldown raises nothing).</summary>
+    public const string ShipRolled = "ship:rolled";
+
+    /// <summary>The pilot's boost came on (once per boost, not while it is held).</summary>
+    public const string ShipBoosted = "ship:boosted";
+
+    /// <summary>Hostile fire missed the pilot's ship because of a barrel roll. Arg: <see cref="EvadedHeavy"/> (a heavy
+    /// shot that would have hit).</summary>
+    public const string ShipEvaded = "ship:evaded";
+
+    /// <summary>The player lifted the selected block over the head. Arg: the block key.</summary>
+    public const string CarryLifted = "carry:lifted";
+
+    /// <summary>The player threw the carried block. Arg: the block key.</summary>
+    public const string ThrowAny = "throw:any";
+
+    /// <summary>A thrown block hit a body. Arg: what it hit, in the words of <see cref="DefeatAny"/> —
+    /// <see cref="DefeatCreature"/>, <see cref="DefeatGiant"/>, <see cref="DefeatMachine"/> or <see cref="DefeatBandit"/>.</summary>
+    public const string ThrowHit = "throw:hit";
+
+    /// <summary>The player played an emote from the wheel (not inside its cooldown; the body states the server sets by
+    /// itself — hurt, down, up — are none). Arg: the emote — <c>wave</c>, <c>nod</c>, <c>cheer</c>, <c>point</c>,
+    /// <c>head_shake</c>, <c>dance</c>, <c>clap</c>, <c>sit</c> or <c>bow</c>.</summary>
+    public const string EmotePlayed = "emote:played";
+
+    /// <summary>The player fell in a Hard Survival world and watches until brought back (any other death rule respawns
+    /// and raises <see cref="PlayerRespawned"/> only).</summary>
+    public const string PlayerFallen = "player:fallen";
+
+    /// <summary>A medkit brought a fallen player back where they fell. Raised for both. Arg: <see cref="RevivedFallen"/>
+    /// (who stood up) or <see cref="RevivedMedic"/> (who used the medkit).</summary>
+    public const string PlayerRevived = "player:revived";
+
+    /// <summary><see cref="ShipEvaded"/> arg: a heavy shot.</summary>
+    public const string EvadedHeavy = "heavy";
+
+    /// <summary><see cref="PlayerRevived"/> arg: the player who stood up again.</summary>
+    public const string RevivedFallen = "fallen";
+
+    /// <summary><see cref="PlayerRevived"/> arg: the player whose medkit did it.</summary>
+    public const string RevivedMedic = "medic";
+
     /// <summary><see cref="CompanionCared"/> arg: the companion got a name.</summary>
     public const string CompanionNamedArg = "named";
 
@@ -600,6 +642,7 @@ public static class GameEventKeys
             CraftStation, FactoryClaimed,
             CreatureFed, CompanionCared, PlantAny, SampleTaken, BioLabUsed, NpcTalked, NpcAnswered, NpcPeople, MoveClimbed,
             MoveAirborne, VehicleBoarded, ChatSent, AllyJoined, PaintBlock, PoiReached,
+            ShipRolled, ShipBoosted, ShipEvaded, CarryLifted, ThrowAny, ThrowHit, EmotePlayed, PlayerFallen, PlayerRevived,
             RunePlayed, MelodySolved, DiscDecoded, DiscInserted, ChamberOpened, EchoQuestioned, DialogDone,
         };
         foreach (string circuitEvent in new[]

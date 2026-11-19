@@ -85,6 +85,11 @@ namespace BlocksBeyondTheStars.Client
         /// false = an older server — the player ticks those steps off by hand.</summary>
         public bool? ServerReportsEvents => _boundNet != null ? _watch.Supported : null;
 
+        /// <summary>Whether the server of the current world reports this game event: false = it reports nothing, or it
+        /// left this event out of its answer (an event newer than that server) — the player ticks the step off by hand
+        /// (#3833). Null = not known (no world, no answer yet, or the step is not being waited for).</summary>
+        public bool? ServerReports(string eventPattern) => _boundNet != null ? _watch.Reports(eventPattern) : null;
+
         private static long Now => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         /// <summary>Creates the hub on the shell's object (desktop builds only).</summary>
@@ -382,10 +387,10 @@ namespace BlocksBeyondTheStars.Client
         private void OnWatchAck(PlaytestWatchAck ack)
         {
             bool known = _watch.Supported == true;
-            _watch.OnAck();
-            if (!known)
+            _watch.OnAck(ack.Patterns);
+            if (!known || _watch.LeftSomethingOut)
             {
-                Revision++;
+                Revision++; // a step this server will never report shows its two buttons now (#3833)
             }
         }
 
@@ -473,8 +478,12 @@ namespace BlocksBeyondTheStars.Client
         public PlaytestReportResult BuildReport(PlaytestTask task, PlaytestReportForm form)
         {
             form.Locale = Shell.Settings.Language;
+            // #3838: how the game was drawn rides along from inside a world only — the privacy text promises a bug
+            // report's technical data for exactly that case, and a menu or an editor does not depend on it.
+            var net = Shell.CurrentBoot != null ? Shell.CurrentBoot.Network : null;
+            var graphics = net != null && net.Connected ? FeedbackUi.GraphicsInfo(Shell.Settings) : null;
             return PlaytestReport.Build(task, Progress, form, AppShell.Version, FeedbackUi.ReplyKeyFor(Shell.Settings), _sessionId,
-                Application.platform.ToString(), DateTime.UtcNow);
+                Application.platform.ToString(), DateTime.UtcNow, graphics);
         }
 
         /// <summary>Sends the report (blocking — call from a background task) and returns the uploader's result.</summary>
