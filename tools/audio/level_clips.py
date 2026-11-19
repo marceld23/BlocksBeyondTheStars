@@ -78,7 +78,12 @@ PEAK_CEILING = -2.0  # dBFS — a clip whose peak reaches this is limiter-bound:
 TRIM_CLASSES = {"step", "foley", "ui"}  # tight attack: a footstep or a click that starts 80 ms late feels laggy
 
 
+SECOND_VOICE = "v2_"  # #3826: the figure's second recorded voice (PlayerVoice.SecondVoicePrefix)
+
+
 def class_of(cid: str) -> str:
+    if cid.startswith(SECOND_VOICE):
+        cid = cid[len(SECOND_VOICE):]  # levelled like its first-voice twin: the two voices must be equally loud
     for name, rx in RULES:
         if re.search(rx, cid):
             return name

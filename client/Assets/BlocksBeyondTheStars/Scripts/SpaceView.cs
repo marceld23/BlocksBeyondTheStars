@@ -773,6 +773,7 @@ namespace BlocksBeyondTheStars.Client
             ResetVisit(); // #2724
             _shipDestroyed = false;
             _remotePlayers.Clear(); // their GameObjects are children of _root, destroyed with the scene
+            _npcDescents.Clear();
             ClearCombatExtras();
             _remoteLerp.Clear();
             _entityLerp.Clear();
@@ -865,8 +866,8 @@ namespace BlocksBeyondTheStars.Client
                                                      // (kept compact so neighbouring planets are a short cruise
                                                      // apart, not minutes; shared — the server parks belt rock
                                                      // clusters at the same transform, #683)
-        private const float KeepOutMargin = 10f;     // how far outside a body's surface the ship is held
-        private const float LandBand = 40f;          // land prompt shows within (body radius + margin + band)
+        private const float KeepOutMargin = SystemBodyLayout.KeepOutMargin; // how far outside a body's surface the ship is held
+        private const float LandBand = SystemBodyLayout.LandBand;           // land prompt shows within (body radius + margin + band)
 
         /// <summary>Where the pilot IS in the flight scene: the suit on an EVA, else the ship (the camera before the
         /// scene is built). The radar measures bearings and heights from here (#1880) — not from the chase camera

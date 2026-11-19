@@ -625,7 +625,7 @@ namespace BlocksBeyondTheStars.Client
             var labels = ScreenLabelLayer.Instance;
             foreach (var av in _remotePlayers.Values)
             {
-                if (av.Root == null || string.IsNullOrEmpty(av.Name))
+                if (av.Root == null || string.IsNullOrEmpty(av.Name) || !av.Root.activeSelf) // #3824: a ship gone into the clouds has no label
                 {
                     continue;
                 }

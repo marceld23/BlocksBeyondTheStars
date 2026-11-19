@@ -80,14 +80,14 @@ namespace BlocksBeyondTheStars.Client
             // landable (E returns home). Always present, even without a star map, so there is always a real
             // planet to fly back to — never a decorative filler.
             string homeType = !string.IsNullOrEmpty(current?.PlanetType) ? current.PlanetType : Game?.Environment?.Biome;
-            var homePos = new Vector3(0f, -150f, -20f);
+            var homePos = new Vector3(SystemBodyLayout.HomeX, SystemBodyLayout.HomeY, SystemBodyLayout.HomeZ); // shared: the server sends landing traders here (#3824)
             // Every body has its own size (the server's walkable circumference, #2691 — incl. the archetype bias), so
             // worlds + moons look big or small in orbit instead of all identical — an approximate reflection of how varied
             // they are.
             // The home body IS the world we launched from: missing from the star map, it takes the size the server sent for it.
             int homeCirc = BodySize.CircumferenceOf(current, current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType,
                 Game?.Circumference ?? 0);
-            float homeDiameter = OrbitDiameterFor(homeCirc) * 3.2f;
+            float homeDiameter = OrbitDiameterFor(homeCirc) * SystemBodyLayout.HomeDiameterFactor;
             // Label the home body by what the star map calls it; LocationName only as a fallback — after an
             // in-flight hyperjump it still named the DEPARTURE planet, so the alien anchor world was drawn and
             // land-prompted as "Crossway Reach · Seana" (#1565).
@@ -310,7 +310,7 @@ namespace BlocksBeyondTheStars.Client
         /// is the body's walkable circumference as the server sized it (<see cref="BodySize"/>,
         /// #2691 — incl. its archetype size identity, #549).</summary>
         private static float OrbitDiameterFor(int circumference)
-            => 8f + circumference / 220f; // ~13 (asteroid) .. ~23 (moon) .. ~46-62 (planet; a lone giant reaches ~81)
+            => SystemBodyLayout.OrbitDiameter(circumference); // ~13 (asteroid) .. ~23 (moon) .. ~46-62 (planet; a lone giant reaches ~81)
 
         /// <summary>Spawns one real celestial body: a sphere textured with its REAL generated world map (seas, the
         /// biomes' ground, snow and ice, this world's water and vegetation colours — what you see from orbit IS the world

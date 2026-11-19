@@ -1381,6 +1381,11 @@ effort.
   blocks up on a normal planet, roughly twice that on an asteroid, less on a heavy world.
 - **Surfaces:** rock, earth, wood and building blocks hold you. **Glass** is too smooth. **Ice** holds only with
   climbing claws. **Sand, snow and ash** crumble under your hands — your grip tires twice as fast.
+- **Rain** (an idea of Justus): while it rains — rain, drizzle or acid rain, not snow — **rock, ore, metal and other
+  hard blocks** turn slick where the rain reaches them. Your grip then gives out after about **three blocks** on a
+  normal planet (fewer on a heavy world) and you slide back down; a slide never hurts. **Earth, grass and wood stay
+  rough**, a wall **under a roof** stays dry, and the **climbing claws** hold on a wet wall as on any other. The first
+  time you slip, a message says why.
 - **Gear:** the **climbing gloves** (Suit research, crafted at the workshop) make your hands tire much more
   slowly; the **climbing claws** (made from the gloves) last longer still and let you climb ice, sand and snow
   like rock. Wear them in a **module** slot; other players see them on your hands.
@@ -1580,7 +1585,8 @@ players.
     folded. Landing from a glide does no fall damage, and opening a menu mid-glide keeps you gliding.
   - **Suit battery** (module; blueprint after the jetpack): suit energy 150 instead of 100.
   - **Radar scanner** (module): while worn, the round compass also shows **creatures** within ~64 m (hostile
-    red, the others green) and **other players** (cyan), with a soft blip when a hostile comes into range.
+    red, the others green) and **other players** (cyan), with a soft blip when a hostile comes into range. The
+    first time something hits you while you wear none, VEGA tells you that it exists.
   - **Stealth suit** (chest): **B** switches the cloak on and off — hostile creatures stop noticing you while it
     drains suit energy; it ends by itself when the energy runs out. Other players cannot see you while it is
     on; in the third-person view you see yourself as a faint shimmer.
@@ -2195,6 +2201,8 @@ players.
   off the edge of the world (a sky island, a gas sea) drops at your own feet instead. Under a low ceiling it leaves
   your hands lower and lands sooner.
 - Other players see you hold the block up and see it fly.
+- **In first person** the block is up at the top of your view, held by both of your arms; the middle of the view
+  between them stays free, so you see what you aim at.
 
 ### Glove weapons (shock gloves and energy gloves)
 Two weapons you wear on **both hands** — hold them in the hotbar like any weapon; in first person you see both
@@ -2232,6 +2240,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - Space and busy systems feel alive with **civilian trader traffic**: merchant ships **warp in** at the system
   edge, **cruise** to a station to **dock**, or head into the inner system and **land on a planet/moon** if a
   pad is free, then later depart. They are **peaceful scenery** — a trader can't be locked, shot or damaged.
+- **You can see where a trader lands** (an idea of Justus): a trader that is going to land flies to its planet or
+  moon — as close as you have to get to land there yourself — and then dives into it: glowing as it meets the air
+  (on an airless body with its engines firing), getting smaller until the clouds take it. A line names the ship and
+  the world: *"Trader … is landing on … — watch the ship dive in!"* A trader that finds no free pad flies on and
+  warps out with the usual flash.
 - A trader that **docks at a station** becomes a **visiting merchant** for **7–12 minutes**: board that station
   and you'll find its pilot as an extra **vendor** beside the trade post — barter with them like any other
   vendor (press **E**).
@@ -5079,7 +5092,10 @@ look up: what a mix does follows from what goes in, and the same things always g
 - **Voice** (an idea of Justus) — on the **Figure** tab, beside the colours: how your figure sounds when it breathes
   out after a run, strains on a wall, puffs on a jump, grunts at a hit or falls. Two sliders in steps of ten:
   **Pitch** from low to high and **Age** from young to old. **Low · Middle · High** set the pitch with one click, and
-  every position in between works — the middle of both is the voice the game always had. You hear each change at
+  every position in between works — the middle of both is the voice the game always had. Above them **Voice 1 ·
+  Voice 2** choose between two recorded voices: voice 1 is the one the game always had, voice 2 was recorded in a
+  woman's voice. A slider only plays a recording higher or lower — it cannot turn it into another person's voice —
+  so the two sliders work on either voice. You hear each change at
   once (and with **Listen**), and it applies at once, without Save. Other players near you hear your grunt at a hit
   and your fall in **your** voice. The voice is yours, not a part of an outfit: changing outfits keeps it.
 - **Base colour** — every tab has the part's colour right beside the canvas: 30 swatches, or the **colour

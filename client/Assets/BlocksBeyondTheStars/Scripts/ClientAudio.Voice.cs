@@ -15,16 +15,24 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class ClientAudio
     {
-        /// <summary>The own figure's voice (<see cref="PlayerVoice.Pack"/>); 0 = the middle.</summary>
+        /// <summary>The own figure's voice (<see cref="PlayerVoice.Pack(int, int, int)"/>); 0 = the middle, the first voice.</summary>
         public int OwnVoice => Settings != null ? Settings.VoicePacked : 0;
 
         /// <summary>One of the own figure's voice sounds, 2D, in the chosen voice — its next take when it has several.</summary>
-        public void Voice(string id, float vol = 1f, float pitch = 1f) => PlayOwn(Take(id), vol, pitch);
+        public void Voice(string id, float vol = 1f, float pitch = 1f) => PlayOwn(Take(VoiceClip(id, OwnVoice)), vol, pitch);
+
+        /// <summary>#3826: the recording a voice plays for the voice sound <paramref name="id"/> — the second voice's own
+        /// take of it, when that voice is chosen and the clip is bundled; the id itself otherwise.</summary>
+        private string VoiceClip(string id, int packedVoice)
+        {
+            string clip = PlayerVoice.ClipFor(id, PlayerVoice.KindOf(packedVoice));
+            return _clips.ContainsKey(clip) ? clip : id;
+        }
 
         /// <summary>Another figure's voice sound where it stands (a hit, a fall), in THAT player's voice.</summary>
         public void VoiceAt(string id, Vector3 pos, int packedVoice, float vol)
         {
-            if (!_clips.TryGetValue(Take(id), out var clip) || clip == null)
+            if (!_clips.TryGetValue(Take(VoiceClip(id, packedVoice)), out var clip) || clip == null)
             {
                 return;
             }
@@ -40,7 +48,7 @@ namespace BlocksBeyondTheStars.Client
         /// other.</summary>
         public void VoiceSample(int packedVoice)
         {
-            if (!_clips.TryGetValue("breath_exhale", out var clip) || clip == null)
+            if (!_clips.TryGetValue(VoiceClip("breath_exhale", packedVoice), out var clip) || clip == null)
             {
                 return;
             }

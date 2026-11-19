@@ -59,6 +59,7 @@ namespace BlocksBeyondTheStars.Client
         /// too.</summary>
         public void PlayOwn(string id, float vol, float pitch = 1f)
         {
+            id = VoiceClip(id, OwnVoice); // #3826: a breath, a gasp — in the recorded voice the player chose
             if (!_clips.TryGetValue(id, out var clip) || clip == null)
             {
                 return;

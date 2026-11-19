@@ -16,8 +16,13 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <item><b>Age</b> nudges the pitch a little the other way (young a touch higher, old a touch lower) and picks a timbre
 /// that is baked into the clip: young thin and bright, old dull and soft (<see cref="Timbre"/>).</item>
 /// </list>
-/// The voice travels packed in one int (<see cref="Pack"/>); 0 is "not set" — an older client or save — and reads as the
+/// The voice travels packed in one int (<see cref="Pack(int, int)"/>); 0 is "not set" — an older client or save — and reads as the
 /// middle. Server and client share this class, so a value is clamped the same way on both sides.
+/// <para><b>A second recorded voice</b> (#3826 — the same player, two days later: "you still cannot sound like a
+/// woman"). A slider only plays the one recording faster or slower: higher, it sounds smaller and younger, never like
+/// another person. So the eleven clips exist twice — voice 1, the neutral recording the game always had, and voice 2,
+/// recorded in a woman's voice — and the player picks one (<see cref="Kinds"/>, <see cref="ClipFor"/>). The voices are
+/// numbered, not named: the sliders work on either, and still nobody has to sort themselves.</para>
 /// </summary>
 public static class PlayerVoice
 {
@@ -39,8 +44,24 @@ public static class PlayerVoice
     /// <summary>A slider value snapped to the nearest <see cref="Step"/>.</summary>
     public static int Snap(int value) => Clamp((int)Math.Round(Clamp(value) / (double)Step) * Step);
 
+    /// <summary>How many recorded voices there are: 0 is the first (the neutral recording), 1 the second (#3826).</summary>
+    public const int Kinds = 2;
+
+    /// <summary>The clip-name prefix of the second voice's recordings: <c>v2_hurt_player</c> beside <c>hurt_player</c>.</summary>
+    public const string SecondVoicePrefix = "v2_";
+
+    /// <summary>A voice number brought into 0…<see cref="Kinds"/> − 1; anything else is the first voice.</summary>
+    public static int ClampKind(int kind) => kind < 0 || kind >= Kinds ? 0 : kind;
+
     /// <summary>Pitch and age in one int for the wire: each stored + 1 in a byte, so 0 stays "not set".</summary>
     public static int Pack(int pitch, int age) => (Clamp(pitch) + 1) | ((Clamp(age) + 1) << 8);
+
+    /// <summary>Pitch, age and the recorded voice in one int: the voice in the third byte, as it is — so a value packed
+    /// before there was a choice (third byte 0) is the first voice.</summary>
+    public static int Pack(int pitch, int age, int kind) => Pack(pitch, age) | (ClampKind(kind) << 16);
+
+    /// <summary>The recorded voice of a packed voice (0 for a value that is not set or carries a number nobody knows).</summary>
+    public static int KindOf(int packed) => ClampKind((packed >> 16) & 0xFF);
 
     /// <summary>The pitch and the age of a packed voice; a part that is not set (0) is the middle. Anything out of range
     /// is clamped, so a foreign value can never produce an unplayable pitch.</summary>
@@ -60,7 +81,7 @@ public static class PlayerVoice
         }
 
         var (pitch, age) = Unpack(packed);
-        return Pack(pitch, age);
+        return Pack(pitch, age, KindOf(packed));
     }
 
     /// <summary>The playback pitch factor of a voice: 1 at the middle, 2^(semitones / 12) elsewhere.</summary>
@@ -106,6 +127,16 @@ public static class PlayerVoice
     /// sounds keep their pitch.</summary>
     public static bool IsVoiceClip(string? id)
         => id is not null
-           && (id.StartsWith("breath_", StringComparison.Ordinal) || id == "surface_gasp" || id == "climb_strain"
-               || id == "player_death" || id.StartsWith("hurt_player", StringComparison.Ordinal));
+           && (IsFirstVoiceClip(id)
+               || (id.StartsWith(SecondVoicePrefix, StringComparison.Ordinal) && IsFirstVoiceClip(id.Substring(SecondVoicePrefix.Length))));
+
+    /// <summary>The clip that voice <paramref name="kind"/> plays for the voice sound <paramref name="id"/>: the id itself
+    /// for the first voice, the second voice's recording of it otherwise. Anything that is not a voice sound — and a
+    /// name that already is a second-voice clip — comes back unchanged.</summary>
+    public static string ClipFor(string id, int kind)
+        => ClampKind(kind) == 1 && IsFirstVoiceClip(id) ? SecondVoicePrefix + id : id;
+
+    private static bool IsFirstVoiceClip(string id)
+        => id.StartsWith("breath_", StringComparison.Ordinal) || id == "surface_gasp" || id == "climb_strain"
+           || id == "player_death" || id.StartsWith("hurt_player", StringComparison.Ordinal);
 }

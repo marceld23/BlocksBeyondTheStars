@@ -105,6 +105,11 @@ namespace BlocksBeyondTheStars.Client
         public ClimbSurface HoldAt(float x, float y, float z, int dirX, int dirZ, float height)
             => _holdAt(Floor(x + (dirX * WallReach)), Floor(y + height), Floor(z + (dirZ * WallReach)));
 
+        /// <summary>The wall cell <see cref="HoldAt"/> reads — for a caller that asks the block there something else
+        /// (#3827: is it slick when wet?).</summary>
+        public static (int X, int Y, int Z) WallCell(float x, float y, float z, int dirX, int dirZ, float height)
+            => (Floor(x + (dirX * WallReach)), Floor(y + height), Floor(z + (dirZ * WallReach)));
+
         /// <summary>The worse of two holds (a slippery knee hold makes the whole grip slippery).</summary>
         public static ClimbSurface Worse(ClimbSurface a, ClimbSurface b) => a < b ? a : b;
 

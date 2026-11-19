@@ -82,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
         /// pitch and <c>PlayOneShot</c> has none.</summary>
         public static void VoiceSample(int packedVoice)
         {
-            var clip = Clip("breath_exhale");
+            var clip = Clip(PlayerVoice.ClipFor("breath_exhale", PlayerVoice.KindOf(packedVoice))) ?? Clip("breath_exhale"); // #3826
             if (clip == null || Volume <= 0.001f)
             {
                 return;

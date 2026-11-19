@@ -28,6 +28,7 @@ namespace BlocksBeyondTheStars.Client
             "land", "jump",
             "emote_cheer", "emote_bow",
             "hurt_player", "breath_effort", // #3767: the figure's voice — three pain grunts, two breaths of effort
+            "v2_hurt_player", "v2_breath_effort", // #3826: the same takes in the second recorded voice
         };
 
         /// <summary>The clip name of take <paramref name="take"/> (1-based; take 1 is the plain name).</summary>

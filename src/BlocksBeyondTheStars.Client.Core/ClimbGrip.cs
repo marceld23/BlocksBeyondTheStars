@@ -34,6 +34,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A slippery wall tires the grip this many times as fast.</summary>
         public const float SlipperyFactor = 2f;
 
+        /// <summary>A wall wet from the rain tires the grip this many times as fast (#3827): at 1 g a rested climber gets
+        /// three blocks up it (18 / factor) and then slides down.</summary>
+        public const float WetFactor = 6f;
+
+        /// <summary>Whether what falls from the sky wets a wall: rain, drizzle and acid rain — not snow, hail, dust or ash.</summary>
+        public static bool RainWets(string? precipitation) => precipitation is "rain" or "drizzle" or "acid";
+
         /// <summary>Climbing speeds at full grip, m/s. The ladder stays at its own 4 m/s.</summary>
         public const float UpSpeed = 2.0f;
         public const float DownSpeed = 2.5f;
@@ -76,21 +83,23 @@ namespace BlocksBeyondTheStars.Client
             _ => 0.04f,
         };
 
-        /// <summary>Stamina spent per second: <see cref="BaseDrain"/> × the world's gravity factor × slippery × (1 − gear).</summary>
-        public static float DrainPerSecond(ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
+        /// <summary>Stamina spent per second: <see cref="BaseDrain"/> × the world's gravity factor × slippery (or wet,
+        /// #3827: a plain hold on a wall the rain reaches) × (1 − gear).</summary>
+        public static float DrainPerSecond(ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip, bool wet = false)
         {
             float g = Math.Max(0.2f, Math.Min(2.5f, gravityFactor));
-            float slip = surface == ClimbSurface.Slippery ? SlipperyFactor : 1f;
+            float slip = surface == ClimbSurface.Slippery ? SlipperyFactor : wet && surface == ClimbSurface.Normal ? WetFactor : 1f;
             float gear = 1f - Math.Max(0f, Math.Min(SuitEquipment.MaxClimbGrip, gearGrip));
             return BaseDrain(motion) * g * slip * gear;
         }
 
         /// <summary>Seconds of <paramref name="motion"/> a full stamina lasts (what the tuning and the manual quote).</summary>
-        public static float SecondsFromFull(ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
-            => 1f / DrainPerSecond(motion, gravityFactor, surface, gearGrip);
+        public static float SecondsFromFull(ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip, bool wet = false)
+            => 1f / DrainPerSecond(motion, gravityFactor, surface, gearGrip, wet);
 
         /// <summary>Tires <paramref name="stamina"/> for <paramref name="dt"/> seconds of hanging on.</summary>
-        public static void Drain(BodyStamina stamina, float dt, ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
-            => stamina.Spend(dt * DrainPerSecond(motion, gravityFactor, surface, gearGrip));
+        public static void Drain(BodyStamina stamina, float dt, ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip,
+            bool wet = false)
+            => stamina.Spend(dt * DrainPerSecond(motion, gravityFactor, surface, gearGrip, wet));
     }
 }

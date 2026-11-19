@@ -620,6 +620,20 @@ namespace BlocksBeyondTheStars.Client
             return holder;
         }
 
+        /// <summary>One first-person arm of the overhead carry (#3828) under a new holder: the suit fist on a forearm long
+        /// enough to run out of the view (<see cref="BlockCarryPose.ViewForearm"/>), mirrored for the left arm.</summary>
+        public static GameObject BuildCarryArm(Transform parent, Color tint, bool left)
+        {
+            var holder = new GameObject(left ? "CarryArmLeft" : "CarryArmRight");
+            holder.transform.SetParent(parent, false);
+            foreach (var box in HeldHands.Fist(new System.Numerics.Vector3(0f, 0f, 0.07f), BlockCarryPose.ViewForearm))
+            {
+                HandBox(holder.transform, box, tint, left);
+            }
+
+            return holder;
+        }
+
         /// <summary>The world position of a held model's tip — the front face of its foremost part (the barrel of a gun,
         /// the emitter of a gadget, the bit of a drill). Effects start here instead of at the screen centre (#2151).
         /// False when <paramref name="held"/> has no parts.</summary>

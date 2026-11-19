@@ -537,6 +537,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FinishSwap(); // hidden (third person, the ship's view): a switch cannot be watched, so it is just done
                 CancelFlourish(); // #3095: nor a flourish
+                PoseCarry(shown: false); // #3828: nor the two arms of a carried block
                 return;
             }
 
@@ -563,6 +564,7 @@ namespace BlocksBeyondTheStars.Client
                     PoseClimbHand(_holderL, -1f, 0f, vy, speed, rise); // the rhythm advanced once, above
                 }
 
+                PoseCarry(shown: false); // #3828: the wall has the hands
                 return;
             }
 
@@ -576,6 +578,7 @@ namespace BlocksBeyondTheStars.Client
 
             var rot = RestEuler + _stanceTurn; // #3763: a blade and a pick rest tipped up (Viewmodel.Stance.cs)
             var posOff = RestPos + _stanceShift + CarryShift() + bob; // #3766: a carried block rises to the top of the view
+            rot += CarryTurn(); // #3828: … level, held up with both hands (Viewmodel.Carry.cs)
             var rotL = MirroredEuler(RestEuler);
             var posL = Mirrored(RestPos) + new Vector3(-bob.x, bob.y, 0f); // one shared bob, mirrored across
 
@@ -584,6 +587,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 posOff.y += GripLift;
             }
+
+            PoseCarry(shown: true); // #3828: the carried block's size and the two arms under it
 
             // Attack pose — shaped by the held item (B14): blades slash in an arc, guns kick back, the rest jab.
             // #2777: an item held by the suit hand swings round a point on the forearm (HeldHands.SwingPivot) instead of

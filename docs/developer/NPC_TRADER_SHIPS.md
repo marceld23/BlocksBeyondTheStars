@@ -29,6 +29,32 @@ capacity so haulers dominate. New ship types in `data/ships.json` appear in trad
 **Lifecycle** (`GameServerSpaceTraders.cs`): warp **in** at the system edge → **cruise** toward a station or
 through the inner system → **dock** (station) or **land** (planet) or warp **out**.
 
+**A landing is seen (#3824).** A player wrote twice that they could not see where traders land: a trader with a
+landing destination flew to a random point 40–100 units around the scene centre and left with the warp flash of a ship
+that jumps away. Now `SpawnTrader` aims it at its body (`AimTraderAtBody` → `TraderApproachPoint`): the point on the
+body's landing shell (`SystemBodyLayout.LandApproachDistance` — radius + keep-out + half the land band, where a
+player's autopilot stops) on the side the trader comes from. There `TryLandTraderOnBody` reserves the pad as before and
+`BeginTraderDescent` puts the trader into the phase `Descending`: it holds its pose for `TraderDescentSeconds` (5 s),
+every pilot in the flight gets `SpaceWarpFx { Style = "descent", Subject = <pose id>, Body = <body id>, Seconds }` and
+the line `srv.trader.descending` ("Trader … is landing on …"), then it leaves the scene without a flash. A trader that
+finds no pad passes through and warps out as before.
+
+*Where a body is in the scene.* The flight scene is laid out by the client (`SpaceView.Scene.cs`): the launch body
+hangs at a fixed spot, the other planets at their scaled system coordinates, moons step outward from their planet and
+overlapping bodies are nudged apart. The numbers both sides need live in `SystemBodyLayout` (Shared): `HomeX/Y/Z`,
+`HomeDiameterFactor`, `OrbitDiameter`, `KeepOutMargin`, `LandBand`. `TraderBodyInScene` is exact for the launch body —
+the one a trader prefers — and an estimate for the others (a planet's raw scaled position, a moon at its first orbit
+slot). That is enough to fly to: the dive itself is drawn by the client at the body it really shows.
+
+*The dive on the client* (`SpaceView.TraderDescent.cs`, numbers in `Client.Core/NpcDescentPath`): the ship named by
+`Subject` is taken off its server pose and flown from where it is drawn to the surface point under it — slow off the
+mark, fast at the end (`PositionAt`), shrinking to 12 % (`ScaleAt`; at the scene's compact scale a hull that kept its
+size would sit ON the planet), nose down. In an atmosphere it glows in the body's own air colour with plasma streaming
+back (`HeatAt`, the colours of the player's own entry), over an airless body its engines flare; `reentry_roar` /
+`engine_thrust` play at the ship. At 97 % it is hidden, and its avatar is dropped as soon as the server's pose is gone
+(no 2 s grace). A client that cannot find the ship or the body plays the plain flash; an older client sees the trader
+hold for five seconds and vanish.
+
 **Rendered with zero new flight-view code.** A trader is **never** a `CombatEntity` (so it can't be locked,
 shot, damaged, and never harms anyone). It rides the existing **remote-ship** path: a synthetic
 `NetSpacePlayer` pose (`npc:<id>`) plus a `"ship_remote"` `SpaceShipDesign` built by `BuildNpcShipStructure`
@@ -130,6 +156,10 @@ flight view so other players **see** arrivals and departures.
   landing/launch reuses `ShipTransitView` — since #3177 the parked hull itself flies (a stand-in down, the adopted hull
   up, the own ship's beats without the camera; the ghost is the fallback); the map marker is `WorldMap.PoiLook("trader_ship")` and the compass blip
   `HudUi.TryGetLandedTrader`.
+- #3824: `GameServerTraderDescent.cs` (the body's spot in the scene, the approach point, the descent hand-off and its
+  test hooks), `SpaceView.TraderDescent.cs`, `Client.Core/NpcDescentPath.cs`; tests `TraderDescentTests` (the launch
+  body's spot, a spot for every other body, the approach point, the dive message and the missing flash) and
+  `NpcDescentTests` (the path, the scale, the glow, the shared scene numbers, the wiring).
 - Tests: `SpaceTraderTests`, `LandedTraderStayTests` (stay ranges, hold + grace, map marker + re-broadcast),
   `PlanetTraderArrivalTests` (#2603: gaps per traffic, the nearest free dry pad, the reserved approach, touchdown FX +
   toast + hail, one per body, no players / rule off, the flight scene still lands at once — on the pad nearest the base,

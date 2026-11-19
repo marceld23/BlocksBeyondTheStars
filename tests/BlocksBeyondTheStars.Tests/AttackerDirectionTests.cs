@@ -12,6 +12,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -209,6 +210,43 @@ public sealed class AttackerDirectionTests : IDisposable
         Assert.Equal(p.Sync.LastHitSeq, u.LastHitSeq);
         Assert.True(u.LastHitSeq > 0);
         Assert.Equal(p.Sync.LastHitFrom.Y, u.LastHitFromY, 3);
+    }
+
+    // ---------------- #3825: the first blow points to the radar scanner ----------------
+
+    private static int RadarHints(RecordingTransport transport, PlayerSession p)
+        => transport.Sent.Count(x => x.Conn == p.ConnectionId && x.Msg is ShipAiLine { LineKey: "vega.hint.radar_scanner" });
+
+    [Fact]
+    public void TheFirstBlow_WithoutARadarScanner_MakesVegaNameIt_Once()
+    {
+        var transport = new RecordingTransport();
+        var server = Started(transport);
+        var (p, feet) = Pad(server);
+        AngryAnimal(server, feet, 2.5f, out _);
+
+        server.Tick(0.1);
+        Assert.True(p.Sync.LastHitSeq > 0, "the angry animal in reach did not bite");
+        Assert.Equal(1, RadarHints(transport, p));
+        Assert.Contains("vega:hint:" + SvGameServer.RadarScannerHint, p.State.Milestones);
+
+        server.Tick(0.1); // the next bite: told already
+        Assert.Equal(1, RadarHints(transport, p));
+    }
+
+    [Fact]
+    public void ABlow_WhileTheRadarScannerIsWorn_KeepsTheHintForLater()
+    {
+        var transport = new RecordingTransport();
+        var server = Started(transport);
+        var (p, feet) = Pad(server);
+        p.State.Equipment.SetSlot((int)EquipSlot.Module2, new ItemStack(SvGameServer.RadarScannerItem, 1));
+        AngryAnimal(server, feet, 2.5f, out _);
+
+        server.Tick(0.1);
+        Assert.True(p.Sync.LastHitSeq > 0, "the angry animal in reach did not bite");
+        Assert.Equal(0, RadarHints(transport, p));
+        Assert.DoesNotContain("vega:hint:" + SvGameServer.RadarScannerHint, p.State.Milestones);
     }
 
     // ---------------- #2565: one bite reach for server and client ----------------

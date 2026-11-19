@@ -7,6 +7,11 @@ The figure's voice is ONE set of mouth and breath clips that the game retunes pe
 ``PlayerVoice`` in Shared) — so every clip here is recorded in a NEUTRAL, mid-pitched voice: the sliders move it both
 ways. Two more takes of the pain grunt (``hurt_player`` had one) and a short breath of effort for a jump under strain.
 
+The second recorded voice (#3826): a slider only plays the one recording faster or slower, which never turns it into
+another person's voice. So all eleven voice sounds exist a second time, recorded in a woman's voice, under the same
+names with the prefix ``v2_`` (``PlayerVoice.SecondVoicePrefix``). The player picks voice 1 or voice 2 in the character
+editor; the sliders work on either.
+
 Calls ``tools/ai-assets/gen_sound.py`` once per clip (that tool stays one-file-per-run). Resumable: a clip whose
 ``tools/ai-assets/out/voice/<id>.mp3`` already exists is skipped unless it is named in ``--only``. Afterwards level and
 copy them into the client:
@@ -33,12 +38,31 @@ VOICE = ("a neutral androgynous mid-pitched voice, close, clean, dry, no echo, n
          "mild and not scary, for a kid-friendly video game")
 BREATH = "breath only, no vocal tone, close, clean, dry, no echo, no words, no music, calm, for a kid-friendly video game"
 
+# The second recorded voice (#3826): the same sounds by an adult woman.
+VOICE_2 = ("an adult woman's voice, clearly female, natural and warm, close, clean, dry, no echo, no words, no music, "
+           "mild and not scary, for a kid-friendly video game")
+BREATH_2 = ("a woman's light breath, close microphone, clean, dry, no echo, no words, no music, gentle and calm, "
+            "for a kid-friendly video game")
+
 # (id, prompt, duration seconds, prompt influence)
 CLIPS: list[tuple[str, str, float, float]] = [
     ("hurt_player_2", f"one short grunt of someone taking a bump, a quick soft 'oof', {VOICE}", 0.6, 0.5),
     ("hurt_player_3", f"one short surprised 'ugh' of someone knocked back a step, {VOICE}", 0.6, 0.5),
     ("breath_effort", f"one short sharp exhale of effort through the mouth, like a quick 'hup' when jumping, {BREATH}", 0.5, 0.5),
     ("breath_effort_2", f"a quick puff of breath of someone pushing off the ground, a short 'hff', {BREATH}", 0.5, 0.5),
+    # #3826: voice 2, all eleven voice sounds (the first voice's other seven come from older batches).
+    ("v2_hurt_player", f"one short pain grunt of a woman taking a hit, a quick 'ah', {VOICE_2}", 0.7, 0.5),
+    ("v2_hurt_player_2", f"one short grunt of a woman taking a bump, a quick soft 'oof', {VOICE_2}", 0.6, 0.5),
+    ("v2_hurt_player_3", f"one short surprised 'ugh' of a woman knocked back a step, {VOICE_2}", 0.6, 0.5),
+    ("v2_player_death", f"a woman's short falling cry that fades out, one soft 'aah' as she goes down, {VOICE_2}", 1.2, 0.5),
+    ("v2_climb_strain", f"a woman's short strained grunt of effort while pulling herself up a wall, one 'nngh', {VOICE_2}", 0.8, 0.5),
+    ("v2_surface_gasp", "a woman surfacing from under water and taking one relieved deep breath of air, a short inhale "
+                        f"with water dripping, {VOICE_2}", 1.0, 0.5),
+    ("v2_breath_exhale", f"one calm relaxed exhale through the mouth after running, a soft single breath out, {BREATH_2}", 0.8, 0.5),
+    ("v2_breath_exhale_2", f"a single soft tired sigh of breath after exercise, {BREATH_2}", 0.8, 0.5),
+    ("v2_breath_quick", f"two quick soft breaths in and out, slightly out of breath, {BREATH_2}", 1.0, 0.5),
+    ("v2_breath_effort", f"one short sharp exhale of effort through the mouth, like a quick 'hup' when jumping, {BREATH_2}", 0.5, 0.5),
+    ("v2_breath_effort_2", f"a quick puff of breath of someone pushing off the ground, a short 'hff', {BREATH_2}", 0.5, 0.5),
 ]
 
 

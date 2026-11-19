@@ -62,6 +62,17 @@ public static class ClimbSurfaces
         };
     }
 
+    /// <summary>
+    /// Whether rain makes this block's wall slick (#3827 — a young player's idea: "in the rain you only get about three
+    /// blocks up and then slip off; only on stone and other things that get slick, not on earth or grass"). Only a block
+    /// with a plain hold can: one that gives none, an icy one and a loose one keep their own rule. Plants keep their
+    /// hold, and so does every block the data marks (<see cref="BlockDefinition.WetGrip"/>: soil, grass, wood). What
+    /// "wet" costs the grip is the climber's side (<c>ClimbGrip.WetFactor</c>); a roof keeps a wall dry and climbing
+    /// claws hold on it — both the caller's to check.
+    /// </summary>
+    public static bool SlickWhenWet(BlockDefinition? def)
+        => def is not null && Of(def) == ClimbSurface.Normal && !def.WetGrip && def.Category != "flora";
+
     /// <summary>How the block holds THIS climber: without claws an icy wall gives no hold; with them (#2192) icy and
     /// slippery walls hold like any other.</summary>
     public static ClimbSurface ForClimber(ClimbSurface surface, bool iceGrip)

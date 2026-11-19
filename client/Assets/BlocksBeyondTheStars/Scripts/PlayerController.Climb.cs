@@ -47,6 +47,12 @@ namespace BlocksBeyondTheStars.Client
         private BlocksBeyondTheStars.Shared.Content.GameContent _climbProbeContent;
         private ClimbSurface[] _climbHoldById = System.Array.Empty<ClimbSurface>();
         private bool[] _climbSolidById = System.Array.Empty<bool>();
+        private bool[] _climbWetSlickById = System.Array.Empty<bool>(); // #3827: rock, ore, metal — slick in the rain
+        private bool _climbWet;              // #3827: the wall in the hands is wet right now
+        private float _climbWetHintNextAt;   // #3827: no new "wet wall" message before this time
+
+        /// <summary>#3827: the least time between two "the wall is wet" messages, s.</summary>
+        private const float ClimbWetHintPause = 45f;
         private bool _climbing;
         private WallHold _wall;
         private float _climbVy;
@@ -93,11 +99,13 @@ namespace BlocksBeyondTheStars.Client
 
             _climbHoldById = new ClimbSurface[max + 1];
             _climbSolidById = new bool[max + 1];
+            _climbWetSlickById = new bool[max + 1];
             foreach (var def in content.Blocks.Values)
             {
                 // A hold needs a collider too: props, plants and tree crowns (#2184) have none.
                 bool collides = IsCollidingKey(def.Key);
                 _climbSolidById[def.NumericId.Value] = collides;
+                _climbWetSlickById[def.NumericId.Value] = collides && ClimbSurfaces.SlickWhenWet(def);
                 _climbHoldById[def.NumericId.Value] = collides ? ClimbSurfaces.Of(def) : ClimbSurface.None;
             }
 
@@ -117,6 +125,42 @@ namespace BlocksBeyondTheStars.Client
         {
             int id = _climbProbeWorld.GetBlock(x, y, z).Value;
             return id < _climbSolidById.Length && _climbSolidById[id];
+        }
+
+        /// <summary>
+        /// #3827 (a young player's idea): whether the wall in the hands is wet — it rains (rain, drizzle, acid rain; not
+        /// snow), nothing is overhead (a roof keeps a wall dry), the hold is a plain one, and the block at the hands or
+        /// the knees turns slick when wet (rock, ore, metal — soil, grass and wood stay rough). Climbing claws hold on
+        /// a wet wall as on any other.
+        /// </summary>
+        private bool ClimbWallWet(Vector3 pos, ClimbSurface surface)
+        {
+            if (surface != ClimbSurface.Normal || _climbGearIce || !Game.ExposedToSky || !ClimbGrip.RainWets(Game.Environment?.Precipitation))
+            {
+                return false;
+            }
+
+            return ClimbWetSlickAt(pos, ClimbProbe.HandHeight) || ClimbWetSlickAt(pos, ClimbProbe.KneeHeight);
+        }
+
+        private bool ClimbWetSlickAt(Vector3 pos, float height)
+        {
+            var (x, y, z) = ClimbProbe.WallCell(pos.x, pos.y, pos.z, _wall.DirX, _wall.DirZ, height);
+            int id = _climbProbeWorld.GetBlock(x, y, z).Value;
+            return id < _climbWetSlickById.Length && _climbWetSlickById[id];
+        }
+
+        /// <summary>#3827: the grip gave out on a wet wall — says why (and what holds), not more often than every
+        /// <see cref="ClimbWetHintPause"/> seconds.</summary>
+        private void ClimbWetHint()
+        {
+            if (Time.time < _climbWetHintNextAt || Game?.Localizer == null)
+            {
+                return;
+            }
+
+            _climbWetHintNextAt = Time.time + ClimbWetHintPause;
+            Game.ShowMessage(Game.Localizer.Get("ui.hud.climb_wet"));
         }
 
         /// <summary>Where climbing exists at all: on foot under gravity on a planet, moon or asteroid — not above the
@@ -232,6 +276,12 @@ namespace BlocksBeyondTheStars.Client
             var motion = ClimbMotion.Hang;
             float slide = ClimbGrip.SlideSpeedFor(holding, _stamina.Exhausted);
             _climbSliding = slide > 0f;
+            _climbWet = ClimbWallWet(pos, surface); // #3827: rain on open rock
+            if (_climbSliding && _climbWet && holding)
+            {
+                ClimbWetHint(); // the grip gave out while still holding on: the wet wall did it
+            }
+
             if (_climbSliding)
             {
                 // #2384: Jump let go, or the grip spent — a slide (far below the safe-landing speed) instead of a fall;
@@ -295,7 +345,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (!_climbSliding)
             {
-                ClimbGrip.Drain(_stamina, dt, motion, _gFactor, surface, _climbGearGrip); // #3373: the shared stamina
+                ClimbGrip.Drain(_stamina, dt, motion, _gFactor, surface, _climbGearGrip, _climbWet); // #3373: the shared stamina
             }
 
             // Back on the ground while not climbing up: walk from here.

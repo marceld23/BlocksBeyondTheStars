@@ -92,6 +92,60 @@ public sealed class PlayerVoiceTests
     [InlineData(null, false)]
     public void OnlyTheFiguresMouthAndBreath_AreVoice(string? clip, bool voice) => Assert.Equal(voice, PlayerVoice.IsVoiceClip(clip));
 
+    // ---------------- #3826: the second recorded voice ----------------
+
+    [Fact]
+    public void TheRecordedVoice_TravelsInTheThirdByte_AndAnOlderValueIsTheFirstVoice()
+    {
+        Assert.Equal(0, PlayerVoice.KindOf(0));                         // not set
+        Assert.Equal(0, PlayerVoice.KindOf(PlayerVoice.Pack(70, 30))); // packed before there was a choice
+        Assert.Equal(PlayerVoice.Pack(70, 30), PlayerVoice.Pack(70, 30, 0));
+
+        for (int kind = 0; kind < PlayerVoice.Kinds; kind++)
+        {
+            int packed = PlayerVoice.Pack(40, 60, kind);
+            Assert.Equal(kind, PlayerVoice.KindOf(packed));
+            Assert.Equal((40, 60), PlayerVoice.Unpack(packed)); // the sliders work on either voice
+            Assert.Equal(packed, PlayerVoice.Sanitize(packed)); // the server keeps the choice
+            Assert.Equal(PlayerVoice.Factor(40, 60), PlayerVoice.Factor(packed));
+        }
+
+        // A voice number nobody knows is the first voice — on the wire, in the settings, from a newer client.
+        Assert.Equal(0, PlayerVoice.KindOf(PlayerVoice.Pack(40, 60) | (PlayerVoice.Kinds << 16)));
+        Assert.Equal(PlayerVoice.Pack(40, 60), PlayerVoice.Sanitize(PlayerVoice.Pack(40, 60) | (0x55 << 16)));
+        Assert.Equal(PlayerVoice.Pack(40, 60), PlayerVoice.Pack(40, 60, 7));
+        Assert.Equal(PlayerVoice.Pack(40, 60), PlayerVoice.Pack(40, 60, -1));
+    }
+
+    [Theory]
+    [InlineData("hurt_player", "v2_hurt_player")]
+    [InlineData("hurt_player_3", "v2_hurt_player_3")]
+    [InlineData("breath_exhale", "v2_breath_exhale")]
+    [InlineData("breath_effort_2", "v2_breath_effort_2")]
+    [InlineData("surface_gasp", "v2_surface_gasp")]
+    [InlineData("climb_strain", "v2_climb_strain")]
+    [InlineData("player_death", "v2_player_death")]
+    public void TheSecondVoice_PlaysItsOwnRecording_OfEveryVoiceSound(string id, string second)
+    {
+        Assert.Equal(id, PlayerVoice.ClipFor(id, 0));
+        Assert.Equal(second, PlayerVoice.ClipFor(id, 1));
+        Assert.Equal(second, PlayerVoice.ClipFor(second, 1)); // already the second voice's clip: unchanged
+        Assert.Equal(id, PlayerVoice.ClipFor(id, 9));         // an unknown voice is the first
+        Assert.True(PlayerVoice.IsVoiceClip(second), second + " must take the pitch and the age like its first-voice twin");
+    }
+
+    [Theory]
+    [InlineData("land_heavy")]
+    [InlineData("jump")]
+    [InlineData("step_stone_1")]
+    [InlineData("v2_jump")]
+    [InlineData("v2_")]
+    public void WhatIsNoVoiceSound_HasNoSecondRecording(string id)
+    {
+        Assert.Equal(id, PlayerVoice.ClipFor(id, 1));
+        Assert.False(PlayerVoice.IsVoiceClip(id));
+    }
+
     [Fact]
     public void BothWireFields_AreAdditive_AndRoundTrip()
     {

@@ -983,6 +983,18 @@ player picks in the character editor (Figure tab) retunes them. It is two slider
   middle dry, old `Dull` (1 from 65, 2 from 85). One bake per clip and timbre, cached — the browser hears it too.
 - **Which clips** (`PlayerVoice.IsVoiceClip`): `breath_*`, `surface_gasp`, `climb_strain`, `hurt_player*`,
   `player_death`. `land_heavy` (boots first) and `jump` (the suit) keep their pitch.
+- **Two recorded voices (#3826).** The player who asked for the voice wrote two days later: "you still cannot sound
+  like a woman". A slider only plays the one recording faster or slower — higher, it sounds smaller and younger, never
+  like another person. So all eleven voice sounds exist a second time, recorded in a woman's voice, under the same
+  names with the prefix `v2_` (`PlayerVoice.SecondVoicePrefix`; prompts in `tools/audio/voice_batch.py`, levelled like
+  their twins — `level_clips.py` strips the prefix for the class). The editor has **Voice 1 · Voice 2** above the
+  sliders; the voices are numbered, not named, and the sliders work on either. The choice is `ClientSettings.VoiceKind`
+  and travels in the third byte of the packed voice (`PlayerVoice.Pack(pitch, age, kind)`, `KindOf`), so a value from
+  before the choice is voice 1 and an unknown number is too. `PlayerVoice.ClipFor(id, kind)` names the clip;
+  `ClientAudio.VoiceClip` asks it for the own figure (`Voice`, `PlayOwn`), for another player's hit and fall
+  (`VoiceAt`) and for the editor's sample, and falls back to the first voice's clip when the second is not bundled.
+  The rotating takes rotate in both voices (`ClipTakes.Families`: `v2_hurt_player`, `v2_breath_effort`).
+  `PlayerVoiceWiringTests` fails when a voice sound lacks its second recording.
 - **How** — `ClientAudio.PlayOwn` applies the voice to every such clip; the cues that went through `Cue` (which cannot
   pitch: the pain grunt, the fall, the strain) come through `ClientAudio.Voice`. In vacuum the suit's dull bake wins
   over the age's timbre.

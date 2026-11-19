@@ -24,4 +24,14 @@ public sealed class SpaceWarpFx
     /// <summary>#2357: true when the ship warping in is a raider — the client adds its ominous sting to the flash
     /// (an NPC trader's warp stays silent). Additive.</summary>
     public bool Raider { get; set; }
+
+    /// <summary>#3824: with <see cref="Style"/> "descent" — the pose id (<see cref="NetSpacePlayer.PlayerId"/>) of the
+    /// ship that dives into a body; the client draws that ship flying down instead of a flash. Additive.</summary>
+    public string Subject { get; set; } = string.Empty;
+
+    /// <summary>#3824: the body the <see cref="Subject"/> lands on (a star-map body id). Additive.</summary>
+    public string Body { get; set; } = string.Empty;
+
+    /// <summary>#3824: seconds the dive takes — the server keeps the ship's pose that long. Additive.</summary>
+    public float Seconds { get; set; }
 }
