@@ -1,7 +1,7 @@
 {
   "id": "first-ship",
   "rev": 1,
-  "enabled": false,
+  "enabled": true,
   "sort": 30,
   "area": "editor",
   "editor": "ship",

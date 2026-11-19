@@ -1,7 +1,7 @@
 {
   "id": "space-moves",
   "rev": 1,
-  "enabled": false,
+  "enabled": true,
   "sort": 10,
   "area": "ingame",
   "title": { "de": "Fassrolle und Boost", "en": "Barrel roll and boost" },

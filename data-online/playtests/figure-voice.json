@@ -1,7 +1,7 @@
 {
   "id": "figure-voice",
   "rev": 1,
-  "enabled": false,
+  "enabled": true,
   "sort": 60,
   "area": "editor",
   "editor": "avatar",
