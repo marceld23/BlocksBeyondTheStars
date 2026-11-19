@@ -4,6 +4,7 @@
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -163,6 +164,7 @@ public sealed partial class GameServer
         // The other pilots see the roll: a cosmetic effect at the ship, its direction in the target's X (+1 right, -1 left).
         var at = PilotPositionIn(instance, playerId);
         RelayFxInSpace(pilot, FxActionKinds.Roll, string.Empty, at, new Vector3f(at.X + (on ? 1f : -1f), at.Y, at.Z), hit: false);
+        RaiseGameEvent(pilot, GameEventKeys.ShipRolled); // #3831
         return true;
     }
 
@@ -180,8 +182,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>One tick of a pilot's manoeuvre state (the ship cursor is already on the pilot): the boost charge
-    /// drains or refills, and a boost that ran dry is over until the pilot asks again.</summary>
-    private void TickPilotManeuvers(PilotSim sim, double dt)
+    /// drains or refills, and a boost that ran dry is over until the pilot asks again. Returns true in the tick the
+    /// boost came on.</summary>
+    private bool TickPilotManeuvers(PilotSim sim, double dt)
     {
         sim.Stats = _shipManeuver;
         sim.FlightSpeed = _shipFlightSpeed;
@@ -198,6 +201,8 @@ public sealed partial class GameServer
             sim.BoostOffAt = _uptime;
             sim.BoostWanted = false; // ran dry (or let go): a new boost needs a new press
         }
+
+        return !was && sim.Boost.Active;
     }
 
     /// <summary>Whether hostile fire misses this pilot right now (#3753).</summary>
@@ -417,9 +422,14 @@ public sealed partial class GameServer
         e.HeavyFireAt = 0;
         e.HeavyNextAt = _uptime + e.HeavyInterval;
         var pilot = inReach ? FindSessionByPlayerId(targetId) : null;
-        bool hit = pilot is not null
-            && instance.PilotSims.TryGetValue(targetId, out var sim) && !IsEvading(sim)
-            && !IsStaggered(e);
+        PilotSim? sim = null;
+        bool onTarget = pilot is not null && instance.PilotSims.TryGetValue(targetId, out sim) && !IsStaggered(e);
+        bool hit = onTarget && sim is not null && !IsEvading(sim);
+        if (onTarget && !hit)
+        {
+            RaiseGameEvent(pilot, GameEventKeys.ShipEvaded, GameEventKeys.EvadedHeavy); // #3831: only the roll made it miss
+        }
+
         BroadcastToInstance(instance, new SpaceHeavyShot
         {
             EntityId = e.Id,

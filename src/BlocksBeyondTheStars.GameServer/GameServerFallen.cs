@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -45,6 +46,7 @@ public sealed partial class GameServer
 
         var p = session.State;
         var r = session.Respawn;
+        RaiseGameEvent(session, GameEventKeys.PlayerFallen); // #3832: before the flag — a watcher raises no event
         r.Fallen = true;
         r.FallenAt = p.Position;
         r.FallenSince = _uptime;
@@ -275,6 +277,8 @@ public sealed partial class GameServer
         SendPlayerState(session);
         Send(medic, new ServerMessage { Text = Localize(medic.Locale, "srv.fallen.you_revived").Replace("{player}", p.Name) });
         _repo.SavePlayer(p);
+        RaiseGameEvent(session, GameEventKeys.PlayerRevived, GameEventKeys.RevivedFallen); // #3832: for both
+        RaiseGameEvent(medic, GameEventKeys.PlayerRevived, GameEventKeys.RevivedMedic);
         _log.Info($"Player '{p.Name}' was revived by '{medic.State.Name}'.");
     }
 

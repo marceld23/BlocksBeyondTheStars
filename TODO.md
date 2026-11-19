@@ -26,6 +26,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧑‍🚀 Test Pilot: nine more tasks, nine new events, and the guards a task author needs — #3839 (epic), #3831–#3838, #3840, PR #3843 — ✅ 2026-11-19 (⚠ playtest open; server + client + inbox + data; nine new game events, no new message, no protocol bump, no save change, no new texts)
+
+- **Tasks (data, all switched off).** Nine new files under `data-online/playtests/` beside the three of #3801 —
+  switching a task on stays a content decision on the admin page:
+  wave 1 `feel-on-foot` (walking, jumping, mining, placing, the sounds), `throw-block`, `figure-voice`;
+  wave 2 `heavy-shot`, `hard-survival`, `texture-draft`, `pillar-climb`;
+  wave 3 `guardian-giant` (seed 42 on a rocky world: a giant that can wake) and `giant-buildings` (seed 45: the Porta
+  Nigra). Twelve tasks make rank 3 (ten badges) reachable. Every task works on v2026.11.23: recognised steps use only
+  events that build knows, and only things a tester can always bring about — a recognised step has no "Did not work"
+  button, so "find a raider ship" and "defeat the giant" are ticked by hand.
+- **Events (#3831, #3832).** `ship:rolled`, `ship:boosted`, `ship:evaded` (`heavy`), `carry:lifted`, `throw:any`,
+  `throw:hit`, `emote:played`, `player:fallen`, `player:revived` — each raised once for the thing that really happened
+  (a roll inside its cooldown, a throw inside the gap, an emote inside its pace and the server's own body states say
+  nothing). `player:fallen` is raised before the watching begins, because a watcher raises no event. The restart at the
+  ship in Hard Survival was `player:respawned` already.
+- **The fault this found (#3833).** A step whose event the build or the server does not know could never be closed:
+  the server leaves an unknown pattern out and still acks, and the page took the ack for "this step is recognised" and
+  showed no buttons. Now the client takes such a check off (`PlaytestTracker.SetCatalog` — not the reader, which the
+  inbox uses before it serves) and remembers which patterns the server took (`PlaytestWatchSync.Reports`). The released
+  v2026.11.23 client cannot be mended, so the validator makes a newer event without a matching `minVersion` an
+  **error** (`PlaytestEventVersions`; a new event a playtest may wait for gets a row there).
+- **Authoring guards.** #3837: the validator warns about a fall or a fight step in a sandbox world (Creative mode:
+  nothing hurts the player, hostiles do not see them) and about a step that needs hostiles in a peaceful one. #3840: a
+  world option is cut to the last step of its own slider — an index past the end stopped the test world from being
+  created. #3836: `PlaytestSeedBoundTasksTests` builds the world of every task that teleports to a generated place and
+  fails when the place is gone; the same class is the seed search (`BBS_PLAYTEST_SEED_SEARCH=rocky:giant:1-60`).
+- **The report (#3838).** Sent from inside a world it carries the `graphics` node of an F1 report (preset, render scale,
+  screen, API); from the menu or an editor it carries none — the privacy text promises a bug report's technical data
+  for exactly that case, so it did not change. The inbox's report card shows it.
+- **Open.** (1) ⚠ A terrain generation step moves a seed-bound task's place: the guard goes red, then search a new seed,
+  count `rev` up and set `minVersion` (`docs/developer/PLAYTEST_TASKS.md` § *Seed-bound tasks*). (2) The new events
+  reach players with the next release; a task may use them then, with `minVersion` 2026.11.24 or later. (3) The inbox
+  needs the reports image of this change before a task is saved on the admin page with one of the new rules in mind
+  (an older inbox validates by the old rules and shows no graphics line). (4) The repository's nine new files are not
+  in the inbox yet (`sync_playtests.py push`). (5) ⚠ Playtest: none of the twelve tasks has been played by a person.
+
 ### 📍 Justus' reports of 2026-11-19: traders seen landing, a second voice, wet walls, the carry in first person, the radar hint — #3824–#3828, PR #3842 — ✅ 2026-11-19 (⚠ playtest open; no save change; `SpaceWarpFx` and the packed voice grew additively; five new texts in 14 languages; eleven new sound clips)
 
 - **Source.** Eight F1 reports of one evening (v2026.11.23). Five became work, two are ideas for later (#3829 the

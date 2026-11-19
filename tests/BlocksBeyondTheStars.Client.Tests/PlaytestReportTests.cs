@@ -175,4 +175,22 @@ public sealed class PlaytestReportTests
         var tooBig = Build(task, Closed(task), form).Report!;
         Assert.Null(tooBig.Screenshot); // the picture is dropped, never the report
     }
+
+    [Fact]
+    public void TheGraphicsState_RidesAlong_OnlyWhenTheCallerHandsItOver()
+    {
+        // #3838: the hub hands it over for a report sent from inside a world — the node an in-game bug report carries.
+        var task = Task();
+        var graphics = new GraphicsReportInfo { Api = "Direct3D11", Preset = "Low", PresetAuto = true, RenderScale = 0.7f, ScreenWidth = 1280, ScreenHeight = 720 };
+
+        var fromAWorld = PlaytestReport.Build(task, Closed(task), Form(), "2026.11.24", "reply-key", "session-1", "WindowsPlayer", Now, graphics).Report!;
+        var node = (Dictionary<string, object>)fromAWorld.ReportJson["graphics"];
+        Assert.Equal("Low", node["preset"]);
+        Assert.Equal(true, node["presetAuto"]);
+        Assert.Equal("1280x720", node["screen"]);
+        Assert.True(fromAWorld.ReportJson.ContainsKey("playtest")); // beside the report, not instead of it
+
+        var fromTheMenu = Build(task, Closed(task), Form()).Report!;
+        Assert.False(fromTheMenu.ReportJson.ContainsKey("graphics"));
+    }
 }

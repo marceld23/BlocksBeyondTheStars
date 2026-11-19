@@ -40,6 +40,9 @@ the translations. `WhatsNewContentTests` guards their shape.
 ## `playtests/<id>.json` — the tasks of the Test Pilot page
 
 The playtest tasks the game's **Test Pilot** page shows ([docs/developer/PLAYTEST_TASKS.md](../docs/developer/PLAYTEST_TASKS.md)).
+A task that teleports its tester to something rare (`guardian-giant`, `giant-buildings`) is bound to its world seed;
+a test builds that world and fails when a terrain generation step moved the place away — the doc's
+*Seed-bound tasks* says what to do then.
 Unlike the files above, the client does **not** read these from the repository: it fetches the catalogue
 from the report inbox, whose admin page is the catalogue's truth. This folder is its **mirror with a
 history** — one file per task, kept in step with `tools/playtests/sync_playtests.py`:

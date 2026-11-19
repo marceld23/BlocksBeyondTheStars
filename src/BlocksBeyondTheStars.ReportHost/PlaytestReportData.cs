@@ -35,6 +35,11 @@ public sealed class PlaytestReportData
 
     public bool WorkAttached { get; private set; }
 
+    /// <summary>How the game was drawn while the task was played, in one line (preset, render scale, screen, graphics
+    /// API) — the <c>graphics</c> node of a report sent from inside a world (#3838). Empty for a report from the menu
+    /// or an editor, and for a client older than that.</summary>
+    public string Graphics { get; private set; } = string.Empty;
+
     public List<PlaytestStepOutcome> Steps { get; } = new();
 
     /// <summary>Answers by question id: a star count or an option id.</summary>
@@ -62,6 +67,7 @@ public sealed class PlaytestReportData
                 Seconds = node.TryGetProperty("seconds", out var s) && s.TryGetInt64(out long sec) ? Math.Max(0, sec) : 0,
                 FreeText = Str(node, "freeText", 5000),
                 WorkAttached = node.TryGetProperty("workAttached", out var w) && w.ValueKind == JsonValueKind.True,
+                Graphics = GraphicsLine(rj),
             };
             if (!PlaytestCatalogValidator.IsWellFormedId(data.TaskId))
             {
@@ -84,6 +90,37 @@ public sealed class PlaytestReportData
            && int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int stars) && stars >= 1 && stars <= 5
             ? stars
             : 0;
+
+    private static string GraphicsLine(JsonElement reportJson)
+    {
+        if (!reportJson.TryGetProperty("graphics", out var g) || g.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        string preset = Str(g, "preset", 32);
+        if (preset.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        bool auto = g.TryGetProperty("presetAuto", out var a) && a.ValueKind == JsonValueKind.True;
+        var parts = new List<string> { "preset " + preset + (auto ? " (picked automatically)" : string.Empty) };
+        if (g.TryGetProperty("renderScale", out var rs) && rs.TryGetDouble(out double scale) && scale > 0)
+        {
+            parts.Add("render scale " + scale.ToString("0.##", CultureInfo.InvariantCulture));
+        }
+
+        foreach (string name in new[] { "screen", "api" })
+        {
+            if (Str(g, name, 32) is { Length: > 0 } value)
+            {
+                parts.Add(value);
+            }
+        }
+
+        return string.Join(" · ", parts);
+    }
 
     private static void ReadSteps(JsonElement node, PlaytestReportData data)
     {

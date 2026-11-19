@@ -36,8 +36,10 @@ public sealed class PlaytestProblem
 /// checks a task read <see cref="PlaytestReadMode.AsWritten"/>, so it can name everything the safe reader would
 /// silently cut or drop. An event name the build does not know is only a WARNING: a task may be written for a
 /// release whose event the inbox's build does not ship yet, and the client then lets the player tick the step off.
+/// An event the build knows to be newer than the first Test Pilot client is an ERROR without a matching
+/// <c>minVersion</c> (<see cref="PlaytestEventVersions"/>): that client cannot close such a step.
 /// </summary>
-public static class PlaytestCatalogValidator
+public static partial class PlaytestCatalogValidator
 {
     /// <summary>Every finding for <paramref name="task"/>; empty = fine.</summary>
     public static List<PlaytestProblem> Validate(PlaytestTask task)
@@ -79,10 +81,12 @@ public static class PlaytestCatalogValidator
         }
 
         CheckSteps(task, Error, Warn);
+        CheckEventVersions(task, Error);
         CheckQuestions(task, Error);
         if (task.World is { } world)
         {
             CheckWorld(task, world, Error, Warn);
+            CheckWorldFitsSteps(task, world, Warn);
         }
 
         return problems;
@@ -247,7 +251,7 @@ public static class PlaytestCatalogValidator
             }
             else if (!IsKnownEvent(check.Event))
             {
-                warn(where + ".check.event", $"'{check.Event}' is not an event this build knows — a client that does not know it either lets the player tick the step off");
+                warn(where + ".check.event", $"'{check.Event}' is not an event this build knows — a client that does not know it either lets the player tick the step off (v{PlaytestEventVersions.FirstClient} cannot: give the task a minVersion above it)");
             }
             else if (task.Area == PlaytestAreas.Editor && !PlaytestEditorEvents.IsEditorEvent(check.Event))
             {

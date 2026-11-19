@@ -799,8 +799,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The graphics node of a report (<see cref="GraphicsReportInfo"/>). Main thread.</summary>
-        private static GraphicsReportInfo GraphicsInfo(ClientSettings settings)
+        /// <summary>The graphics node of a report (<see cref="GraphicsReportInfo"/>) — a bug report's, and a playtest
+        /// report's when it is sent from inside a world (#3838). Main thread.</summary>
+        internal static GraphicsReportInfo GraphicsInfo(ClientSettings settings)
         {
             var info = new GraphicsReportInfo
             {

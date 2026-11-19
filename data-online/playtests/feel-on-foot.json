@@ -1,0 +1,82 @@
+{
+  "id": "feel-on-foot",
+  "rev": 1,
+  "enabled": false,
+  "sort": 40,
+  "area": "ingame",
+  "title": { "de": "Laufen, Springen, Bauen", "en": "Walking, jumping, building" },
+  "intro": {
+    "de": "Laufen, Springen, Abbauen und Bauen fühlen sich seit Kurzem anders an: Die Kamera bewegt sich mit, und es gibt neue Töne. Probiere alles aus und sag uns, wie es sich anfühlt.",
+    "en": "Walking, jumping, mining and building have felt different lately: the camera moves along, and there are new sounds. Try it all and tell us how it feels."
+  },
+  "minutes": 10,
+  "world": {
+    "seed": 20261119,
+    "startPlanet": "meadowlands",
+    "preset": "peaceful",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "10:00" }
+    ]
+  },
+  "steps": [
+    {
+      "id": "walk",
+      "text": { "de": "Lauf 100 Meter. Renne auch ein Stück.", "en": "Walk 100 metres. Run for a bit, too." },
+      "check": { "event": "move:walked", "required": 100 }
+    },
+    {
+      "id": "jump",
+      "text": { "de": "Spring fünfmal. Achte darauf, wie du landest.", "en": "Jump five times. Watch how you land." },
+      "check": { "event": "move:jump", "arg": "jump", "required": 5 }
+    },
+    {
+      "id": "mine",
+      "text": { "de": "Baue zehn Blöcke ab.", "en": "Mine ten blocks." },
+      "check": { "event": "mine:any", "required": 10 }
+    },
+    {
+      "id": "build",
+      "text": { "de": "Setze zehn Blöcke wieder hin.", "en": "Place ten blocks again." },
+      "check": { "event": "build:any", "required": 10 }
+    },
+    {
+      "id": "camera",
+      "text": {
+        "de": "Achte auf die Kamera beim Laufen und Landen. Fühlt sich ihre Bewegung gut an?",
+        "en": "Watch the camera while you walk and land. Does its movement feel good?"
+      }
+    },
+    {
+      "id": "sounds",
+      "text": {
+        "de": "Hör auf die Töne beim Laufen, Abbauen und Setzen. Passen sie zu dem, was du tust?",
+        "en": "Listen to the sounds of walking, mining and placing. Do they fit what you are doing?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "move",
+      "type": "stars",
+      "text": { "de": "Wie gut fühlen sich Laufen und Springen an?", "en": "How good do walking and jumping feel?" }
+    },
+    {
+      "id": "sounds",
+      "type": "stars",
+      "text": { "de": "Wie gut gefallen dir die Töne?", "en": "How much do you like the sounds?" }
+    },
+    {
+      "id": "camera",
+      "type": "choice",
+      "text": { "de": "Wie ist die Bewegung der Kamera?", "en": "What is the camera's movement like?" },
+      "options": [
+        { "id": "shaky", "text": { "de": "Zu wackelig", "en": "Too shaky" } },
+        { "id": "good", "text": { "de": "Genau richtig", "en": "Just right" } },
+        { "id": "stiff", "text": { "de": "Zu steif", "en": "Too stiff" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

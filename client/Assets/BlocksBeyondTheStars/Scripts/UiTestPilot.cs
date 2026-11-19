@@ -367,7 +367,7 @@ namespace BlocksBeyondTheStars.Client
             var state = hub.Progress.StepOf(task, step.Id);
             bool open = state.State == PlaytestStepStates.Open;
             bool failed = state.State == PlaytestStepStates.Failed;
-            bool recognisable = step.Check != null && !(IsServerEvent(step.Check.Event) && hub.ServerReportsEvents == false);
+            bool recognisable = step.Check != null && !(IsServerEvent(step.Check.Event) && hub.ServerReports(step.Check.Event) == false);
             bool buttons = open && !readOnly && !recognisable;
             int size = compact ? 16 : 19;
             float buttonsW = buttons ? (compact ? 0f : 340f) : 0f, chipW = buttons ? 0f : (compact ? 0f : 230f);

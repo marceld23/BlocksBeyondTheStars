@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -297,41 +298,76 @@ public sealed class SpaceManeuverTests : IDisposable
         Assert.InRange(dist, 11f, 13f); // … and kept its distance
     }
 
+    /// <summary>A cruiser charges its heavy shot at the pilot, who rolls right before it fires — or does not. Returns
+    /// the health the ship lost and how often the server called it a dodged heavy shot.</summary>
+    private (float Lost, int Evaded) FightCruiser(string name, bool roll)
+    {
+        var server = InSpace(name);
+        var heard = new RecordingGameEventListener();
+        server.AddGameEventListener(GameEventKeys.ShipEvaded, heard);
+        var cruiser = server.SpawnSpaceHostileForTest(Pilot, EnemyCatalog.Cruiser, CombatEntityKind.Cruiser, new Vector3f(30f, 0f, 0f))!;
+
+        double waited = 0;
+        while (server.HeavyChargeLeftForTest(Pilot, cruiser.Id) <= 0 && waited < 20)
+        {
+            server.Tick(0.1);
+            waited += 0.1;
+        }
+
+        Assert.True(server.HeavyChargeLeftForTest(Pilot, cruiser.Id) > 0, "the cruiser charges a heavy shot at a pilot in range");
+        while (server.HeavyChargeLeftForTest(Pilot, cruiser.Id) > 0.3)
+        {
+            server.Tick(0.1);
+        }
+
+        if (roll)
+        {
+            Assert.True(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll));
+        }
+
+        float before = Health(server);
+        Run(server, 0.5);
+        Assert.True(server.HeavyChargeLeftForTest(Pilot, cruiser.Id) <= 0, "the shot has fired");
+        return (before - Health(server), heard.Events.Count(e => e.Arg == GameEventKeys.EvadedHeavy));
+    }
+
     [Fact]
     public void HeavyShot_ChargesThenHits_AndARollMakesItMiss()
     {
-        float Fight(string name, bool roll)
-        {
-            var server = InSpace(name);
-            var cruiser = server.SpawnSpaceHostileForTest(Pilot, EnemyCatalog.Cruiser, CombatEntityKind.Cruiser, new Vector3f(30f, 0f, 0f))!;
-
-            double waited = 0;
-            while (server.HeavyChargeLeftForTest(Pilot, cruiser.Id) <= 0 && waited < 20)
-            {
-                server.Tick(0.1);
-                waited += 0.1;
-            }
-
-            Assert.True(server.HeavyChargeLeftForTest(Pilot, cruiser.Id) > 0, "the cruiser charges a heavy shot at a pilot in range");
-            while (server.HeavyChargeLeftForTest(Pilot, cruiser.Id) > 0.3)
-            {
-                server.Tick(0.1);
-            }
-
-            if (roll)
-            {
-                Assert.True(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll));
-            }
-
-            float before = Health(server);
-            Run(server, 0.5);
-            Assert.True(server.HeavyChargeLeftForTest(Pilot, cruiser.Id) <= 0, "the shot has fired");
-            return before - Health(server);
-        }
-
         float heavy = _content.Enemy(EnemyCatalog.Cruiser).Tier(EnemyTiers.Normal).HeavyShotDamage;
         Assert.True(heavy > 0f);
-        Assert.True(Fight("heavy_hit", roll: false) >= heavy, "the heavy shot lands on a ship that does not roll");
-        Assert.Equal(0f, Fight("heavy_miss", roll: true), 3);
+        var hit = FightCruiser("heavy_hit", roll: false);
+        Assert.True(hit.Lost >= heavy, "the heavy shot lands on a ship that does not roll");
+        Assert.Equal(0, hit.Evaded); // #3831: a hit is no evasion
+
+        var miss = FightCruiser("heavy_miss", roll: true);
+        Assert.Equal(0f, miss.Lost, 3);
+        Assert.Equal(1, miss.Evaded); // #3831: the roll made it miss — said once
+    }
+
+    // ---------------- #3831: the manoeuvres as game events ----------------
+
+    [Fact]
+    public void ARollAndABoost_AreGameEvents_OncePerManoeuvre()
+    {
+        var server = InSpace("maneuver_events");
+        var heard = new RecordingGameEventListener();
+        server.AddGameEventListener("ship:*", heard);
+        Run(server, 0.1);
+
+        Assert.True(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll));
+        Assert.False(server.ShipManeuver(Pilot, ShipManeuverKinds.Roll)); // inside the cooldown: refused, no event
+        Assert.Single(heard.Of(GameEventKeys.ShipRolled));
+
+        server.ShipManeuver(Pilot, ShipManeuverKinds.Boost, on: true);
+        Run(server, 1.0); // held for ten ticks: still one boost
+        Assert.Single(heard.Of(GameEventKeys.ShipBoosted));
+
+        server.ShipManeuver(Pilot, ShipManeuverKinds.Boost, on: false);
+        Run(server, 0.2);
+        server.ShipManeuver(Pilot, ShipManeuverKinds.Boost, on: true);
+        Run(server, 0.2);
+        Assert.Equal(2, heard.Of(GameEventKeys.ShipBoosted).Count());
+        Assert.All(heard.Events, e => Assert.Equal(Pilot, e.Player)); // the pilot's own doing
     }
 }

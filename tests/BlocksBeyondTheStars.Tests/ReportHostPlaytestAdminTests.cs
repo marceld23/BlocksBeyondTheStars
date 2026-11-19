@@ -24,7 +24,7 @@ internal static class PlaytestTestPayloads
 
     /// <summary>The client-direct playtest report of <paramref name="replyKey"/>.</summary>
     public static string Report(string replyKey, string taskId = "heavy-shot", string fun = "4", string hard = "tough",
-        string feel = "failed", bool withWork = false)
+        string feel = "failed", bool withWork = false, bool fromAWorld = false)
     {
         var body = new Dictionary<string, object?>
         {
@@ -54,6 +54,19 @@ internal static class PlaytestTestPayloads
                 },
             },
         };
+        if (fromAWorld)
+        {
+            // #3838: sent from inside a world, the report says how the game was drawn (a bug report's graphics node).
+            ((Dictionary<string, object?>)body["reportJson"]!)["graphics"] = new Dictionary<string, object?>
+            {
+                ["api"] = "Direct3D11",
+                ["preset"] = "High",
+                ["presetAuto"] = true,
+                ["renderScale"] = 0.85,
+                ["screen"] = "1920x1080",
+            };
+        }
+
         if (withWork)
         {
             body["attachments"] = new[]
@@ -188,6 +201,17 @@ public sealed class ReportHostPlaytestAdminTests : IClassFixture<ReportHostAdmin
 
         var feedback = PlaytestTestPayloads.Stored(_host.Store, ReportHostTestPayloads.Feedback("no-playtest"), Now);
         Assert.Null(PlaytestReportData.Read(feedback));
+    }
+
+    [Fact]
+    public void ReportData_SaysHowTheGameWasDrawn_ForAReportFromAWorld_AndNothingForOneFromTheMenu()
+    {
+        var world = PlaytestTestPayloads.Stored(_host.Store,
+            PlaytestTestPayloads.Report(FeedbackReplyKey.Derive("gfx-world"), fromAWorld: true), Now);
+        var menu = PlaytestTestPayloads.Stored(_host.Store, PlaytestTestPayloads.Report(FeedbackReplyKey.Derive("gfx-menu")), Now);
+
+        Assert.Equal("preset High (picked automatically) · render scale 0.85 · 1920x1080 · Direct3D11", PlaytestReportData.Read(world)!.Graphics);
+        Assert.Equal(string.Empty, PlaytestReportData.Read(menu)!.Graphics); // #3838: no node, no line
     }
 
     [Fact]
@@ -363,7 +387,7 @@ public sealed class ReportHostPlaytestAdminTests : IClassFixture<ReportHostAdmin
 
         StoreTask();
         string key = FeedbackReplyKey.Derive("pages-install");
-        var report = PlaytestTestPayloads.Stored(_host.Store, PlaytestTestPayloads.Report(key, withWork: true), Now);
+        var report = PlaytestTestPayloads.Stored(_host.Store, PlaytestTestPayloads.Report(key, withWork: true, fromAWorld: true), Now);
 
         string list = await PageAsync("/admin/playtests");
         Assert.Contains("Playtest tasks", list);
@@ -387,6 +411,7 @@ public sealed class ReportHostPlaytestAdminTests : IClassFixture<ReportHostAdmin
         Assert.Contains(WebUtility.HtmlEncode("Kein Rückstoß."), detail);
         Assert.Contains("★★★★☆", detail);
         Assert.Contains("Hard", detail); // the chosen option in words, not its id
+        Assert.Contains("preset High (picked automatically)", detail); // #3838: how the game was drawn
         Assert.Contains($"/admin/report/{report.Id}/attachment/0", detail);
         Assert.Contains($"/admin/report/{report.Id}/confirm", detail);
     }

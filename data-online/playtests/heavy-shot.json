@@ -1,0 +1,92 @@
+{
+  "id": "heavy-shot",
+  "rev": 1,
+  "enabled": false,
+  "sort": 70,
+  "area": "ingame",
+  "title": { "de": "Der schwere Schuss", "en": "The heavy shot" },
+  "intro": {
+    "de": "Große feindliche Schiffe laden einen schweren Schuss und warnen dich davor. Mit einer Fassrolle im richtigen Moment geht er daneben. In dieser Testwelt sind viele Gegner im All. Sag uns, ob der Kampf fair ist.",
+    "en": "Big hostile ships charge a heavy shot and warn you of it. A barrel roll at the right moment makes it miss. This test world has many enemies in space. Tell us whether the fight is fair."
+  },
+  "minutes": 15,
+  "world": {
+    "seed": 20261121,
+    "startPlanet": "rocky",
+    "preset": "standard",
+    "tutorial": "off",
+    "options": { "SpaceNpcs": 4 }
+  },
+  "steps": [
+    {
+      "id": "launch",
+      "text": { "de": "Starte mit deinem Schiff ins All.", "en": "Launch into space with your ship." },
+      "check": { "event": "space:enter" }
+    },
+    {
+      "id": "find",
+      "text": {
+        "de": "Suche ein großes feindliches Schiff: einen Kreuzer oder ein Räuberschiff. Findest du keines, wähle „Ging nicht“.",
+        "en": "Look for a big hostile ship: a cruiser or a raider ship. If you find none, choose “Did not work”."
+      }
+    },
+    {
+      "id": "warning",
+      "text": {
+        "de": "Warte, bis es den schweren Schuss lädt: Es glüht, und ein roter Ring zieht sich zusammen. Hast du die Warnung bemerkt?",
+        "en": "Wait until it charges the heavy shot: it glows, and a red ring closes in. Did you notice the warning?"
+      }
+    },
+    {
+      "id": "dodge",
+      "text": {
+        "de": "Weiche dem schweren Schuss mit einer Fassrolle aus. Probiere es mehrmals.",
+        "en": "Dodge the heavy shot with a barrel roll. Try it several times."
+      }
+    },
+    {
+      "id": "circle",
+      "text": {
+        "de": "Die Gegner umkreisen dich. Kannst du ihnen folgen und sie treffen?",
+        "en": "The enemies circle you. Can you follow them and hit them?"
+      }
+    },
+    {
+      "id": "shield",
+      "text": {
+        "de": "Schieße auf ein Schiff mit Schild. Siehst du, wo dein Schuss den Schild trifft?",
+        "en": "Shoot at a ship with a shield. Can you see where your shot hits the shield?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß macht der Kampf im All?", "en": "How much fun is the fight in space?" }
+    },
+    {
+      "id": "warning",
+      "type": "choice",
+      "text": { "de": "Kam die Warnung vor dem schweren Schuss rechtzeitig?", "en": "Did the warning of the heavy shot come in time?" },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja, rechtzeitig", "en": "Yes, in time" } },
+        { "id": "late", "text": { "de": "Zu spät", "en": "Too late" } },
+        { "id": "unseen", "text": { "de": "Ich habe sie nicht bemerkt", "en": "I did not notice it" } },
+        { "id": "none", "text": { "de": "Es kam kein schwerer Schuss", "en": "No heavy shot came" } }
+      ]
+    },
+    {
+      "id": "hard",
+      "type": "choice",
+      "text": { "de": "Wie schwer sind die Gegner?", "en": "How hard are the enemies?" },
+      "options": [
+        { "id": "easy", "text": { "de": "Zu leicht", "en": "Too easy" } },
+        { "id": "fits", "text": { "de": "Passt", "en": "They fit" } },
+        { "id": "tough", "text": { "de": "Zu schwer", "en": "Too hard" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

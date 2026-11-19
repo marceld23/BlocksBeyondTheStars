@@ -2068,7 +2068,11 @@ public sealed partial class GameServer
                 }
 
                 SetCurrent(pilot); // damage/shield below must resolve to THIS pilot's ship
-                TickPilotManeuvers(sim, dt); // #3754: the boost charge drains or refills
+                if (TickPilotManeuvers(sim, dt)) // #3754: the boost charge drains or refills
+                {
+                    RaiseGameEvent(pilot, GameEventKeys.ShipBoosted); // #3831: once per boost
+                }
+
                 float speed = (float)(System.Math.Sqrt(pose.Pos.DistanceSquared(sim.LastPosition))
                                       / System.Math.Max(dt, 0.0001));
                 sim.CollisionCooldown = System.Math.Max(0.0, sim.CollisionCooldown - dt);

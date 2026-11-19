@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
         private double _sentAt = double.NegativeInfinity;
         private double _waitingSince = double.NegativeInfinity;
         private bool _waiting;
+        private HashSet<string>? _accepted; // what the server took of the list last sent; null until its ack is here
 
         /// <param name="send">Sends a watch list to the server (<c>NetworkClient.SendPlaytestWatch</c>).</param>
         public PlaytestWatchSync(Action<IReadOnlyList<string>> send)
@@ -63,6 +64,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
             }
 
             _sent = new List<string>(wanted);
+            _accepted = null;
             _sentAt = nowSeconds;
             if (!_waiting)
             {
@@ -73,11 +75,56 @@ namespace BlocksBeyondTheStars.Client.Playtests
             _send(_sent);
         }
 
-        /// <summary>The server answered a list: it reports playtest events.</summary>
-        public void OnAck()
+        /// <summary>The server answered a list: it reports playtest events — those of <paramref name="accepted"/>, the
+        /// patterns it took. A server leaves out a pattern it does not know (an event newer than that server), and it
+        /// will never report that one (#3833).</summary>
+        public void OnAck(IReadOnlyList<string>? accepted = null)
         {
             _waiting = false;
             Supported = true;
+            _accepted = accepted == null ? null : new HashSet<string>(accepted, StringComparer.Ordinal);
+        }
+
+        /// <summary>Whether the server's answer to the list last sent left one of its patterns out.</summary>
+        public bool LeftSomethingOut
+        {
+            get
+            {
+                if (_accepted == null || _sent == null)
+                {
+                    return false;
+                }
+
+                foreach (string pattern in _sent)
+                {
+                    if (!_accepted.Contains(pattern))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Whether this server reports <paramref name="pattern"/>: false for a server that reports nothing, or one that
+        /// left the pattern out of its answer — the page then lets the player tick that step off by hand. Null while it
+        /// is not known: no answer yet, or the pattern was not in the list last sent (a step that is closed already).
+        /// </summary>
+        public bool? Reports(string pattern)
+        {
+            if (Supported != true)
+            {
+                return Supported;
+            }
+
+            if (_accepted == null || _sent == null || !_sent.Contains(pattern))
+            {
+                return null;
+            }
+
+            return _accepted.Contains(pattern);
         }
 
         /// <summary>A new connection (another world, a rejoin): nothing is watched there yet and nothing is known about
@@ -85,6 +132,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
         public void Reset()
         {
             _sent = null;
+            _accepted = null;
             _sentAt = double.NegativeInfinity;
             _waiting = false;
             Supported = null;

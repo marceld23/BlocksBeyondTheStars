@@ -50,6 +50,29 @@ public sealed class PlaytestWorldPlanTests
     }
 
     [Fact]
+    public void AnOption_IsCutToTheLastStepOfItsOwnSlider()
+    {
+        // #3840: the client looks the index up in the slider's own table — past the end the test world never starts.
+        // The activity and frequency sliders have five steps, life support and danger four.
+        string json = World.Replace("\"options\": {", "\"options\": { \"SpaceNpcs\": 9, \"Settlements\": 5, \"Oxygen\": 9, \"Hunger\": 4, \"DeathPenalty\": 7, \"UniverseSize\": 6, \"Ore\": -3,");
+        Assert.NotEqual(World, json);
+
+        var plan = PlaytestWorldPlan.For(Task(json), _ => true, "en");
+
+        Assert.Equal(4, plan.Options["SpaceNpcs"]);
+        Assert.Equal(4, plan.Options["Settlements"]);
+        Assert.Equal(4, plan.Options["UniverseSize"]);
+        Assert.Equal(3, plan.Options["Oxygen"]);
+        Assert.Equal(3, plan.Options["Hunger"]);
+        Assert.Equal(3, plan.Options["DeathPenalty"]);
+        Assert.Equal(0, plan.Options["Ore"]);
+        foreach (string option in PlaytestWorldPlan.AllowedOptions)
+        {
+            Assert.InRange(PlaytestWorldPlan.MaxIndexOf(option), 3, PlaytestWorldPlan.MaxOptionIndex);
+        }
+    }
+
+    [Fact]
     public void ATaskAboutTheStory_KeepsTheStoryInItsWorld()
     {
         // … unless the task switches it on (a task that tests the opening scene).

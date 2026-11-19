@@ -1,0 +1,101 @@
+{
+  "id": "throw-block",
+  "rev": 1,
+  "enabled": false,
+  "sort": 50,
+  "area": "ingame",
+  "title": { "de": "Blöcke werfen", "en": "Throwing blocks" },
+  "intro": {
+    "de": "Du kannst einen Block über den Kopf heben und werfen — auch auf feindliche Maschinen. In deinem Inventar liegen Steine dafür. Probiere es aus und sag uns, ob es Spaß macht.",
+    "en": "You can lift a block over your head and throw it — at hostile machines too. There are stones in your inventory for that. Try it and tell us whether it is fun."
+  },
+  "minutes": 10,
+  "world": {
+    "seed": 20261120,
+    "startPlanet": "rocky",
+    "preset": "standard",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "10:00" },
+      { "cmd": "give_item", "arg": "stone", "count": 20 }
+    ]
+  },
+  "steps": [
+    {
+      "id": "mine",
+      "text": {
+        "de": "Baue drei Blöcke ab. Dann hast du verschiedene Blöcke zum Werfen.",
+        "en": "Mine three blocks. Then you have different blocks to throw."
+      },
+      "check": { "event": "mine:any", "required": 3 }
+    },
+    {
+      "id": "lift",
+      "text": {
+        "de": "Wähle einen Block in der Schnellleiste und hebe ihn über den Kopf (Taste Q, wenn du sie nicht geändert hast).",
+        "en": "Pick a block in the quick bar and lift it over your head (the Q key, unless you changed it)."
+      }
+    },
+    {
+      "id": "throw",
+      "text": {
+        "de": "Wirf den Block mit der Angriffstaste dorthin, wo du hinschaust. Wirf mindestens fünf Blöcke.",
+        "en": "Throw the block with the attack key to where you are looking. Throw at least five blocks."
+      }
+    },
+    {
+      "id": "weight",
+      "text": {
+        "de": "Wirf zwei verschiedene Blöcke. Fliegt ein schwerer kürzer als ein leichter?",
+        "en": "Throw two different blocks. Does a heavy one fly less far than a light one?"
+      }
+    },
+    {
+      "id": "hit",
+      "text": {
+        "de": "Triff eine feindliche Maschine mit einem geworfenen Block. Findest du keine, wähle „Ging nicht“.",
+        "en": "Hit a hostile machine with a thrown block. If you find none, choose “Did not work”."
+      }
+    },
+    {
+      "id": "low",
+      "text": {
+        "de": "Stell dich unter eine niedrige Decke und wirf dort. Fliegt der Block trotzdem los?",
+        "en": "Stand under a low ceiling and throw there. Does the block still fly off?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß macht das Werfen?", "en": "How much fun is throwing?" }
+    },
+    {
+      "id": "damage",
+      "type": "choice",
+      "text": { "de": "Wie stark ist ein Treffer mit einem Block?", "en": "How strong is a hit with a block?" },
+      "options": [
+        { "id": "weak", "text": { "de": "Zu schwach", "en": "Too weak" } },
+        { "id": "fits", "text": { "de": "Passt", "en": "It fits" } },
+        { "id": "strong", "text": { "de": "Zu stark", "en": "Too strong" } },
+        { "id": "none", "text": { "de": "Ich habe nichts getroffen", "en": "I hit nothing" } }
+      ]
+    },
+    {
+      "id": "keys",
+      "type": "choice",
+      "text": {
+        "de": "Hast du die Tasten zum Heben und Werfen gleich gefunden?",
+        "en": "Did you find the keys for lifting and throwing straight away?"
+      },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja", "en": "Yes" } },
+        { "id": "later", "text": { "de": "Erst nach einer Weile", "en": "Only after a while" } },
+        { "id": "no", "text": { "de": "Nein", "en": "No" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

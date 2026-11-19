@@ -1,0 +1,94 @@
+{
+  "id": "hard-survival",
+  "rev": 1,
+  "enabled": false,
+  "sort": 80,
+  "area": "ingame",
+  "title": { "de": "Hartes Überleben", "en": "Hard Survival" },
+  "intro": {
+    "de": "In dieser Testwelt gilt das Harte Überleben: sehr viele Maschinen und Räuber. Wer umfällt, wacht nicht am Schiff auf, sondern schaut zu. Allein darfst du nach einer Minute am Schiff neu starten. Sag uns, ob das fair ist.",
+    "en": "This test world runs Hard Survival: very many machines and robbers. Whoever falls does not wake up at the ship but watches. Alone, you may start again at your ship after a minute. Tell us whether that is fair."
+  },
+  "minutes": 15,
+  "world": {
+    "seed": 20261122,
+    "startPlanet": "meadowlands",
+    "preset": "hard",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "10:00" }
+    ]
+  },
+  "steps": [
+    {
+      "id": "walk",
+      "text": { "de": "Geh 200 Meter von deinem Schiff weg.", "en": "Walk 200 metres away from your ship." },
+      "check": { "event": "move:walked", "required": 200 }
+    },
+    {
+      "id": "fight",
+      "text": {
+        "de": "Wehre dich gegen die Maschinen, so lange du kannst. Früher oder später fällst du um.",
+        "en": "Fight the machines for as long as you can. Sooner or later you will fall."
+      }
+    },
+    {
+      "id": "banner",
+      "text": {
+        "de": "Du bist gefallen: Lies, was auf dem Bildschirm steht. Verstehst du, was jetzt passiert?",
+        "en": "You have fallen: read what the screen says. Do you understand what happens now?"
+      }
+    },
+    {
+      "id": "watch",
+      "text": {
+        "de": "Flieg als Zuschauer ein Stück herum, während der Zähler läuft.",
+        "en": "Fly around a little as a watcher while the countdown runs."
+      }
+    },
+    {
+      "id": "restart",
+      "text": {
+        "de": "Starte am Schiff neu, sobald der Zähler abgelaufen ist.",
+        "en": "Start again at your ship as soon as the countdown has run out."
+      },
+      "check": { "event": "player:respawned" }
+    },
+    {
+      "id": "things",
+      "text": {
+        "de": "Deine Sachen liegen dort, wo du gefallen bist. Hol sie dir zurück. Schaffst du es nicht, wähle „Ging nicht“.",
+        "en": "Your things lie where you fell. Get them back. If you cannot, choose “Did not work”."
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß macht das Harte Überleben?", "en": "How much fun is Hard Survival?" }
+    },
+    {
+      "id": "fair",
+      "type": "choice",
+      "text": { "de": "Wie schwer ist diese Welt?", "en": "How hard is this world?" },
+      "options": [
+        { "id": "easy", "text": { "de": "Zu leicht", "en": "Too easy" } },
+        { "id": "fits", "text": { "de": "Schwer, aber fair", "en": "Hard, but fair" } },
+        { "id": "tough", "text": { "de": "Zu schwer", "en": "Too hard" } }
+      ]
+    },
+    {
+      "id": "wait",
+      "type": "choice",
+      "text": { "de": "Wie fühlt sich die Minute Warten an?", "en": "How does the minute of waiting feel?" },
+      "options": [
+        { "id": "short", "text": { "de": "Zu kurz", "en": "Too short" } },
+        { "id": "fits", "text": { "de": "Passt", "en": "It fits" } },
+        { "id": "long", "text": { "de": "Zu lang", "en": "Too long" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

@@ -169,4 +169,91 @@ public sealed class PlaytestWatchClientTests
         sync.Update(new[] { "mine:any", "scan:any" }, 60.0); // an ack that never comes for a LATER list changes nothing
         Assert.True(sync.Supported);
     }
+
+    // ---- #3833: a step whose event the build or the server does not know ------------------------------------------
+
+    [Fact]
+    public void TheSync_KnowsWhichPatternsTheServerTook_AndWhichItWillNeverReport()
+    {
+        var sync = new PlaytestWatchSync(_ => { });
+        Assert.Null(sync.Reports("mine:any")); // nothing asked yet
+
+        sync.Update(new[] { "mine:any", "throw:any" }, 1.0);
+        Assert.Null(sync.Reports("throw:any")); // asked, not answered
+        Assert.False(sync.LeftSomethingOut);
+
+        sync.OnAck(new[] { "mine:any" }); // an older server: it does not know the throw
+        Assert.True(sync.Reports("mine:any"));
+        Assert.False(sync.Reports("throw:any"));
+        Assert.True(sync.LeftSomethingOut);
+        Assert.Null(sync.Reports("scan:any")); // not in the list: a closed step, nothing is known about it
+
+        sync.Update(new[] { "throw:any" }, 5.0); // the next list: its answer is still out
+        Assert.Null(sync.Reports("throw:any"));
+        sync.OnAck(new[] { "throw:any" });
+        Assert.True(sync.Reports("throw:any"));
+        Assert.False(sync.LeftSomethingOut);
+
+        sync.Reset(); // another world: nothing is known about that server
+        Assert.Null(sync.Reports("throw:any"));
+
+        // A server that never answers reports nothing at all.
+        sync.Update(new[] { "mine:any" }, 10.0);
+        sync.Update(new[] { "mine:any" }, 10.0 + PlaytestWatchSync.AckTimeoutSeconds);
+        Assert.False(sync.Reports("mine:any"));
+    }
+
+    [Fact]
+    public void AnAckWithoutAList_SaysOnlyThatTheServerAnswers()
+    {
+        var sync = new PlaytestWatchSync(_ => { });
+        sync.Update(new[] { "mine:any" }, 1.0);
+        sync.OnAck();
+
+        Assert.True(sync.Supported);
+        Assert.Null(sync.Reports("mine:any"));
+        Assert.False(sync.LeftSomethingOut);
+    }
+
+    [Fact]
+    public void TheRealServer_LeavesAnUnknownEventOut_SoThePageOffersTheButtons()
+    {
+        var (harness, acks, _) = Joined();
+        using (harness)
+        {
+            var sync = new PlaytestWatchSync(list => harness.Client.SendPlaytestWatch(list));
+            sync.Update(new[] { "hotbar:select", "later:event" }, 1.0);
+
+            Assert.True(harness.PumpUntil(() => acks.Count == 1));
+            sync.OnAck(acks[0].Patterns);
+
+            Assert.True(sync.Reports("hotbar:select"));
+            Assert.False(sync.Reports("later:event"));
+        }
+    }
+
+    [Fact]
+    public void ACheckThisBuildDoesNotKnow_IsTakenOff_SoTheStepIsThePlayersToTick()
+    {
+        Assert.True(PlaytestCatalogJson.TryReadCatalog("""
+            { "tasks": [ { "id": "later", "title": { "de": "Später", "en": "Later" },
+                "steps": [ { "id": "new",  "text": { "de": "Neu.", "en": "New." },   "check": { "event": "later:event" } },
+                           { "id": "old",  "text": { "de": "Alt.", "en": "Old." },   "check": { "event": "mine:any", "required": 2 } },
+                           { "id": "edit", "text": { "de": "Editor.", "en": "Editor." }, "check": { "event": "editor:saved", "arg": "ship" } },
+                           { "id": "ui",   "text": { "de": "Menü.", "en": "Menu." },  "check": { "event": "ui:menu_open" } } ] } ] }
+            """, out var catalog));
+        Assert.NotNull(catalog.Tasks[0].Steps[0].Check); // the reader keeps it: the inbox serves what it read
+
+        var tracker = new PlaytestTracker(new PlaytestProgress(string.Empty));
+        tracker.SetCatalog(catalog, "2026.11.24");
+        var task = Assert.Single(tracker.Tasks);
+
+        Assert.Null(task.Steps[0].Check);
+        Assert.Equal(2, task.Steps[1].Check!.Required);
+        Assert.NotNull(task.Steps[2].Check);
+        Assert.NotNull(task.Steps[3].Check);
+
+        Assert.True(tracker.Activate("later", 100));
+        Assert.Equal(new[] { "mine:any" }, tracker.WatchPatterns()); // nothing is asked of a server for the unknown one
+    }
 }

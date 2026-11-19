@@ -1,0 +1,88 @@
+{
+  "id": "giant-buildings",
+  "rev": 1,
+  "enabled": false,
+  "sort": 120,
+  "area": "ingame",
+  "minVersion": "2026.11.23",
+  "title": { "de": "Ein Riesenbauwerk", "en": "A giant building" },
+  "intro": {
+    "de": "Kinder einer Schul-AG haben riesige Bauwerke für das Spiel entworfen. In dieser Testwelt steht eines davon, und du landest direkt davor. Sieh es dir in Ruhe an und sag uns, wie es auf dich wirkt.",
+    "en": "Children of a school club designed giant buildings for the game. One of them stands in this test world, and you land right in front of it. Take a good look and tell us what you think of it."
+  },
+  "minutes": 10,
+  "world": {
+    "seed": 45,
+    "startPlanet": "rocky",
+    "preset": "standard",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "10:00" },
+      { "cmd": "teleport_to_named", "arg": "landmark1" }
+    ]
+  },
+  "steps": [
+    {
+      "id": "around",
+      "text": { "de": "Geh einmal um das Bauwerk herum.", "en": "Walk once around the building." },
+      "check": { "event": "move:walked", "required": 100 }
+    },
+    {
+      "id": "inside",
+      "text": {
+        "de": "Suche einen Weg hinein. Findest du keinen, wähle „Ging nicht“.",
+        "en": "Look for a way in. If you find none, choose “Did not work”."
+      }
+    },
+    {
+      "id": "up",
+      "text": {
+        "de": "Steige oder klettere so hoch, wie du kommst. Wie ist die Aussicht?",
+        "en": "Walk or climb as high as you can get. What is the view like?"
+      }
+    },
+    {
+      "id": "detail",
+      "text": {
+        "de": "Suche etwas Besonderes am Bauwerk: eine Truhe, ein Muster oder einen versteckten Raum.",
+        "en": "Look for something special about the building: a chest, a pattern or a hidden room."
+      }
+    },
+    {
+      "id": "far",
+      "text": {
+        "de": "Geh ein Stück weg und dreh dich um. Sieht man das Bauwerk schon von Weitem?",
+        "en": "Walk away a little and turn round. Can you see the building from far off?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "look",
+      "type": "stars",
+      "text": { "de": "Wie gut gefällt dir das Bauwerk?", "en": "How much do you like the building?" }
+    },
+    {
+      "id": "explore",
+      "type": "choice",
+      "text": { "de": "Wie viel gab es dort zu entdecken?", "en": "How much was there to discover?" },
+      "options": [
+        { "id": "little", "text": { "de": "Zu wenig", "en": "Too little" } },
+        { "id": "fits", "text": { "de": "Genug", "en": "Enough" } },
+        { "id": "much", "text": { "de": "Sehr viel", "en": "A great deal" } }
+      ]
+    },
+    {
+      "id": "way",
+      "type": "choice",
+      "text": { "de": "Hast du einen Weg hinein gefunden?", "en": "Did you find a way in?" },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja, sofort", "en": "Yes, at once" } },
+        { "id": "later", "text": { "de": "Nach etwas Suchen", "en": "After some searching" } },
+        { "id": "no", "text": { "de": "Nein", "en": "No" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}
