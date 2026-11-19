@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📍 Justus' reports of 2026-11-19: traders seen landing, a second voice, wet walls, the carry in first person, the radar hint — #3824–#3828, PR #TBD — ✅ 2026-11-19 (⚠ playtest open; no save change; `SpaceWarpFx` and the packed voice grew additively; five new texts in 14 languages; eleven new sound clips)
+### 📍 Justus' reports of 2026-11-19: traders seen landing, a second voice, wet walls, the carry in first person, the radar hint — #3824–#3828, PR #3842 — ✅ 2026-11-19 (⚠ playtest open; no save change; `SpaceWarpFx` and the packed voice grew additively; five new texts in 14 languages; eleven new sound clips)
 
 - **Source.** Eight F1 reports of one evening (v2026.11.23). Five became work, two are ideas for later (#3829 the
   Guardian cruiser boss, #3830 the other side of the Sounders — both need a design first), one was praise. A wish to
