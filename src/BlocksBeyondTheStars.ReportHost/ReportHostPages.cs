@@ -31,7 +31,8 @@ public static class ReportHostPages
         sb.Append("<p class='hint'>This inbox receives in-game feedback (the F1/F2 dialog), crash reports, " +
                   "/bump snapshots and the players' submissions from the editors (texture, ship, structure, avatar, HUD frame). " +
                   "Player reports and the portal website's feedback form live in the fleet " +
-                  "admin — <code>play.&lt;your domain&gt;/admin</code>.</p>");
+                  "admin — <code>play.&lt;your domain&gt;/admin</code>. " +
+                  "The tasks of the game's Test Pilot page are edited under <a href='/admin/playtests'>playtest tasks</a>.</p>");
 
         sb.Append("<form method='get' action='/admin' class='filters'>");
         sb.Append("<select name='status'><option value=''>all statuses</option>");
@@ -41,7 +42,7 @@ public static class ReportHostPages
         }
 
         sb.Append("</select> <select name='category'><option value=''>all categories</option>");
-        foreach (var c in new[] { "feedback", "crash" }.Concat(ReportIngest.SubmissionCategories))
+        foreach (var c in new[] { "feedback", "crash", ReportIngest.PlaytestCategory }.Concat(ReportIngest.SubmissionCategories))
         {
             sb.Append($"<option value='{c}'{(c == category ? " selected" : "")}>{c}</option>");
         }
@@ -243,7 +244,7 @@ public static class ReportHostPages
 
         // Only the two halves of ONE report pair up — never a client report with an unrelated crash, and never
         // two rows from different players/builds that happen to collide in time.
-        if (a.Category != b.Category || a.GameVersion != b.GameVersion || !SameReporter(a, b))
+        if (!SameBucket(a, b) || a.GameVersion != b.GameVersion || !SameReporter(a, b))
         {
             return false;
         }
@@ -257,6 +258,27 @@ public static class ReportHostPages
 
         return da.Contains(db, StringComparison.Ordinal) || db.Contains(da, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Whether two rows can be the halves of one report by their category. Normally the categories are equal. The one
+    /// exception is a playtest report sent from inside a world: the client's own row is filed under
+    /// <see cref="ReportIngest.PlaytestCategory"/>, while the server's forward of the same moment — the rich /bump
+    /// snapshot — arrives as plain feedback with <c>source: "server"</c>. Without this the pair would stay apart and
+    /// an operator action ("confirm") would reach only one half.
+    /// </summary>
+    private static bool SameBucket(BugReportRecord a, BugReportRecord b)
+    {
+        if (a.Category == b.Category)
+        {
+            return true;
+        }
+
+        return IsPlaytestWithItsSnapshot(a, b) || IsPlaytestWithItsSnapshot(b, a);
+    }
+
+    private static bool IsPlaytestWithItsSnapshot(BugReportRecord playtest, BugReportRecord snapshot)
+        => playtest.Category == ReportIngest.PlaytestCategory && playtest.Source != "server"
+           && snapshot.Category == "feedback" && snapshot.Source == "server";
 
     /// <summary>Whether two rows come from the same reporter — by reply key when both carry one (exact: two
     /// installs never share a key), by player name otherwise. Never by player id, which the two halves of one
@@ -329,8 +351,10 @@ public static class ReportHostPages
     /// page says so when there is more than one. Null = <paramref name="r"/> alone.</param>
     /// <param name="readAttachment">Loads an attachment's bytes, so the card of a submitted creation can list the free
     /// text inside it (#3262). Null = the card lists the files only.</param>
+    /// <param name="extraCard">Ready-made HTML of one more card, shown after the submission card — the playtest
+    /// report's review card (<see cref="ReportHostPlaytestPages.ReportCard"/>). Empty = none.</param>
     public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null, IReadOnlyList<BugReportRecord>? pair = null, IReadOnlyList<AttachmentRecord>? attachments = null,
-        Func<AttachmentRecord, byte[]?>? readAttachment = null)
+        Func<AttachmentRecord, byte[]?>? readAttachment = null, string extraCard = "")
     {
         attachments ??= Array.Empty<AttachmentRecord>();
         replies ??= Array.Empty<ReplyRecord>();
@@ -369,6 +393,7 @@ public static class ReportHostPages
         // A submission (#1966 texture, #3262 ship / structure / avatar): its own review card. The preview of a creation
         // rides in the screenshot field — the card shows it, so the plain screenshot card is skipped for those.
         sb.Append(SubmissionCard.Render(r, attachments, readAttachment));
+        sb.Append(extraCard);
         bool creation = ReportIngest.IsSubmission(r.Category) && r.Category != ReportIngest.TextureCategory;
         if (r.ScreenshotFile.Length > 0 && !creation)
         {
@@ -481,9 +506,11 @@ public static class ReportHostPages
 
     private static string Shorten(string s, int max) => s.Length <= max ? s : s[..max] + "…";
 
-    private static string E(string s) => WebUtility.HtmlEncode(s);
+    /// <summary>HTML-encodes a stored string — every page of the inbox goes through it.</summary>
+    internal static string E(string s) => WebUtility.HtmlEncode(s);
 
-    private static string Shell(string title, string body) => $@"<!doctype html>
+    /// <summary>The page frame (head, styles) every admin page shares.</summary>
+    internal static string Shell(string title, string body) => $@"<!doctype html>
 <html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
 <meta name='robots' content='noindex'><title>{E(title)}</title>
 <style>
@@ -512,6 +539,9 @@ public static class ReportHostPages
  .replyform textarea, .replyform input[type=text] {{ background:#0e1428; color:#dbe4ff; border:1px solid #33406a; border-radius:6px; padding:.4rem .6rem; font:inherit; }}
  .replyform button {{ align-self:flex-start; }}
  .dup {{ background:#26314f; border-radius:4px; padding:0 .3rem; font-size:.8rem; text-decoration:none; }}
+ .taskform textarea {{ width:100%; box-sizing:border-box; min-height:28rem; background:#0e1428; color:#dbe4ff; border:1px solid #33406a; border-radius:6px; padding:.6rem; font:13px/1.45 ui-monospace, Consolas, monospace; }}
+ .problem-error {{ color:#ff9f9f; }} .problem-warning {{ color:#ffd479; }}
+ .off {{ opacity:.55; }}
 </style></head><body>
 {body}
 </body></html>";

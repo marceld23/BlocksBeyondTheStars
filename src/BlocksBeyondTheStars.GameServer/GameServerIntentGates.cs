@@ -61,7 +61,7 @@ public sealed partial class GameServer
         CutsceneSeenIntent => true,
         // #2469 (synthesis §5.7): the tutorial's UI teaching flags come from the pause menu too ("Codex" there, VEGA's
         // continue while the menu holds the world) — a flag only ticks off the sender's own lesson.
-        UiTutorialEvent => true,
+        UiTutorialEvent or PlaytestWatchIntent => true, // … and a playtest watch list from the pause menu's Test Pilot page (HandlePlaytestWatch)
         // #2478: the duel dialogue holds a singleplayer world while the core waits for an answer (like any scene that takes
         // the camera) — the answer itself must get through. It moves the duel and, at the last node, the story (the win
         // pacifies the machines); nothing of the frozen simulation ticks with it.

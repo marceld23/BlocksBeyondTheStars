@@ -36,3 +36,19 @@ blog and writes these files (`sync.py finish --whatsnew-repo …`, see the relea
 [AGENTS.md](../AGENTS.md)). `tools/devblog/export_whatsnew.py --languages-only` can rebuild them from a
 translation store; it merges into what is committed, so nothing is lost when a machine has only part of
 the translations. `WhatsNewContentTests` guards their shape.
+
+## `playtests/<id>.json` — the tasks of the Test Pilot page
+
+The playtest tasks the game's **Test Pilot** page shows ([docs/developer/PLAYTEST_TASKS.md](../docs/developer/PLAYTEST_TASKS.md)).
+Unlike the files above, the client does **not** read these from the repository: it fetches the catalogue
+from the report inbox, whose admin page is the catalogue's truth. This folder is its **mirror with a
+history** — one file per task, kept in step with `tools/playtests/sync_playtests.py`:
+
+```
+uv run --no-project python tools/playtests/sync_playtests.py check   # the files are well-formed
+uv run --no-project python tools/playtests/sync_playtests.py pull    # inbox -> repository
+uv run --no-project python tools/playtests/sync_playtests.py push    # repository -> inbox (refused when the inbox is newer)
+```
+
+A push changes what every player sees, without a release — review a task here first. Task texts are
+German and English; they never ask for personal data.

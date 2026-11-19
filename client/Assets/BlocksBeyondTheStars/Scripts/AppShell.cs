@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor, ToolLookEditor, Multiplayer }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor, ToolLookEditor, Multiplayer, TestPilot }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -286,6 +286,8 @@ namespace BlocksBeyondTheStars.Client
             var menuFeedback = gameObject.AddComponent<FeedbackUi>();
             menuFeedback.Shell = this;
             menuFeedback.Settings = Settings;
+
+            PlaytestHub.Create(this); // the Test Pilot page's state and its catalogue fetch (desktop builds only)
         }
 
         private void ConfigureOptionalWebAutoJoin()
@@ -1570,6 +1572,9 @@ namespace BlocksBeyondTheStars.Client
             var ed = _editorRoot.AddComponent<StructureEditor>();
             ed.Shell = this;
             ed.EditorMode = mode;
+            StructureEditorPlaytestKind = mode == StructureEditor.Mode.Settlement
+                ? BlocksBeyondTheStars.Shared.Playtests.PlaytestEditorEvents.Settlement
+                : BlocksBeyondTheStars.Shared.Playtests.PlaytestEditorEvents.Station;
             Phase = ShellPhase.StructureEditor;
         }
 
@@ -1880,6 +1885,7 @@ namespace BlocksBeyondTheStars.Client
             SyncShellScreen(ShellPhase.Editors, ref _uiEditors, UiEditors.Build);
             SyncShellScreen(ShellPhase.SaveSelect, ref _uiSaveSelect, UiSaveSelect.Build);
             SyncShellScreen(ShellPhase.Multiplayer, ref _uiMultiplayer, UiMultiplayer.Build);
+            SyncTestPilot(); // the Test Pilot page, its "confirmed" dialog and the editors' task list (AppShell.TestPilot.cs)
 
             // The open pause menu keeps its own status line in step with who else has (not) paused yet (#973). The
             // keep-alive that tells the server it is still there runs in the world's hold arbiter (#2461).
@@ -1940,7 +1946,7 @@ namespace BlocksBeyondTheStars.Client
             // screen underneath (its flag covers the frame it closed in, whichever Update ran first).
             bool cancel = Phase == ShellPhase.InGame
                 ? Input.GetKeyDown(KeyCode.Escape) || (_confirmQuit && InputMap.Down(InputAction.UiCancel))
-                : InputMap.Down(InputAction.UiCancel) && !FeedbackUi.ShellOwnsCancel;
+                : InputMap.Down(InputAction.UiCancel) && !FeedbackUi.ShellOwnsCancel && !PlaytestModal.OwnsCancel;
             if (cancel)
             {
                 if (Phase == ShellPhase.InGame)
@@ -1983,6 +1989,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (Phase == ShellPhase.Credits)
                 {
                     Phase = ShellPhase.MainMenu;
+                }
+                else if (Phase == ShellPhase.TestPilot)
+                {
+                    BackOutOfTestPilot(); // a task's view first, then the page
                 }
                 else if (Phase == ShellPhase.Editors)
                 {
@@ -2087,7 +2097,7 @@ namespace BlocksBeyondTheStars.Client
             bool returnShip = boot != null && boot.ReturnToShipOffered;
             const float ReasonH = 48f;
             // #3509: the Admin row (players the server lets into the admin view) and "Call an admin" (everyone in a world).
-            int extraRows = (returnShip ? 1 : 0) + PauseAdminRowCount(boot);
+            int extraRows = (returnShip ? 1 : 0) + PauseAdminRowCount(boot) + PauseTestPilotRowCount;
             float panelH = 340f + PauseQuitGap + (extraRows * PauseRow) + (returnShip ? ReasonH : 0f);
             var (pauseOverlay, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, (1080f - panelH) / 2f, 480f, panelH);
             _pauseOverlay = pauseOverlay;
@@ -2099,6 +2109,7 @@ namespace BlocksBeyondTheStars.Client
             y += PauseRow;
             UiKit.AddTierButton(panel.transform, PauseRowX, y, PauseRowW, 56f, L("ui.menu.settings"), OpenSettings, ButtonTier.Secondary, "btn_settings");
             y += PauseRow;
+            y = AddPauseTestPilotRow(panel.transform, y);
             y = AddPauseAdminRows(panel.transform, y, boot);
             y = AddReturnShipRow(panel.transform, y, returnShip);
             y += PauseQuitGap;

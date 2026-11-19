@@ -202,6 +202,7 @@ public sealed partial class GameServer
         On<StoryPackIntent>(map, (gs, s, m) => gs.HandleStoryPackIntent(s, m)); // #2466: the player's own pack controls
         On<CutsceneSeenIntent>(map, (gs, s, m) => gs.HandleCutsceneSeen(s, m)); // #2467: the seen ledger
         On<UiTutorialEvent>(map, (gs, s, m) => gs.HandleUiTutorialEvent(s, m)); // #2469: a UI lesson's teaching flag
+        On<PlaytestWatchIntent>(map, (gs, s, m) => gs.HandlePlaytestWatch(s, m)); // the Test Pilot page: events a task waits for
         On<NetFragmentFoundIntent>(map, (gs, s, m) => gs.HandleNetFragmentFound(s, m));
         On<CoreHackIntent>(map, (gs, s, m) => gs.HandleCoreHack(s, m));
         On<CoreDialogueChoiceIntent>(map, (gs, s, m) => gs.HandleCoreDialogueChoice(s, m));

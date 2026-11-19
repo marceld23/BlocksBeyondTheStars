@@ -59,6 +59,12 @@ public sealed class ReportHostConfig
     /// budget on polls — and a leaked key still cannot hammer the inbox.</summary>
     public int ReplyPerMinute { get; set; } = 30;
 
+    /// <summary>Rate limit for the playtest catalogue fetch (<c>GET /api/playtests</c>) per client IP per minute
+    /// (fixed window; <c>0</c> = off). Its own budget for the same reason as <see cref="ReplyPerMinute"/>: every
+    /// client fetches the catalogue, and a school class behind one NAT must still be able to file its reports. A
+    /// client asks at most every few hours, so sixty a minute covers a large network.</summary>
+    public int PlaytestPerMinute { get; set; } = 60;
+
     /// <summary>Files a submission may carry: a texture's picture as a PNG and the texture in the game's own format
     /// (#1966), or the one JSON document of a ship, station/town module or avatar skin (#3262). Other report kinds
     /// carry none — their one image stays the screenshot.</summary>
@@ -80,6 +86,7 @@ public sealed class ReportHostConfig
     /// <summary>The attachment size cap for a report of <paramref name="category"/>.</summary>
     public int MaxAttachmentBytesFor(string category)
         => category == ReportIngest.ShipCategory || category == ReportIngest.StructureCategory
+           || category == ReportIngest.PlaytestCategory // the tester's work, which may be a ship or a structure
             ? MaxCreationAttachmentBytes
             : MaxAttachmentBytes;
 
@@ -118,6 +125,7 @@ public sealed class ReportHostConfig
         if (Env("BBS_REPORTS_MAX_BODY_BYTES") is { } mbStr && long.TryParse(mbStr, out var mb)) { c.MaxBodyBytes = mb; }
         if (Env("BBS_REPORTS_INGEST_PER_MINUTE") is { } rlStr && int.TryParse(rlStr, out var rl)) { c.IngestPerMinute = rl; }
         if (Env("BBS_REPORTS_REPLY_PER_MINUTE") is { } rpStr && int.TryParse(rpStr, out var rp)) { c.ReplyPerMinute = rp; }
+        if (Env("BBS_REPORTS_PLAYTEST_PER_MINUTE") is { } ppStr && int.TryParse(ppStr, out var pp)) { c.PlaytestPerMinute = pp; }
         if (Env("BBS_REPORTS_RETENTION_DAYS") is { } rdStr && int.TryParse(rdStr, out var rd)) { c.RetentionDays = rd; }
         // The texture-era name still works; the general one (#3262) wins when both are set.
         if (Env("BBS_REPORTS_TEXTURE_RETENTION_DAYS") is { } trStr && int.TryParse(trStr, out var tr)) { c.SubmissionRetentionDays = tr; }

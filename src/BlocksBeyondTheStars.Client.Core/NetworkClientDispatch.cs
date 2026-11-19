@@ -23,6 +23,27 @@ namespace BlocksBeyondTheStars.Client
         /// dance, a flinch, the fall.</summary>
         public event Action<PlayerEmote>? PlayerEmoteReceived;
 
+        /// <summary>The server answered a playtest watch list (<see cref="SendPlaytestWatch"/>): it reports playtest
+        /// events, and these are the patterns it watches. An older server never answers.</summary>
+        public event Action<PlaytestWatchAck>? PlaytestWatchAckReceived;
+
+        /// <summary>A watched game event this player caused — a step of the playtest task may count it.</summary>
+        public event Action<PlaytestEvent>? PlaytestEventReceived;
+
+        /// <summary>The Test Pilot page: asks the server to report the game events the playtest task waits for (keys of
+        /// <c>GameEventKeys</c> or prefix patterns; an empty list ends the watch). Cheap and safe to send always — the
+        /// server stores and pays nothing, an older server drops the tag.</summary>
+        public void SendPlaytestWatch(IEnumerable<string> patterns)
+        {
+            var message = new PlaytestWatchIntent();
+            foreach (string pattern in patterns ?? Array.Empty<string>())
+            {
+                message.Patterns.Add(pattern);
+            }
+
+            Send(message);
+        }
+
         /// <summary>Plays one of the player's emotes (<see cref="PlayerEmotes"/>) for the players nearby; the server
         /// checks the id and the pace.</summary>
         public void SendEmote(byte emote) => Send(new PlayerEmoteIntent { Emote = emote });
@@ -205,6 +226,8 @@ namespace BlocksBeyondTheStars.Client
             On<DiscoveryLog>(map, (c, m) => c.DiscoveryLogReceived?.Invoke(m));
             On<EnemyLog>(map, (c, m) => c.EnemyLogReceived?.Invoke(m));
             On<PlayerEmote>(map, (c, m) => c.PlayerEmoteReceived?.Invoke(m)); // the feel pass
+            On<PlaytestWatchAck>(map, (c, m) => c.PlaytestWatchAckReceived?.Invoke(m)); // the Test Pilot page
+            On<PlaytestEvent>(map, (c, m) => c.PlaytestEventReceived?.Invoke(m));
             On<SpaceHeavyShot>(map, (c, m) => c.SpaceHeavyShotReceived?.Invoke(m)); // #3756
             On<PvpTargets>(map, (c, m) => c.PvpTargetsReceived?.Invoke(m));
             On<DuelNotice>(map, (c, m) => c.DuelNoticeReceived?.Invoke(m));

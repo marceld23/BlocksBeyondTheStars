@@ -36,11 +36,18 @@ public static class ReportHostApp
         builder.WebHost.UseUrls($"http://{config.BindAddress}:{config.Port}");
         builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = config.MaxBodyBytes);
 
+        // The playtest catalogue keeps its own small database next to the reports. Created by the container (a
+        // factory, not an instance), so disposing the app closes it — the report store stays the caller's.
+        string playtestDb = Path.Combine(store.DataDirectory, "playtests.db");
+        builder.Services.AddSingleton(_ => new PlaytestStore(playtestDb));
+
         var app = builder.Build();
         var log = app.Logger;
 
         int prunedAtStart = store.Prune(config.RetentionDays, ReportHostRuntime.NowUnix());
         prunedAtStart += store.PruneSubmissions(config.SubmissionRetentionDays, ReportHostRuntime.NowUnix());
+        // A tester's attached work goes after the same period; the playtest report itself stays for the evaluation.
+        store.PrunePlaytestAttachments(config.SubmissionRetentionDays, ReportHostRuntime.NowUnix());
         // Reports stored before the reply channel (#1327) get their reply key derived from the player id they
         // already carry, so their reporters can be answered too. Idempotent — a no-op after the first start.
         int backfilled = store.BackfillReplyKeys();
@@ -75,7 +82,8 @@ public static class ReportHostApp
             config.RetentionDays > 0 ? config.RetentionDays + "d" : "forever",
             prunedAtStart);
 
-        var runtime = new ReportHostRuntime(config, store, notifier, log, limiter, replyLimiter, csrf);
+        var runtime = new ReportHostRuntime(config, store, notifier, log, limiter, replyLimiter, csrf,
+            app.Services.GetRequiredService<PlaytestStore>(), new IngestRateLimiter(config.PlaytestPerMinute));
 
         // CORS, player-facing routes only: the WebGL client posts feedback and polls its reply threads
         // cross-origin (from play.* / glitch.fun pages), which needs the OPTIONS preflight answered and the
@@ -105,6 +113,8 @@ public static class ReportHostApp
         ReportHostPlayerEndpoints.Map(app, runtime);
         ReportHostApiEndpoints.Map(app, runtime);
         ReportHostAdminEndpoints.Map(app, runtime);
+        ReportHostPlaytestEndpoints.Map(app, runtime);
+        ReportHostPlaytestAdminEndpoints.Map(app, runtime);
 
         return app;
     }

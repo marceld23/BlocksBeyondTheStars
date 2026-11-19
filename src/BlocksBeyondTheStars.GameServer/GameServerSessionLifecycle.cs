@@ -51,6 +51,7 @@ public sealed partial class GameServer
     private static readonly LeaveStep[] LeaveCleanupSteps =
     {
         new("pending requests", static (g, s, _) => g.ForgetLeaverRequests(s)),
+        new("playtest watch", static (g, s, _) => g.DropPlaytestWatch(s)), // its listener leaves the event bus with the session
         new("markers", static (g, s, loc) => g.OnMarkerOwnerLeftWorld(s, loc, disconnected: true)), // #1293
         new("world presence", static (g, s, loc) => g.RemoveLeaverFromWorld(s, loc)),
         new("admin rosters", static (g, _, _) => g.RefreshAdminRosters()),

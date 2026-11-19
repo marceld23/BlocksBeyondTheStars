@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using BlocksBeyondTheStars.Client.Feedback;
+using BlocksBeyondTheStars.Client.Playtests;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -13,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// with a picture from the editor's own camera. The reviewer adopts it with <c>tools/pull_submissions.py --kind ship</c> and <c>tools/merge_ship.py</c>
     /// (stats are re-balanced by hand there).
     /// </summary>
-    public sealed partial class ShipEditor
+    public sealed partial class ShipEditor : IPlaytestWorkSource
     {
         /// <summary>The key of the shipped ship last loaded as a starting point (LOAD → built-in), else empty.</summary>
         private string _basedOn = string.Empty;
@@ -85,6 +86,18 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            var payload = BuildPayload(key);
+            _capturingPreview = true;
+            StartCoroutine(EditorPreviewCapture.FromCamera(_cam, _design.Keys, MaxW, MaxL, png =>
+            {
+                _capturingPreview = false;
+                OpenSubmitDialog(key, payload, png);
+            }));
+        }
+
+        /// <summary>The design as the bundle a submission — or a playtest report — carries: the two export files.</summary>
+        private CreationPayload BuildPayload(string key)
+        {
             var (ship, layout) = BuildExport(key);
             var payload = new CreationPayload
             {
@@ -92,14 +105,20 @@ namespace BlocksBeyondTheStars.Client
                 BlockFingerprint = Shell?.Content?.BlockFingerprint ?? string.Empty,
                 BasedOn = BasedOn(key),
             };
-            payload.Add("ship.json", JsonUtility.ToJson(ship)).Add("layout.json", JsonUtility.ToJson(layout));
+            return payload.Add("ship.json", JsonUtility.ToJson(ship)).Add("layout.json", JsonUtility.ToJson(layout));
+        }
 
-            _capturingPreview = true;
-            StartCoroutine(EditorPreviewCapture.FromCamera(_cam, _design.Keys, MaxW, MaxL, png =>
+        /// <summary>The design on the bench for a playtest report ("send my work along"); nothing while it is empty.</summary>
+        public FeedbackAttachment WorkForPlaytest()
+        {
+            if (_design.Count == 0)
             {
-                _capturingPreview = false;
-                OpenSubmitDialog(key, payload, png);
-            }));
+                return null;
+            }
+
+            string key = SaveKey();
+            key = string.IsNullOrEmpty(key) ? CreationSubmission.KindShip : key;
+            return PlaytestWork.OfCreation(CreationSubmission.KindShip, key, BuildPayload(key));
         }
 
         /// <summary>The shipped ship this design started from: the one last loaded, or the one whose key it still carries.</summary>

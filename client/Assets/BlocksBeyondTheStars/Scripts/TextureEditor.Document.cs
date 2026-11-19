@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.IO;
+using BlocksBeyondTheStars.Client.Feedback;
+using BlocksBeyondTheStars.Client.Playtests;
 using BlocksBeyondTheStars.Shared.Textures;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
@@ -21,10 +24,18 @@ namespace BlocksBeyondTheStars.Client
     /// the frames back as one undoable change, so the work is unsaved again.
     /// </para>
     /// </summary>
-    public sealed partial class TextureEditor : IEditorDocument
+    public sealed partial class TextureEditor : IEditorDocument, IPlaytestWorkSource
     {
         /// <summary>The draft slot and kind (#3689).</summary>
         internal const string DraftKind = "texture";
+
+        /// <summary>The open texture for a playtest report ("send my work along"): its draft — every frame as painted,
+        /// the speed and the key. Nothing while no texture is open.</summary>
+        public FeedbackAttachment WorkForPlaytest() => _entry == null ? null : PlaytestWork.OfFields(DraftKind, new[]
+        {
+            new KeyValuePair<string, string>("name", _entry.Key),
+            new KeyValuePair<string, string>("draft", SaveDraft()),
+        });
 
         /// <summary>The draft layout this editor writes and reads.</summary>
         internal const int DraftVersion = 1;
@@ -221,6 +232,7 @@ namespace BlocksBeyondTheStars.Client
                     _model.MarkSaved();
                 }
 
+                EditorPlaytest.SavedIf(ok, EditorPlaytest.Texture);
                 SetStatus(L(ok ? "ui.tex.saved_local" : "ui.tex.save_failed"), ok ? EditorStatusSeverity.Success : EditorStatusSeverity.Error);
                 RefreshBadges();
                 return ok;
@@ -233,6 +245,7 @@ namespace BlocksBeyondTheStars.Client
                 // The world wins over the local pack (decision 2026-09-20) — say so, or "it did not work" is what
                 // the player concludes when nothing changes around them.
                 bool hidden = GameTextures.HasWorld(_entry.Key) && GameTextures.ShowWorldTextures;
+                EditorPlaytest.Saved(EditorPlaytest.Texture);
                 SetStatus(L(hidden ? "ui.tex.saved_local_world_wins" : "ui.tex.saved_local"),
                     hidden ? EditorStatusSeverity.Warning : EditorStatusSeverity.Success);
             }
@@ -362,6 +375,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 File.WriteAllBytes(Path.Combine(dir, "texture.png"), TexturePackFolder.EncodeStrip(frames));
+                EditorPlaytest.Exported(EditorPlaytest.Texture);
                 SetStatus(L("ui.tex.exported"), EditorStatusSeverity.Success);
             }
             catch (Exception e)

@@ -24,14 +24,21 @@ public sealed class ReportHostRouteTableTests
 {
     private static readonly string[] Expected =
     {
+        "DELETE /api/playtests/{id}",
         "DELETE /api/reports/{id}",
         "GET /",
         "GET /admin",
         "GET /admin/export",
+        "GET /admin/playtests",
+        "GET /admin/playtests/new",
+        "GET /admin/playtests/{id}",
         "GET /admin/report/{id}",
         "GET /admin/report/{id}/attachment/{index:int}",
         "GET /admin/report/{id}/attachment/{index:int}/view",
         "GET /admin/report/{id}/screenshot",
+        "GET /api/playtests",
+        "GET /api/playtests/export",
+        "GET /api/playtests/mine",
         "GET /api/replies",
         "GET /api/reports",
         "GET /api/reports/{id}",
@@ -39,13 +46,21 @@ public sealed class ReportHostRouteTableTests
         "GET /api/reports/{id}/screenshot",
         "GET /healthz",
         "PATCH /api/reports/{id}",
+        "POST /admin/playtests/save",
+        "POST /admin/playtests/switch",
+        "POST /admin/playtests/{id}/delete",
+        "POST /admin/playtests/{id}/toggle",
+        "POST /admin/report/{id}/confirm",
         "POST /admin/report/{id}/delete",
         "POST /admin/report/{id}/reply",
         "POST /admin/report/{id}/status",
         "POST /api/bugreport",
+        "POST /api/playtests/enabled",
         "POST /api/replies",
         "POST /api/replies/ack",
+        "POST /api/reports/{id}/confirm",
         "POST /api/reports/{id}/replies",
+        "PUT /api/playtests/{id}",
     };
 
     [Fact]
@@ -66,7 +81,7 @@ public sealed class ReportHostRouteTableTests
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToArray();
 
-            Assert.Equal(22, Expected.Length);
+            Assert.Equal(37, Expected.Length);
             Assert.Equal(Expected.OrderBy(x => x, StringComparer.Ordinal), routes);
         }
         finally

@@ -222,6 +222,7 @@ namespace BlocksBeyondTheStars.Client
             BuildWreck(root);
             BuildShipRepair(root);
             BuildPinnedRecipe(root); // the recipe pinned in the crafting menu (HudUi.PinnedRecipe.cs)
+            BuildPlaytestCard(root); // the playtest task's current step (HudUi.Playtest.cs)
             BuildTaming(root);
             BuildMelodyBar(root); // #3346
             BuildBossBar(root); // #3676
@@ -357,6 +358,7 @@ namespace BlocksBeyondTheStars.Client
             RefreshWreck(loc);
             RefreshShipRepair(loc);
             RefreshPinnedRecipe(loc);
+            RefreshPlaytestCard();
             HudZones.SetHudCardsBottom(_contextY);
             RefreshTaming(loc);
             RefreshSpeeder(loc);

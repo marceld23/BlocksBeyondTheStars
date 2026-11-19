@@ -799,6 +799,7 @@ namespace BlocksBeyondTheStars.Client
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", meta.kind + "_templates");
                 Directory.CreateDirectory(userDir);
                 File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
+                EditorPlaytest.Saved(Shell != null ? Shell.StructureEditorPlaytestKind : EditorPlaytest.Station);
                 Saved(string.Format(L("ui.ed.saved_structure"), key, _design.Count, meta.pack)); // #3523
             }
             catch (Exception e)
@@ -918,6 +919,7 @@ namespace BlocksBeyondTheStars.Client
         /// only put a clone next to the original (and pinned worlds keep the original anyway).</summary>
         private void LoadBuiltIn(StructureTemplate t)
         {
+            EditorPlaytest.Loaded(Shell != null ? Shell.StructureEditorPlaytestKind : EditorPlaytest.Station);
             var cells = new List<CellJson>(t.Cells.Count);
             foreach (var c in t.Cells)
             {
@@ -1024,6 +1026,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Clears the current build and rebuilds it (+ the form) from a saved export bundle.</summary>
         private void LoadDesign(string key)
         {
+            EditorPlaytest.Loaded(Shell != null ? Shell.StructureEditorPlaytestKind : EditorPlaytest.Station);
             string dir = Path.Combine(ExportsRoot, key);
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))

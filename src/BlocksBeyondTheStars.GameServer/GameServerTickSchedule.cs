@@ -187,6 +187,7 @@ public sealed partial class GameServer
             TickStep.Plain("TickCutscenes", TickCutscenes), // #2468: queued cutscenes for every joined player, wherever they are (space too)
             TickStep.Plain("TickJournal", TickJournal), // #2471: the Journal's coalesced pushes (only players whose stories changed)
             TickStep.Dt("DeferredRewards", TickDeferredRewards), // #3082: a reward that waited for room is handed over once it fits
+            TickStep.Plain("PlaytestWatches", TickPlaytestWatches), // the Test Pilot page: the tick's watched events, added up, to their watchers
             TickStep.Dt("TickAmbientWeather", TickAmbientWeather), // #2173: the weather of every body in an occupied system
             TickStep.Dt("SampleHistories", SampleHistories), // also advances _uptime
             TickStep.Plain("SilentSessions", SweepSilentSessions), // release names/slots held by dead clients (#964)

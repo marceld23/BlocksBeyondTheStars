@@ -93,11 +93,11 @@ namespace BlocksBeyondTheStars.Client
         public bool IsOpen => _canvas != null;
 
         /// <summary>True while any submit dialog is on screen — an editor's camera and placement keep still meanwhile.</summary>
-        public static bool IsAnyOpen => _openDialogs > 0;
+        public static bool IsAnyOpen => _openDialogs > 0 || PlaytestModal.AnyOpen; // a playtest dialog over an editor counts the same
 
         /// <summary>True while any submit dialog owns the cancel key — including the frame it closed in, so the
         /// SAME press does not also close the editor underneath, whichever Update runs first.</summary>
-        public static bool OwnsCancel => _openDialogs > 0 || _closedFrame == Time.frameCount;
+        public static bool OwnsCancel => _openDialogs > 0 || _closedFrame == Time.frameCount || PlaytestModal.OwnsCancel;
 
         /// <summary>The locale key of a text of the dialog for <paramref name="kind"/>. The texture keeps its approved
         /// keys (<c>ui.tex.submit.*</c>); a creation has its own title, intro, name label, the first two consent

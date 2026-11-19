@@ -594,6 +594,8 @@ namespace BlocksBeyondTheStars.Client
 
             _uiTutorialSentAt[id] = now;
             Send(new UiTutorialEvent { Id = id });
+            // The same UI moment may be a step of a playtest task (the Test Pilot page counts those itself).
+            Playtests.PlaytestSignals.Raise(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiPrefix + id);
             return true;
         }
 

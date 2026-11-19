@@ -1078,6 +1078,13 @@ namespace BlocksBeyondTheStars.Client
                     continue; // nothing new, or every unseen entry was already queued/shown this session
                 }
 
+                // The thank-you to a confirmed playtest report is the Test Pilot page's to show (its own dialog, in a
+                // menu) — the badge turns gold there.
+                if (PlaytestHub.Instance != null && PlaytestHub.Instance.TakeConfirmation(thread))
+                {
+                    continue;
+                }
+
                 _inbox.Enqueue(thread);
                 first ??= thread;
             }

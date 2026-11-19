@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Feedback;
+using BlocksBeyondTheStars.Client.Playtests;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,7 +17,7 @@ namespace BlocksBeyondTheStars.Client
     /// asks (unsaved? undo? the draft?), the card geometry, the centre card's common parts (the layer line with ▲ / ▼,
     /// the layer strip, the Place | Remove switch) and the drafts' envelope (<see cref="CanvasDraftFormat"/>).
     /// </summary>
-    public abstract partial class LayerCanvasEditor : IEditorDocument
+    public abstract partial class LayerCanvasEditor : IEditorDocument, IPlaytestWorkSource
     {
         // The mock's cards (1920 × 1080 reference): list, canvas, preview.
         protected const float LeftX = 24f, CentreX = 400f, RightX = 1276f, CardY = 120f, CardH = 900f;
@@ -80,6 +82,14 @@ namespace BlocksBeyondTheStars.Client
         public void Redo() => DoRedo();
 
         public string SaveDraft() => CanvasDraftFormat.Wrap(DraftKind, DraftVersion, WriteDraftPayload());
+
+        /// <summary>The canvas for a playtest report ("send my work along"): its draft — exactly what is on the screen,
+        /// whether it could be saved or not, so the developers can bring it back the way a draft comes back.</summary>
+        public FeedbackAttachment WorkForPlaytest() => PlaytestWork.OfFields(DraftKind, new[]
+        {
+            new KeyValuePair<string, string>("name", DocumentName),
+            new KeyValuePair<string, string>("draft", SaveDraft()),
+        });
 
         public bool LoadDraft(string draft)
         {
