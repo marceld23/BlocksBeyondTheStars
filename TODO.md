@@ -26,6 +26,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧭 Test Pilot: a tester always knows what to test right now — #3853 (epic), #3846–#3852, PR #3854 — ✅ 2026-11-20 (⚠ playtest open; client + validator + data; one new key binding, no new message, no protocol bump, no save change; 22 new texts in 14 languages)
+
+- **Why.** A tester who took a task up and started a world saw one small card with one step's text — no task name, no
+  "step 2 of 5", no word about what to do with a step the game cannot recognise, and a long text cut without a mark.
+  Such a step held the card where it was while later steps were recognised behind it; with the last step closed the
+  card vanished without a word. In an editor there was only a folded chip, "TEST PILOT 1/4".
+- **The HUD card (#3846).** `PlaytestGuide.CardFor` (Client.Core, tested headless) decides what it shows:
+  "TEST PILOT · STEP 2 OF 5", the task's title, the step's whole text (the card grows; the old fixed box cut at about
+  three lines), the count of a counting step, and a hint — "The game notices this by itself." or "Done? Press F4 and
+  tick it off." (a pad: the pause menu). With every step closed it stays: "All steps done" and the way to the report.
+  The count is live now: the card's own stamp includes it (the hub's revision only moves for a closed step, so
+  "0 of 50" used to stand still).
+- **The Test Pilot key (#3847).** `InputAction.TestPilot`, F4 by default, rebindable. In a world it opens the page on
+  the task being worked on (the world is held as from the pause menu) and the same key or Esc goes straight back into
+  the game; in an editor it opens and folds the task's list. Nothing without a task, a focused text field or a dialog.
+- **Start and end (#3848).** In the test world created for a task a start card introduces it once the world is up
+  (title, what it is about, how many steps, where the step stands, the key; "Let's go"; the world waits behind it —
+  it opens after the start commands, because a held singleplayer server would drop them). Any other world gets one
+  status line. When the game recognises the last open step, the celebration banner says "All steps done".
+- **Editors (#3849).** The list is open the first time the editor is entered for a task; folded once it stays folded
+  for the session. The chip says "✔ Recognised by the game" for four seconds (an editor has no status line) and turns
+  into "Write report" when no step is open.
+- **The task's view (#3850).** An editor task has "Open: Ship Editor" (the editor's "opened" step is recognised at
+  once), an in-game task without a test world says that any world of the tester's own will do, the task's own test
+  world no longer says "leave this world first", and a task can be put aside and taken up again.
+- **"Did not work" for a recognised step (#3851).** An open step the game recognises offers the one button too — no
+  "Done", that stays the game's word. Closed that way it no longer counts events; taken back it is recognised again.
+  So a task may now recognise what takes skill or luck, if its `minVersion` is 2026.11.25 or later (an older client
+  shows such a step without any button).
+- **The task files (#3852).** Seven in-game tasks reworked to one shape — the doing is recognised, the judging is asked
+  at the end, a step names its key: `night-lamp` (`gear:equipped`), `space-moves` (`ship:rolled` ×2, `ship:boosted`),
+  `throw-block` (`carry:lifted`, `throw:any` ×5, `throw:hit`), `heavy-shot` (`ship:evaded`), `hard-survival`
+  (`player:fallen`), `pillar-climb` (`gear:equipped` ×2), `guardian-giant` (`guardian_giant:defeated`); `rev` 2 and
+  `minVersion` 2026.11.25 each. The validator warns about the shape this removes (`CheckStepOrder`: an in-game task
+  with a hand-ticked step before a recognised one; an editor task is exempt — its list is on the screen).
+- **Open.** (1) ⚠ The inbox still serves the old task files: push the seven reworked ones after the release that
+  carries this (`tools/playtests/sync_playtests.py push`) — until then nothing changes for a player, and after the
+  push a client older than 2026.11.25 no longer sees those seven. (2) ⚠ Playtest: the card, the key, the start card
+  and the reworked tasks have been played by nobody yet; the HUD card is not in `TestPilotTextFitEditModeTests` (the
+  HUD is TextMeshPro and needs a running game) — its texts wrap and the card grows, look at it once per language
+  family. (3) A pad has no Test Pilot button; its way stays the pause menu's row.
+
 ### 🧑‍🚀 Test Pilot: nine more tasks, nine new events, and the guards a task author needs — #3839 (epic), #3831–#3838, #3840, PR #3843 (`d4f1c5a0`) — ✅ released in v2026.11.24 (⚠ playtest open; server + client + inbox + data; nine new game events, no new message, no protocol bump, no save change, no new texts)
 
 - **Tasks (data, all switched off).** Nine new files under `data-online/playtests/` beside the three of #3801 —

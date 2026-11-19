@@ -257,6 +257,7 @@ Last updated: 2026-10-04.
 | **V** | Toggle first / third-person camera |
 | **P** (hold or tap) | **Emote wheel** — hold the key, point at one of the nine gestures, let go to play it; or tap the key and click a gesture (see §5 → Emotes) — rebindable; on a gamepad and on a tablet it is in the action list |
 | **F10** | **HUD off / on** — hides the whole display for a clean view or a screenshot; a short note names the key that brings it back — rebindable |
+| **F4** | **Test Pilot task** — while you work on a playtest task: opens the task with all its steps, and the same key (or Esc) takes you straight back into the game; in an editor it opens and folds the task's list (see *Test Pilot*). Does nothing without a task — rebindable; on a gamepad use the **Test Pilot** row of the pause menu |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
 | **Tab** | Open / close the on-board console (Inventory, Crafting, Blueprints, Ship, Map, Logbook, Knowledge, Me); also closes full-screen menu screens such as the Codex |
@@ -5648,17 +5649,33 @@ with none at all that you need one.
 - The page lists **tasks** the developers would like tested — something new in the game, or one of the editors.
   Each task says where it takes place, about how long it takes and how far you are. New tasks arrive over the
   internet without a game update; the page fetches them when you open it.
-- **Open a task** to work on it. It shows what the task is about and its **steps**:
+- **Open a task** to work on it — that task is then the one you are working on. It shows what the task is about
+  and its **steps**:
   - Some steps the game notices by itself ("Launch into space") — they tick themselves and say **Recognised by
-    the game**; a step that counts ("Break three asteroids") shows how far you are.
+    the game**; a step that counts ("Break three asteroids") shows how far you are. If you cannot get such a step
+    to happen, press **Did not work** and say in a sentence why — the task goes on.
   - Other steps only you can judge ("Does the shot feel heavy?"): press **Done** — or **Did not work** and say in
     a sentence what happened. A step that did not work counts just as much; those reports help the most.
-  - A step your game version — or the server you play on — cannot notice yet shows the same two buttons, so a task
+  - A step your game version — or the server you play on — cannot notice yet shows the two buttons, so a task
     never gets stuck on it.
-  - While you play, the current step stays on the screen as a small **Test Pilot** card at the right. In an
-    editor, a **Test Pilot** chip in the top-right corner shows how far you are; a click opens the list.
-- Some tasks bring a **test world**: **Create test world** makes a world of its own for the task and starts it.
-  Your own worlds stay untouched.
+  - **Put aside** takes the task off your screen (your ticks stay); **Take up** brings it back.
+- **How a task begins** is written under "What it is about":
+  - Some tasks bring a **test world**: **Create test world** makes a world of its own for the task and starts it.
+    Your own worlds stay untouched. When the test world is up, a **start card** tells you once more what the task
+    is about; **Let's go** starts it.
+  - A task in an **editor** has the button **Open: …** — it takes you straight into that editor.
+  - Any other task runs in **any of your own worlds**: start one, and a line names the task that is running.
+- **While you play**, a **Test Pilot card** at the right of the screen says what you are testing right now: the
+  task, "step 2 of 5", the whole text of the step and what to do about it — either "The game notices this by
+  itself." or "Done? Press **F4** and tick it off."
+  - **F4** (rebindable; on a gamepad the **Test Pilot** row of the pause menu) opens the task with all its steps.
+    There you tick off what the game cannot notice. The same key or Esc takes you straight back into the game.
+  - When every step is closed, a banner says **All steps done** and the card keeps saying so until you have
+    written the report.
+- **In an editor** the task's list is open at the top right when you enter; **Fold away** makes room, and a
+  **Test Pilot** chip stays in the corner with how far you are ("2/4"). It says "Recognised by the game" for a
+  moment when the editor ticked a step for you, and becomes **Write report** when every step is closed. A click
+  on the chip or **F4** opens the list again.
 - When every step is closed, **Write report**: a few questions (stars, or picking an answer — all of them are
   needed), a line in your own words if you like, and a nickname if you like. No e-mail is asked for. From an
   editor you can tick **Send my work along** — only so the developers can find a fault, it is never put into the

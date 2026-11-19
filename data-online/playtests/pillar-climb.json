@@ -1,9 +1,10 @@
 {
   "id": "pillar-climb",
-  "rev": 1,
+  "rev": 2,
   "enabled": false,
   "sort": 100,
   "area": "ingame",
+  "minVersion": "2026.11.25",
   "title": { "de": "Hoch hinaus auf der Säulenwelt", "en": "Up high on the Pillar World" },
   "intro": {
     "de": "Diese Testwelt ist eine Säulenwelt: lauter hohe Felssäulen. In deinem Inventar liegen Kletterhandschuhe, eine Energieseilpistole und ein Gleiter. Klettere nach oben, gleite hinunter und sag uns, wie es sich anfühlt.",
@@ -26,9 +27,15 @@
     {
       "id": "wear",
       "text": {
-        "de": "Öffne dein Inventar und lege die Kletterhandschuhe und den Gleiter an.",
-        "en": "Open your inventory and put on the climbing gloves and the glider."
-      }
+        "de": "Öffne dein Inventar und lege die Kletterhandschuhe an.",
+        "en": "Open your inventory and put on the climbing gloves."
+      },
+      "check": { "event": "gear:equipped", "arg": "climbing_gloves" }
+    },
+    {
+      "id": "wear-glider",
+      "text": { "de": "Lege auch den Gleiter an.", "en": "Put on the glider, too." },
+      "check": { "event": "gear:equipped", "arg": "glider" }
     },
     {
       "id": "climb",
@@ -39,26 +46,26 @@
       "check": { "event": "move:climbed", "required": 20 }
     },
     {
+      "id": "glide",
+      "text": {
+        "de": "Klettere auf eine Säule, so hoch du kommst. Spring dann ab und halte im Fallen die Sprungtaste: Der Gleiter öffnet sich.",
+        "en": "Climb a pillar as high as you can get. Then jump off and hold the jump key while you fall: the glider opens."
+      },
+      "check": { "event": "move:airborne", "arg": "glider" }
+    },
+    {
       "id": "rope",
       "text": {
-        "de": "Schieße das Energieseil an eine Wand über dir und zieh dich daran hoch.",
-        "en": "Shoot the energy rope at a wall above you and pull yourself up on it."
+        "de": "Schieße das Energieseil an eine Wand über dir und zieh dich daran hoch. Klappt das?",
+        "en": "Shoot the energy rope at a wall above you and pull yourself up on it. Does that work?"
       }
     },
     {
       "id": "top",
       "text": {
-        "de": "Erreiche die Krone einer Säule. Schaffst du es nicht, wähle „Ging nicht“.",
-        "en": "Reach the crown of a pillar. If you cannot, choose “Did not work”."
+        "de": "Hast du die Krone einer Säule erreicht? Wenn nicht, wähle „Ging nicht“.",
+        "en": "Did you reach the crown of a pillar? If not, choose “Did not work”."
       }
-    },
-    {
-      "id": "glide",
-      "text": {
-        "de": "Spring ab und halte im Fallen die Sprungtaste: Der Gleiter öffnet sich.",
-        "en": "Jump off and hold the jump key while you fall: the glider opens."
-      },
-      "check": { "event": "move:airborne", "arg": "glider" }
     }
   ],
   "questions": [

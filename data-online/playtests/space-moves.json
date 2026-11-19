@@ -1,9 +1,10 @@
 {
   "id": "space-moves",
-  "rev": 1,
+  "rev": 2,
   "enabled": true,
   "sort": 10,
   "area": "ingame",
+  "minVersion": "2026.11.25",
   "title": { "de": "Fassrolle und Boost", "en": "Barrel roll and boost" },
   "intro": {
     "de": "Dein Schiff kann zwei Manöver: die Fassrolle und den Boost. Probiere beide im All aus und sag uns, wie sie sich anfühlen.",
@@ -18,19 +19,31 @@
     },
     {
       "id": "roll",
-      "text": { "de": "Mach eine Fassrolle nach links und eine nach rechts.", "en": "Do a barrel roll to the left and one to the right." }
+      "text": {
+        "de": "Mach zwei Fassrollen (Leertaste, wenn du sie nicht geändert hast). Steuerst du dabei nach links, rollt das Schiff nach links.",
+        "en": "Do two barrel rolls (the space bar, unless you changed it). Steer to the left while you do, and the ship rolls to the left."
+      },
+      "check": { "event": "ship:rolled", "required": 2 }
     },
     {
       "id": "boost",
       "text": {
-        "de": "Boost, bis der orange Balken leer ist. Füllt er sich danach von selbst wieder?",
-        "en": "Boost until the orange bar is empty. Does it refill by itself afterwards?"
-      }
+        "de": "Zünde den Boost: Gib Schub und halte dabei die Umschalttaste, bis der orange Balken leer ist.",
+        "en": "Fire the boost: thrust and hold Shift until the orange bar is empty."
+      },
+      "check": { "event": "ship:boosted" }
     },
     {
       "id": "rocks",
       "text": { "de": "Zerstöre drei Asteroiden.", "en": "Break three asteroids." },
       "check": { "event": "asteroid:destroyed", "required": 3 }
+    },
+    {
+      "id": "refill",
+      "text": {
+        "de": "Füllt sich der orange Balken nach dem Boost von selbst wieder?",
+        "en": "Does the orange bar refill by itself after the boost?"
+      }
     },
     {
       "id": "bars",

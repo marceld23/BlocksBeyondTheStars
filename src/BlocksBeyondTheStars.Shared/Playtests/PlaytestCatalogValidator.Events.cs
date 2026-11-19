@@ -123,6 +123,37 @@ public static partial class PlaytestCatalogValidator
         }
     }
 
+    /// <summary>
+    /// #3852: in a world the HUD shows the first open step, so a step the tester has to tick off holds the card there
+    /// while later steps are recognised behind it. An in-game task therefore lets the game recognise the doing first
+    /// and asks the judging at the end. An editor task is exempt: its whole list is on the screen, buttons included.
+    /// </summary>
+    private static void CheckStepOrder(PlaytestTask task, Action<string, string> warn)
+    {
+        if (task.Area != PlaytestAreas.Ingame)
+        {
+            return;
+        }
+
+        int lastRecognised = -1;
+        for (int i = 0; i < task.Steps.Count; i++)
+        {
+            if (task.Steps[i].Check is { Event.Length: > 0 })
+            {
+                lastRecognised = i;
+            }
+        }
+
+        for (int i = 0; i < lastRecognised; i++)
+        {
+            if (task.Steps[i].Check is null)
+            {
+                warn($"steps[{i}]", $"is ticked off by the tester but stands before steps[{lastRecognised}], which the game recognises — "
+                                    + "the HUD shows the first open step and would stay on this one. Recognise the doing first, ask the judging at the end");
+            }
+        }
+    }
+
     /// <summary>#3837: a step that the task's own test world cannot bring about.</summary>
     private static void CheckWorldFitsSteps(PlaytestTask task, PlaytestWorld world, Action<string, string> warn)
     {

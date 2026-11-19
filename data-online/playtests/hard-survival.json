@@ -1,9 +1,10 @@
 {
   "id": "hard-survival",
-  "rev": 1,
+  "rev": 2,
   "enabled": false,
   "sort": 80,
   "area": "ingame",
+  "minVersion": "2026.11.25",
   "title": { "de": "Hartes Überleben", "en": "Hard Survival" },
   "intro": {
     "de": "In dieser Testwelt gilt das Harte Überleben: sehr viele Maschinen und Räuber. Wer umfällt, wacht nicht am Schiff auf, sondern schaut zu. Allein darfst du nach einer Minute am Schiff neu starten. Sag uns, ob das fair ist.",
@@ -30,29 +31,30 @@
       "text": {
         "de": "Wehre dich gegen die Maschinen, so lange du kannst. Früher oder später fällst du um.",
         "en": "Fight the machines for as long as you can. Sooner or later you will fall."
-      }
+      },
+      "check": { "event": "player:fallen" }
+    },
+    {
+      "id": "restart",
+      "text": {
+        "de": "Du bist gefallen: Lies, was auf dem Bildschirm steht, und flieg als Zuschauer ein Stück herum. Starte am Schiff neu, sobald der Zähler abgelaufen ist.",
+        "en": "You have fallen: read what the screen says, and fly around a little as a watcher. Start again at your ship as soon as the countdown has run out."
+      },
+      "check": { "event": "player:respawned" }
     },
     {
       "id": "banner",
       "text": {
-        "de": "Du bist gefallen: Lies, was auf dem Bildschirm steht. Verstehst du, was jetzt passiert?",
-        "en": "You have fallen: read what the screen says. Do you understand what happens now?"
+        "de": "Als du gefallen warst: Hast du verstanden, was auf dem Bildschirm stand und was dann passiert?",
+        "en": "When you had fallen: did you understand what the screen said and what happens next?"
       }
     },
     {
       "id": "watch",
       "text": {
-        "de": "Flieg als Zuschauer ein Stück herum, während der Zähler läuft.",
-        "en": "Fly around a little as a watcher while the countdown runs."
+        "de": "Konntest du als Zuschauer herumfliegen, während der Zähler lief?",
+        "en": "Could you fly around as a watcher while the countdown ran?"
       }
-    },
-    {
-      "id": "restart",
-      "text": {
-        "de": "Starte am Schiff neu, sobald der Zähler abgelaufen ist.",
-        "en": "Start again at your ship as soon as the countdown has run out."
-      },
-      "check": { "event": "player:respawned" }
     },
     {
       "id": "things",

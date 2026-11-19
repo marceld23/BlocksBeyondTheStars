@@ -88,7 +88,9 @@ cluster.
   and crouch into a press: run reuses the pad's stick-click rule (`SprintToggleDown` → `SprintState`), crouch latches
   in `InputMap.KeyboardCrouch` and the space bar (the keyboard's jump) clears it. Two new actions: `InputAction.EmoteWheel` (P, held or tapped — the wheel
   is open while the key is down) and `InputAction.ToggleHud` (F10); neither has a stock pad button, the emote wheel
-  is in the context-actions list.
+  is in the context-actions list. `InputAction.TestPilot` (F4, #3847) is read by the shell, not by the world: while a
+  playtest task is being worked on it opens that task's page from the world and leaves it again, and in an editor it
+  opens and folds the task's list (`AppShell.HandleTestPilotKey`); a pad reaches the page through the pause menu.
 - **Never Y or Z as a default key.** `ProjectSettings/InputManager.asset` has `m_UsePhysicalKeys: 1`: a `KeyCode` names
   a key's POSITION on a US keyboard, which keeps WASD in place on every layout. Y and Z are the two letters a German
   keyboard swaps, so a default on `KeyCode.Y` sits on the key labelled Z there while every text says "Y" (the emote

@@ -22,8 +22,9 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
     /// <summary>
     /// The Test Pilot screens in Unity itself (#3812), in every game language: the page (empty and with tasks in every
     /// state), a task's view (with a test world, with a world this build cannot create, half done, sent, an editor
-    /// task), the report dialog (with and without "send my work"), the "did not work" note, the "confirmed" dialog and
-    /// the list over an editor (chip and open). Every <see cref="Text"/> is held to the rules of
+    /// task, an in-game task without a test world, a task put aside), the start card of a test world, the report dialog
+    /// (with and without "send my work"), the "did not work" note, the "confirmed" dialog and the list over an editor
+    /// (the chip in its three states, and open). Every <see cref="Text"/> is held to the rules of
     /// <see cref="UiTextFit"/>. The tasks are the repository's own task files, so their German and English texts are
     /// measured too (a task's texts are German + English; every other language shows the English one).
     /// </summary>
@@ -32,7 +33,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         private static readonly string[] Screens =
         {
             "page-empty", "page", "task-world", "task-world-refused", "task-progress", "task-sent", "task-editor",
-            "report", "report-editor", "note", "confirmed", "editor-chip", "editor-list",
+            "task-own-world", "task-aside", "start-card",
+            "report", "report-editor", "note", "confirmed", "editor-chip", "editor-chip-recognised", "editor-chip-ready", "editor-list",
         };
 
         private readonly List<GameObject> _spawned = new();
@@ -144,6 +146,20 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 case "task-editor":
                     Page(shell, hub, editor);
                     break;
+                case "task-own-world": // an in-game task without a test world: the line that says where to play it
+                    Page(shell, hub, ingame);
+                    break;
+                case "task-aside": // put aside: the view offers to take the task up again
+                    hub.Activate(ingame.Id);
+                    hub.Deactivate();
+                    UiTestPilot.OpenTaskId = ingame.Id;
+                    Track(UiTestPilot.Build(shell));
+                    break;
+                case "start-card": // the task with the longest introduction: the card grows with it
+                    string lang = shell.Settings.Language;
+                    PlaytestStartCard.Open(shell, hub.Tracker.Tasks.Where(t => t.World != null)
+                        .OrderByDescending(t => t.Intro.For(lang).Length).First());
+                    break;
                 case "report":
                     PlaytestReportDialog.Open(shell, world);
                     break;
@@ -166,6 +182,20 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 case "editor-list":
                     HalfDone(hub, editor);
                     EditorPanel(shell, hub, editor, expanded: screen == "editor-list");
+                    break;
+                case "editor-chip-recognised": // the chip says for a few seconds that the game recognised a step
+                    HalfDone(hub, editor);
+                    hub.MarkRecognisedForTest();
+                    EditorPanel(shell, hub, editor, expanded: false);
+                    break;
+                case "editor-chip-ready": // every step closed: the chip is the way to the report
+                    hub.Activate(editor.Id);
+                    foreach (var step in editor.Steps)
+                    {
+                        hub.Progress.SetStep(editor, step.Id, PlaytestStepStates.Done, null, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    }
+
+                    EditorPanel(shell, hub, editor, expanded: false);
                     break;
             }
         }
