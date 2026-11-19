@@ -494,4 +494,21 @@ public sealed class ReportHostPlaytestAdminTests : IClassFixture<ReportHostAdmin
 
         Assert.Null(_host.Playtests.Get("toggle-task"));
     }
+
+    [Fact]
+    public async Task DeleteForm_TakesAnIdThatIsNoTask_AndALoggedValueNeverBreaksTheLineAsync()
+    {
+        string token = await TokenAsync();
+
+        // A route value is whatever the caller typed — here with an encoded line break in it. Nothing is stored
+        // under it, so the page answers as for any delete and writes no "deleted" line.
+        using (var unknown = await PostFormAsync("/admin/playtests/no-such-task%0Aforged/delete", new() { ["csrf"] = token }))
+        {
+            Assert.Equal(HttpStatusCode.Found, unknown.StatusCode);
+        }
+
+        Assert.Equal("heavy-shot", ReportHostRuntime.LogSafe("heavy-shot"));
+        Assert.Equal("oneforged line", ReportHostRuntime.LogSafe("one\r\nforged line"));
+        Assert.Equal(string.Empty, ReportHostRuntime.LogSafe(null));
+    }
 }

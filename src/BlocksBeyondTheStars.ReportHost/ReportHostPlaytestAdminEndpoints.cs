@@ -114,8 +114,12 @@ public static class ReportHostPlaytestAdminEndpoints
                 return forged;
             }
 
-            runtime.Playtests.Delete(id);
-            runtime.Log.LogInformation("Playtest task {Id} deleted.", id);
+            // Only a task that was there is reported as deleted — a stale or mistyped link leaves no log line.
+            if (runtime.Playtests.Delete(id))
+            {
+                runtime.Log.LogInformation("Playtest task {Id} deleted.", ReportHostRuntime.LogSafe(id));
+            }
+
             return Results.Redirect("/admin/playtests");
         });
     }
@@ -225,7 +229,7 @@ public static class ReportHostPlaytestAdminEndpoints
                 return Again(task, new[] { new PlaytestProblem(true, "id", $"the store is full ({PlaytestStore.MaxStoredTasks} tasks) — delete one first") });
         }
 
-        runtime.Log.LogInformation("Playtest task {Id} saved from the admin page (rev {Rev}).", task.Id, task.Rev);
+        runtime.Log.LogInformation("Playtest task {Id} saved from the admin page (rev {Rev}).", ReportHostRuntime.LogSafe(task.Id), task.Rev);
         return Results.Redirect($"/admin/playtests/{task.Id}?saved=1");
     }
 

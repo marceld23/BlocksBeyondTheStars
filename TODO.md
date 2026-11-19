@@ -26,6 +26,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧾 Report inbox: playtest ids in log lines are stripped of line breaks — CodeQL #1011, #1012 — ✅ 2026-11-19 (inbox only; no client, protocol or save change, no new texts)
+
+- **The finding.** CodeQL's `cs/log-forging` flagged two log lines of the Test Pilot routes (#3813). The admin page's
+  delete route wrote the `{id}` of its URL into the log as typed — an encoded line break in it would have started a
+  second, forged log entry. Only the signed-in operator with the form token reaches that route, so the risk was small.
+  The second finding (the scriptable `PUT /api/playtests/{id}`) logs an id the catalogue validator already confined to
+  `a-z`, `0-9` and `-`; the scanner does not read that validator as a sanitiser.
+- **The fix.** `ReportHostRuntime.LogSafe` removes CR and LF (the inbox's counterpart of `WorldHostApi.LogSafe`) and
+  wraps the id in all three "playtest task …" log lines — the two flagged ones and the admin form's save line of the
+  same shape.
+- **Along the way.** The delete route logged "deleted" whether or not a task was stored under the id. It now logs only a
+  task that was removed; the redirect back to the list is unchanged.
+- **Open.** The inbox image has to be rebuilt and deployed for the change to run on the VPS — no hurry, it rides along
+  with the next reports-image deploy.
+
 ### 📍 The ping left the crouch key — #3821, #3822, PR #3823 — ✅ 2026-11-19 (⚠ playtest open; client only; no protocol or save change, no new texts)
 
 - **The bug.** The keyboard's crouch is hard-wired to **Ctrl and C** (`DesktopInputSource`, no rebindable action), and the
