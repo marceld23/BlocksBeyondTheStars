@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧑‍🚀 Test Pilot: nine more tasks, nine new events, and the guards a task author needs — #3839 (epic), #3831–#3838, #3840, PR #PRNUMBER — ✅ 2026-11-19 (⚠ playtest open; server + client + inbox + data; nine new game events, no new message, no protocol bump, no save change, no new texts)
+### 🧑‍🚀 Test Pilot: nine more tasks, nine new events, and the guards a task author needs — #3839 (epic), #3831–#3838, #3840, PR #3843 — ✅ 2026-11-19 (⚠ playtest open; server + client + inbox + data; nine new game events, no new message, no protocol bump, no save change, no new texts)
 
 - **Tasks (data, all switched off).** Nine new files under `data-online/playtests/` beside the three of #3801 —
   switching a task on stays a content decision on the admin page:
