@@ -1,7 +1,7 @@
 {
   "id": "night-lamp",
   "rev": 1,
-  "enabled": false,
+  "enabled": true,
   "sort": 20,
   "area": "ingame",
   "title": { "de": "Mit der Lampe durch die Nacht", "en": "Through the night with the lamp" },

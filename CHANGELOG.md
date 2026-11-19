@@ -11,6 +11,75 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.24] — 2026-11-19
+
+The landing release. A trader that lands is now **seen landing**: it flies to its planet and dives into the air,
+glowing, instead of vanishing in a flash. Your figure can have a **second voice**, **rain makes rock slippery** to
+climb, a block you lift sits **over your head in first person**, and VEGA tells you about the **radar scanner** the
+first time something hits you. The **Test Pilot** page has its **first six tasks**, and **Join in** shows when tasks
+are waiting. The **"look here!" ping** moved from C to the **period key**, so crouching no longer pings.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 17**, the **terrain generation at 45** and the
+**network protocol at 12**. Players of the previous version can still play together with this one; they see a
+landing trader simply disappear, and they hear your second voice as the first.
+
+### 🛬 Traders you can see landing (#3824)
+
+- A trader that is going to land on a planet or moon **flies to it** in the flight view — as close as you have to get
+  to land there yourself — and **dives in**: it glows as it meets the air (over an airless body its engines fire) and
+  gets smaller until the clouds take it. A line names the ship and the world: *"Trader … is landing on … — watch the
+  ship dive in!"*
+- Before, it flew to a random point in space and vanished with the same flash as a ship that jumps away, so you could
+  not tell where it went. A trader that finds no free pad still flies on and warps out.
+
+### 🗣️ A second voice for your figure (#3826)
+
+- The character editor's **Figure** tab has **Voice 1 · Voice 2** above the pitch and age sliders. Voice 2 is a new
+  recording in a woman's voice — all of the figure's grunts, breaths, the strain on a wall and the fall. A slider only
+  plays a recording higher or lower; it cannot turn it into another person's voice, so the sliders work on either
+  voice. Other players hear your hit and your fall in the voice you chose.
+
+### 🌧️ Rain makes rock slippery (#3827)
+
+- While it rains — rain, drizzle or acid rain, not snow — **rock, ore, metal and other hard blocks** turn slick where
+  the rain reaches them. Your grip then lasts about **three blocks** on a normal planet and you slide back down; a
+  slide never hurts. **Earth, grass and wood stay rough**, a wall **under a roof** stays dry, and **climbing claws**
+  hold on a wet wall as on any other. The first slip says why.
+
+### 🧱 Carrying a block, seen from your own eyes (#3828)
+
+- In first person a block you lifted with **Q** sits at the **top of your view, held by both arms**; the middle of the
+  view between them stays free, so you see what you aim at. Before, it sat right on the aim point.
+
+### 📡 VEGA tells you about the radar scanner (#3825)
+
+- The first time an animal, a machine, a robber or a giant hits you while you wear no **radar scanner**, VEGA says
+  that there is one: worn in a suit module slot it shows enemies as red dots on your compass and pings when one comes
+  close.
+
+### 🧑‍🚀 Test Pilot: the first tasks (#3839, #3816)
+
+- The **Test Pilot** page (main menu → **Join in**, or the pause menu; desktop versions) has its **first six tasks**:
+  **Barrel roll and boost**, **Through the night with the lamp**, **Your first own ship**, **Walking, jumping,
+  building**, **Throwing blocks** and **Your figure's voice**. Six more are prepared and come later.
+- **Join in** shows when something is waiting: an amber frame with a light running around it and the number of new
+  tasks; a still frame while a task is under way. Until you have opened the page once, the light runs without a number
+  as an invitation. With reduced motion the frame stands still.
+- A task step the game is meant to recognise but your version or the server does not know can now be ticked by hand —
+  before, it could never be closed. A test world whose options reached past a slider's last step was not created;
+  it is now. A report sent from inside a world carries your graphics settings, like an F1 report.
+- Lifting and throwing a block, the barrel roll, the boost, dodging a heavy shot, an emote, and falling and being
+  helped up in Hard Survival are now game events a task can recognise by itself.
+
+### ⌨️ The "look here!" ping moved to the period key (#3821)
+
+- The ping's stock key was **C** — and C also crouches, so every sneak sent a ping to your allies. The ping is now on
+  the **period key** (`.`). If you had set your own key for the ping, it stays.
+
+### 🔧 Under the hood (#3841)
+
+- The report inbox writes task ids into its log without line breaks, so a crafted id can no longer forge a log line.
+
 ## [2026.11.23] — 2026-11-19
 
 The test-pilot release. You can now **help test the game from inside the game**: the new **Test Pilot** page gives
@@ -11289,7 +11358,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.23...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.24...HEAD
+[2026.11.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.23...v2026.11.24
 [2026.11.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.22...v2026.11.23
 [2026.11.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.21...v2026.11.22
 [2026.11.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.20...v2026.11.21

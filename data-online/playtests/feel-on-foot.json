@@ -1,7 +1,7 @@
 {
   "id": "feel-on-foot",
   "rev": 1,
-  "enabled": false,
+  "enabled": true,
   "sort": 40,
   "area": "ingame",
   "title": { "de": "Laufen, Springen, Bauen", "en": "Walking, jumping, building" },

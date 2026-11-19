@@ -1,7 +1,7 @@
 {
   "id": "throw-block",
   "rev": 1,
-  "enabled": false,
+  "enabled": true,
   "sort": 50,
   "area": "ingame",
   "title": { "de": "Blöcke werfen", "en": "Throwing blocks" },
