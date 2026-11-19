@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧑‍🚀 Test Pilot: playtest tasks from the inbox, a report, badges — #3801 (epic), #3802–#3812, ✅ 2026-11-19, not released yet (⚠ playtest open; inbox + server + client, three appended messages 355–357, no protocol bump, no save change; deploy the reports image BEFORE the client release, the WorldHost image for the privacy text)
+### 🧑‍🚀 Test Pilot: playtest tasks from the inbox, a report, badges — #3801 (epic), #3802–#3812, PR #3813 (`64ed23b7`) — ✅ released in v2026.11.23 (⚠ playtest open; inbox + server + client, three appended messages 355–357, no protocol bump, no save change; deploy the reports image BEFORE the client release, the WorldHost image for the privacy text)
 
 A page of its own (main menu → *Join in*, and the pause menu; desktop only) where every player can pick up a
 **playtest task**, tick off its steps, send a short report and earn a badge. It is separate from the in-game
@@ -71,7 +71,7 @@ the server only reports what happened. How it works: [docs/developer/PLAYTEST_TA
   the inbox for a play-through by a person and are switched on there, without a release. Deliberately not built: a
   screenshot option in the report (from an editor the work goes along, from a world the server snapshot does).
 
-### 🧹 Four follow-ups: a hang in CI names itself, the crouch switch, healing pauses after a hit, the "new planet" accent once per session — #3792–#3795, ✅ 2026-11-18 (⚠ playtest open; CI + server + client; no protocol or save change)
+### 🧹 Four follow-ups: a hang in CI names itself, the crouch switch, healing pauses after a hit, the "new planet" accent once per session — #3792–#3795, #3797, #3799, PRs #3796 (`dd261579`), #3798 (`a4ae94de`), #3800 (`5efce8e5`) — ✅ released in v2026.11.23 (⚠ playtest open; CI + server + client; no protocol or save change)
 
 - ✅ **#3792 A hanging test names itself.** A shard of the full suite once sat 40 minutes in its Test step on `main`;
   the job had no limit (GitHub: six hours), nothing named the test, and a cancelled job leaves no log. Every
@@ -114,13 +114,13 @@ the server only reports what happened. How it works: [docs/developer/PLAYTEST_TA
 - ⚠ **Playtest open:** whether 5 seconds feel right (a weak hunter now hurts; a child's first fights get a little
   harder), and the crouch switch on a real keyboard.
 
-### 🏫 Credits: the head teacher and the IT officer of KuBa West in the school-club section — #3790, ✅ 2026-11-18, PR #3791
+### 🏫 Credits: the head teacher and the IT officer of KuBa West in the school-club section — #3790, PR #3791 (`aac7f611`) — ✅ released in v2026.11.23
 
 - ✅ Michael Marx (head teacher of KuBa West, the school that hosts the club) and Andreas Selders (teacher and IT officer
   at KuBa West) — README §School club and `ui.credits.body` in all 14 locales (each has its own translated school-club
   block, so the two lines were set into every one by hand), before the club's IT support line.
 
-### 🚪 Start options: data folder and host port from the portable file or the shortcut — #3789, ✅ 2026-11-18, PR #3791 (⚠ playtest open; client + launchers; no protocol or save change, no new texts)
+### 🚪 Start options: data folder and host port from the portable file or the shortcut — #3789, PR #3791 (`aac7f611`) — ✅ released in v2026.11.23 (⚠ playtest open; client + launchers; no protocol or save change, no new texts)
 
 Marcel: the portable `portable_data_dir.txt` (#1285) should also set the port of home-network games, and the
 installed game should take command-line parameters for the port and the data folder.
@@ -1117,7 +1117,7 @@ content, authored in the town editor. New worlds only (terrain generation 37, sa
   from far away); `sample_mine` (shaft, sealed tunnels, cave-in); `sample_store` on an inhabited planet (keeper sells
   burgers only inside, blocks protected); the editor's landmark mode with the ruin preview; the browser build.
 
-### 🐟 "Still fish on dry land" — water one cell deep is no water to live in — Lyxette report 2026-11-18, #3788, ✅ 2026-11-18, PR #3791 (⚠ playtest open; server only, no protocol or save change)
+### 🐟 "Still fish on dry land" — water one cell deep is no water to live in — Lyxette report 2026-11-18, #3788, PR #3791 (`aac7f611`) — ✅ released in v2026.11.23 (⚠ playtest open; server only, no protocol or save change)
 
 Lyxette (v2026.11.22, after #3551–#3552): two awake fish of his water roster lay on his base floor 35 s after the world
 loaded, in plain view. #3552 worked as built (the fish neither slept nor roamed and would have left unseen), but nothing

@@ -11,6 +11,78 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.23] — 2026-11-19
+
+The test-pilot release. You can now **help test the game from inside the game**: the new **Test Pilot** page gives
+you small playtest tasks — in a world or in one of the seven editors — with steps to tick off, a short report at the
+end and a **badge** for every report. Tasks reach the game without an update. Besides that, the body's own
+**healing pauses for five seconds after a hit**, "Crouch: press once" no longer flips in mid-air, the game takes
+**start options** for the data folder and the home-network port, and fish stay in the water.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 17**, the **terrain generation at 45** and the
+**network protocol at 12**. Players of the previous version can still play together with this one; on an older server
+you tick off the steps the game would otherwise recognise by itself.
+
+### 🧑‍🚀 Test Pilot (#3801)
+
+- **Where:** main menu → **Join in** → **Test Pilot**, or the **Test Pilot** row in the pause menu. Desktop versions.
+- **A task** says what it is about and how long it takes, and lists its steps. Some steps **the game recognises by
+  itself** (entering space, breaking three asteroids, saving a ship in the editor); a step that counts shows how far
+  you are. The others only you can judge: press **Done** — or **Did not work** and say in a sentence what happened.
+  A step that did not work counts just as much; those reports help the most.
+- **In a world** the current step stays on the screen as a small card at the right. **In an editor** a chip in the
+  top-right corner shows how far you are and opens the list.
+- **Test worlds:** a task can bring a world of its own, prepared for the test — the right planet, the right time of
+  day, the item you need already in your hotbar, and no story in the way. Your own worlds stay untouched.
+- **The report:** a few questions with stars or a choice, one line in your own words if you like, a nickname if you
+  like. No e-mail address. From an editor you may send your ship, module, figure or drawing along.
+- **Badges and ranks:** a sent report earns a badge; when the developers confirm it, the badge turns **gold** and you
+  see their answer. Badges add up to four ranks — **Test Pilot Cadet** (1), **Test Pilot** (3), **First Test Pilot**
+  (10) and **Chief Test Pilot** (25). They are a thank-you and give nothing in the game world; after a reinstall they
+  come back.
+- **Tasks come from our report inbox, not from a release** — a new task appears without an update, and one that
+  turned out badly can be taken back the same way. The first tasks are being played through by us and are switched
+  on over the coming days.
+- **Quiet by default:** the game asks for tasks at a start only after you have opened the page once. The Codex has an
+  article, and the portal's privacy text names the test reports — in all fourteen languages.
+
+### ❤️ Health, crouching and music (#3793, #3794, #3795)
+
+- **The body's own healing pauses for 5 seconds after a hit** — a bite, a blow, a fall, a crash, lava or fire. Before,
+  2 health a second ran through every fight, so a weak attacker never moved the bar. Thin air, cold, heat, toxic air
+  and hunger do not pause it, and heal tank, bed, food and medkits heal as before.
+- **"Crouch: press once"** (Accessibility) only switches on the ground. A press in the air, in water or on a wall —
+  where the key means *down* — no longer makes you land crouched or stand up unasked.
+- The **"new planet" accent** plays once per session, on your first landing on a second world — not on every further
+  one. The sunrise track still opens every world's first visit.
+
+### 🚪 Start options (#3789)
+
+- The game takes **`-dataDir <folder>`** and **`-hostPort <number>`** on the command line (for example in a
+  shortcut), and a portable copy's `portable_data_dir.txt` may carry a **`port=<number>`** line. The port is the one
+  singleplayer, hosting for the home network and the address on the host screen use.
+- Both launchers pass these options on to the game, and they survive the restart after an update.
+
+### 🐟 Creatures (#3788)
+
+- **Fish no longer lie on dry floors** next to shallow water (Lyxette's report): water one block deep counted as
+  water for the spawner but as a puddle for the swimmers, which then lifted the fish onto the nearest floor.
+
+### 🏫 Credits (#3790)
+
+- Michael Marx (head teacher) and Andreas Selders (teacher and IT officer) of KuBa West, the school that hosts the
+  school club, are named in the school-club section.
+
+### 🔧 Under the hood (#3792, #3797, #3799)
+
+- A test that hangs in our build pipeline now names itself, and a test run that crawls ends by itself and says why.
+  That found the cause: a test server nobody stopped stayed alive whole. A dropped server is now collected and its
+  chunk workers end — the game itself is unchanged.
+
+### 🌍 What's new in fourteen languages
+
+- The *What's new?* notes of 2026.11.22 are available in all twelve community languages (#3787).
+
 ## [2026.11.22] — 2026-11-18
 
 The follow-up release. Last release brought a lot at once — the game feel, space fights that move and eleven wishes
@@ -11217,7 +11289,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.22...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.23...HEAD
+[2026.11.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.22...v2026.11.23
 [2026.11.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.21...v2026.11.22
 [2026.11.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.20...v2026.11.21
 [2026.11.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.19...v2026.11.20
