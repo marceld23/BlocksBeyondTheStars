@@ -107,5 +107,13 @@ public static partial class NetCodec
         // message after these takes 355.
         Register(353, typeof(CarryBlockIntent));             // Client -> Server
         Register(354, typeof(ThrowBlockIntent));             // Client -> Server
+
+        // The Test Pilot page: a playtest task's steps the game can recognise. The client names the game events its task
+        // waits for, the server reports the ones the sender causes. No protocol bump — an older server drops the intent
+        // (no ack comes, the player ticks those steps off by hand), an older client never asks. The next message after
+        // these takes 358.
+        Register(355, typeof(PlaytestWatchIntent));          // Client -> Server
+        Register(356, typeof(PlaytestWatchAck));             // Server -> Client
+        Register(357, typeof(PlaytestEvent));                // Server -> Client
     }
 }

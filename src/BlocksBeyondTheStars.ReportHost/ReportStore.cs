@@ -99,7 +99,7 @@ public sealed record AttachmentRecord(string ReportId, int Index, string FileNam
 /// volume (hand-typed feedback + occasional crash bursts) is tiny. Listing is keyset-paginated on
 /// (created_unix, id) ascending so a <c>since</c>-based delta sync never skips rows.
 /// </summary>
-public sealed class ReportStore : IDisposable
+public sealed partial class ReportStore : IDisposable
 {
     /// <summary>How many answers a player may post per report — enough for a real back-and-forth, small
     /// enough that a stolen reply key cannot turn a thread into a spam channel (#1327).</summary>
@@ -110,6 +110,10 @@ public sealed class ReportStore : IDisposable
     private readonly string _screenshotsDir;
     private readonly string _attachmentsDir;
 
+    /// <summary>The folder the database file lives in — where the inbox keeps its other files too (the playtest
+    /// catalogue's own database sits next to this one).</summary>
+    public string DataDirectory { get; }
+
     public ReportStore(ReportHostConfig config, string? databasePath = null)
     {
         string path = databasePath ?? Path.Combine(config.DataDir, "reports.db");
@@ -119,6 +123,7 @@ public sealed class ReportStore : IDisposable
             Directory.CreateDirectory(dir);
         }
 
+        DataDirectory = string.IsNullOrEmpty(dir) ? "." : dir;
         _screenshotsDir = Path.Combine(dir ?? ".", "screenshots");
         Directory.CreateDirectory(_screenshotsDir);
         _attachmentsDir = Path.Combine(dir ?? ".", "attachments");

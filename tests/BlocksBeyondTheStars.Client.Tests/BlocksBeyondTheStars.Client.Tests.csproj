@@ -34,6 +34,10 @@
     <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Persistence\BlocksBeyondTheStars.Persistence.csproj" />
     <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Networking\BlocksBeyondTheStars.Networking.csproj" />
     <ProjectReference Include="..\..\src\BlocksBeyondTheStars.GameServer\BlocksBeyondTheStars.GameServer.csproj" />
+    <!-- The report inbox, in-process: the playtest flow is tested end to end — the real client classes against the
+         real inbox (PlaytestInboxEndToEndTests). The SERVER suite must not reference Client.Core (the CI's client
+         lane relies on that, scripts/lane-test-filter.py), so the meeting point is here. -->
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.ReportHost\BlocksBeyondTheStars.ReportHost.csproj" />
   </ItemGroup>
 
 </Project>

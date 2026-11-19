@@ -72,7 +72,8 @@ public static class ReportHostAdminEndpoints
                 .ToList();
             // A submitted creation's card opens its file to list the free text inside for review (#3262).
             return Results.Content(ReportHostPages.Detail(record, replies, runtime.Csrf, owner, pair, runtime.Store.Attachments(record.Id),
-                a => runtime.Store.AttachmentPath(a) is { } path ? File.ReadAllBytes(path) : null), "text/html; charset=utf-8");
+                a => runtime.Store.AttachmentPath(a) is { } path ? File.ReadAllBytes(path) : null,
+                ReportHostPlaytestAdminEndpoints.ReportCard(runtime, record, pair)), "text/html; charset=utf-8");
         });
 
         // The reply form on the detail page: an answer, or a follow-up question (flips the status to

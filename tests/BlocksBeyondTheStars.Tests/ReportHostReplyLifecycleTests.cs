@@ -146,6 +146,9 @@ public sealed class ReportHostAdminHttpFixture : IAsyncLifetime
     public ReportStore Store { get; private set; } = null!;
     public HttpClient Client { get; private set; } = null!;
 
+    /// <summary>The app's playtest catalogue store (owned by the app's service container).</summary>
+    public PlaytestStore Playtests => (PlaytestStore)_app.Services.GetService(typeof(PlaytestStore))!;
+
     public async Task InitializeAsync()
     {
         System.IO.Directory.CreateDirectory(_root);

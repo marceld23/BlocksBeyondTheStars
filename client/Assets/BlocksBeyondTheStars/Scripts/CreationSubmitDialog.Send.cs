@@ -181,6 +181,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Finish(string message)
         {
+            EditorPlaytest.Submitted(EditorPlaytest.OfSubmission(_request));
             _done = true; // sent is sent — no second copy by a double click while the dialog fades out
             SetStatus(message, UiKit.Ok);
             RefreshLabels();

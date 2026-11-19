@@ -149,8 +149,12 @@ namespace BlocksBeyondTheStars.Client
                 const float y = 1000f, h = 50f;
                 UiKit.AddKicker(_root, ColX, y - 32f, ColW, _shell.L("ui.menu.community"));
                 UiKit.AddTierButton(_root, ColX, y, SideW, h, _shell.L("ui.menu.feedback"), FeedbackUi.OpenFromMenu, ButtonTier.Quiet, "btn_feedback");
-                UiKit.AddTierButton(_root, ColX + SideW + SideGap, y, SideW, h, _shell.L("ui.menu.contribute"),
+                var contribute = UiKit.AddTierButton(_root, ColX + SideW + SideGap, y, SideW, h, _shell.L("ui.menu.contribute"),
                     () => { if (_participate != null) _participate.SetActive(true); }, ButtonTier.Quiet, "btn_multiplayer");
+                if (PlaytestHub.Instance != null && PlaytestHub.Instance.Tracker.NewCount > 0)
+                {
+                    UiKit.AddBadge(contribute, SideW); // a new playtest task waits behind "Join in"
+                }
                 UiKit.AddTierButton(_root, ColX + 2f * (SideW + SideGap), y, SideW, h, _shell.L("ui.menu.website"), OpenWebsite, ButtonTier.Quiet, "btn_singleplayer");
                 UiKit.AddText(_root, CardX, y, CardW, h, "VER. " + AppShell.Version, 15, UiKit.CyanDim, TextAnchor.MiddleRight);
             }
@@ -229,17 +233,33 @@ namespace BlocksBeyondTheStars.Client
             {
                 var pdim = UiKit.AddModalDim(_root);
                 _participate = pdim.gameObject;
-                var pdlg = UiKit.AddDialogPanel(_participate.transform, 560f, 250f, 800f, 580f);
+                // The Test Pilot page (desktop builds) is the first way to join in: one more row under the intro.
+                var hub = PlaytestHub.Instance;
+                float o = hub != null ? 84f : 0f;
+                var pdlg = UiKit.AddDialogPanel(_participate.transform, 560f, 250f - (o / 2f), 800f, 580f + o);
                 UiKit.AddText(pdlg, 40f, 26f, 720f, 36f, _shell.L("ui.contribute.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
 
                 Text Para(float y, float h, string text, int size, Color col)
                 {
-                    var t = UiKit.AddText(pdlg, 40f, y, 720f, h, text, size, col, TextAnchor.UpperLeft);
+                    var t = UiKit.AddText(pdlg, 40f, y + o, 720f, h, text, size, col, TextAnchor.UpperLeft);
                     t.horizontalOverflow = HorizontalWrapMode.Wrap;
                     return t;
                 }
 
-                Para(82f, 44f, _shell.L("ui.contribute.intro"), 18, UiKit.TextCol);
+                Para(82f - o, 44f, _shell.L("ui.contribute.intro"), 18, UiKit.TextCol);
+                if (hub != null)
+                {
+                    int fresh = hub.Tracker.NewCount;
+                    string label = fresh > 0
+                        ? _shell.L("ui.testpilot.title") + " — " + string.Format(_shell.L("ui.testpilot.menu_new"), fresh)
+                        : _shell.L("ui.testpilot.title");
+                    UiKit.AddTierButton(pdlg, 40f, 136f, 720f, 60f, label, () =>
+                    {
+                        _participate.SetActive(false);
+                        _shell.OpenTestPilot();
+                    }, ButtonTier.Primary, "btn_testpilot");
+                }
+
                 // Player feedback first (for everyone, in-game) — highlighted; then play, then the GitHub paths.
                 Para(138f, 70f, "1.  " + _shell.L("ui.contribute.feedback").Replace("{feedback_key}", FeedbackUi.HotkeyName), 17, UiKit.Ok);
                 Para(212f, 50f, "2.  " + _shell.L("ui.contribute.play"), 17, UiKit.TextCol);
@@ -248,10 +268,10 @@ namespace BlocksBeyondTheStars.Client
                 // Real buttons, not link-styled text (#544): the GitHub line used to be a dead AddText that
                 // merely LOOKED clickable. GitHub + the game website open in the system browser; the website
                 // follows the UI language (the German site is the root, English lives under /en).
-                UiKit.AddTierButton(pdlg, 60f, 414f, 380f, 46f, _shell.L("ui.contribute.github"),
+                UiKit.AddTierButton(pdlg, 60f, 414f + o, 380f, 46f, _shell.L("ui.contribute.github"),
                     () => Application.OpenURL("https://github.com/marceld23/BlocksBeyondTheStars"), ButtonTier.Secondary, "btn_editors");
-                UiKit.AddTierButton(pdlg, 460f, 414f, 280f, 46f, _shell.L("ui.contribute.website"), OpenWebsite, ButtonTier.Secondary, "btn_singleplayer");
-                UiKit.AddTierButton(pdlg, 270f, 500f, 260f, 52f, _shell.L("ui.menu.back"), () => _participate.SetActive(false), ButtonTier.Quiet, "btn_back");
+                UiKit.AddTierButton(pdlg, 460f, 414f + o, 280f, 46f, _shell.L("ui.contribute.website"), OpenWebsite, ButtonTier.Secondary, "btn_singleplayer");
+                UiKit.AddTierButton(pdlg, 270f, 500f + o, 260f, 52f, _shell.L("ui.menu.back"), () => _participate.SetActive(false), ButtonTier.Quiet, "btn_back");
                 _participate.SetActive(false);
             }
 

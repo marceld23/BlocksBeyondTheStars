@@ -1,6 +1,9 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Client.Feedback;
+using BlocksBeyondTheStars.Client.Playtests;
+
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
@@ -10,8 +13,15 @@ namespace BlocksBeyondTheStars.Client
     /// A player's look has no hair (the suit's helmet covers it); the adopting developer gives the pioneer one with
     /// <c>tools/gen_pioneer_skins.py --hair</c>.
     /// </summary>
-    public sealed partial class AvatarEditor
+    public sealed partial class AvatarEditor : IPlaytestWorkSource
     {
+        /// <summary>The look on the bench for a playtest report ("send my work along"): the skin file Export writes.</summary>
+        public FeedbackAttachment WorkForPlaytest()
+        {
+            string key = CreationSubmission.SafeKey(EditorSceneKit.Slug(_name), CreationSubmission.KindAvatar);
+            return PlaytestWork.OfCreation(CreationSubmission.KindAvatar, key, new CreationPayload().Add("skin.json", SkinFile(key, pretty: false)));
+        }
+
         /// <summary>The designer's current scratch look (the editor's live preview and its Submit read it).</summary>
         private FaceEditor.AppearanceSnapshot Look()
             => AppearanceSubjects.Snapshot(which => _col[which], () => _face, part => _bodyPaint[part]);

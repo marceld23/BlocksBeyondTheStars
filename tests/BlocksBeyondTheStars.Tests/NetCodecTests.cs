@@ -399,6 +399,9 @@ public sealed class NetCodecTests
         [352] = typeof(SpaceHeavyShot),          // #3756
         [353] = typeof(CarryBlockIntent),        // #3766: a block lifted over the head
         [354] = typeof(ThrowBlockIntent),        // … and thrown
+        [355] = typeof(PlaytestWatchIntent),     // the Test Pilot page: the game events a playtest task waits for
+        [356] = typeof(PlaytestWatchAck),        // … the server watches them
+        [357] = typeof(PlaytestEvent),           // … and reports the ones the player causes
 
     };
 

@@ -5615,6 +5615,30 @@ with none at all that you need one.
   never sent feedback contacts nothing. In the browser (play.bbts.de or the glitch.fun arcade) this
   works the same way; the arcade ties answers to your Glitch install, so they follow you across releases.
 
+### Test Pilot — try out what is new and earn badges (desktop versions)
+- **Where:** main menu → **Join in** → **Test Pilot**, or the **Test Pilot** row in the pause menu while you play.
+  (Not in the browser version.)
+- The page lists **tasks** the developers would like tested — something new in the game, or one of the editors.
+  Each task says where it takes place, about how long it takes and how far you are. New tasks arrive over the
+  internet without a game update; the page fetches them when you open it.
+- **Open a task** to work on it. It shows what the task is about and its **steps**:
+  - Some steps the game notices by itself ("Launch into space") — they tick themselves and say **Recognised by
+    the game**; a step that counts ("Break three asteroids") shows how far you are.
+  - Other steps only you can judge ("Does the shot feel heavy?"): press **Done** — or **Did not work** and say in
+    a sentence what happened. A step that did not work counts just as much; those reports help the most.
+  - While you play, the current step stays on the screen as a small **Test Pilot** card at the right. In an
+    editor, a **Test Pilot** chip in the top-right corner shows how far you are; a click opens the list.
+- Some tasks bring a **test world**: **Create test world** makes a world of its own for the task and starts it.
+  Your own worlds stay untouched.
+- When every step is closed, **Write report**: a few questions (stars, or picking an answer — all of them are
+  needed), a line in your own words if you like, and a nickname if you like. No e-mail is asked for. From an
+  editor you can tick **Send my work along** — only so the developers can find a fault, it is never put into the
+  game.
+- Every sent report earns a **badge** (blue). When the developers confirm it, a message tells you and the badge
+  turns **gold**. Badges add up to a **rank**: Test Pilot Cadet (1), Test Pilot (3), First Test Pilot (10), Chief
+  Test Pilot (25). Badges are a thank-you — they give nothing in the game world.
+- If a task you finished says **Test again**, something was fixed and the developers would like another look.
+
 ### `/bump` — debug snapshot + screenshot (any player, no radio needed)
 - **Syntax:** `/bump Description of the problem`
 - Writes a detailed JSON snapshot of your current situation (player state **and inventory**, environment,

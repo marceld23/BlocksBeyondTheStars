@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Client.Feedback;
+using BlocksBeyondTheStars.Client.Playtests;
 using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 
@@ -17,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="CreationSubmission.MaxCells"/> cells is refused with a sentence instead of being sent.
     /// The reviewer adopts it with <c>tools/pull_submissions.py --kind structure</c> and <c>tools/merge_structure.py</c>.
     /// </summary>
-    public sealed partial class StructureEditor
+    public sealed partial class StructureEditor : IPlaytestWorkSource
     {
         [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; public int mode; public string config = string.Empty, label = string.Empty; public bool keep; }
         [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
@@ -201,6 +202,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return payload;
+        }
+
+        /// <summary>The module on the bench for a playtest report ("send my work along"); nothing while it is empty.
+        /// No save gate here: a module that does not pass it is exactly what a tester wants to show.</summary>
+        public FeedbackAttachment WorkForPlaytest()
+        {
+            if (_design.Count == 0)
+            {
+                return null;
+            }
+
+            string key = Slug(_key);
+            key = string.IsNullOrEmpty(key) ? CreationSubmission.KindStructure : key;
+            return PlaytestWork.OfCreation(CreationSubmission.KindStructure, key, BuildPayload(key));
         }
 
         /// <summary>The kit file of <paramref name="kitKey"/>: the user's own, else the shipped one.</summary>

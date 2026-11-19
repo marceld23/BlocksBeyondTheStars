@@ -819,6 +819,7 @@ loadNotices();
  <p>{summary.T("privacy.summary.text")}</p>
  <p>{summary.T("privacy.summary.reports")}</p>
  <p>{summary.T("privacy.summary.submissions")}</p>
+ <p>{summary.T("privacy.summary.playtests")}</p>
 </div>";
 
         string germanBody = $@"
@@ -863,6 +864,14 @@ loadNotices();
    wird, dass du die drei Bestätigungen gegeben hast (selbst gemacht, Nutzung erlaubt, mindestens 16 oder Eltern
    einverstanden). Ein Mensch prüft jede Einreichung samt aller Texte von Hand. Übernommenes wird Teil des Spiels
    und mit ihm veröffentlicht; hast du einen Spitznamen angegeben, nennen wir ihn in den Credits.</li>
+  <li><b>Testberichte (Testpilot-Seite, Desktop-Version):</b> Schließt du im Spiel einen Playtest-Auftrag ab und sendest
+   den Bericht dazu, speichern wir im selben Meldungs-Postfach deine Antworten auf die Fragen des Auftrags, das Ergebnis
+   jedes Schritts samt deiner kurzen Notiz, die Dauer, Spielversion und Plattform, deinen Spitznamen (oder keinen), deinen
+   freien Text (falls du einen geschrieben hast) und den anonymen Antwort-Schlüssel — keine E-Mail, kein echter Name. Aus
+   einer Welt gesendet, kommen dieselben technischen Spieldaten hinzu wie bei einer Fehlermeldung. Aus einem Editor kannst
+   du freiwillig das Werk mitschicken, an dem du gerade arbeitest; es dient nur der Fehlersuche und wird nie ins Spiel
+   übernommen. Die Aufträge selbst lädt das Spiel von diesem Postfach, wenn du die Testpilot-Seite öffnest — und, sobald
+   du sie einmal geöffnet hast, auch beim Start des Spiels; diese Abfrage enthält keine Angaben über dich.</li>
   <li><b>Sitzung:</b> ein zufälliges Sitzungs-Token im localStorage deines Browsers (kein Cookie,
    kein seitenübergreifendes Tracking). Wählst du eine Sprache, merkt sich ein einzelnes Cookie
    (<code>bbs_lang</code>) nur diese Einstellung.</li>
@@ -899,6 +908,8 @@ loadNotices();
   <li><b>Einreichungen</b> (Texturen, Schiffe, Stationen, Städte, Skins, HUD-Rahmen), die wir nicht ins Spiel übernehmen, löschen
    wir spätestens nach 12 Monaten automatisch (samt Bild, Dateien und Gesprächsverlauf). Übernommenes ist Teil des
    Spiels; auf Wunsch entfernen wir es mit der nächsten Version.</li>
+  <li>Bei <b>Testberichten</b> löschen wir ein mitgeschicktes Werk spätestens nach 12 Monaten automatisch; der Bericht
+   selbst (Antworten, Schritte, Gesprächsverlauf) bleibt wie eine Fehlermeldung, bis wir ihn löschen.</li>
   <li>Fehlermeldungen aus dem Spiel bleiben samt Gesprächsverlauf im Meldungs-Postfach, bis wir sie löschen —
    eine automatische Löschfrist gibt es derzeit nicht, und das Löschen des Portal-Kontos betrifft sie nicht.
    Möchtest du sie löschen lassen, schreib an die oben genannte E-Mail-Adresse und nenne den Titel der

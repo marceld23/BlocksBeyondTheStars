@@ -26,6 +26,51 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧑‍🚀 Test Pilot: playtest tasks from the inbox, a report, badges — #3801 (epic), #3802–#3812, ✅ 2026-11-19, not released yet (⚠ playtest open; inbox + server + client, three appended messages 355–357, no protocol bump, no save change; deploy the reports image BEFORE the client release, the WorldHost image for the privacy text)
+
+A page of its own (main menu → *Join in*, and the pause menu; desktop only) where every player can pick up a
+**playtest task**, tick off its steps, send a short report and earn a badge. It is separate from the in-game
+achievements: badges are a thank-you and buy nothing in the world, so progress is the client's (per install), and
+the server only reports what happened. How it works: [docs/developer/PLAYTEST_TASKS.md](docs/developer/PLAYTEST_TASKS.md).
+
+- **The catalogue comes from the report inbox, not from a release.** `GET /api/playtests` (ETag, own rate limit); the
+  inbox's admin page is its truth (list, editing form with findings and a preview in both languages, kill switch),
+  `data-online/playtests/<id>.json` its mirror with a history (`tools/playtests/sync_playtests.py check|pull|push`).
+  Task texts are German + English and ride in the catalogue. The game reads it tolerantly and bounded (cleaned,
+  cut, unusable entries dropped), shows a task only inside its version window, and fetches at a start only on an
+  install whose player has opened the page once.
+- **Steps close three ways:** ticked off by the player ("Done" / "Did not work" + a note — both close the step),
+  recognised in a world (the server's playtest watch: one listener per session on the game-event bus,
+  `PlaytestWatchIntent` → `PlaytestEvent`; an older server stays silent and the player ticks those steps), recognised
+  in an editor (`editor:opened|saved|exported|submitted|loaded` for the seven player editors).
+- **Test worlds:** a task can bring a prepared singleplayer world — a planet type this build knows, world options
+  from a fixed list and start commands from a **fixed list of five** (time, weather, two teleports, an item), run
+  once and only in a world this install created for a task. It starts without the story (no opening scene between the
+  tester and the task); `"story": true` keeps it for a task about the story's beginning.
+- **The report** goes through the ordinary feedback channel (`reportType: "playtest-report"`, category `playtest`):
+  mandatory questions (stars / choice), an optional line, an optional nickname — no e-mail, no install token. From
+  an editor the tester may send the work along (`IPlaytestWorkSource`: the export bundle of a ship, module or
+  figure, the draft of a texture, form or tool look); the inbox drops that attachment after the submission
+  retention time and keeps the report.
+- **Two tiers:** a sent report earns the badge, the operator's **Confirm** (status `done` on the pair + a thank-you
+  in the reply thread, one action) turns it gold; a fresh install gets its badges back through its reply key
+  (`GET /api/playtests/mine`). Four ranks at 1 / 3 / 10 / 25 badges. A task with a higher revision and `retest` asks
+  for another run.
+- **In the game:** the page with rank and badges, a task's view, the report dialog, the current step as a HUD context
+  card, a row in the pause menu, the task's list over an open editor, a "confirmed" dialog; a Codex article; the
+  portal's privacy text names the reports (all 14 languages).
+- **Tests:** model/validator, inbox (store, routes, report data, confirm, admin pages, retention), client logic, the
+  watch over the wire against the real server, and one end-to-end test of the real client classes against the real
+  inbox in-process. `PlaytestRepositoryTasksTests` holds every task file in the repository to the validator without
+  a finding, to "the game shows what was written" and to planets and items this content has. A development build run
+  with `-captureTestPilot` photographs the screens against a local inbox (docs/screenshots/README.md) — that run
+  found the list over an editor letting the editor's own card show through, and its tab covering the card's buttons.
+  In Unity, `TestPilotTextFitEditModeTests` builds every Test Pilot screen in all 14 languages with the repository's
+  own tasks on them and measures each text (rules shared with the editors' test in `UiTextFit`).
+- **Open:** the three task files in `data-online/playtests/` are **switched off** (`"enabled": false`) — they wait in
+  the inbox for a play-through by a person and are switched on there, without a release. Deliberately not built: a
+  screenshot option in the report (from an editor the work goes along, from a world the server snapshot does).
+
 ### 🧹 Four follow-ups: a hang in CI names itself, the crouch switch, healing pauses after a hit, the "new planet" accent once per session — #3792–#3795, ✅ 2026-11-18 (⚠ playtest open; CI + server + client; no protocol or save change)
 
 - ✅ **#3792 A hanging test names itself.** A shard of the full suite once sat 40 minutes in its Test step on `main`;

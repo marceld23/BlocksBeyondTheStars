@@ -709,6 +709,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void LoadFrom(string face)
         {
+            EditorPlaytest.Loaded(EditorPlaytest.Avatar);
             var decode = Current?.Decode;
             var grid = decode != null ? decode(face) : FacePalette.Decode(face, _w * _h);
             if (grid == null || grid.Length != _grid.Length)

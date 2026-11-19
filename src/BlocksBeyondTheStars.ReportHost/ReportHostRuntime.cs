@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.ReportHost;
 public sealed class ReportHostRuntime
 {
     public ReportHostRuntime(ReportHostConfig config, ReportStore store, AdminNotifier notifier, ILogger log,
-        IngestRateLimiter ingestLimiter, IngestRateLimiter replyLimiter, AdminCsrf csrf)
+        IngestRateLimiter ingestLimiter, IngestRateLimiter replyLimiter, AdminCsrf csrf,
+        PlaytestStore playtests, IngestRateLimiter playtestLimiter)
     {
         Config = config;
         Store = store;
@@ -25,7 +26,16 @@ public sealed class ReportHostRuntime
         IngestLimiter = ingestLimiter;
         ReplyLimiter = replyLimiter;
         Csrf = csrf;
+        Playtests = playtests;
+        PlaytestLimiter = playtestLimiter;
     }
+
+    /// <summary>The playtest catalogue's storage — owned by the app's service container, which disposes it.</summary>
+    public PlaytestStore Playtests { get; }
+
+    /// <summary>Per-IP fixed-window limiter for the catalogue fetch only — every client asks for the catalogue, so it
+    /// must never spend the budget of report submission (the same reasoning as the reply limiter, #1352).</summary>
+    public IngestRateLimiter PlaytestLimiter { get; }
 
     public ReportHostConfig Config { get; }
 

@@ -282,6 +282,38 @@ How it works (`ScreenshotDirector.Editors.cs`):
   submit dialog. Timings: `EditorSettle` / `ViewSettle` at the top of the file; a watchdog quits after
   `EditorCaptureTimeout`. Desktop only — the switch is inert in the browser build, which has no editors in its menu.
 
+## Test Pilot screenshots (`-captureTestPilot`)
+
+The screens of the Test Pilot page ([docs/developer/PLAYTEST_TASKS.md](../developer/PLAYTEST_TASKS.md)) without
+playing — about two minutes, ending in a task's test world. The tasks are whatever the inbox serves the build, so the run is made with a
+**development build against an inbox of your own** and with a **data folder of its own** (it refuses to start
+without `-dataDir`: it ticks steps off and books a confirmed report in that install's progress file):
+
+```powershell
+$env:BBS_REPORTS_DEV_URL = 'http://127.0.0.1:5199'   # a local ReportHost with a few tasks pushed to it
+$env:BBS_REPORTS_DEV_KEY = '<its write key>'
+BlocksBeyondTheStars.exe -captureTestPilot -lang de -dataDir <scratch folder> -shotOut <dir> -screen-width 1920 -screen-height 1080 -screen-fullscreen 0
+```
+
+It writes `<dir>/testpilot/NN-<screen>.png` and quits. Nothing is sent to the inbox.
+
+| File | What it shows |
+|------|---------------|
+| `00-join-in` | The main menu's "Join in" dialog with the Test Pilot button (and the mark on the menu button) |
+| `01-page`, `04-page-in-progress`, `09-page-confirmed` | The page: every task new; one in progress; one confirmed (gold badge, first rank) |
+| `10-task-confirmed` | A confirmed task's view (read-only) |
+| `02-task`, `03-task-in-progress` | A task's view (the one with a test world, if any); the same with one step done and one that did not work |
+| `05-editor-tab`, `06-editor-list`, `07-editor-ready` | A ship-editor task in the Ship Editor: the chip, the open list, every step closed |
+| `08-report` | The report dialog from the editor, with "send my work along" |
+| `11-confirmed` | The "test report confirmed" dialog |
+| `12-world-hud`, `13-world-pause-menu` | A task's test world, started the way its button starts it: the HUD with the current step's card after the start commands ran; the pause menu with the Test Pilot row |
+
+The editor screens need a task with `"area": "editor", "editor": "ship"` in the catalogue and the world screens a task
+that brings a `world` (and the bundled server of a full build); without one they are skipped. The log line
+`[Capture] Test world …` says whether the server reports playtest events and whether the start commands ran. How it
+works: `ScreenshotDirector.TestPilot.cs` — steps are closed through the hub the way the buttons close them, the save
+step through the editor's own signal.
+
 ## Video clips (`-captureClip`) — and look checks without a playtest
 
 The moving-picture sibling is `ClipDirector` (`-captureClip`): one run records ONE clip from a JSON

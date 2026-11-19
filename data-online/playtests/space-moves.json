@@ -1,0 +1,62 @@
+{
+  "id": "space-moves",
+  "rev": 1,
+  "enabled": false,
+  "sort": 10,
+  "area": "ingame",
+  "title": { "de": "Fassrolle und Boost", "en": "Barrel roll and boost" },
+  "intro": {
+    "de": "Dein Schiff kann zwei Manöver: die Fassrolle und den Boost. Probiere beide im All aus und sag uns, wie sie sich anfühlen.",
+    "en": "Your ship knows two manoeuvres: the barrel roll and the boost. Try both in space and tell us how they feel."
+  },
+  "minutes": 10,
+  "steps": [
+    {
+      "id": "launch",
+      "text": { "de": "Starte mit deinem Schiff ins All.", "en": "Launch into space with your ship." },
+      "check": { "event": "space:enter" }
+    },
+    {
+      "id": "roll",
+      "text": { "de": "Mach eine Fassrolle nach links und eine nach rechts.", "en": "Do a barrel roll to the left and one to the right." }
+    },
+    {
+      "id": "boost",
+      "text": {
+        "de": "Boost, bis der orange Balken leer ist. Füllt er sich danach von selbst wieder?",
+        "en": "Boost until the orange bar is empty. Does it refill by itself afterwards?"
+      }
+    },
+    {
+      "id": "rocks",
+      "text": { "de": "Zerstöre drei Asteroiden.", "en": "Break three asteroids." },
+      "check": { "event": "asteroid:destroyed", "required": 3 }
+    },
+    {
+      "id": "bars",
+      "text": {
+        "de": "Über der Tempo-Anzeige sind zwei kleine Balken. Zeigen sie dir, wann Rolle und Boost wieder bereit sind?",
+        "en": "Two small bars sit above the speed readout. Do they show you when the roll and the boost are ready again?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß machen die beiden Manöver?", "en": "How much fun are the two manoeuvres?" }
+    },
+    {
+      "id": "control",
+      "type": "choice",
+      "text": { "de": "Wie gut ließ sich das Schiff dabei steuern?", "en": "How well could you steer the ship while doing them?" },
+      "options": [
+        { "id": "easy", "text": { "de": "Leicht", "en": "Easily" } },
+        { "id": "ok", "text": { "de": "Ging so", "en": "It was okay" } },
+        { "id": "hard", "text": { "de": "Schwer", "en": "With difficulty" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

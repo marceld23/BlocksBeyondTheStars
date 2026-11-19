@@ -64,8 +64,9 @@ namespace BlocksBeyondTheStars.Client
         {
             bool editors = EditorCaptureRequested(); // ScreenshotDirector.Editors.cs
             bool poster = PosterCaptureRequested();  // ScreenshotDirector.Poster.cs
+            bool testPilot = TestPilotCaptureRequested(); // ScreenshotDirector.TestPilot.cs
             if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits)
-                && !editors && !poster)
+                && !editors && !poster && !testPilot)
             {
                 return;
             }
@@ -81,11 +82,12 @@ namespace BlocksBeyondTheStars.Client
             d._lang = lang;
             d._outDir = outDir;
             d._seed = seed;
-            d._headless = headless || editors || poster;
+            d._headless = headless || editors || poster || testPilot;
             d._planet = planet;
             d._credits = credits;
             d._editors = editors;
             d._poster = poster;
+            d._testPilot = testPilot;
         }
 
         private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits)
@@ -161,6 +163,13 @@ namespace BlocksBeyondTheStars.Client
             if (_editors)
             {
                 yield return CaptureEditors(shell);
+                yield break;
+            }
+
+            // Test Pilot mode (-captureTestPilot): the page's screens with the tasks the inbox serves; no world; quits.
+            if (_testPilot)
+            {
+                yield return CaptureTestPilot(shell);
                 yield break;
             }
 

@@ -3,12 +3,9 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using BlocksBeyondTheStars.Client;
-using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
 using NUnit.Framework;
 using UnityEngine;
@@ -28,9 +25,6 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
     /// </summary>
     public sealed class EditorTextFitEditModeTests
     {
-        /// <summary>A one-line text may overhang its box by this much (the glyphs' side bearings).</summary>
-        private const float OverhangTolerance = 3f;
-
         private static readonly string[] Screens =
         {
             "hub", "station", "station-module", "settlement", "settlement-module", "kit-panel", "form-picker", "ship", "avatar",
@@ -83,7 +77,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         [TestCaseSource(nameof(ScreensAndLocales))]
         public void EveryText_IsReadableAndFitsItsBox(string screen, GameLocale locale)
         {
-            RequireFontRasterization();
+            UiTextFit.RequireFontRasterization();
             var shell = NewShell(locale);
             var before = new HashSet<GameObject>(Roots());
             string buildError = Build(screen, shell);
@@ -94,84 +88,11 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 Assert.Inconclusive($"'{screen}' could not be built in edit mode: {buildError ?? "no texts"}");
             }
 
-            var problems = new List<string>();
-            foreach (var text in texts)
-            {
-                string problem = Check(text);
-                if (problem != null)
-                {
-                    problems.Add($"{HierarchyPath(text.transform)} \"{Shorten(text.text)}\": {problem}");
-                }
-            }
+            var problems = UiTextFit.Problems(texts, UiKit.EditorMinFontSize);
 
             Assert.IsEmpty(problems, $"'{screen}' in {locale.Code()}{(buildError != null ? " (built with: " + buildError + ")" : string.Empty)}:\n"
                                      + string.Join("\n", problems));
         }
-
-        // ---------------------------------------------------------------- the rules
-
-        /// <summary>The problem with one text, or null.</summary>
-        private static string Check(Text text)
-        {
-            string s = text.text ?? string.Empty;
-            if (s.Trim().Length == 0 || (text.supportRichText && s.IndexOf('<') >= 0) || text.GetComponentInParent<InputField>() != null)
-            {
-                return null; // empty, rich text (tags skew the indices) or a field the player types into
-            }
-
-            var rt = text.rectTransform;
-            var settings = text.GetGenerationSettings(rt.rect.size);
-            settings.scaleFactor = 1f; // reference units, as UiKit measures — independent of the test window
-            var generator = new TextGenerator();
-            generator.Populate(s, settings);
-            int size = text.resizeTextForBestFit ? generator.fontSizeUsedForBestFit : text.fontSize;
-            if (IsWords(s) && size < UiKit.EditorMinFontSize)
-            {
-                return $"{size} px — words are at least {UiKit.EditorMinFontSize} px in the editors";
-            }
-
-            if (text.horizontalOverflow == HorizontalWrapMode.Wrap)
-            {
-                if (text.verticalOverflow == VerticalWrapMode.Truncate && generator.characterCountVisible < s.Replace("\n", string.Empty).Length)
-                {
-                    return $"cut — only {generator.characterCountVisible} of {s.Length} characters fit {rt.rect.width:0}×{rt.rect.height:0}";
-                }
-
-                return BrokenWord(s, generator);
-            }
-
-            float width = generator.GetPreferredWidth(s, settings);
-            return width > rt.rect.width + OverhangTolerance ? $"{width:0} px wide in a {rt.rect.width:0} px box at {size} px" : null;
-        }
-
-        /// <summary>A line that starts inside a word (not after a space or a line break, not at a CJK character).</summary>
-        private static string BrokenWord(string s, TextGenerator generator)
-        {
-            var lines = new List<UILineInfo>();
-            generator.GetLines(lines);
-            for (int i = 1; i < lines.Count; i++)
-            {
-                int start = lines[i].startCharIdx;
-                if (start <= 0 || start >= s.Length)
-                {
-                    continue;
-                }
-
-                char prev = s[start - 1], next = s[start];
-                if (char.IsWhiteSpace(prev) || char.IsWhiteSpace(next) || ButtonLabelFit.HasCjk(prev.ToString()) || ButtonLabelFit.HasCjk(next.ToString())
-                    || prev == '-' || prev == '/')
-                {
-                    continue;
-                }
-
-                return $"broken inside a word at \"{s.Substring(Math.Max(0, start - 8), Math.Min(16, s.Length - Math.Max(0, start - 8)))}\"";
-            }
-
-            return null;
-        }
-
-        /// <summary>True for a text with words: letters, more than three characters (a glyph, an arrow or "88°" is decoration).</summary>
-        private static bool IsWords(string s) => s.Trim().Length > 3 && s.Count(char.IsLetter) >= 3;
 
         // ---------------------------------------------------------------- building the screens
 
@@ -255,7 +176,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         {
             var shell = Track(new GameObject("ShellUnderTest")).AddComponent<AppShell>();
             shell.SetSettingsForTest(new ClientSettings());
-            var localizer = new Localizer(locale, LocaleTable(locale), LocaleTable(GameLocale.English));
+            var localizer = new Localizer(locale, UiTextFit.LocaleTable(locale), UiTextFit.LocaleTable(GameLocale.English));
             typeof(AppShell).GetProperty(nameof(AppShell.Localizer))?.SetValue(shell, localizer);
             UiKit.Localize = shell.L;
             return shell;
@@ -273,52 +194,5 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
 
         private static IEnumerable<GameObject> Roots()
             => UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-
-        private static Dictionary<string, string> LocaleTable(GameLocale locale)
-        {
-            string file = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "data", "locales", locale.Code() + ".json"));
-            if (!File.Exists(file))
-            {
-                Assert.Ignore($"locale file not found: {file}");
-            }
-
-            return ContentLoader.ParseLocaleTable(File.ReadAllText(file));
-        }
-
-        private static string HierarchyPath(Transform t)
-        {
-            var sb = new StringBuilder(t.name);
-            for (var p = t.parent; p != null && p.parent != null; p = p.parent)
-            {
-                sb.Insert(0, p.name + "/");
-            }
-
-            return sb.ToString();
-        }
-
-        private static string Shorten(string s) => s.Length <= 60 ? s.Replace("\n", "⏎") : s.Substring(0, 57).Replace("\n", "⏎") + "…";
-
-        /// <summary>The fit check measures glyphs; a run that cannot rasterize the font cannot judge it.</summary>
-        private static void RequireFontRasterization()
-        {
-            var probe = new TextGenerator();
-            probe.Populate("Ab", new TextGenerationSettings
-            {
-                font = UiKit.Font,
-                fontSize = 15,
-                scaleFactor = 1f,
-                lineSpacing = 1f,
-                horizontalOverflow = HorizontalWrapMode.Overflow,
-                verticalOverflow = VerticalWrapMode.Overflow,
-                generationExtents = new Vector2(200f, 50f),
-                textAnchor = TextAnchor.MiddleLeft,
-                pivot = new Vector2(0f, 1f),
-                color = Color.white,
-            });
-            if (probe.characterCount == 0 || probe.lineCount == 0)
-            {
-                Assert.Inconclusive("this run cannot rasterize the UI font — the fit check needs glyph metrics");
-            }
-        }
     }
 }

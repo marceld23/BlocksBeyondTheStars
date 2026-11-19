@@ -204,6 +204,7 @@ namespace BlocksBeyondTheStars.Client
         /// modules). Saving under the same key replaces the ship at merge time — the intended edit path.</summary>
         private void LoadBuiltIn(ShipDefinition def)
         {
+            EditorPlaytest.Loaded(EditorPlaytest.Ship);
             var layout = Shell?.Content?.GetShipLayout(def.Layout);
             if (layout == null)
             {
@@ -245,6 +246,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
         private void LoadDesign(string key)
         {
+            EditorPlaytest.Loaded(EditorPlaytest.Ship);
             _basedOn = string.Empty; // the player's own design; a shipped key is recognised at submit time
             string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
             string layoutPath = Path.Combine(dir, "layout.json");

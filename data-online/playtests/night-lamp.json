@@ -1,0 +1,65 @@
+{
+  "id": "night-lamp",
+  "rev": 1,
+  "enabled": false,
+  "sort": 20,
+  "area": "ingame",
+  "title": { "de": "Mit der Lampe durch die Nacht", "en": "Through the night with the lamp" },
+  "intro": {
+    "de": "Diese Testwelt beginnt mitten in der Nacht, und in deinem Inventar liegt eine Anzuglampe. Finde heraus, wie gut du mit ihr siehst.",
+    "en": "This test world starts in the middle of the night, and a suit lamp is in your inventory. Find out how well you can see with it."
+  },
+  "minutes": 10,
+  "world": {
+    "seed": 20261118,
+    "startPlanet": "rocky",
+    "preset": "peaceful",
+    "tutorial": "off",
+    "commands": [
+      { "cmd": "set_time", "arg": "23:00" },
+      { "cmd": "give_item", "arg": "suit_lamp", "count": 1 }
+    ]
+  },
+  "steps": [
+    {
+      "id": "wear",
+      "text": { "de": "Öffne dein Inventar und lege die Anzuglampe an.", "en": "Open your inventory and put the suit lamp on." }
+    },
+    {
+      "id": "on",
+      "text": { "de": "Schalte die Lampe ein.", "en": "Switch the lamp on." },
+      "check": { "event": "lamp:toggled", "arg": "on" }
+    },
+    {
+      "id": "walk",
+      "text": { "de": "Geh 50 Meter durch die Nacht.", "en": "Walk 50 metres through the night." },
+      "check": { "event": "move:walked", "required": 50 }
+    },
+    {
+      "id": "see",
+      "text": {
+        "de": "Siehst du mit der Lampe genug, um nicht zu stolpern?",
+        "en": "Can you see enough with the lamp not to stumble?"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "useful",
+      "type": "stars",
+      "text": { "de": "Wie gut hilft dir die Lampe in der Nacht?", "en": "How much does the lamp help you at night?" }
+    },
+    {
+      "id": "brightness",
+      "type": "choice",
+      "text": { "de": "Wie hell ist die Lampe?", "en": "How bright is the lamp?" },
+      "options": [
+        { "id": "dark", "text": { "de": "Zu dunkel", "en": "Too dark" } },
+        { "id": "right", "text": { "de": "Genau richtig", "en": "Just right" } },
+        { "id": "bright", "text": { "de": "Zu hell", "en": "Too bright" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

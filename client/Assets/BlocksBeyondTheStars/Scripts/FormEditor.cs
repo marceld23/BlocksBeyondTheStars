@@ -250,6 +250,7 @@ namespace BlocksBeyondTheStars.Client
             _model.MarkSaved();
             RebuildLibrary();
             RefreshLabels();
+            EditorPlaytest.Saved(EditorPlaytest.Form);
             SetStatus(string.Format(L("ui.form.saved"), name), EditorStatusSeverity.Success);
             return true;
         }
@@ -281,6 +282,7 @@ namespace BlocksBeyondTheStars.Client
             SetNames(copy, copy);
             _model.MarkSaved();
             RebuildLibrary();
+            EditorPlaytest.Saved(EditorPlaytest.Form);
             SetStatus(string.Format(L("ui.form.saved"), copy), EditorStatusSeverity.Success);
         }
 
@@ -312,6 +314,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             GUIUtility.systemCopyBuffer = ShareCode.EncodeForm(voxels, DocumentName);
+            EditorPlaytest.Exported(EditorPlaytest.Form);
             SetStatus(L("ui.shape.custom.exported"), EditorStatusSeverity.Success);
         }
 

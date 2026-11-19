@@ -163,6 +163,7 @@ namespace BlocksBeyondTheStars.Client
             Shell.Settings.Save();
             _model.MarkSaved();
             RebuildToolList();
+            EditorPlaytest.Saved(EditorPlaytest.ToolLook);
             SetStatus(L("ui.toollook.saved"), EditorStatusSeverity.Success);
             return true;
         }

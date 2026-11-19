@@ -1,0 +1,59 @@
+{
+  "id": "first-ship",
+  "rev": 1,
+  "enabled": false,
+  "sort": 30,
+  "area": "editor",
+  "editor": "ship",
+  "title": { "de": "Dein erstes eigenes Schiff", "en": "Your first own ship" },
+  "intro": {
+    "de": "Baue im Schiffseditor ein kleines Schiff und speichere es. Uns interessiert, ob du dich im Editor gleich zurechtfindest.",
+    "en": "Build a small ship in the Ship Editor and save it. We would like to know whether you find your way around the editor straight away."
+  },
+  "minutes": 15,
+  "steps": [
+    {
+      "id": "open",
+      "text": {
+        "de": "Öffne im Hauptmenü unter „Editoren“ den Schiffseditor.",
+        "en": "Open the Ship Editor under “Editors” in the main menu."
+      },
+      "check": { "event": "editor:opened", "arg": "ship" }
+    },
+    {
+      "id": "build",
+      "text": { "de": "Baue ein kleines Schiff aus mindestens 20 Blöcken.", "en": "Build a small ship from at least 20 blocks." }
+    },
+    {
+      "id": "undo",
+      "text": {
+        "de": "Setze einen Block an die falsche Stelle und nimm ihn mit „Rückgängig“ wieder weg.",
+        "en": "Place a block in the wrong spot and take it back with “Undo”."
+      }
+    },
+    {
+      "id": "save",
+      "text": { "de": "Speichere dein Schiff.", "en": "Save your ship." },
+      "check": { "event": "editor:saved", "arg": "ship" }
+    }
+  ],
+  "questions": [
+    {
+      "id": "fun",
+      "type": "stars",
+      "text": { "de": "Wie viel Spaß macht das Bauen im Editor?", "en": "How much fun is building in the editor?" }
+    },
+    {
+      "id": "found",
+      "type": "choice",
+      "text": { "de": "Hast du gleich gefunden, was du gesucht hast?", "en": "Did you find what you were looking for straight away?" },
+      "options": [
+        { "id": "yes", "text": { "de": "Ja", "en": "Yes" } },
+        { "id": "mostly", "text": { "de": "Meistens", "en": "Mostly" } },
+        { "id": "no", "text": { "de": "Nein", "en": "No" } }
+      ]
+    }
+  ],
+  "thanks": { "de": "Danke fürs Testen, Testpilot!", "en": "Thank you for testing, test pilot!" },
+  "retest": false
+}

@@ -44,5 +44,6 @@
   { "id": "alliances" },
   { "id": "emotes" },
   { "id": "arcade" },
-  { "id": "house-rules" }
+  { "id": "house-rules" },
+  { "id": "test-pilot" }
 ]

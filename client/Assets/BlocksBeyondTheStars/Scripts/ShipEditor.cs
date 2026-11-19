@@ -619,6 +619,7 @@ namespace BlocksBeyondTheStars.Client
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
                 string userKey = WriteUserShip(key, ship, layout); // #3520: the one-file copy the local server reads (ShipEditor.UserContent.cs)
                 // The third argument is only for a translation that still names the folder; the status bar shows no path.
+                EditorPlaytest.Saved(EditorPlaytest.Ship);
                 Status(string.Format(L("ui.ed.saved_ship"), key, _design.Count, key) + UserShipRenamedNote(key, userKey),
                     EditorStatusSeverity.Success);
                 MarkSaved();

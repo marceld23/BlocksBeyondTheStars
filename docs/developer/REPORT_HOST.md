@@ -36,6 +36,7 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /admin/report/{id}/attachment/{index}`, `…/{index}/view` | admin Basic Auth | The same file for the operator (PNG, raw tile, JSON or gzip); `/view` serves a PNG inline for the detail page's preview |
 | `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button): every stored column except the reporter's reply key, which is also stripped from the exported copy of the payload (`ReportJson`; the database keeps it), so the file carries no reply key (#2921). Caveat: `PlayerId` is still exported, and for client-direct reports (desktop, play.\*) that is the install's player token, from which the reply key can be re-derived (`FeedbackReplyKey.Derive`) |
 | `GET /healthz` | none | Liveness |
+| `GET /api/playtests`, `/api/playtests/mine`, `/admin/playtests…`, `POST /api/reports/{id}/confirm` … | see there | The playtest catalogue of the game's Test Pilot page and the confirm of a playtest report — [PLAYTEST_TASKS.md](PLAYTEST_TASKS.md) |
 
 List items are camelCase (`id`, `title`, `description`, `email`, `gameVersion`, …, `status`,
 `createdAt` ISO-8601 UTC, `screenshotUrl` or null, `attachments` — `[{ index, fileName, mimeType, bytes, url }]`,
@@ -65,6 +66,7 @@ $page.items | ForEach-Object { "{0}  {1}  {2}" -f $_.createdAt, $_.category, $_.
 | `BBS_REPORTS_MAX_BODY_BYTES` | `4000000` | Kestrel request cap (fits report + ~1.5 MB screenshot) |
 | `BBS_REPORTS_INGEST_PER_MINUTE` | `10` | Per-IP fixed-window rate limit for `POST /api/bugreport` only (`0` = off) |
 | `BBS_REPORTS_REPLY_PER_MINUTE` | `30` | Per-**reply-key** fixed-window rate limit for the player reply routes `/api/replies*` (`0` = off) — separate from ingest on purpose (#1352): every install polls for answers, so a LAN class behind one NAT must never spend the report budget on polls |
+| `BBS_REPORTS_PLAYTEST_PER_MINUTE` | `60` | Per-IP fixed-window rate limit for the playtest catalogue fetch `GET /api/playtests` only (`0` = off) — its own budget for the same reason as the reply limiter: every client fetches the catalogue |
 | `BBS_REPORTS_RETENTION_DAYS` | `0` (keep forever) | Prune reports + screenshots after N days — reports can carry an e-mail, so this is also a privacy lever |
 | `BBS_REPORTS_SUBMISSION_RETENTION_DAYS` | `365` | Delete submissions (texture, ship, structure, avatar) that were **not adopted** after N days (`0` = keep) — the promise the submit dialog and the privacy page make. The older name `BBS_REPORTS_TEXTURE_RETENTION_DAYS` still works; the new one wins when both are set |
 | `BBS_REPORTS_MAX_ATTACHMENT_BYTES` | `400000` | Size cap per attachment of a texture or avatar submission (at most 4 files) |

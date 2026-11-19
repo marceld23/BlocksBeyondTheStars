@@ -225,6 +225,7 @@ namespace BlocksBeyondTheStars.Client
 
             s.Outfits.Add(CaptureScratch(name));
             s.Save();
+            EditorPlaytest.Saved(EditorPlaytest.Avatar);
             return L("ui.avatar.outfit_saved").Replace("{name}", name);
         }
 
@@ -312,6 +313,7 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(AppPaths.Root, "avatar_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "skin.json"), SkinFile(key, pretty: true));
+                EditorPlaytest.Exported(EditorPlaytest.Avatar);
                 SetStatus(L("ui.avatar.exported_folder"), EditorStatusSeverity.Success); // no path: the folder's name only
             }
             catch (Exception e)

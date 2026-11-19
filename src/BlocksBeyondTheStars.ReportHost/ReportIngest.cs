@@ -80,6 +80,19 @@ public static class ReportIngest
     /// <summary>A HUD frame from the character editor's HUD mode (#3319), <c>hud-submission</c>.</summary>
     public const string HudCategory = "hud";
 
+    /// <summary><c>reportJson.reportType</c> of the report that closes a playtest task (the "Test Pilot" page).</summary>
+    public const string PlaytestReportType = "playtest-report";
+
+    /// <summary>The category of such a report: its own bucket and filter, so the answers to a task can be read and
+    /// counted apart from free feedback. It is NOT a submission — it is never offered for adoption and is not deleted
+    /// by the submission retention — but it may carry the tester's work as an attachment (only when the tester ticked
+    /// that), capped like a ship or structure.</summary>
+    public const string PlaytestCategory = "playtest";
+
+    /// <summary>Whether a report of <paramref name="category"/> may carry attachments: the submissions, and a playtest
+    /// report.</summary>
+    public static bool MayCarryAttachments(string category) => IsSubmission(category) || category == PlaytestCategory;
+
     /// <summary>Every submission category: its <c>reportType</c> is <c>&lt;category&gt;-submission</c>, its files are kept
     /// (<see cref="ParsedReport.Attachments"/>) and a submission that was not adopted is deleted after the
     /// submission retention period.</summary>
@@ -163,10 +176,11 @@ public static class ReportIngest
 
             // A crash kind still wins (that is what the crash pipeline sends); a submission (texture, ship, structure,
             // avatar) gets its own bucket so it neither drowns in the feedback list nor — as any "kind" used to —
-            // lands among the crashes.
+            // lands among the crashes. A playtest report (the closing report of a Test Pilot task) is a bucket too.
             string submission = SubmissionCategoryOf(reportType);
             report.Category = report.Kind.Length > 0 ? "crash"
                 : submission.Length > 0 ? submission
+                : reportType == PlaytestReportType ? PlaytestCategory
                 : "feedback";
 
             // Reply-thread credential (#1327): only a syntactically valid key is kept — anything else is
@@ -178,7 +192,7 @@ public static class ReportIngest
             }
 
             ExtractScreenshot(root, config, report);
-            if (IsSubmission(report.Category))
+            if (MayCarryAttachments(report.Category))
             {
                 ExtractAttachments(root, config, report);
             }
