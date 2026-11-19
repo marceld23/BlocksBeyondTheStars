@@ -59,6 +59,13 @@ public sealed class ReportHostRuntime
     /// <summary>The current time in unix seconds — read on every call (a method, never a cached value).</summary>
     public static long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
+    /// <summary>
+    /// A caller-supplied value as it may stand in a log line: without line breaks, so it can never start a forged
+    /// second entry. Stored ids are charset-validated anyway; a route value is not, and this covers both.
+    /// </summary>
+    public static string LogSafe(string? value)
+        => (value ?? string.Empty).Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
+
     // The client IP used for rate limiting; behind the reverse proxy the socket address is the proxy's,
     // so a trusted deployment opts into X-Forwarded-For.
     public string ClientIp(HttpContext ctx)

@@ -270,7 +270,7 @@ public static class ReportHostPlaytestEndpoints
                     statusCode: StatusCodes.Status409Conflict);
         }
 
-        runtime.Log.LogInformation("Playtest task {Id} saved (rev {Rev}).", task.Id, task.Rev);
+        runtime.Log.LogInformation("Playtest task {Id} saved (rev {Rev}).", ReportHostRuntime.LogSafe(task.Id), task.Rev);
         return Results.Json(new { ok = true, id = task.Id, rev = task.Rev, warnings = problems.Select(ProblemJson).ToArray() });
     }
 
