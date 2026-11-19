@@ -169,6 +169,26 @@ namespace BlocksBeyondTheStars.Client.Playtests
             }
         }
 
+        /// <summary>How many shown tasks are under way — started, or ready for their report. The menu entry keeps a
+        /// quiet mark for them once nothing is new any more.</summary>
+        public int OpenCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (var task in _tasks)
+                {
+                    var status = _progress.StatusOf(task);
+                    if (status == PlaytestTaskStatus.InProgress || status == PlaytestTaskStatus.ReadyToReport)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+        }
+
         /// <summary>
         /// The server game events the open steps of the task being worked on wait for — what the client asks a server
         /// to report back. UI moments and editor events are the client's own and are never asked for. At most

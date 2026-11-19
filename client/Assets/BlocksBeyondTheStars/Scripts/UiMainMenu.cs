@@ -151,10 +151,9 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddTierButton(_root, ColX, y, SideW, h, _shell.L("ui.menu.feedback"), FeedbackUi.OpenFromMenu, ButtonTier.Quiet, "btn_feedback");
                 var contribute = UiKit.AddTierButton(_root, ColX + SideW + SideGap, y, SideW, h, _shell.L("ui.menu.contribute"),
                     () => { if (_participate != null) _participate.SetActive(true); }, ButtonTier.Quiet, "btn_multiplayer");
-                if (PlaytestHub.Instance != null && PlaytestHub.Instance.Tracker.NewCount > 0)
-                {
-                    UiKit.AddBadge(contribute, SideW); // a new playtest task waits behind "Join in"
-                }
+                // Playtest tasks wait behind "Join in": an amber frame while some are under way; the running light and
+                // their number while some are new. The mark follows the catalogue when its fetch ends after this build.
+                UiJoinInMark.Attach(contribute, SideW);
                 UiKit.AddTierButton(_root, ColX + 2f * (SideW + SideGap), y, SideW, h, _shell.L("ui.menu.website"), OpenWebsite, ButtonTier.Quiet, "btn_singleplayer");
                 UiKit.AddText(_root, CardX, y, CardW, h, "VER. " + AppShell.Version, 15, UiKit.CyanDim, TextAnchor.MiddleRight);
             }

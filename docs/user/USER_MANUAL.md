@@ -5618,6 +5618,15 @@ with none at all that you need one.
 ### Test Pilot — try out what is new and earn badges (desktop versions)
 - **Where:** main menu → **Join in** → **Test Pilot**, or the **Test Pilot** row in the pause menu while you play.
   (Not in the browser version.)
+- **The Join in button tells you when something waits:** while a task is **new** (or asks for a re-test), the button
+  has an **amber frame with a light running around it**, an amber label and the **number of new tasks** on its top
+  right corner. While tasks are only **under way** — started, or ready for their report — the frame stays amber and
+  still, without a number. With no task waiting the button looks like its neighbours. With **Reduced effects** (see
+  *Settings*) the light stands still.
+- **Until you have opened the Test Pilot page once,** the button shows the running light **without a number**: it is
+  an invitation. The game asks the internet for tasks at start-up only after that first visit, so before it the game
+  cannot know whether a task waits — it does not ask, it just points at the page. After your first visit the rule
+  above decides.
 - The page lists **tasks** the developers would like tested — something new in the game, or one of the editors.
   Each task says where it takes place, about how long it takes and how far you are. New tasks arrive over the
   internet without a game update; the page fetches them when you open it.
