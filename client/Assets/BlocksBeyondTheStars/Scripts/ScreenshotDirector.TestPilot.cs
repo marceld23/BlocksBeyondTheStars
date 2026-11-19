@@ -99,8 +99,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A task's test world — the world this install creates for it, started the way the task's button starts
-        /// it: the HUD with the current step's card once the start commands have run, then the pause menu with the page's
-        /// row. Needs the bundled server (a full build); without a task that brings a world it is skipped.</summary>
+        /// it: the start card once the start commands have run, the HUD with the task's card, the pause menu with the
+        /// page's row, and the task's view over the held world (what the Test Pilot key opens). Needs the bundled server
+        /// (a full build); without a task that brings a world it is skipped.</summary>
         private IEnumerator TestWorldShots(AppShell shell, PlaytestHub hub)
         {
             PlaytestTask task = null;
@@ -144,11 +145,33 @@ namespace BlocksBeyondTheStars.Client
             var entry = hub.Progress.Get(task.Id);
             Debug.Log($"[Capture] Test world '{shell.Settings.LastWorld}': server reports events={hub.ServerReportsEvents}, "
                       + $"start commands ran={(entry != null && entry.CommandsRan)}, open steps={hub.Progress.OpenSteps(task)}");
-            yield return Capture(Path.Combine(_testPilotDir, "12-world-hud.png"));
+            yield return WorldScreenShots(shell);
+        }
+
+        /// <summary>The screens of a test world that is up: the start card, the HUD, the pause menu, the task's view.</summary>
+        private IEnumerator WorldScreenShots(AppShell shell)
+        {
+            // #3848: the task introduces itself once the start commands have run.
+            yield return WaitUntil(() => PlaytestStartCard.IsOpen, 10f);
+            if (PlaytestStartCard.IsOpen)
+            {
+                yield return TestPilotShot("12-world-start-card");
+                ClickButtonLabelled(shell.L("ui.testpilot.start.go"));
+                yield return new WaitForSecondsRealtime(PoseSettle);
+            }
+            else
+            {
+                Debug.LogWarning("[Capture] The start card did not open in the test world.");
+            }
+
+            yield return Capture(Path.Combine(_testPilotDir, "13-world-hud.png"));
 
             shell.OpenPauseMenu();
             yield return new WaitForSecondsRealtime(PoseSettle);
-            yield return Capture(Path.Combine(_testPilotDir, "13-world-pause-menu.png"));
+            yield return Capture(Path.Combine(_testPilotDir, "14-world-pause-menu.png"));
+
+            shell.OpenTestPilot(); // the task's view over the held world — what the Test Pilot key opens (#3847)
+            yield return TestPilotShot("15-world-task");
         }
 
         /// <summary>A task's view as a player finds it, then with one step done and one that did not work.</summary>
@@ -207,9 +230,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             yield return new WaitForSecondsRealtime(EditorSettle);
-            yield return TestPilotShot("05-editor-tab");
-
             var panel = FindAnyObjectByType<PlaytestEditorPanel>();
+            if (panel != null)
+            {
+                panel.SetExpanded(false); // the list is open on the first entry (#3849) — the chip first, as the names say
+            }
+
+            yield return TestPilotShot("05-editor-tab");
             if (panel != null)
             {
                 panel.SetExpanded(true);

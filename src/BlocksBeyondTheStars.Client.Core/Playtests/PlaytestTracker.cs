@@ -52,6 +52,11 @@ namespace BlocksBeyondTheStars.Client.Playtests
         /// <summary>A step closed because the game recognised it (the task, the step) — the "step recognised" line.</summary>
         public event Action<PlaytestTask, PlaytestStep>? StepRecognised;
 
+        /// <summary>The game recognised the LAST open step of the task being worked on: every step is closed now and
+        /// the report is due (#3848). Not raised for a step the tester closes by hand — that happens on the page or in
+        /// the list, which say so themselves.</summary>
+        public event Action<PlaytestTask>? TaskReady;
+
         /// <summary>This install's progress file.</summary>
         public PlaytestProgress Progress => _progress;
 
@@ -255,6 +260,11 @@ namespace BlocksBeyondTheStars.Client.Playtests
                         StepRecognised?.Invoke(task, step);
                     }
                 }
+            }
+
+            if (closed.Count > 0 && _progress.OpenSteps(task) == 0)
+            {
+                TaskReady?.Invoke(task);
             }
 
             return closed.Count;

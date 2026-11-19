@@ -86,10 +86,29 @@ the client and the tests):
 A UI moment (`ui:menu_open` …) is counted by the client itself: `NetworkClient.SendUiTutorialEvent` raises the same
 flag as a signal.
 
-**A recognised step has no buttons.** It closes when the event comes and not otherwise — the tester cannot answer
-"did not work". So recognise only what a tester can always bring about (walking, mining, opening an editor,
-launching) and leave everything that depends on luck or skill to the two buttons ("find a raider ship", "defeat
-the giant").
+**A recognised step has one button: "Did not work"** (#3851, from v2026.11.25 on). It closes when the event comes;
+there is no "Done" — that stays the game's word — but a tester who cannot bring the event about (does not find the
+key, does not find a raider ship) says so with a note and goes on. A step closed that way no longer counts events;
+taken back ("Undo") it is recognised again. So a task may recognise what takes skill or luck ("dodge the heavy
+shot", "defeat the giant") — **if it names `2026.11.25` or later as its `minVersion`**: the clients before that
+show a recognised step without any button, and there only what a tester can always bring about may be recognised
+(walking, mining, opening an editor, launching).
+
+#### Writing a task: recognise the doing, ask the judging at the end
+
+In a world the HUD shows the **first open step** of the task being worked on (`PlaytestGuide.CardFor`). A step the
+tester has to tick off holds the card there, while the game recognises later steps behind it. So an in-game task has
+one shape (#3852):
+
+1. **The doing is recognised**, in the order it happens — every action a game event exists for.
+2. **The judging is asked at the end**, one question per hand-ticked step ("Does the orange bar refill by itself?").
+   A tester answers these on the page, which the card sends them to ("Done? Press F4 and tick it off.").
+3. **A step says how**: an action that needs a key names it ("the space bar, unless you changed it").
+
+An action and a question in one step ("Boost until the bar is empty. Does it refill?") become two steps. The validator
+warns about a hand-ticked step that stands before a recognised one (`CheckStepOrder`); the repository's task files
+must be free of findings, so they all have this shape. An editor task is exempt — its whole list is on the screen,
+buttons included.
 
 #### An event newer than a client
 
@@ -118,8 +137,10 @@ there**. Today it holds the nine events of #3831/#3832 (first possible release: 
 | `player:fallen` | — | fallen in a Hard Survival world (the restart at the ship is `player:respawned`, an old event) |
 | `player:revived` | `fallen` \| `medic` | a medkit brought a fallen player back (both hear it) |
 
-The tasks in the repository use none of them yet, so they work on v2026.11.23. A later revision of a task can switch
-a hand-ticked step to one of them together with a `minVersion`.
+Seven of the repository's tasks use them since their second revision (#3852: `space-moves`, `throw-block`,
+`heavy-shot`, `hard-survival` — and `night-lamp`, `pillar-climb`, `guardian-giant` recognise older events that take
+some finding). All seven name `2026.11.25` as their `minVersion`, because they rely on "Did not work" for a
+recognised step.
 
 ### Test worlds
 
@@ -209,7 +230,8 @@ Logic (Client.Core, `Playtests/`, tested headless):
 | `PlaytestCatalogClient` | Fetches the catalogue (ETag, at most every 6 h by itself, always when the player opens the page), caches it in `playtests/catalog.json`; `FetchMine` |
 | `PlaytestProgress` | `playtests/progress.json` per install: step states, the report draft, the sent report, badges, the task being worked on, test worlds, and whether the page was ever opened (`Visited` — only then is the catalogue fetched at a start, see *Privacy*) |
 | `PlaytestWork` | "Send my work along": the editor's work as the report's one attachment (below) |
-| `PlaytestTracker` | The tasks for this build (version window), taking off a check whose event this build does not know, activating a task, events → ticked steps, the server watch patterns, applying the inbox's list of own reports |
+| `PlaytestTracker` | The tasks for this build (version window), taking off a check whose event this build does not know, activating a task, events → ticked steps (`StepRecognised`; `TaskReady` when the game recognised the last open step), the server watch patterns, applying the inbox's list of own reports |
+| `PlaytestGuide` | What the game says about the task being worked on while it is played (#3846, #3848): the HUD card (`CardFor` — task, step number, count, the hint "recognised" or "tick it off", or "all done"), whether a step is recognised here (`Recognised` — also asked by the page's and the list's step rows), and how a task announces itself in a world that came up (`StartNoticeFor` — the start card in its own test world, a line in any other) |
 | `PlaytestReport` | Builds the report body: refused while a step is open or a question unanswered; the description is the whole report as plain text (the inbox requires one, and an operator can read it without a special view); no e-mail, no install token (`playerId` empty — the reply key is the anonymous id), the nickname instead of the in-game name; the `graphics` node when the caller hands it over (a report sent from inside a world, #3838) |
 | `PlaytestWatchSync` | Paces the watch list and decides whether the server reports events (ack) or is an older one (silence → the player ticks those steps), and which patterns of the list the server took (`Reports`) |
 | `PlaytestWorldPlan`, `PlaytestDevInbox` | The checked test world; a development build's own inbox (`BBS_REPORTS_DEV_URL` + `BBS_REPORTS_DEV_KEY`, loopback or https only, never in a release build) |
@@ -218,14 +240,28 @@ Unity (`client/Assets/BlocksBeyondTheStars/Scripts/`):
 
 | File | Job |
 |---|---|
-| `PlaytestHub.cs` | The one component on the shell: owns the tracker, fetches off the main thread, binds to a world's `NetworkClient`, runs a test world's start commands, sends the report. `EditorPlaytest` — the editors' one-line signals |
-| `UiTestPilot.cs` | The page (tasks, rank, badges) and a task's view; `PlaytestStepRow` is shared with the editor list |
+| `PlaytestHub.cs` | The one component on the shell: owns the tracker, fetches off the main thread, binds to a world's `NetworkClient`, runs a test world's start commands, announces the task once the world is up (`AnnounceTaskOnce`), queues the "all steps done" banner, sends the report. `EditorPlaytest` — the editors' one-line signals |
+| `UiTestPilot.cs` | The page (tasks, rank, badges) and a task's view — how the task begins (a test world, "Open: editor", any own world), put aside / take up; `PlaytestStepRow` is shared with the editor list |
 | `PlaytestReportDialog.cs` | The report dialog, the "did not work" note, the "confirmed" dialog; `PlaytestModal` (who owns the cancel key) |
-| `PlaytestEditorPanel.cs` | The task's list over an open editor: a tab on the right edge that opens into the steps |
-| `HudUi.Playtest.cs` | The current step as a context card in the HUD's right column |
-| `AppShell.TestPilot.cs` | Opening/leaving the page (also from the pause menu over a held world), rebuilds, the editor's "opened" event |
+| `PlaytestStartCard.cs` | The start card of a task in the test world created for it: title, introduction, steps, where the step stands, the key; holds the world under its own name (`WorldHoldArbiter.Playtest`) |
+| `PlaytestEditorPanel.cs` | The task's list over an open editor — open on the first entry for a task, then a chip in the top-right corner ("2/4", "Recognised by the game" for a few seconds, "Write report") |
+| `HudUi.Playtest.cs` | The HUD card in the right column's context stack (drawn from `PlaytestGuide.CardFor`; it grows with its text) and the "all steps done" banner |
+| `AppShell.TestPilot.cs` | Opening/leaving the page (from the main menu, from the pause menu over a held world, and with the Test Pilot key straight from the world), the key in an editor, opening a task's editor, rebuilds, the editor's "opened" event |
 
 Desktop only: `PlaytestHub.Available` is false in a browser build, the menu entry is absent there.
+
+### What the tester sees while a task is worked on
+
+| Where | What | Decided by |
+|---|---|---|
+| A world, HUD right column | The card: "TEST PILOT · STEP 2 OF 5", the task's title, the step's whole text, the count of a counting step, and a hint — "The game notices this by itself." or "Done? Press F4 and tick it off." (a pad: the pause menu). With every step closed it stays and names the way to the report | `PlaytestGuide.CardFor` |
+| A world, when it comes up | In the test world created for the task: the start card, once per world start, **after** the start commands (the card holds the world, and a held singleplayer server drops a command sent meanwhile). In any other world: one status line naming the task | `PlaytestGuide.StartNoticeFor` |
+| A world, a step closes | The status line "Step recognised: …"; for the last open step the celebration banner "All steps done" | `PlaytestTracker.StepRecognised`, `TaskReady` |
+| An editor | The list (open on first entry), or its chip | `PlaytestEditorPanel` |
+| Everywhere | The **Test Pilot key** (`InputAction.TestPilot`, F4, rebindable): in a world it opens the page on the task and leaves it straight back into the game; in an editor it opens and folds the list. Nothing without a task, with a text field focused or under a dialog | `AppShell.HandleTestPilotKey` |
+
+The HUD card rebuilds its text from a stamp of its own (step, count, hint, key binding): the hub's `Revision` only
+moves when a step closes, so a count would stand still on it.
 
 ### "Send my work along"
 

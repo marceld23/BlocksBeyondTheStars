@@ -1,10 +1,10 @@
 {
   "id": "guardian-giant",
-  "rev": 1,
+  "rev": 2,
   "enabled": false,
   "sort": 110,
   "area": "ingame",
-  "minVersion": "2026.11.23",
+  "minVersion": "2026.11.25",
   "title": { "de": "Der Wächter-Gigant", "en": "The guardian giant" },
   "intro": {
     "de": "In dieser Testwelt liegt ein Wächter-Gigant, der noch aufwachen kann. Du landest direkt bei ihm, mit einer Laserpistole im Inventar. Wecke ihn, kämpfe gegen ihn und sag uns, ob der Kampf spannend und fair ist. Er warnt vor jedem Angriff.",
@@ -32,31 +32,25 @@
       "check": { "event": "guardian_giant:found" }
     },
     {
+      "id": "win",
+      "text": {
+        "de": "Geh näher heran, bis seine Lichter angehen und er aufsteht. Kämpfe gegen ihn: Triff ihn zwischen seinen Angriffen, bis er besiegt ist. Ist er zu stark für dich, wähle „Ging nicht“.",
+        "en": "Go closer until its lights come on and it stands up. Fight it: hit it between its attacks until it is defeated. If it is too strong for you, choose “Did not work”."
+      },
+      "check": { "event": "guardian_giant:defeated" }
+    },
+    {
       "id": "wake",
       "text": {
-        "de": "Geh näher heran, bis seine Lichter angehen und er aufsteht.",
-        "en": "Go closer until its lights come on and it stands up."
+        "de": "Ist der Gigant aufgewacht, als du näher kamst: Gingen seine Lichter an, und stand er auf?",
+        "en": "Did the giant wake up when you came closer: did its lights come on, and did it stand up?"
       }
     },
     {
       "id": "warn",
       "text": {
-        "de": "Achte auf seine Warnungen: Er hebt einen Fuß, duckt sich, oder sein Visier glüht. Erkennst du, was gleich kommt?",
-        "en": "Watch its warnings: it lifts a foot, crouches, or its visor glows. Can you tell what is coming?"
-      }
-    },
-    {
-      "id": "fight",
-      "text": {
-        "de": "Kämpfe gegen ihn. Triff ihn zwischen seinen Angriffen.",
-        "en": "Fight it. Hit it between its attacks."
-      }
-    },
-    {
-      "id": "win",
-      "text": {
-        "de": "Besiege ihn. Ist er zu stark für dich, wähle „Ging nicht“.",
-        "en": "Defeat it. If it is too strong for you, choose “Did not work”."
+        "de": "Vor jedem Angriff warnt er: Er hebt einen Fuß, duckt sich, oder sein Visier glüht. Hast du erkannt, was gleich kommt?",
+        "en": "It warns before every attack: it lifts a foot, crouches, or its visor glows. Could you tell what was coming?"
       }
     }
   ],

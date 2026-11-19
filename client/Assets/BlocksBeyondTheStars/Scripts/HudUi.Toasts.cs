@@ -155,14 +155,20 @@ namespace BlocksBeyondTheStars.Client
             if (_researchAge < 0f)
             {
                 bool cutscene = GameBootstrap.CutsceneActive || (Game.Views.Director != null && Game.Views.Director.Playing);
+                var playtestReady = PlaytestHub.Instance != null ? PlaytestHub.Instance.ReadyBanners : null; // #3848
+                bool playtestWaits = playtestReady != null && playtestReady.Count > 0;
                 if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0
-                     && Game.AchievementRewardsWaiting.Count == 0 && Game.FestivalsBegan.Count == 0)
+                     && Game.AchievementRewardsWaiting.Count == 0 && Game.FestivalsBegan.Count == 0 && !playtestWaits)
                     || _canvas == null || !_canvas.enabled || cutscene)
                 {
                     return;
                 }
 
-                if (Game.ResearchAvailable.Count > 0)
+                if (playtestWaits)
+                {
+                    StartPlaytestReadyToast(playtestReady.Dequeue()); // first: it answers what the player just did
+                }
+                else if (Game.ResearchAvailable.Count > 0)
                 {
                     StartResearchToast(Game.ResearchAvailable.Dequeue());
                 }

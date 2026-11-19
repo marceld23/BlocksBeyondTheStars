@@ -306,7 +306,7 @@ It writes `<dir>/testpilot/NN-<screen>.png` and quits. Nothing is sent to the in
 | `05-editor-tab`, `06-editor-list`, `07-editor-ready` | A ship-editor task in the Ship Editor: the chip, the open list, every step closed |
 | `08-report` | The report dialog from the editor, with "send my work along" |
 | `11-confirmed` | The "test report confirmed" dialog |
-| `12-world-hud`, `13-world-pause-menu` | A task's test world, started the way its button starts it: the HUD with the current step's card after the start commands ran; the pause menu with the Test Pilot row |
+| `12-world-start-card`, `13-world-hud`, `14-world-pause-menu`, `15-world-task` | A task's test world, started the way its button starts it: the start card that opens after the start commands ran; the HUD with the task's card (task, step number, the step's text, the hint); the pause menu with the Test Pilot row; the task's view over the held world — what the Test Pilot key opens |
 
 The editor screens need a task with `"area": "editor", "editor": "ship"` in the catalogue and the world screens a task
 that brings a `world` (and the bundled server of a full build); without one they are skipped. The log line

@@ -285,11 +285,6 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddMeasuredText(card, Pad, y, w, task.Intro.For(lang), 19, UiKit.TextCol, out float introH);
             y += Mathf.Min(introH, 300f) + 24f;
 
-            if (!sent && task.World != null && task.Area != PlaytestAreas.Editor)
-            {
-                y = AddWorldBlock(card, shell, hub, task, y, w);
-            }
-
             if (sent)
             {
                 string note = status == PlaytestTaskStatus.Confirmed ? "ui.testpilot.confirmed_note" : "ui.testpilot.sent_note";
@@ -299,6 +294,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #3850: every kind of task says how to begin — a test world, the editor, or any world of the tester's own.
+            if (task.Area == PlaytestAreas.Editor)
+            {
+                AddEditorBlock(card, shell, task, y, w);
+            }
+            else if (task.World != null)
+            {
+                AddWorldBlock(card, shell, hub, task, y, w);
+            }
+            else
+            {
+                UiKit.AddMeasuredText(card, Pad, y, w, shell.L("ui.testpilot.own_world_hint"), 16, UiKit.CyanDim, out _);
+            }
+
+            AddWorkRow(card, shell, hub, task, w);
             int open = hub.Progress.OpenSteps(task);
             string openText = open == 0 ? shell.L("ui.testpilot.open_none")
                 : open == 1 ? shell.L("ui.testpilot.open_one")
@@ -314,22 +324,73 @@ namespace BlocksBeyondTheStars.Client
             report.interactable = open == 0;
         }
 
-        /// <summary>The test world's lines and its button; returns the next free y.</summary>
-        private static float AddWorldBlock(Transform card, AppShell shell, PlaytestHub hub, PlaytestTask task, float y, float w)
+        /// <summary>The test world's lines and its button. In the task's own test world (the page opened with the Test
+        /// Pilot key) it only says so — "leave this world first" would send the tester out of the world they need.</summary>
+        private static void AddWorldBlock(Transform card, AppShell shell, PlaytestHub hub, PlaytestTask task, float y, float w)
         {
             UiKit.AddKicker(card, Pad, y, w, shell.L("ui.testpilot.world"));
             y += 30f;
             var refusal = hub.WorldRefusal(task);
-            bool inWorld = shell.CurrentBoot != null;
-            string hintKey = refusal == PlaytestWorldRefusal.UnknownPlanet ? "ui.testpilot.world_unknown_planet"
+            bool inWorld = shell.TestPilotOverWorld;
+            bool inItsWorld = shell.PlayingLocalWorld && hub.Progress.TaskOfWorld(shell.Settings.LastWorld) == task.Id;
+            string hintKey = inItsWorld ? "ui.testpilot.world_here"
+                : refusal == PlaytestWorldRefusal.UnknownPlanet ? "ui.testpilot.world_unknown_planet"
                 : inWorld ? "ui.testpilot.world_leave_first"
                 : "ui.testpilot.world_hint";
             UiKit.AddMeasuredText(card, Pad, y, w, shell.L(hintKey), 16, UiKit.CyanDim, out float hintH);
+            if (inItsWorld)
+            {
+                return;
+            }
+
             y += hintH + 12f;
             var create = UiKit.AddTierButton(card, Pad, y, w, 56f, shell.L("ui.testpilot.world_create"), () => hub.StartTestWorld(task),
                 ButtonTier.Secondary, "btn_singleplayer");
             create.interactable = refusal == PlaytestWorldRefusal.None && !inWorld;
-            return y + 76f;
+        }
+
+        /// <summary>#3850: an editor task's way into its editor — the button opens it directly; over a world it waits
+        /// (the editors are the main menu's).</summary>
+        private static void AddEditorBlock(Transform card, AppShell shell, PlaytestTask task, float y, float w)
+        {
+            string editorName = shell.L(EditorNameKey(task.Editor));
+            UiKit.AddKicker(card, Pad, y, w, editorName);
+            y += 30f;
+            bool inWorld = shell.TestPilotOverWorld;
+            UiKit.AddMeasuredText(card, Pad, y, w, shell.L(inWorld ? "ui.testpilot.editor_leave_first" : "ui.testpilot.editor_hint"), 16,
+                UiKit.CyanDim, out float hintH);
+            y += hintH + 12f;
+            string editor = task.Editor;
+            var open = UiKit.AddTierButton(card, Pad, y, w, 56f, string.Format(shell.L("ui.testpilot.editor_open"), editorName),
+                () => shell.OpenPlaytestEditor(editor), ButtonTier.Secondary, "btn_editors");
+            open.interactable = !inWorld;
+            if (open.GetComponentInChildren<Text>() is { } label)
+            {
+                UiKit.FitLabelSingleLine(label, w - 90f, 13, label.fontSize);
+            }
+        }
+
+        /// <summary>#3850: whether this task is the one being worked on, with the way to put it aside and to take it up
+        /// again. Its ticks stay either way; the HUD card and the list over an editor only show the task being worked on.</summary>
+        private static void AddWorkRow(Transform card, AppShell shell, PlaytestHub hub, PlaytestTask task, float w)
+        {
+            const float linkW = 210f, rowY = CardH - 182f;
+            bool active = hub.Tracker.Active != null && hub.Tracker.Active.Id == task.Id;
+            var note = UiKit.AddText(card, Pad, rowY, w - linkW - 12f, 46f, shell.L(active ? "ui.testpilot.active_note" : "ui.testpilot.aside_note"), 15,
+                active ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.MiddleLeft);
+            note.horizontalOverflow = HorizontalWrapMode.Wrap;
+            string id = task.Id;
+            UiKit.AddLinkButton(card, Pad + w - linkW, rowY + 8f, linkW, 30f, shell.L(active ? "ui.testpilot.put_aside" : "ui.testpilot.take_up"), () =>
+            {
+                if (active)
+                {
+                    hub.Deactivate();
+                }
+                else
+                {
+                    hub.Activate(id);
+                }
+            }, 15, TextAnchor.MiddleRight);
         }
 
         private static void AddSteps(Transform root, AppShell shell, PlaytestHub hub, PlaytestTask task, bool sent)
@@ -354,8 +415,9 @@ namespace BlocksBeyondTheStars.Client
 
     /// <summary>
     /// One step of a task as a row — on the Test Pilot page and in the editors' list alike: its number or tick, the
-    /// text, and what closes it. A step the game recognises shows its count and closes by itself; one it cannot
-    /// recognise (or one for a server that does not report events) has the two buttons "Done" and "Did not work".
+    /// text, and what closes it. A step the game recognises shows its count and closes by itself — and still offers
+    /// "Did not work" (#3851: a tester who cannot bring the event about must be able to say so and go on); one it
+    /// cannot recognise (or one for a server that does not report events) has the two buttons "Done" and "Did not work".
     /// </summary>
     public static class PlaytestStepRow
     {
@@ -367,15 +429,17 @@ namespace BlocksBeyondTheStars.Client
             var state = hub.Progress.StepOf(task, step.Id);
             bool open = state.State == PlaytestStepStates.Open;
             bool failed = state.State == PlaytestStepStates.Failed;
-            bool recognisable = step.Check != null && !(IsServerEvent(step.Check.Event) && hub.ServerReports(step.Check.Event) == false);
+            bool recognisable = PlaytestGuide.Recognised(step, hub.ServerReports);
             bool buttons = open && !readOnly && !recognisable;
+            bool failOnly = open && !readOnly && recognisable; // #3851: the game's word, but the tester may say it did not work
+            bool acts = buttons || failOnly;
             int size = compact ? 16 : 19;
-            float buttonsW = buttons ? (compact ? 0f : 340f) : 0f, chipW = buttons ? 0f : (compact ? 0f : 230f);
+            float buttonsW = acts ? (compact ? 0f : 340f) : 0f, chipW = acts ? 0f : (compact ? 0f : 230f);
             float textX = compact ? 44f : 70f, textW = rowW - textX - 20f - buttonsW - chipW;
             float textH = UiKit.MeasureHeight(step.Text.For(lang), textW, size, FontStyle.Normal, false);
-            string sub = SubLine(shell, state, open, failed, recognisable);
+            string sub = SubLine(shell, state, open, failed, recognisable, compact ? CountText(shell, step, state) : string.Empty);
             float subH = sub.Length > 0 ? UiKit.MeasureHeight(sub, textW, 14, FontStyle.Normal, false) + 4f : 0f;
-            float h = Mathf.Max(compact ? 44f : 84f, textH + subH + (compact ? 14f : 30f)) + (buttons && compact ? 50f : 0f);
+            float h = Mathf.Max(compact ? 44f : 84f, textH + subH + (compact ? 14f : 30f)) + (acts && compact ? 50f : 0f);
 
             var row = compact ? AddPlainRow(parent, y, rowW, h) : UiKit.AddCard(parent, 0f, y, rowW, h);
             AddTick(row, compact ? 6f : 18f, compact ? 6f : (h - 40f) / 2f, compact ? 30f : 40f, open ? number.ToString() : failed ? "✕" : "✔",
@@ -389,9 +453,14 @@ namespace BlocksBeyondTheStars.Client
                 subText.horizontalOverflow = HorizontalWrapMode.Wrap;
             }
 
+            float actX = compact ? textX : rowW - buttonsW - 10f, actY = compact ? h - 48f : (h - 52f) / 2f;
             if (buttons)
             {
-                AddButtons(row, shell, hub, task, step, compact ? textX : rowW - buttonsW - 10f, compact ? h - 48f : (h - 52f) / 2f, compact);
+                AddButtons(row, shell, hub, task, step, actX, actY, compact);
+            }
+            else if (failOnly)
+            {
+                AddFailOnly(row, shell, hub, task, step, state, actX, actY, compact);
             }
             else if (!compact)
             {
@@ -401,10 +470,15 @@ namespace BlocksBeyondTheStars.Client
             return h;
         }
 
-        private static bool IsServerEvent(string key)
-            => !PlaytestEditorEvents.IsEditorEvent(key) && !BlocksBeyondTheStars.Shared.Story.GameEventKeys.IsUiEvent(key);
+        /// <summary>"1 of 3" for a step that counts, else empty.</summary>
+        private static string CountText(AppShell shell, PlaytestStep step, PlaytestStepProgress state)
+            => step.Check != null && step.Check.Required > 1
+                ? string.Format(shell.L("ui.testpilot.step_count"), state.Count, step.Check.Required)
+                : string.Empty;
 
-        private static string SubLine(AppShell shell, PlaytestStepProgress state, bool open, bool failed, bool recognisable)
+        /// <summary>The small line under a step: the tester's note of a step that did not work, or what closes an open
+        /// step — with the count of a counting step in the compact list, which has no chip for it.</summary>
+        private static string SubLine(AppShell shell, PlaytestStepProgress state, bool open, bool failed, bool recognisable, string count)
         {
             if (failed && state.Note.Length > 0)
             {
@@ -416,7 +490,8 @@ namespace BlocksBeyondTheStars.Client
                 return string.Empty;
             }
 
-            return shell.L(recognisable ? "ui.testpilot.step_auto_hint" : "ui.testpilot.step_manual_hint");
+            string hint = shell.L(recognisable ? "ui.testpilot.step_auto_hint" : "ui.testpilot.step_manual_hint");
+            return recognisable && count.Length > 0 ? hint + "  ·  " + count : hint;
         }
 
         private static Transform AddPlainRow(Transform parent, float y, float w, float h)
@@ -440,6 +515,23 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddTierButton(row, x, y, w, h, shell.L("ui.testpilot.step_done"),
                 () => hub.SetStep(task, stepId, PlaytestStepStates.Done, null), ButtonTier.Secondary);
             UiKit.AddTierButton(row, x + w + 10f, y, w, h, shell.L("ui.testpilot.step_failed"),
+                () => PlaytestNotePrompt.Open(shell, note => hub.SetStep(task, stepId, PlaytestStepStates.Failed, note)), ButtonTier.Quiet);
+        }
+
+        /// <summary>#3851: an open step the game recognises — its count (a counting step, on the page) and the one button
+        /// "Did not work". There is no "Done": that stays the game's word.</summary>
+        private static void AddFailOnly(Transform row, AppShell shell, PlaytestHub hub, PlaytestTask task, PlaytestStep step,
+            PlaytestStepProgress state, float x, float y, bool compact)
+        {
+            float w = compact ? 150f : 160f, h = compact ? 42f : 52f;
+            string count = compact ? string.Empty : CountText(shell, step, state);
+            if (count.Length > 0)
+            {
+                UiTestPilot.AddChip(row, x, y + ((h - 32f) / 2f), w, count, UiKit.Cyan);
+            }
+
+            string stepId = step.Id;
+            UiKit.AddTierButton(row, compact ? x : x + w + 10f, y, w, h, shell.L("ui.testpilot.step_failed"),
                 () => PlaytestNotePrompt.Open(shell, note => hub.SetStep(task, stepId, PlaytestStepStates.Failed, note)), ButtonTier.Quiet);
         }
 

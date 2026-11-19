@@ -36,6 +36,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A staged cutscene holding a lone player's world (the cutscene director).</summary>
         public const string Cutscene = "cutscene";
 
+        /// <summary>The start card of a playtest task, read in the test world it was created for (#3848).</summary>
+        public const string Playtest = "playtest";
+
         private readonly WorldHoldIntent _intent;
         private readonly HashSet<string> _holders = new HashSet<string>(StringComparer.Ordinal);
 

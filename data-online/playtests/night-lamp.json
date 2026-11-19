@@ -1,9 +1,10 @@
 {
   "id": "night-lamp",
-  "rev": 1,
+  "rev": 2,
   "enabled": true,
   "sort": 20,
   "area": "ingame",
+  "minVersion": "2026.11.25",
   "title": { "de": "Mit der Lampe durch die Nacht", "en": "Through the night with the lamp" },
   "intro": {
     "de": "Diese Testwelt beginnt mitten in der Nacht, und in deinem Inventar liegt eine Anzuglampe. Finde heraus, wie gut du mit ihr siehst.",
@@ -23,11 +24,15 @@
   "steps": [
     {
       "id": "wear",
-      "text": { "de": "Öffne dein Inventar und lege die Anzuglampe an.", "en": "Open your inventory and put the suit lamp on." }
+      "text": { "de": "Öffne dein Inventar und lege die Anzuglampe an.", "en": "Open your inventory and put the suit lamp on." },
+      "check": { "event": "gear:equipped", "arg": "suit_lamp" }
     },
     {
       "id": "on",
-      "text": { "de": "Schalte die Lampe ein.", "en": "Switch the lamp on." },
+      "text": {
+        "de": "Schalte die Lampe ein (Taste L, wenn du sie nicht geändert hast).",
+        "en": "Switch the lamp on (the L key, unless you changed it)."
+      },
       "check": { "event": "lamp:toggled", "arg": "on" }
     },
     {

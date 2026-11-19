@@ -82,6 +82,7 @@ public static partial class PlaytestCatalogValidator
 
         CheckSteps(task, Error, Warn);
         CheckEventVersions(task, Error);
+        CheckStepOrder(task, Warn);
         CheckQuestions(task, Error);
         if (task.World is { } world)
         {

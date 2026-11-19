@@ -1,9 +1,10 @@
 {
   "id": "heavy-shot",
-  "rev": 1,
+  "rev": 2,
   "enabled": false,
   "sort": 70,
   "area": "ingame",
+  "minVersion": "2026.11.25",
   "title": { "de": "Der schwere Schuss", "en": "The heavy shot" },
   "intro": {
     "de": "Große feindliche Schiffe laden einen schweren Schuss und warnen dich davor. Mit einer Fassrolle im richtigen Moment geht er daneben. In dieser Testwelt sind viele Gegner im All. Sag uns, ob der Kampf fair ist.",
@@ -24,24 +25,18 @@
       "check": { "event": "space:enter" }
     },
     {
-      "id": "find",
+      "id": "dodge",
       "text": {
-        "de": "Suche ein großes feindliches Schiff: einen Kreuzer oder ein Räuberschiff. Findest du keines, wähle „Ging nicht“.",
-        "en": "Look for a big hostile ship: a cruiser or a raider ship. If you find none, choose “Did not work”."
-      }
+        "de": "Suche ein großes feindliches Schiff: einen Kreuzer oder ein Räuberschiff. Wenn es glüht und ein roter Ring sich zusammenzieht, lädt es den schweren Schuss. Weiche ihm mit einer Fassrolle aus (Leertaste). Findest du kein solches Schiff, wähle „Ging nicht“.",
+        "en": "Look for a big hostile ship: a cruiser or a raider ship. When it glows and a red ring closes in, it is charging the heavy shot. Dodge it with a barrel roll (the space bar). If you find no such ship, choose “Did not work”."
+      },
+      "check": { "event": "ship:evaded", "arg": "heavy" }
     },
     {
       "id": "warning",
       "text": {
-        "de": "Warte, bis es den schweren Schuss lädt: Es glüht, und ein roter Ring zieht sich zusammen. Hast du die Warnung bemerkt?",
-        "en": "Wait until it charges the heavy shot: it glows, and a red ring closes in. Did you notice the warning?"
-      }
-    },
-    {
-      "id": "dodge",
-      "text": {
-        "de": "Weiche dem schweren Schuss mit einer Fassrolle aus. Probiere es mehrmals.",
-        "en": "Dodge the heavy shot with a barrel roll. Try it several times."
+        "de": "Vor dem schweren Schuss glüht das Schiff, und ein roter Ring zieht sich zusammen. Hast du diese Warnung rechtzeitig bemerkt?",
+        "en": "Before the heavy shot the ship glows, and a red ring closes in. Did you notice this warning in time?"
       }
     },
     {

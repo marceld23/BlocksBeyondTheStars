@@ -1,9 +1,10 @@
 {
   "id": "throw-block",
-  "rev": 1,
+  "rev": 2,
   "enabled": true,
   "sort": 50,
   "area": "ingame",
+  "minVersion": "2026.11.25",
   "title": { "de": "Blöcke werfen", "en": "Throwing blocks" },
   "intro": {
     "de": "Du kannst einen Block über den Kopf heben und werfen — auch auf feindliche Maschinen. In deinem Inventar liegen Steine dafür. Probiere es aus und sag uns, ob es Spaß macht.",
@@ -34,27 +35,30 @@
       "text": {
         "de": "Wähle einen Block in der Schnellleiste und hebe ihn über den Kopf (Taste Q, wenn du sie nicht geändert hast).",
         "en": "Pick a block in the quick bar and lift it over your head (the Q key, unless you changed it)."
-      }
+      },
+      "check": { "event": "carry:lifted" }
     },
     {
       "id": "throw",
       "text": {
-        "de": "Wirf den Block mit der Angriffstaste dorthin, wo du hinschaust. Wirf mindestens fünf Blöcke.",
-        "en": "Throw the block with the attack key to where you are looking. Throw at least five blocks."
-      }
-    },
-    {
-      "id": "weight",
-      "text": {
-        "de": "Wirf zwei verschiedene Blöcke. Fliegt ein schwerer kürzer als ein leichter?",
-        "en": "Throw two different blocks. Does a heavy one fly less far than a light one?"
-      }
+        "de": "Wirf den Block mit der Angriffstaste dorthin, wo du hinschaust. Wirf fünf Blöcke.",
+        "en": "Throw the block with the attack key to where you are looking. Throw five blocks."
+      },
+      "check": { "event": "throw:any", "required": 5 }
     },
     {
       "id": "hit",
       "text": {
         "de": "Triff eine feindliche Maschine mit einem geworfenen Block. Findest du keine, wähle „Ging nicht“.",
         "en": "Hit a hostile machine with a thrown block. If you find none, choose “Did not work”."
+      },
+      "check": { "event": "throw:hit", "arg": "machine" }
+    },
+    {
+      "id": "weight",
+      "text": {
+        "de": "Wirf zwei verschiedene Blöcke. Fliegt ein schwerer kürzer als ein leichter?",
+        "en": "Throw two different blocks. Does a heavy one fly less far than a light one?"
       }
     },
     {

@@ -94,6 +94,11 @@ namespace BlocksBeyondTheStars.Client
         // #3755: the two flight manoeuvres, appended so no existing value moves. Read at the helm only.
         FlightBoost,          // boost while the charge lasts — keyboard holds Left Shift; pad L3 while thrusting / touch BOOST switch it on
         FlightRoll,           // barrel roll (direction from the strafe, else to the right) — default Space, pad A, touch ROLL
+
+        // #3847: the Test Pilot key, appended so no existing value moves. Read by the shell (AppShell.TestPilot.cs) while a
+        // playtest task is being worked on: in a world it opens the task's page and leaves it again, in an editor it opens
+        // and folds the task's list. Default F4; a pad reaches the page through the pause menu's Test Pilot row.
+        TestPilot,
     }
 
     /// <summary>
@@ -188,6 +193,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.AdminMode, // #3503: F8 — the admin view
             InputAction.ToggleHud, // F10 — the HUD off and on
             InputAction.EmoteWheel, // P — the emote wheel
+            InputAction.TestPilot, // #3847: F4 — the playtest task being worked on
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -280,6 +286,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightBoost => KeyCode.LeftShift,
             InputAction.FlightRoll => KeyCode.Space,
             InputAction.EmoteWheel => KeyCode.P,  // free on foot (the autopilot's P is flight only). NEVER Y or Z as a default: keys are read by POSITION, and those two swap on a German keyboard
+            InputAction.TestPilot => KeyCode.F4,  // #3847: a free function key (every letter is taken); works on foot, at the helm and in the editors
             _ => KeyCode.None,
         };
 
@@ -670,6 +677,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.AdminMode => "ui.key.admin_mode",
             InputAction.FlightBoost => "ui.key.flight_boost",
             InputAction.FlightRoll => "ui.key.flight_roll",
+            InputAction.TestPilot => "ui.key.test_pilot",
             _ => string.Empty,
         };
 

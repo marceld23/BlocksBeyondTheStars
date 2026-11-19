@@ -46,6 +46,8 @@ namespace BlocksBeyondTheStars.Client
         private NetworkClient _boundNet;
         private float _boundAt;
         private bool _commandsChecked;
+        private float _commandsCheckedAt;
+        private bool _announced;
         private string _sessionId = Guid.NewGuid().ToString("N");
 
         private sealed class FetchOutcome
@@ -80,6 +82,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Confirmed reports waiting for their "confirmed" dialog (shown in a menu, never over the world).</summary>
         public Queue<PlaytestConfirmation> Confirmations { get; } = new Queue<PlaytestConfirmation>();
+
+        /// <summary>#3848: titles of tasks whose last open step the game just recognised in a world — the HUD's
+        /// celebration banner says "all steps done" for each (HudUi.Playtest.cs).</summary>
+        public Queue<string> ReadyBanners { get; } = new Queue<string>();
+
+        /// <summary>#3849: when the game last recognised a step (<see cref="Time.realtimeSinceStartup"/>) — an editor has
+        /// no status line for it, so the list's chip says it for a few seconds.</summary>
+        public float RecognisedAt { get; private set; } = -100f;
 
         /// <summary>Whether the server of the current world reports playtest events: null = not known yet (or no world),
         /// false = an older server — the player ticks those steps off by hand.</summary>
@@ -122,12 +132,16 @@ namespace BlocksBeyondTheStars.Client
 
         private bool? _planetKnownForTest;
 
+        /// <summary>For an edit-mode test of the editor chip: as if the game had recognised a step just now.</summary>
+        public void MarkRecognisedForTest() => RecognisedAt = Time.realtimeSinceStartup;
+
         private void Init()
         {
             Instance = this;
             string dir = Path.Combine(AppPaths.Root, "playtests");
             Tracker = new PlaytestTracker(new PlaytestProgress(Path.Combine(dir, "progress.json")));
             Tracker.StepRecognised += OnStepRecognised;
+            Tracker.TaskReady += OnTaskReady;
 
             // A development build may point at the developer's own inbox; a release build always uses the official one.
             if (PlaytestDevInbox.TryRead(AppShell.Version, Environment.GetEnvironmentVariable, out string devEndpoint, out string devKey))
@@ -201,6 +215,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _watch.Update(Tracker.WatchPatterns(), Time.realtimeSinceStartupAsDouble);
                 RunStartCommandsOnce();
+                AnnounceTaskOnce();
             }
         }
 
@@ -323,7 +338,18 @@ namespace BlocksBeyondTheStars.Client
         {
             string line = string.Format(Shell.L("ui.testpilot.step_recognised"), step.Text.For(Shell.Settings.Language));
             Shell.CurrentBoot?.ShowMessage(line);
+            RecognisedAt = Time.realtimeSinceStartup;
             Revision++;
+        }
+
+        /// <summary>#3848: the game recognised the last open step. In a world the HUD's banner says so (an editor's list
+        /// and the page show it themselves).</summary>
+        private void OnTaskReady(PlaytestTask task)
+        {
+            if (Shell.CurrentBoot != null && task.Area != PlaytestAreas.Editor)
+            {
+                ReadyBanners.Enqueue(task.Title.For(Shell.Settings.Language));
+            }
         }
 
         /// <summary>The player closed (or re-opened) a step by hand.</summary>
@@ -364,6 +390,8 @@ namespace BlocksBeyondTheStars.Client
             _boundNet = net;
             _watch.Reset();
             _commandsChecked = false;
+            _announced = false;
+            ReadyBanners.Clear(); // a banner belongs to the world its step closed in
             _boundAt = Time.realtimeSinceStartup;
             if (net != null)
             {
@@ -446,6 +474,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _commandsChecked = true;
+            _commandsCheckedAt = Time.realtimeSinceStartup;
             string world = Shell.Settings.LastWorld;
             if (!Shell.PlayingLocalWorld || !PlaytestWorldPlan.IsTestWorldName(world))
             {
@@ -467,6 +496,34 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Progress.SetWorld(task, world, commandsRan: true, Now);
+        }
+
+        /// <summary>
+        /// #3848: says once per world which task is being worked on, as soon as the world is on the screen — the start
+        /// card in the world this install created for the task, one status line in any other world
+        /// (<see cref="PlaytestGuide.StartNoticeFor"/>). It waits for the start commands: the card holds the world, and
+        /// a held singleplayer server would drop a command sent meanwhile (the lamp a task hands out).
+        /// </summary>
+        private void AnnounceTaskOnce()
+        {
+            var boot = Shell.CurrentBoot;
+            if (_announced || !_commandsChecked || boot == null || Time.realtimeSinceStartup - _commandsCheckedAt < 1.5f
+                || Shell.Phase != ShellPhase.InGame || !boot.WorldReady || boot.MenuOpen || boot.ChatTyping
+                || GameBootstrap.CutsceneActive || boot.VegaPrologueActive || PlaytestModal.AnyOpen)
+            {
+                return;
+            }
+
+            _announced = true;
+            var notice = PlaytestGuide.StartNoticeFor(Tracker, Shell.PlayingLocalWorld, Shell.Settings.LastWorld);
+            if (notice == PlaytestStartNotice.Card)
+            {
+                PlaytestStartCard.Open(Shell, Tracker.Active);
+            }
+            else if (notice == PlaytestStartNotice.Line)
+            {
+                boot.ShowMessage(string.Format(Shell.L("ui.testpilot.running"), Tracker.Active.Title.For(Shell.Settings.Language)));
+            }
         }
 
         // ---------------------------------------------------------------- the report
