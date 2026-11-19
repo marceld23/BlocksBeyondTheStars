@@ -26,6 +26,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📍 The ping left the crouch key — #3821, #3822, PR #3823 — ✅ 2026-11-19 (⚠ playtest open; client only; no protocol or save change, no new texts)
+
+- **The bug.** The keyboard's crouch is hard-wired to **Ctrl and C** (`DesktopInputSource`, no rebindable action), and the
+  "look here!" ping (#1217) had **C** as its stock key. Both are read on foot, so every sneak on C also sent a ping to the
+  allies and the crew and showed "Ping!" — the tutorial teaches "Ctrl/C", so a new player met it in the first minute.
+  The gamepad (crouch on B, ping in the L3 Actions list) and the tablet (a crouch button, ping in the ACT list) never
+  had the clash and are unchanged.
+- **The fix.** The ping's stock key is the **period key** (`InputMap.DefaultKey`): every letter is taken on foot, the
+  period sits on the same key of a German and an English keyboard, and the browser does nothing with it. Only a
+  deviation from the stock key is saved, so a player who never rebound the ping gets the new key and a player who
+  chose a key keeps it. C keeps crouching.
+- **The guard.** `OnFootKeyClashTests` reads `InputMap.Remappable` / `DefaultKey` and the keys `DesktopInputSource`
+  hard-wires (plus WASD, the arrows, the mouse buttons and 1–9) from the source and fails when an on-foot action's
+  stock key is one of them. It runs in the client lane too (it reads `client/` through `TestPaths.RepoRoot`).
+- **Open.** (1) The settings list shows the raw key name ("Period"), like "LeftShift" and "Return" there. (2) The
+  rebinding screen still accepts a hard-wired key (C, Ctrl, Space) for any action without a word — a hint there is a
+  separate step. (3) ⚠ Playtest: C crouches without a ping, the period key pings, the Actions list still pings on a pad.
+
 ### 💡 "Join in" shows waiting playtest tasks: an amber frame, a running light, their number — #3816–#3819, PR #3820 — ✅ 2026-11-19 (⚠ playtest open; client only; no protocol or save change, no new texts)
 
 - **Before.** A new playtest task put a 12-pixel amber dot on the main menu's "Join in" button — easy to miss, without a

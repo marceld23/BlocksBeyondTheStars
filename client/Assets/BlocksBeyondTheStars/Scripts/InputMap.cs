@@ -54,8 +54,8 @@ namespace BlocksBeyondTheStars.Client
         VegaContinue,         // advance / dismiss the VEGA speech line — default N, pad Back
         PlanetMap,            // toggle the on-foot planet map — default M (the flight chart is FlightMap)
         ContextActions,       // open the list of currently applicable verbs — no key by default, pad LS, touch "⋯"
-        PingMarker,           // "look here!" ping at the crosshair (#1217) — default C; pad/touch reach it
-                              // through the ContextActions list, like the rest of the on-foot long tail
+        PingMarker,           // "look here!" ping at the crosshair (#1217) — default the period key; pad/touch reach
+                              // it through the ContextActions list, like the rest of the on-foot long tail
         FeedCreature,         // throw one piece of the held food to a begging herd (#2018) — default Q; pad/touch reach it
                               // through the ContextActions list, and touch also gets a contextual FEED button
 
@@ -260,7 +260,10 @@ namespace BlocksBeyondTheStars.Client
             InputAction.VegaContinue => KeyCode.N,  // the key VegaPanel always used; now rebindable + reachable from pad/touch (#1041)
             InputAction.PlanetMap => KeyCode.M,     // WorldMap's historical key — same letter as FlightMap, different context (#1042)
             InputAction.ContextActions => KeyCode.None, // keyboard players have every verb on a key already; pad LS / touch "⋯"
-            InputAction.PingMarker => KeyCode.C,
+            // Not C: the keyboard's crouch is hard-wired to Ctrl and C (DesktopInputSource), so every sneak on C also
+            // pinged the allies. Every letter is taken on foot; the period sits on the same key of a German and an
+            // English keyboard and the browser does nothing with it. OnFootKeyClashTests guards the whole group.
+            InputAction.PingMarker => KeyCode.Period,
             InputAction.FeedCreature => KeyCode.Q,  // free on foot (#2018): the editors read Q only inside their own screens
             InputAction.UiCancel => KeyCode.Escape, // the key every screen already closed on (#1198)
             InputAction.UiMenu => KeyCode.Tab,      // the key that always opened the in-game menu (#1198)

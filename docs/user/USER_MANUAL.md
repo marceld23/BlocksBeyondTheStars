@@ -4172,9 +4172,11 @@ controls line at the bottom leaves out the quick-bar keys.
   the **same world** — **also while you are offline**, so the family meeting point does not vanish when you
   log off. The list refreshes on its own the moment an alliance forms or ends or a crew changes. Private
   markers stay yours alone.
-- **Ping ("look here!"):** press **C** (rebindable; pad/touch: the Actions list) to drop a **pulsing pin** at
-  your crosshair for ~30 seconds, visible to your allies + crew on the world — perfect for "the entrance is
-  HERE". Rate-limited to one every few seconds; pings are never saved.
+- **Ping ("look here!"):** press the **period key (.)** (rebindable — the settings list it as *Period*; pad/touch:
+  the Actions list) to drop a **pulsing pin** at your crosshair for ~30 seconds, visible to your allies + crew on
+  the world — perfect for "the entrance is HERE". Rate-limited to one every few seconds; pings are never saved.
+  (Until v2026.11.23 the ping sat on **C**, which is also a crouch key — every sneak on C pinged. A ping key you
+  chose yourself is kept.)
 - **VEGA's goal flag:** when VEGA marks the goal of a story task you are stuck on, it shows as a **violet flag**
   labelled with the task (also listed with its distance under *Points of interest*) and on your compass. Only you
   see it, and it goes away by itself once the task is done or skipped.
