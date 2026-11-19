@@ -26,6 +26,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💡 "Join in" shows waiting playtest tasks: an amber frame, a running light, their number — #3816–#3819, PR #3820 — ✅ 2026-11-19 (⚠ playtest open; client only; no protocol or save change, no new texts)
+
+- **Before.** A new playtest task put a 12-pixel amber dot on the main menu's "Join in" button — easy to miss, without a
+  number, and placed once when the menu was built: the catalogue's fetch ends a moment later, so the dot showed only
+  after the menu had been rebuilt for another reason. Tasks under way had no mark at all.
+- **Now.** `UiJoinInMark` (on the button) asks the tracker twice a second and redraws when the answer changed
+  (`JoinInMark.Kind`): **new or re-test** → an amber frame with a light running around it (`UiRunningLight`), an amber
+  label and the number of new tasks in a pill on the corner ("9+" beyond nine); **under way** (started / ready for the
+  report, `PlaytestTracker.OpenCount`) → a still amber frame; **nothing waiting** → the plain quiet button.
+- **How the light is drawn.** Generated geometry on the default UI material, like `UiOrbitRing`: the frame as a strip
+  along the rounded rect (`RunningLight.Outline`, straight edges cut into ≤ 6-unit pieces), the light as vertex colours
+  (`RunningLight.Glow`: head, squared tail, short lead) and a soft halo outside the head. No shader of its own — nothing
+  to always-include, nothing WebGL/WebGPU could disagree with. It steps 30 times a second and stands still under
+  `UiKit.ReducedMotion` (the frame fully lit). Amber is `UiKit.Warn`, so it follows the colour-vision palette; the
+  number says the same without a colour. The icon keeps its cyan (a tint multiplies: amber over cyan art is green).
+- **The invitation.** An install that never opened the Test Pilot page fetches no catalogue at start-up (by design:
+  nothing phones home without a reason) and so would never learn of a task — the mark would miss exactly the players
+  who have not found the page. Until the first visit (`PlaytestProgress.Visited`) the button therefore shows the
+  running light **without a number** (`JoinInMarkKind.Invite`): no request is made, the fetch rule is unchanged. Only
+  where the page can fetch at all (`PlaytestHub.Configured`) — a build without the inbox key gets no invitation to a
+  page that would only say so. After the first visit the counts decide.
+- **Tests.** `JoinInMarkTests` (Client.Tests): the rule, the invitation and its end at the first visit, the tracker's
+  two counts through a task's life, the outline (closed, clockwise, small steps, outward normals), the light's fall-off
+  and wrap. `MainMenuHierarchy.golden.txt` lists the new component on the button.
+- **Open.** (1) "New" stays new until a task is started, so the light keeps running for a player who does not want the
+  task — a "seen" state is undecided. (2) `UiKit.AddBadge` (the dot) stays for the crafting tabs. (3) The invitation
+  runs on EVERY desktop install that has not opened the page yet, also while the inbox serves no task (the three
+  starter tasks are switched off) — the page then says "no tasks right now". (4) ⚠ Playtest: look at it in the game
+  with a task switched on in the inbox.
+
 ### 🧑‍🚀 Test Pilot: playtest tasks from the inbox, a report, badges — #3801 (epic), #3802–#3812, PR #3813 (`64ed23b7`) — ✅ released in v2026.11.23 (⚠ playtest open; inbox + server + client, three appended messages 355–357, no protocol bump, no save change; deploy the reports image BEFORE the client release, the WorldHost image for the privacy text)
 
 A page of its own (main menu → *Join in*, and the pause menu; desktop only) where every player can pick up a

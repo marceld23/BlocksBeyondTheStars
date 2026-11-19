@@ -41,7 +41,7 @@ MainMenuUI active=True comps=RectTransform,Canvas,CanvasScaler,GraphicRaycaster,
   Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover,UiPressFx pos=(90.00, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
     Image active=True comps=RectTransform,CanvasRenderer,Image pos=(14.00, -10.00) size=(30.00, 30.00) color=FFFFFFFF
     Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(112.67, 50.00) color=CCE0F5FF font=22 text="ui.menu.feedback"
-  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover,UiPressFx pos=(280.67, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover,UiPressFx,UiJoinInMark pos=(280.67, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
     Image active=True comps=RectTransform,CanvasRenderer,Image pos=(14.00, -10.00) size=(30.00, 30.00) color=FFFFFFFF
     Text active=True comps=RectTransform,CanvasRenderer,Text pos=(56.00, 0.00) size=(112.67, 50.00) color=CCE0F5FF font=22 text="ui.menu.contribute"
   Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover,UiPressFx pos=(471.33, -1000.00) size=(178.67, 50.00) color=FFFFFFFF
