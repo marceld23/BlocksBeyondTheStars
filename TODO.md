@@ -26,6 +26,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧰 Player reports of 2026-11-20: whole trees in the distance, swimming without bouncing, armour that covers the body, set boots — #3859–#3862, PR __PR__ — ✅ 2026-11-20 (server streaming + client + data; no protocol bump, no save change; 10 texts in 14 languages, 3 new item icons)
+
+- **Tall trees cut off flat in the distance (#3859).** A far chunk column streamed one chunk above its surface, a near
+  column three above the player's chunk; giant trees (up to 64 blocks) and ordinary trees over a high surface lost their
+  crowns until the player came close. `WorldGenerator.TallFloraTopInSquare` (giant trees replayed exactly with the
+  stamp's own site test, ordinary trees bounded by `MaxStampRise` over five surface samples) gives every column its
+  flora top, cached per column (`WorldManager.FloraTopChunks`); `GameServerFloraStream.WithFloraTop` lifts near and far
+  columns to it inside the sent-set sphere. Tests: `TallFloraTopTests`, `ChunkStreamingTests` (far band + flora).
+- **Swimming bounced (#3860).** The climb-out hop (#131) fired a full jump whenever the head broke the surface with
+  Jump and forward held. `SwimRules` (Client.Core, tested): the hop only where a bank stands in front, the body floats
+  at the surface, Crouch (Ctrl / C, pad B) dives, Run swims faster (stamina as on land) in a level crawl pose that other
+  players see too (`PlayerAvatar.SwimLevel`, read from the figure's own motion). Manual + VEGA hint updated.
+- **Armour covered only torso and thighs, every set the same shape (#3861).** Chest pieces now plate the upper arms,
+  forearms and waist, leg pieces the shins (`AvatarArmourFit.ArmPlate/Bracer/WaistPlate/ShinPlate`, held clear of the
+  body by `AvatarArmourFitTests`); titanium gets a visor brim + two-tier shoulders, guardian cheek guards, crown fins and
+  stepped shoulders, obsidian domed shoulders (`PlayerAvatar.ArmourCover.cs`).
+- **Sets without boots (#3862).** `titan_boots` (own blueprint after the boots), `guardian_boots` (guardian armour
+  blueprint, also in a guardian giant's crate), `obsidian_boots` (the Sounders' obsidian blueprint, `/sounders items`)
+  with recipes, icons and `GearLook` looks (`TitanBoots` = bit 30, guardian/obsidian boots styles). The obsidian set's
+  quiet steps still need only helmet, chest and legs.
+- **Ideas filed for later:** #3857 (the Guardian armour as the SPS soldiers' uniform, a time-capsule soldier, the
+  Guardian laser) and #3858 (SPS communication tower ruins on inhabited planets, tied into the VEGA story).
+
 ### 🧭 Test Pilot: a tester always knows what to test right now — #3853 (epic), #3846–#3852, PR #3854 (`d70669d6`) — ✅ released in v2026.11.25 (⚠ playtest open; client + validator + data; one new key binding, no new message, no protocol bump, no save change; 22 new texts in 14 languages)
 
 - **Why.** A tester who took a task up and started a world saw one small card with one step's text — no task name, no

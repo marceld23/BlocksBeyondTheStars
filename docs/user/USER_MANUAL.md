@@ -1550,8 +1550,8 @@ players.
   Survival → *Storage bag* for the details (and the **transport crate**, the crate you can carry with its contents).
 - **Suit gear works only while you WEAR it** (2026-09; before, a piece worked anywhere in the pack). The
   Inventory's **Suit** tab shows the worn slots as a **figure** (2026-10): **head** (helmet or titanium helmet),
-  **chest** (chest armour, titanium chest plate *or* the stealth suit), **legs**, **feet** (boots or **spring
-  boots**), **back** (the jetpack *or* the **glider**), **tank** (one oxygen tank), **liner** (one suit liner)
+  **chest** (chest armour, titanium chest plate *or* the stealth suit), **legs**, **feet** (boots, **spring
+  boots** or a set's own boots), **back** (the jetpack *or* the **glider**), **tank** (one oxygen tank), **liner** (one suit liner)
   and **four modules** (lamp, extractor, a radio, the radar scanner, the climbing gloves or claws, the suit
   battery). **Click a slot** — empty or not — and a list shows every piece that fits it, with what it does and
   where it lies: in your **backpack** or, while you are aboard, in the ship's **cargo hold** (you can wear
@@ -1568,12 +1568,19 @@ players.
   Jump while falling). On touch, tap the lamp or the stealth icon to switch it. The strip takes none of the nine
   quick-bar slots — the tool in your hand stays where it is — and it is hidden while you wear none of them.
 - **The suit gear at a glance:**
-  - **Titanium helmet / chest plate / leg plates** (tier 2, workshop; blueprints after the helmet, the chest
-    armour and the leg armour): more armour and warmth than the iron set.
-  - **Guardian helmet / chest plate / leg plates** (workshop; the *Guardian armour* blueprint after the titanium
-    chest plate): built from **guardian plates** — robot metal that scan drones, guardian robots, hunters and tank
+  - **Titanium helmet / chest plate / leg plates / boots** (tier 2, workshop; blueprints after the helmet, the chest
+    armour, the leg armour and the boots): more armour and warmth than the iron set; the titanium boots also land a
+    little softer than the plain boots.
+  - **Guardian helmet / chest plate / leg plates / boots** (workshop; the *Guardian armour* blueprint after the
+    titanium chest plate): built from **guardian plates** — robot metal that scan drones, guardian robots, hunters and tank
     spiders drop when you defeat them (traders also sell a few now and then). As strong as titanium, a little less
     warm, and the chest plate keeps out a little poisonous air. Dark plates with small red lights.
+  - **What armour looks like on you:** a chest piece plates your **upper arms, forearms and waist** too, a leg piece
+    your **shins** — so a full set covers most of your figure (your hands stay free). Every set has its own outline:
+    the iron set is plain, the titanium set has a crest, a visor brim and two-tier shoulder pads, the guardian set
+    cheek guards, short fins on the crown and stepped shoulders, the Sounders' obsidian set its tall ear fins and
+    domed shoulders. The **obsidian boots** come with the obsidian armour's blueprint; the quiet steps of the
+    obsidian set still need only helmet, chest and legs.
   - **Robber disguise** — the **robber mask** (head, with two breathing filters) and the black **robber jacket**
     (chest), sewn by hand from **robber cloth** that robbers drop. They protect you not at all, but wearing **both**,
     a robber who walks up takes you for one of his own and walks on (see §5 → Bandits).

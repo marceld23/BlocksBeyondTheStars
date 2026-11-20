@@ -57,8 +57,9 @@ namespace BlocksBeyondTheStars.Client
     /// piece now (<c>PlayerAvatar.ArmourFit.cs</c>).
     /// <para>The boxes are here, Unity-free, so a test can hold the rule for every set: <b>no face of a plate lies in the
     /// plane of a face of the body part it covers</b> (<see cref="ShareAFace"/>). All four chest pieces (classic, guardian,
-    /// obsidian, Ressaw) and all four pairs of leg plates draw <see cref="ChestPlate"/> and <see cref="LegPlate"/>; the
-    /// figure itself draws the body boxes named here.</para>
+    /// obsidian, Ressaw) and all four pairs of leg plates draw <see cref="ChestPlate"/> and <see cref="LegPlate"/> — since
+    /// #3861 with <see cref="ArmPlate"/>, <see cref="Bracer"/> and <see cref="WaistPlate"/> on the chest piece and
+    /// <see cref="ShinPlate"/> on the leg piece; the figure itself draws the body boxes named here.</para>
     /// </summary>
     public static class AvatarArmourFit
     {
@@ -100,6 +101,41 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A set's knee pad, in its knee's frame.</summary>
         public static readonly AvatarBox KneePad = new AvatarBox(0f, -0.02f, 0.12f, 0.22f, 0.16f, 0.06f);
+
+        // --- #3861 (Justus, 2026-11-20: "an armour covers only 2/4 of the body instead of 3/4"): the chest piece also covers
+        // the arms and the waist down to the hips, the leg piece the shins. ---
+
+        /// <summary>The shoulder pivots sit this far left and right of the middle …</summary>
+        public const float ShoulderX = 0.32f;
+
+        /// <summary>… at this height; the elbow pivots hang <see cref="ElbowDrop"/> below them.</summary>
+        public const float ShoulderY = 1.5f;
+
+        /// <summary>The elbow pivot's height in the shoulder frame.</summary>
+        public const float ElbowDrop = -0.42f;
+
+        /// <summary>The upper arm, in its shoulder's frame.</summary>
+        public static readonly AvatarBox UpperArm = new AvatarBox(0f, -0.21f, 0f, 0.16f, 0.42f, 0.16f);
+
+        /// <summary>The forearm, in its elbow's frame.</summary>
+        public static readonly AvatarBox LowerArm = new AvatarBox(0f, -0.21f, 0f, 0.15f, 0.42f, 0.15f);
+
+        /// <summary>The lower leg, in its knee's frame.</summary>
+        public static readonly AvatarBox LowerLeg = new AvatarBox(0f, -0.21f, 0f, 0.20f, 0.42f, 0.20f);
+
+        /// <summary>The plate over the upper arm, in its shoulder's frame: from just under the shoulder block to above the
+        /// elbow, two centimetres clear of the arm all round.</summary>
+        public static readonly AvatarBox ArmPlate = new AvatarBox(0f, -0.19f, 0f, 0.20f, 0.28f, 0.20f);
+
+        /// <summary>The bracer over the forearm, in its elbow's frame — above the wrist, so a glove cuff stays free.</summary>
+        public static readonly AvatarBox Bracer = new AvatarBox(0f, -0.25f, 0f, 0.19f, 0.24f, 0.19f);
+
+        /// <summary>The plate round the waist and the hips, in the root frame: from the hip pivots up to the chest plate's
+        /// lower edge, its front a centimetre and a half before the belly.</summary>
+        public static readonly AvatarBox WaistPlate = new AvatarBox(0f, 1.08f, 0.005f, 0.49f, 0.32f, 0.32f);
+
+        /// <summary>The plate over the shin, in its knee's frame (the Ressaw suit's shin since #3337, now every set's).</summary>
+        public static readonly AvatarBox ShinPlate = new AvatarBox(0f, -0.20f, 0f, 0.25f, 0.36f, 0.25f);
 
         /// <summary>Whether a face of <paramref name="a"/> and a face of <paramref name="b"/> (both in one frame, unturned)
         /// lie in one plane — closer than <paramref name="clearance"/> — facing the same way, and overlap there: the two
