@@ -202,7 +202,7 @@ public sealed class MaterialEconomyTests
             "armor_legs", "helmet", "oxygen_tank_3", "suit_liner_3", "suit_lamp", "jetpack", "radar_scanner", "galaxy_radio",
             "climbing_claws", // #2192: the top climbing module (the gloves go into it)
             // #2294-#2297 the second suit tier (the boots are no end product any more: the spring boots take them).
-            "titan_helmet", "titan_chest", "titan_legs", "spring_boots", "glider", "suit_battery",
+            "titan_helmet", "titan_chest", "titan_legs", "titan_boots", "spring_boots", "glider", "suit_battery",
             // #2201/#2204/#2206: used up in the bio lab, which computes its results and has no recipes to list them in.
             "bio_sample", "mineral_sample", "prep_coating",
             // #2633/#3341: an old station log and a G.D.S. log are read (inventory, Codex), never used up.
@@ -214,12 +214,12 @@ public sealed class MaterialEconomyTests
             // #3099: the storage bag is carried and opened, never used up.
             "storage_bag",
             // #3290-#3292: the guardian armour, the robber disguise and the flower set are worn, never used up.
-            "guardian_helmet", "guardian_chest", "guardian_legs", "robber_mask", "robber_jacket", "flower_wreath", "flower_bracelets",
+            "guardian_helmet", "guardian_chest", "guardian_legs", "guardian_boots", "robber_mask", "robber_jacket", "flower_wreath", "flower_bracelets",
             // #3337/#3339: the Ressaw diving suit and the Ressaw lamp are worn, never used up.
             "ressaw_helmet", "ressaw_suit", "ressaw_leggings", "ressaw_boots", "ressaw_lamp",
             // #3352-#3354 the Sounders: the Song Discs are played in a Song Spindle and worn in the socket, the obsidian armour worn.
             "song_disc_beginning", "song_disc_builders", "song_disc_hearing", "song_disc_hunger", "song_disc_great_song",
-            "song_disc_voices", "song_disc_calm", "song_disc_light", "song_disc", "obsidian_helmet", "obsidian_chest", "obsidian_legs",
+            "song_disc_voices", "song_disc_calm", "song_disc_light", "song_disc", "obsidian_helmet", "obsidian_chest", "obsidian_legs", "obsidian_boots",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))
