@@ -129,6 +129,7 @@ public sealed partial class GameServer
         _world.ApplyGeneratorMode();
         _world.ForgetChunksIn(new Vector3i(minX, MinBuildY, minZ), new Vector3i(maxX, MaxBuildY, maxZ));
         _worlds.Active.FarColumnBands.Clear(); // the streamed band of a column reads its surface
+        _worlds.Active.FloraTopChunks.Clear(); // #3859: so does the tall-flora top of a column
         _worlds.Active.WaterColumns.Clear();   // the water classes read the ground beside the water
     }
 

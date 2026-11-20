@@ -108,6 +108,84 @@ public sealed class AvatarArmourFitTests
     }
 
     [Fact]
+    public void TheCoverPlates_OfArmsWaistAndShins_KeepClearOfTheBody()
+    {
+        // #3861: the chest piece plates the arms and the waist, the leg piece the shins — each clear of the body under it.
+        Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.ArmPlate, AvatarArmourFit.UpperArm), "arm plate / upper arm");
+        Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.Bracer, AvatarArmourFit.LowerArm), "bracer / forearm");
+        Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.ShinPlate, AvatarArmourFit.LowerLeg), "shin plate / lower leg");
+        Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.ShinPlate, AvatarArmourFit.KneePad), "shin plate / knee pad");
+        var armPlate = AvatarArmourFit.ArmPlate.From(AvatarArmourFit.ShoulderX, AvatarArmourFit.ShoulderY);
+        foreach (var (name, box) in Body())
+        {
+            Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.WaistPlate, box), "waist plate / " + name);
+            Assert.False(AvatarArmourFit.ShareAFace(armPlate, box), "arm plate / " + name);
+        }
+
+        // Against the other plates of the same figure: the chest plate above, the leg plates below.
+        Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.WaistPlate, AvatarArmourFit.ChestPlate));
+        Assert.False(AvatarArmourFit.ShareAFace(AvatarArmourFit.WaistPlate, LegPlate(1f)));
+        Assert.False(AvatarArmourFit.ShareAFace(armPlate, AvatarArmourFit.ChestPlate));
+
+        // Each plate really is around its part: wider than it, and covering most of its length.
+        Assert.True(AvatarArmourFit.ArmPlate.Width > AvatarArmourFit.UpperArm.Width
+            && AvatarArmourFit.ArmPlate.Height >= 0.6f * AvatarArmourFit.UpperArm.Height);
+        Assert.True(AvatarArmourFit.Bracer.Width > AvatarArmourFit.LowerArm.Width
+            && AvatarArmourFit.Bracer.Height >= 0.5f * AvatarArmourFit.LowerArm.Height);
+        Assert.True(AvatarArmourFit.ShinPlate.Width > AvatarArmourFit.LowerLeg.Width
+            && AvatarArmourFit.ShinPlate.Height >= 0.8f * AvatarArmourFit.LowerLeg.Height);
+        Assert.True(AvatarArmourFit.WaistPlate.Top >= AvatarArmourFit.ChestPlate.Bottom - 0.001f, "no belly gap between the chest plate and the waist plate");
+        Assert.True(AvatarArmourFit.WaistPlate.Bottom <= AvatarArmourFit.HipY + 0.001f, "the waist plate reaches down to the hips");
+    }
+
+    [Fact]
+    public void EveryArmourSet_DrawsTheCover_AndItsOwnOutline()
+    {
+        string avatar = Script("PlayerAvatar.cs");
+        string sets = Script("PlayerAvatar.GearSets.cs");
+        string obsidian = Script("PlayerAvatar.Obsidian.cs");
+        string cover = Script("PlayerAvatar.ArmourCover.cs");
+        Assert.Contains("AddArmourArms(m, m);", avatar);              // classic + titanium chest
+        Assert.Contains("AddArmourShins(m);", avatar);                // classic + titanium legs
+        Assert.Contains("AddArmourArms(_setDark, _setTrim);", sets);   // guardian
+        Assert.Contains("AddArmourShins(_setDark);", sets);
+        Assert.Contains("AddArmourArms(_ressawMilk, _ressawPurple);", sets);
+        Assert.Contains("RessawPart(\"Shin\", knee, At(AvatarArmourFit.ShinPlate), Size(AvatarArmourFit.ShinPlate)", sets);
+        Assert.Contains("AddArmourArms(_obsidian, _obsidian);", obsidian);
+        Assert.Contains("AddArmourShins(_obsidian);", obsidian);
+        Assert.Contains("AddCube(\"CoverArm\", shoulder, AvatarArmourFit.ArmPlate, plate)", cover);
+        Assert.Contains("AddCube(\"CoverBracer\", elbow, AvatarArmourFit.Bracer, trim)", cover);
+        Assert.Contains("AddCube(\"CoverWaist\", transform, AvatarArmourFit.WaistPlate, plate)", cover);
+
+        // The outlines: titanium brim + shoulder tier, guardian cheeks/fins + stepped shoulders, obsidian domes.
+        Assert.Contains("AddTitanHelmetShape(m);", avatar);
+        Assert.Contains("AddTitanShoulderTier(m);", avatar);
+        Assert.Contains("AddGuardianHelmetShape();", sets);
+        Assert.Contains("AddGuardianShoulderSpikes();", sets);
+        Assert.Contains("AddObsidianShoulderDomes();", obsidian);
+
+        // The figure's arms and shins are the boxes the plates are measured against.
+        Assert.Contains("new Vector3(x, AvatarArmourFit.ShoulderY, 0f)", avatar);
+        Assert.Contains("new Vector3(0f, AvatarArmourFit.ElbowDrop, 0f)", avatar);
+        Assert.Contains("AddCube(name + \"Lower\", knee, AvatarArmourFit.LowerLeg, _legs)", avatar);
+        Assert.Contains("ArmUpperSize = new Vector3(0.16f, 0.42f, 0.16f)", avatar);
+        Assert.Contains("ArmLowerSize = new Vector3(0.15f, 0.42f, 0.15f)", avatar);
+    }
+
+    [Fact]
+    public void TheSetBoots_HaveTheirOwnLook()
+    {
+        // #3862: guardian and obsidian boots draw their set's style, the titanium boots carry a bit of their own.
+        Assert.Contains("if (BuildArmourBoots(style))", Script("PlayerAvatar.GearSets.cs"));
+        Assert.Contains("bool titan = GearLook.Has(mask, GearLook.TitanBoots);", Script("PlayerAvatar.ArmourCover.cs"));
+        Assert.Contains("BuildClassicBoots(mask);", Script("PlayerAvatar.cs"));
+        int titanBoots = GearLook.Mask(k => k == "titan_boots");
+        Assert.True(GearLook.Has(titanBoots, GearLook.Boots | GearLook.TitanBoots) && titanBoots > 0, "a positive mask (bit 30, not the sign)");
+        Assert.Equal(GearLook.StyleGuardian, GearLook.BootsStyle(GearLook.Mask(k => k == "guardian_boots")));
+        Assert.Equal(GearLook.StyleObsidian, GearLook.BootsStyle(GearLook.Mask(k => k == "obsidian_boots")));
+    }
+
+    [Fact]
     public void TheSuitsChestPanelAndStatusLight_HideUnderAChestPiece()
     {
         // The status light stuck 5 mm out of every chest plate (front 0.215 against 0.21).

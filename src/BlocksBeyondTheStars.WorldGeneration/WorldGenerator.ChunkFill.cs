@@ -59,7 +59,7 @@ public sealed partial class WorldGenerator
         // multiplier (0.8..1.6, biased upward) on the planet type's flora + tree density, so the same type
         // can be sparse scrubland on one world and lush growth on the next. Deterministic from the world
         // seed (server + client preview agree); barren types (density 0) stay barren.
-        double floraMul = (0.8 + 0.8 * Noise.Value01(seed + 0xF10A, 11, 23, 37)) * _floraFactor;
+        double floraMul = FloraMulFor(seed);
         double floraDensity = System.Math.Min(0.9, planet.FloraDensity * floraMul);
 
         // World floor (B46): an unmineable bedrock layer bounds the dig depth so a player can't fall forever.
@@ -104,7 +104,7 @@ public sealed partial class WorldGenerator
         var denseGasId = denseGasTop != int.MinValue ? _content.GetBlock("gas_dense")!.NumericId : BlockId.Air;
 
         // Trees: multi-block trunk + leaf crown on grass/earth ground (a small auto density on flora worlds).
-        double treeDensity = (planet.TreeDensity ?? (flora ? 0.012 : 0.0)) * floraMul;
+        double treeDensity = TreeDensityFor(planet, flora, floraMul);
         var logId = _content.GetBlock("wood_log")?.NumericId ?? BlockId.Air;
         var leafId = _content.GetBlock("tree_leaves")?.NumericId ?? BlockId.Air;
         bool trees = treeDensity > 0.0 && !logId.IsAir && !leafId.IsAir;

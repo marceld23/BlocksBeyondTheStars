@@ -120,6 +120,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            AddArmourShins(_setDark); // #3861
             return true;
         }
 
@@ -128,6 +129,11 @@ namespace BlocksBeyondTheStars.Client
         /// the foot hangs at −0.44), a purple cuff round the ankle and a red toe plate.</summary>
         private bool BuildBootsSet(int style)
         {
+            if (BuildArmourBoots(style))
+            {
+                return true; // #3862: the guardian and the obsidian boots (PlayerAvatar.ArmourCover.cs)
+            }
+
             if (style != GearLook.StyleRessaw || _kneeL == null || _kneeR == null)
             {
                 return false;
@@ -180,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
             _gear.Add(AddCube("SetHelmetSlit", _head, new Vector3(0f, 0.42f, 0.685f), new Vector3(0.52f, 0.04f, 0.012f), _setRed));
             _gear.Add(AddCube("SetHelmetEarL", _head, new Vector3(-0.76f, 0.22f, -0.05f), new Vector3(0.08f, 0.26f, 0.26f), _setTrim));
             _gear.Add(AddCube("SetHelmetEarR", _head, new Vector3(0.76f, 0.22f, -0.05f), new Vector3(0.08f, 0.26f, 0.26f), _setTrim));
+            AddGuardianHelmetShape(); // #3861
         }
 
         /// <summary>#3290: the dark chest plate with shoulder pads and one thin red light band across the front.</summary>
@@ -190,6 +197,8 @@ namespace BlocksBeyondTheStars.Client
             _gear.Add(AddCube("SetShoulderL", transform, new Vector3(-0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _setTrim));
             _gear.Add(AddCube("SetShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _setTrim));
             _gear.Add(AddCube("SetChestBand", transform, new Vector3(0f, 1.52f, 0.215f), new Vector3(0.30f, 0.03f, 0.012f), _setRed));
+            AddGuardianShoulderSpikes(); // #3861
+            AddArmourArms(_setDark, _setTrim);
         }
 
         /// <summary>#3291: the cloth mask over nose and mouth, the grille in front of the mouth and a filter canister on each
@@ -348,6 +357,7 @@ namespace BlocksBeyondTheStars.Client
             bezel.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
             RessawPart("Gauge", transform, new Vector3(0.14f, 1.39f, 0.221f), new Vector3(0.08f, 0.08f, 0.01f), _ressawGlow);
             RessawPart("Belt", transform, new Vector3(0f, 1.22f, 0f), new Vector3(0.50f, 0.05f, 0.34f), _ressawRed);
+            AddArmourArms(_ressawMilk, _ressawPurple); // #3861
         }
 
         /// <summary>#3337: milky plates over thigh and shin, a red stripe down the outside of each thigh, and purple knee pads
@@ -368,7 +378,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var knee in new[] { _kneeL, _kneeR })
             {
-                RessawPart("Shin", knee, new Vector3(0f, -0.20f, 0f), new Vector3(0.25f, 0.36f, 0.25f), _ressawMilk);
+                RessawPart("Shin", knee, At(AvatarArmourFit.ShinPlate), Size(AvatarArmourFit.ShinPlate), _ressawMilk);
                 RessawPart("Knee", knee, new Vector3(0f, -0.02f, 0.13f), new Vector3(0.22f, 0.16f, 0.06f), _ressawPurple);
                 RessawPart("KneeGlow", knee, new Vector3(0f, -0.02f, 0.165f), new Vector3(0.07f, 0.05f, 0.012f), _ressawGlow);
             }

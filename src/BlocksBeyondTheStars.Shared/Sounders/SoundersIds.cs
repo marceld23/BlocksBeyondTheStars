@@ -84,6 +84,9 @@ public static class SoundersIds
     /// <summary>The obsidian armour's legs.</summary>
     public const string ObsidianLegs = "obsidian_legs";
 
+    /// <summary>#3862: the obsidian armour's boots.</summary>
+    public const string ObsidianBoots = "obsidian_boots";
+
     /// <summary>Hidden blueprint (#3350): the Resonance Blaster.</summary>
     public const string BlueprintResonance = "sounder_resonance";
 

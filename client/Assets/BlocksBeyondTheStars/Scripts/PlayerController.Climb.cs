@@ -531,12 +531,18 @@ namespace BlocksBeyondTheStars.Client
                 _avatarBaseYKnown = true;
             }
 
-            var avatarPos = Avatar.transform.localPosition;
-            avatarPos.y = _avatarBaseY - PlayerAvatar.CrouchDrop * Avatar.CrouchBlend;
-            Avatar.transform.localPosition = avatarPos;
+            // #3860: a sprint swimmer lies level — the figure turns about its chest (SwimTilt + SwimTiltOffset).
+            var swim = onWall ? Vector3.zero : Avatar.SwimTiltOffset;
+            Avatar.transform.localPosition = new Vector3(swim.x, _avatarBaseY - (PlayerAvatar.CrouchDrop * Avatar.CrouchBlend) + swim.y, swim.z);
+            Avatar.PlacedSwimOffset(swim);
             if (onWall)
             {
                 Avatar.transform.localRotation = Quaternion.Euler(0f, Mathf.DeltaAngle(transform.eulerAngles.y, _wall.FacingYaw), 0f);
+                _avatarTurned = true;
+            }
+            else if (Avatar.SwimLevel > 0f)
+            {
+                Avatar.transform.localRotation = Avatar.SwimTilt;
                 _avatarTurned = true;
             }
             else

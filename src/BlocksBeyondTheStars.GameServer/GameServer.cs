@@ -3255,6 +3255,7 @@ public sealed partial class GameServer
             int seaLevel = _generator.SeaLevel(_world.Planet); // int.MinValue on a dry world; cached per world
             int nearRadius = NearFullColumnRadius; // #3208: the host's knob, read once per pass
             int liftRadius = LandmarkLiftRadius(session); // #3489: how high a landmark's columns stream for this player
+            int floraLift = FloraLiftRadius(session); // #3859: how high a tall tree's columns stream for this player
             var pending = new List<(ChunkCoord Coord, int Key)>();
             for (int dx = -streamRadius; dx <= streamRadius; dx++)
                 for (int dz = -streamRadius; dz <= streamRadius; dz++)
@@ -3264,7 +3265,7 @@ public sealed partial class GameServer
                         continue; // a square corner past the round fog edge — never visible, and outside the sweep's keep radius
                     }
 
-                    var (loDy, hiDy) = StreamColumnSpan(center, dx, dz, nearRadius, seaLevel, liftRadius);
+                    var (loDy, hiDy) = StreamColumnSpan(center, dx, dz, nearRadius, seaLevel, liftRadius, floraLift);
                     for (int dy = loDy; dy <= hiDy; dy++)
                     {
                         int cy = center.Y + dy;
@@ -3367,11 +3368,12 @@ public sealed partial class GameServer
     /// in mid-water, with fake waterfall streaks down the band's side edges (#987). <see cref="FarColumnBand(int,int,int)"/>
     /// stretches a submerged column up to its real waterline instead. #1507: the band is cached per canonical column on
     /// the world — a pure function of the generator's surface and the world's sea level, so it never changes for a world.</para></summary>
-    private (int LoDy, int HiDy) StreamColumnSpan(ChunkCoord center, int dx, int dz, int nearRadius, int seaLevel, int liftRadius = 0)
+    private (int LoDy, int HiDy) StreamColumnSpan(ChunkCoord center, int dx, int dz, int nearRadius, int seaLevel, int liftRadius = 0,
+        int floraLift = 0)
     {
         if (IsNearFullColumn(dx, dz, nearRadius))
         {
-            return WithStructureTop(center, dx, dz, (-NearColumnChunksDown, NearColumnChunksUp), liftRadius);
+            return WithFloraTop(center, dx, dz, WithStructureTop(center, dx, dz, (-NearColumnChunksDown, NearColumnChunksUp), liftRadius), floraLift);
         }
 
         var bands = _worlds.Active.FarColumnBands;
@@ -3394,7 +3396,7 @@ public sealed partial class GameServer
             bands[columnKey] = band;
         }
 
-        return WithStructureTop(center, dx, dz, (band.LoCy - center.Y, band.HiCy - center.Y), liftRadius);
+        return WithFloraTop(center, dx, dz, WithStructureTop(center, dx, dz, (band.LoCy - center.Y, band.HiCy - center.Y), liftRadius), floraLift);
     }
 
     /// <summary>#3310: a column that carries a stone text tablet streams up to the tablet's top — the tablets of KuBa-W stand

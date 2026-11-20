@@ -338,19 +338,19 @@ namespace BlocksBeyondTheStars.Client
             TickJumpAssist(grounded, inWater || onLadder || roped || climbing);
             if (inWater)
             {
-                // Buoyant swimming: drift down slowly when idle, hold Jump to rise and surface; water also
-                // breaks a fall (the big downward speed eases out instead of slamming the seabed). No jetpack.
+                // Buoyant swimming (#3860, SwimRules): float at the surface, hold Jump to rise from below, Descend (Ctrl / C,
+                // pad B) to dive, nothing held below the surface to drift down slowly; water also breaks a fall (the big
+                // downward speed eases out instead of slamming the seabed). No jetpack.
                 //
-                // Climb-out assist (#131): the slow swim-up (4/s, no jump impulse) can't clear a 1-block bank, so
-                // you bob against the shore and slide back. At the surface, when you press Jump while pushing
-                // forward (A) — or simply swim into a low ≤1-block bank (B) — give a real jump impulse and keep
-                // full forward speed so you mount the land instead.
+                // Climb-out assist (#131): the slow swim-up can't clear a 1-block bank, so at the surface a real jump
+                // impulse mounts the land — when you swim into a low bank (B), or press Jump with a bank face in front (A).
+                // #3860: never in open water, where it used to chain into a row of dolphin hops.
                 bool pushing = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
                 // Open air above the head — #2134: a still liquid (a gas giant's gas, oil) over the head is no "surface" either;
                 // it used to hand out the climb-out hop at any depth in the gas.
                 string aboveHead = BlockKeyAt(transform.position + Vector3.up * 1.9f);
                 bool atSurface = aboveHead != "water" && !LiquidKeys.Contains(aboveHead ?? string.Empty);
-                bool climbingOut = pushing && atSurface && (InputMap.JumpHeld() || LedgeAhead(move));
+                bool climbingOut = SwimRules.ClimbOutHop(pushing, atSurface, InputMap.JumpHeld(), LedgeAhead(move), BankAhead(move));
                 if (climbingOut)
                 {
                     _verticalVelocity = _effJumpSpeed * BioJumpImpulse(); // real hop out of the water (full forward speed kept below)
@@ -360,8 +360,11 @@ namespace BlocksBeyondTheStars.Client
                     // #2134: the dense gas under a gas giant's gas sea pulls you down — you sink fast, Jump only wins a
                     // slow climb, and every stroke is heavy.
                     bool dense = BlockKeyAt(transform.position + Vector3.up * 1.1f) == "gas_dense";
-                    float target = InputMap.JumpHeld() ? (dense ? DenseGasRiseSpeed : SwimUpSpeed) : -(dense ? DenseGasSinkSpeed : SwimSinkSpeed);
-                    _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
+                    bool dive = InputMap.DescendHeld();
+                    float target = SwimRules.VerticalTarget(atSurface, InputMap.JumpHeld(), dive,
+                        dense ? DenseGasRiseSpeed : SwimUpSpeed, dense ? DenseGasSinkSpeed : SwimSinkSpeed);
+                    _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target,
+                        SwimRules.VerticalAccel(atSurface, dive, SwimAccel) * Time.deltaTime);
                     move *= dense ? DenseGasSpeedMul : SwimSpeedMul;
                 }
             }
@@ -613,6 +616,20 @@ namespace BlocksBeyondTheStars.Client
             Vector3 ahead = transform.position + flat.normalized * 0.7f;
             return IsBlockingAt(ahead + Vector3.up * 0.5f)        // bank face at ~knee height
                 && !IsBlockingAt(ahead + Vector3.up * 1.6f);      // and open space to stand on top
+        }
+
+        /// <summary>#3860: a bank face in front of a swimmer — something solid ahead between the knees and the chest (a
+        /// shore, a pier, a rock), whatever stands on top of it. What a Jump at the surface may hop onto; open water has none.</summary>
+        private bool BankAhead(Vector3 moveDir)
+        {
+            Vector3 flat = new Vector3(moveDir.x, 0f, moveDir.z);
+            if (flat.sqrMagnitude < 0.0001f)
+            {
+                return false;
+            }
+
+            Vector3 ahead = transform.position + flat.normalized * 0.7f;
+            return IsBlockingAt(ahead + Vector3.up * 0.5f) || IsBlockingAt(ahead + Vector3.up * 1.2f);
         }
 
         /// <summary>True when a solid (standable/blocking) block sits at this world position. Air, water, lava and the

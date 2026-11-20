@@ -145,7 +145,8 @@ the algae-tank food `item_algae_ration`, the fruit set (#2038: `item_fruit_round
 `item_song_spindle`, plus the eight disc colour variants `item_song_disc_beginning`, `_builders`, `_hearing`, `_hunger`,
 `_great_song`, `_voices`, `_calm`, `_light` — made from `item_song_disc` by the deterministic script
 `tools/ai-assets/recolour_song_discs.py`, no model), and the guardian giants' memory core `item_guardian_giant_core`
-(#3685, 2026-11-15)) are
+(#3685, 2026-11-15), and the set boots `item_titan_boots`, `item_guardian_boots`, `item_obsidian_boots` (#3862,
+2026-11-20)) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead — except the energy

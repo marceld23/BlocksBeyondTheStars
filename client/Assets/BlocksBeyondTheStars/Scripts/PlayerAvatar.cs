@@ -312,8 +312,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
-            _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _handL);
-            _armR = AddArm("ArmRight", 0.32f, out _elbowR, out _handR);
+            _armL = AddArm("ArmLeft", -AvatarArmourFit.ShoulderX, out _elbowL, out _handL); // #3861: the boxes the armour fits over
+            _armR = AddArm("ArmRight", AvatarArmourFit.ShoulderX, out _elbowR, out _handR);
             _legL = AddLeg("LegLeft", -AvatarArmourFit.HipX, out _kneeL);
             _legR = AddLeg("LegRight", AvatarArmourFit.HipX, out _kneeR);
 
@@ -470,11 +470,11 @@ namespace BlocksBeyondTheStars.Client
             // Paint frame = the shoulder pivot at rest; registered centres are the segment centres in that
             // frame (upper hangs at -0.21, the elbow pivot sits at -0.42, the hand pivot -0.44 below that).
             int row = x < 0f ? 0 : 1; // editor rows: top = left limb, bottom = right limb
-            var shoulder = NewPivot(name, transform, new Vector3(x, 1.5f, 0f));
+            var shoulder = NewPivot(name, transform, new Vector3(x, AvatarArmourFit.ShoulderY, 0f));
             RegisterPaint(BodyPaint.Arms, row,
                 AddCube(name + "Upper", shoulder, new Vector3(0f, -0.21f, 0f), ArmUpperSize, _arms),
                 ArmUpperCenter);
-            elbow = NewPivot(name + "Elbow", shoulder, new Vector3(0f, -0.42f, 0f));
+            elbow = NewPivot(name + "Elbow", shoulder, new Vector3(0f, AvatarArmourFit.ElbowDrop, 0f));
             RegisterPaint(BodyPaint.Arms, row,
                 AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), ArmLowerSize, _arms),
                 ArmLowerCenter);
@@ -513,7 +513,7 @@ namespace BlocksBeyondTheStars.Client
                 new Vector3(0f, -0.23f, 0f));
             knee = NewPivot(name + "Knee", hip, new Vector3(0f, AvatarArmourFit.KneeDrop, 0f));
             RegisterPaint(BodyPaint.Legs, row,
-                AddCube(name + "Lower", knee, new Vector3(0f, -0.21f, 0f), new Vector3(0.2f, 0.42f, 0.2f), _legs),
+                AddCube(name + "Lower", knee, AvatarArmourFit.LowerLeg, _legs),
                 new Vector3(0f, -0.67f, 0f));
             RegisterPaint(BodyPaint.Legs, row,
                 AddCube(name + "Foot", knee, new Vector3(0f, -0.44f, 0.06f), new Vector3(0.24f, 0.12f, 0.32f), _legs),
@@ -560,8 +560,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Self-drive from world movement so it works for the local player, remotes and NPCs alike.
-            var pos = transform.position;
+            // Self-drive from world movement so it works for the local player, remotes and NPCs alike (#3860: without the
+            // shift the level swim pose places the root by).
+            var pos = MotionPosition();
             float speed = 0f, vy = 0f;
             if (_hasPrev)
             {
@@ -582,6 +583,7 @@ namespace BlocksBeyondTheStars.Client
             _vySmooth += (Mathf.Clamp(vy, -30f, 30f) - _vySmooth) * lowPass;
             speed = _speedSmooth;
             vy = _vySmooth;
+            EaseSwimLevel(dt, speed); // #3860: a fast swimmer lies level
 
             float moving = Mathf.Clamp01(speed / 3.2f); // legs reach a full stride a bit sooner (slow NPC strolls read as walking)
             float run = Mathf.Clamp01((speed - 4.5f) / 4f); // extra emphasis once sprinting
@@ -1296,6 +1298,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // #2294: a crest from brow to neck — the titanium helmet reads at a glance, even from behind.
                     _gear.Add(AddCube("GearHelmetCrest", _head, new Vector3(0f, 0.86f, -0.06f), new Vector3(0.18f, 0.20f, 1.16f), m));
+                    AddTitanHelmetShape(m); // #3861
                 }
             }
 
@@ -1309,7 +1312,10 @@ namespace BlocksBeyondTheStars.Client
                     // #2294: shoulder pads over the suit's shoulder blocks (top at 1.64).
                     _gear.Add(AddCube("GearShoulderL", transform, new Vector3(-0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), m));
                     _gear.Add(AddCube("GearShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), m));
+                    AddTitanShoulderTier(m); // #3861
                 }
+
+                AddArmourArms(m, m); // #3861: arms and waist
             }
 
             if (GearLook.Has(mask, GearLook.Legs) && !BuildLegsSet(GearLook.LegsStyle(mask)))
@@ -1324,6 +1330,8 @@ namespace BlocksBeyondTheStars.Client
                     _gear.Add(AddCube("GearKneeL", _kneeL, AvatarArmourFit.KneePad, m));
                     _gear.Add(AddCube("GearKneeR", _kneeR, AvatarArmourFit.KneePad, m));
                 }
+
+                AddArmourShins(m); // #3861
             }
 
             // The back: the glider, the jetpack or the tank — one slot (the glider and the jetpack share it, so a mask never
@@ -1350,13 +1358,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // #2110: boots — a wider, darker block over each foot, outside the leg plates. On the knee pivots, where
                 // the feet hang (knee-local y −0.44): they used to sit on the hip pivots at −0.50, i.e. round the knee.
-                _gear.Add(AddCube("GearBootL", _kneeL, new Vector3(0f, -0.43f, 0.05f), new Vector3(0.28f, 0.16f, 0.36f), _gearPackMat));
-                _gear.Add(AddCube("GearBootR", _kneeR, new Vector3(0f, -0.43f, 0.05f), new Vector3(0.28f, 0.16f, 0.36f), _gearPackMat));
-                if (GearLook.Has(mask, GearLook.SpringBoots))
-                {
-                    _springL = BuildSpringBoot("L", _kneeL);
-                    _springR = BuildSpringBoot("R", _kneeR);
-                }
+                BuildClassicBoots(mask); // the plain, spring (#2295) and titanium (#3862) boots
             }
 
             if ((mask & (GearLook.ClimbingGloves | GearLook.ClimbingClaws)) != 0 && _handL != null && _handR != null)

@@ -46,6 +46,8 @@ namespace BlocksBeyondTheStars.Client
             _gear.Add(AddCube("ObsShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), _obsidian));
             _gear.Add(AddCube("ObsChestSeamL", transform, new Vector3(-0.2f, 1.45f, 0.212f), new Vector3(0.02f, 0.34f, 0.012f), _obsidianSeam));
             _gear.Add(AddCube("ObsChestSeamR", transform, new Vector3(0.2f, 1.45f, 0.212f), new Vector3(0.02f, 0.34f, 0.012f), _obsidianSeam));
+            AddObsidianShoulderDomes(); // #3861
+            AddArmourArms(_obsidian, _obsidian);
             if (!GearLook.Has(_gearMask, GearLook.SocketDisc))
             {
                 return;
@@ -73,6 +75,8 @@ namespace BlocksBeyondTheStars.Client
                     _gear.Add(AddCube("ObsKneeSeam", knee, new Vector3(0f, -0.02f, 0.155f), new Vector3(0.16f, 0.03f, 0.012f), _obsidianSeam));
                 }
             }
+
+            AddArmourShins(_obsidian); // #3861
         }
 
         /// <summary>The light disc's soft glow: a small violet-white point light on the chest, mirrored into the FX lights so the

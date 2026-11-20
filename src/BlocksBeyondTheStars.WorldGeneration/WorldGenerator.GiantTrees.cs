@@ -91,27 +91,13 @@ public sealed partial class WorldGenerator
             chunk.Set(lx, ly, lz, block);
         }
 
-        var calib = CalibFor(planet);
-        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        var riverField = RiverFieldFor(planet);
-        var wonder = WonderFor(planet);
-        var grassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
-        var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
-        var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
-
+        var sites = GiantTreeSiteInputsFor(planet, seed, biomes, fluidLevel);
         for (int wx = origin.X - GiantTreeMargin; wx < origin.X + cs + GiantTreeMargin; wx++)
             for (int wz = origin.Z - GiantTreeMargin; wz < origin.Z + cs + GiantTreeMargin; wz++)
             {
-                // The cheap first-reject: one noise read decides for 99.9 % of the margin columns.
-                int cx = WorldConstants.WrapX(wx, _circumference);
-                if (Noise.Value01(seed + 0x61A47, cx, 29, Wz(wz)) >= GiantTreeDensity)
+                if (!GiantTreeRollPasses(planet, seed, wx, wz))
                 {
                     continue;
-                }
-
-                if (ForestMaskAt(planet, seed, wx, wz) <= GiantTreeForestMask)
-                {
-                    continue; // landmarks of the deep woods, never of the open land
                 }
 
                 int sy = SurfaceHeight(planet, wx, wz);
@@ -120,61 +106,133 @@ public sealed partial class WorldGenerator
                     continue; // every cell this tree could write lies outside this chunk
                 }
 
-                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)];
-                if (biome.TreeMul * biome.Theme.TreeMul <= 0.0)
+                if (TryGiantTreeSite(sites, wx, wz, sy, out var site))
                 {
-                    continue; // a treeless biome grows no giant either
+                    BuildGiantTree(site.Shape, wx, site.BaseY, wz, site.SizeF, site.ShapeHash, logId, leafId, SetCell);
                 }
-
-                var shape = GiantShapeFor(biome.Theme.PaletteFor(wonder.Generation));
-                if (shape == GiantTreeShape.None)
-                {
-                    continue;
-                }
-
-                if (TempAt(calib, sy) < TreeLineC || sy + 1 <= fluidLevel)
-                {
-                    continue; // above the tree line, or in the sea
-                }
-
-                if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0
-                    || DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz)
-                    || RuneShrineClaims(planet, wx, wz, GiantTreeMargin))
-                {
-                    continue; // a pond, a river, a beach or a seep's tar (#2371) — no giant stands in the water or in the sand;
-                              // #3416: nor over a rune shrine
-                }
-
-                var surf = biome.Surface;
-                if (surf != grassId && surf != dirtId && surf != mudId)
-                {
-                    continue; // earthy ground only
-                }
-
-                // Size 3..5 (bell-shaped like the ordinary trees' SizeFactor), the trunk thickness rounds from it,
-                // and the whole footprint must be reasonably level — the trunk roots from its LOWEST surface, so a
-                // steep site would leave a wall of logs on the uphill side.
-                double sizeF = 3.0 + (Noise.Value01(seed + 0x61A48, cx, 31, Wz(wz)) + Noise.Value01(seed + 0x61A4A, cx, 43, Wz(wz))) * 1.0;
-                int trunk = System.Math.Clamp((int)System.Math.Round(sizeF), 3, 5);
-                int half = trunk / 2;
-                int minSy = sy, maxSy = sy;
-                for (int dx = 0; dx < trunk; dx++)
-                    for (int dz = 0; dz < trunk; dz++)
-                    {
-                        int h = SurfaceHeight(planet, wx - half + dx, wz - half + dz);
-                        if (h < minSy) minSy = h;
-                        if (h > maxSy) maxSy = h;
-                    }
-
-                if (maxSy - minSy > GiantTreeFootprintRelief)
-                {
-                    continue;
-                }
-
-                int shapeHash = (int)(Noise.Value01(seed + 0x61A49, cx, 37, Wz(wz)) * 997);
-                BuildGiantTree(shape, wx, minSy, wz, sizeF, shapeHash, logId, leafId, SetCell);
             }
+    }
+
+    /// <summary>The per-planet inputs of the giant-tree site test, resolved once per call — shared by the chunk stamp and
+    /// the streaming's tall-flora top (#3859), so both see exactly the same trees.</summary>
+    private sealed class GiantTreeSiteInputs
+    {
+        public PlanetType Planet = null!;
+        public long Seed;
+        public List<BiomeResolved> Biomes = null!;
+        public int FluidLevel;
+        public WorldCalibration Calib = null!;
+        public RiverField RiverField = null!;
+        public WonderProfile Wonder = null!;
+        public BlockId WaterId;
+        public BlockId GrassId;
+        public BlockId DirtId;
+        public BlockId MudId;
+    }
+
+    /// <summary>A giant tree that stands at a column: its shape, the root row (the lowest surface of its footprint), its
+    /// size and the hash its branches and crown read.</summary>
+    private readonly struct GiantTreeSite
+    {
+        public GiantTreeSite(GiantTreeShape shape, int baseY, double sizeF, int shapeHash)
+        {
+            Shape = shape;
+            BaseY = baseY;
+            SizeF = sizeF;
+            ShapeHash = shapeHash;
+        }
+
+        public GiantTreeShape Shape { get; }
+
+        public int BaseY { get; }
+
+        public double SizeF { get; }
+
+        public int ShapeHash { get; }
+    }
+
+    private GiantTreeSiteInputs GiantTreeSiteInputsFor(PlanetType planet, long seed, List<BiomeResolved> biomes, int fluidLevel)
+        => new()
+        {
+            Planet = planet,
+            Seed = seed,
+            Biomes = biomes,
+            FluidLevel = fluidLevel,
+            Calib = CalibFor(planet),
+            RiverField = RiverFieldFor(planet),
+            Wonder = WonderFor(planet),
+            WaterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air,
+            GrassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air,
+            DirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air,
+            MudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air,
+        };
+
+    /// <summary>The cheap first rejects of a giant-tree column: one noise read decides for 99.9 % of the columns, then the
+    /// memoised forest mask (giants are landmarks of the deep woods, never of the open land).</summary>
+    private bool GiantTreeRollPasses(PlanetType planet, long seed, int wx, int wz)
+    {
+        int cx = WorldConstants.WrapX(wx, _circumference);
+        return Noise.Value01(seed + 0x61A47, cx, 29, Wz(wz)) < GiantTreeDensity
+            && ForestMaskAt(planet, seed, wx, wz) > GiantTreeForestMask;
+    }
+
+    /// <summary>The rest of the site test for a column that passed <see cref="GiantTreeRollPasses"/> (surface
+    /// <paramref name="sy"/>): a wooded, earthy, dry biome below the tree line, and a reasonably level footprint.</summary>
+    private bool TryGiantTreeSite(GiantTreeSiteInputs s, int wx, int wz, int sy, out GiantTreeSite site)
+    {
+        site = default;
+        var planet = s.Planet;
+        long seed = s.Seed;
+        int cx = WorldConstants.WrapX(wx, _circumference);
+        var biome = s.Biomes[s.Biomes.Count <= 1 ? 0 : BiomeIndex(s.Calib, seed, wx, wz, s.Biomes.Count, sy)];
+        if (biome.TreeMul * biome.Theme.TreeMul <= 0.0)
+        {
+            return false; // a treeless biome grows no giant either
+        }
+
+        var shape = GiantShapeFor(biome.Theme.PaletteFor(s.Wonder.Generation));
+        if (shape == GiantTreeShape.None || TempAt(s.Calib, sy) < TreeLineC || sy + 1 <= s.FluidLevel)
+        {
+            return false; // no giant in this palette, above the tree line, or in the sea
+        }
+
+        if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
+            || SurfaceGen1WaterDepth(planet, wx, wz) > 0
+            || DryBeachAt(planet, s.Calib, seed, s.RiverField, s.WaterId, wx, wz, sy) || OilSeepNear(planet, wx, wz)
+            || RuneShrineClaims(planet, wx, wz, GiantTreeMargin))
+        {
+            return false; // a pond, a river, a beach or a seep's tar (#2371) — no giant stands in the water or in the sand;
+                          // #3416: nor over a rune shrine
+        }
+
+        var surf = biome.Surface;
+        if (surf != s.GrassId && surf != s.DirtId && surf != s.MudId)
+        {
+            return false; // earthy ground only
+        }
+
+        // Size 3..5 (bell-shaped like the ordinary trees' SizeFactor), the trunk thickness rounds from it, and the whole
+        // footprint must be reasonably level — the trunk roots from its LOWEST surface, so a steep site would leave a wall
+        // of logs on the uphill side.
+        double sizeF = 3.0 + (Noise.Value01(seed + 0x61A48, cx, 31, Wz(wz)) + Noise.Value01(seed + 0x61A4A, cx, 43, Wz(wz))) * 1.0;
+        int trunk = System.Math.Clamp((int)System.Math.Round(sizeF), 3, 5);
+        int half = trunk / 2;
+        int minSy = sy, maxSy = sy;
+        for (int dx = 0; dx < trunk; dx++)
+            for (int dz = 0; dz < trunk; dz++)
+            {
+                int h = SurfaceHeight(planet, wx - half + dx, wz - half + dz);
+                if (h < minSy) minSy = h;
+                if (h > maxSy) maxSy = h;
+            }
+
+        if (maxSy - minSy > GiantTreeFootprintRelief)
+        {
+            return false;
+        }
+
+        site = new GiantTreeSite(shape, minSy, sizeF, (int)(Noise.Value01(seed + 0x61A49, cx, 37, Wz(wz)) * 997));
+        return true;
     }
 
     /// <summary>Stamps one giant tree with its root cell row at <paramref name="baseY"/> + 1 (the lowest surface of

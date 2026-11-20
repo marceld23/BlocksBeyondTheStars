@@ -152,7 +152,10 @@ It is **single-threaded and tick-driven** by design (`GameServer.Run` / `GameSer
   - *Streaming* (`StreamChunks`): each player gets a disc of view distance + 1 chunks; within
     `nearColumnRadiusChunks` (default 4, Chebyshev) the full vertical column streams (3 chunks down,
     `nearColumnChunksUp` = 3 up), farther out only the band around the terrain surface (`FarColumnBand`). That near
-    column is the guaranteed radius of every loaded-only reader (#3208).
+    column is the guaranteed radius of every loaded-only reader (#3208). Tall things lift a column's span to their top:
+    text tablets, landmarks and wrecks (`WithStructureTop`) and, since #3859, tall flora — giant and ordinary trees
+    (`GameServerFloraStream`, from `WorldGenerator.TallFloraTopInSquare`, capped by the sent-set sphere) — so a tree in
+    the distance is not cut off flat.
   - *Sweep* (`SweepFarChunks`, every 10 s per occupied world): evicts every chunk farther than the widest view + 4
     from all players on the body (wrapped 3D chunk distance), and prunes each session's sent-set by its own distance.
   - *Anchors* (`GameServerChunkAnchors.cs`, #3211): while at least one player is on the body, the chunks holding Crystal

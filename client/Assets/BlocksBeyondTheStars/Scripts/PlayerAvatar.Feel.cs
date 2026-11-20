@@ -234,6 +234,7 @@ namespace BlocksBeyondTheStars.Client
                 kneeL = 14f + (12f * Mathf.Max(0f, kick));
                 kneeR = 14f + (12f * Mathf.Max(0f, -kick));
                 headYaw = 0f;
+                PoseCrawl(t, ref armL, ref armR, ref elbowL, ref elbowR, ref legL, ref legR, ref kneeL, ref kneeR, ref rollL, ref rollR, ref nod);
             }
         }
 

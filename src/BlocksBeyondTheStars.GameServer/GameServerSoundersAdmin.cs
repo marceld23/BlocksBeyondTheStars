@@ -119,7 +119,7 @@ public sealed partial class GameServer
         foreach (string item in new[]
                  {
                      SoundersIds.SongSpindle, SoundersIds.DiscHearing, SoundersIds.DiscCalm, SoundersIds.DiscLight, SoundersIds.DiscSong,
-                     SoundersIds.ResonanceBlaster, SoundersIds.ObsidianHelmet, SoundersIds.ObsidianChest, SoundersIds.ObsidianLegs,
+                     SoundersIds.ResonanceBlaster, SoundersIds.ObsidianHelmet, SoundersIds.ObsidianChest, SoundersIds.ObsidianLegs, SoundersIds.ObsidianBoots,
                  })
         {
             GiveSoundersItem(s, item, 1);

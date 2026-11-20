@@ -38,7 +38,7 @@ public sealed partial class GameServer
     private static readonly string[] GuardianGiantBlueprints = { "guardian_gear", "guardian_sword", "guardian_drill" };
 
     /// <summary>The finished pieces a fighter who knows every guardian blueprint finds instead (one, seeded).</summary>
-    private static readonly string[] GuardianGiantPieces = { "guardian_helmet", "guardian_chest", "guardian_legs", "guardian_sword", "guardian_drill" };
+    private static readonly string[] GuardianGiantPieces = { "guardian_helmet", "guardian_chest", "guardian_legs", "guardian_boots", "guardian_sword", "guardian_drill" };
 
     /// <summary>The rings (blocks from the corpse's centre) the crates are placed on.</summary>
     private static readonly int[] GuardianGiantCrateRings = { 9, 11, 13, 15 };

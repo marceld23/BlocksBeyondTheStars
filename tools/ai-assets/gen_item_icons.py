@@ -238,6 +238,8 @@ ITEMS = [
     ("titan_chest", "a sci-fi armoured chest plate of brushed blue-silver titanium with layered overlapping plates, rivets and a small glowing cyan core light in the centre"),
     ("titan_legs", "a pair of sci-fi armoured leg plates of brushed blue-silver titanium with knee guards and thin cyan accent lines"),
     ("spring_boots", "a pair of chunky sci-fi space-suit boots with big shiny silver coil springs under the soles, dark grey with orange accents and small cyan ankle lights"),
+    # #3862 (2026-11-20): boots for the titanium, guardian and obsidian sets.
+    ("titan_boots", "a pair of sturdy sci-fi armoured boots of brushed blue-silver titanium plates with ankle guards and thin cyan accent lines, side view"),
     ("glider", "a compact sci-fi wing glider backpack with two unfolded bright orange fabric wings stretched over thin silver ribs, a dark grey harness in the middle"),
     ("suit_battery", "a compact sci-fi suit battery pack, a rounded dark metal cell with a glowing bright cyan energy window and a small clip, three green charge bars on its side"),
     # #2278 shock + energy gloves (2026-10-04): the two glove weapons, held in both hands.
@@ -278,6 +280,7 @@ ITEMS = [
     ("guardian_helmet", "a sci-fi armoured helmet of dark gunmetal-grey robot plates, open face, a brow ridge with one thin glowing red visor slit and small sensor blocks over the ears"),
     ("guardian_chest", "a sci-fi armoured chest plate of dark gunmetal-grey robot plates with shoulder pads and one thin glowing red light band across the chest"),
     ("guardian_legs", "a pair of sci-fi armoured leg plates of dark gunmetal-grey robot metal with knee guards, each knee with one small glowing red dot"),
+    ("guardian_boots", "a pair of sci-fi armoured boots of dark gunmetal-grey robot plates with heavy toe caps, each toe cap with one small glowing red dot, side view"),
     ("guardian_sword", "a sci-fi energy sword seen diagonally, a chunky dark gunmetal hilt and crossguard and a wide solid brightly glowing red hologram blade with a white-hot core and a strong red glow"),
     ("guardian_drill", "a handheld sci-fi laser drill, dark gunmetal body with a short emitter nozzle shooting a thin straight bright red laser beam, a small red light strip on top and a dark grip"),
     ("robber_cloth", "a neatly folded stack of dark charcoal-black sturdy cloth fabric with visible stitching"),
@@ -313,6 +316,7 @@ ITEMS = [
     ("obsidian_helmet", "an alien armour helmet of glossy black obsidian plates, open face, two long elegant ear-shaped fins sweeping up and backwards on its sides like big listening ears, thin glowing teal lines along the fins, kid-friendly"),
     ("obsidian_chest", "an alien armour chest plate of glossy black obsidian plates with rounded shoulder pads and one round empty disc socket ring glowing soft teal in the middle of the chest, thin teal lines, front view, no person"),
     ("obsidian_legs", "a pair of alien armour leg plates of glossy black obsidian with rounded knee guards and thin glowing teal lines down the sides, front view, no person"),
+    ("obsidian_boots", "a pair of alien armour boots of glossy black obsidian plates with rounded toes and thin glowing teal lines along the sides, side view, no person"),
     ("song_spindle", "a small alien music artifact: a round black obsidian pedestal with thin glowing teal spiral grooves and a tall slender glowing pale teal and violet crystal spindle standing upright in its middle, soft glow"),
     # #3685: the memory core a defeated guardian giant leaves in each fighter's crate — the old builder's last order inside.
     ("guardian_giant_core", "a heavy fist-sized sci-fi machine memory core, a chunky hexagonal housing of grey riveted metal panels with a few rust spots, one round dim red glass lens glowing softly on its front, thin faint red circuit lines on its sides and two short cut cable stubs at the back, kid-friendly"),

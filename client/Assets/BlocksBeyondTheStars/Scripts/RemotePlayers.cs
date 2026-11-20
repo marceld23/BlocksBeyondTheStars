@@ -261,6 +261,7 @@ namespace BlocksBeyondTheStars.Client
                     aboard.y -= PlayerAvatar.CrouchDrop * r.Avatar.CrouchBlend; // #2435: the folded legs are shorter
 
                     r.Go.transform.position = aboard;
+                    r.Avatar.PlacedSwimOffset(Vector3.zero);
                     r.SpringY = aboard.y; // #2295: the wagon's motion is never a jump
                     if (r.Interp.Sample(now, circ, out _, out var wagonYaw))
                     {
@@ -276,10 +277,13 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     scene.y -= PlayerAvatar.CrouchDrop * r.Avatar.CrouchBlend; // #2435: a squatting friend sits lower
-                    r.Go.transform.position = scene;
                     // #2193: a climber faces the wall they hang on, not where they look.
                     float facing = r.Climbing && TryWallYaw(pos, yaw, out float wallYaw) ? wallYaw : yaw;
-                    r.Go.transform.rotation = Quaternion.Euler(0f, facing, 0f);
+                    var yawRot = Quaternion.Euler(0f, facing, 0f);
+                    var swim = r.Avatar.SwimTiltOffset; // #3860: a sprint swimmer lies level, turned about its chest
+                    r.Go.transform.position = scene + (yawRot * swim);
+                    r.Go.transform.rotation = yawRot * r.Avatar.SwimTilt;
+                    r.Avatar.PlacedSwimOffset(swim);
                     SpringFromMotion(r, scene.y);
                 }
 
