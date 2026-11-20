@@ -69,12 +69,14 @@ public sealed partial class GameServer
 
         var spots = settlement.Markers.Where(m => m.Type == "npc").Select(m => m.Pos).ToList();
         var beds = SettlementBeds(settlement);
+        var childBeds = TakeChildBeds(settlement, beds); // the lively places: a child's bed houses no grown-up
         var seats = TavernSeats(settlement);
         int services = posts.Count(p => p.Job is "vendor" or "quartermaster");
         int count = System.Math.Max(System.Math.Min(beds.Count, ResidentCap(settlement.Tier)), services);
         var freeBeds = new List<Vector3i>(beds);
         int seatCursor = 0;
         int bedlessResidents = 0; // #2598: the fallback slot ordinal of a resident with neither post nor bed
+        var plainResidents = new List<ServerNpc>(); // the lively places: the people without a post (the night watch is two of them)
 
         for (int i = 0; i < count; i++)
         {
@@ -110,10 +112,11 @@ public sealed partial class GameServer
             var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
             npc.Settlement = settlement.Name;
             npc.Job = job is "vendor" or "quartermaster" or "craftsman" or "innkeeper" or "gardener" ? job : string.Empty;
+            npc.Held = ResidentTool(npc.Job); // the lively places: the village gardener and craftsman hold their tool too
             npc.Work = standing;
             npc.HasWork = true;
             SetNpcBed(npc, bed); // #1887: the bed is assigned; the seat below
-            SetNpcSeat(npc, EveningSeatFor(settlement, seats, ref seatCursor, bed));
+            SetNpcSeat(npc, EveningSeatFor(settlement, seats, ref seatCursor, bed, hasPost ? null : npc));
             MarkFurnitureLooked(npc); // #2655: kept while they stand; it looks again only when furniture comes or goes
 
             if (role == "quartermaster")
@@ -126,12 +129,20 @@ public sealed partial class GameServer
             ApplyAuthoredCharacter(npc, "settlement", settlement.Name); // #1128: a pack face may claim this slot
             npc.RoutineEnabled = true; // #1867: villagers keep a daily routine
             _npcs.Add(npc);
+            if (!hasPost && npc.CharacterId.Length == 0)
+            {
+                plainResidents.Add(npc);
+            }
         }
+
+        AssignNightWatch(settlement, plainResidents);
+        AssignHouseholdPets(plainResidents); // after the watch: its people sleep by day
 
         // The professions (2026-09): one extra resident per profession post, after everyone above and with a generator of
         // their own — a settlement without these posts (every settlement of an older world) spawns exactly the people it
         // always did.
         SpawnProfessionResidents(settlement, freeBeds, seats, ref seatCursor);
+        SpawnChildren(settlement, childBeds, spots); // … and the children last, from a generator of their own
 
         // The G.D.S. guardians (#1793): machines at their posts, never asleep, no bed.
         foreach (var (type, pos) in settlement.Markers)
@@ -251,14 +262,61 @@ public sealed partial class GameServer
     /// <summary>A resident's evening seat (#2122): the next free tavern seat, else the nearest free chair by its bed, else
     /// none (the evening is rested standing) — never a seat another resident already has. The tavern cursor used to wrap,
     /// so a settlement with more residents than tavern chairs seated two people on one.</summary>
-    private Vector3i? EveningSeatFor(SettlementInstance settlement, List<Vector3i> tavernSeats, ref int cursor, Vector3i? bed)
+    private Vector3i? EveningSeatFor(SettlementInstance settlement, List<Vector3i> tavernSeats, ref int cursor, Vector3i? bed,
+        ServerNpc? benchSitter = null)
     {
         if (NextFreeSeat(tavernSeats, ref cursor) is { } tavern)
         {
             return tavern;
         }
 
+        // The lively places: once the tavern is full, the next ones spend the evening on a bench of the plaza (in dry
+        // weather — the routine sends a bench sitter home when it rains); only then the chair at home.
+        if (benchSitter is not null && FreePlazaBench(settlement) is { } bench)
+        {
+            benchSitter.BenchSeat = true;
+            return bench;
+        }
+
         return bed is { } own ? NearestLayoutSeat(settlement, own) : null;
+    }
+
+    /// <summary>A bench of the settlement's street furniture nobody has as a seat yet: the seat block beside a bench
+    /// marker (the marker is the cell in front of it), or null — every settlement without such markers.</summary>
+    private Vector3i? FreePlazaBench(SettlementInstance settlement)
+    {
+        var s = settlement.Layout;
+        if (s is null)
+        {
+            return null;
+        }
+
+        foreach (var (type, pos) in settlement.Markers)
+        {
+            if (type != SettlementPlanBaker.BenchMarker)
+            {
+                continue;
+            }
+
+            var front = pos.ToBlock();
+            int lx = WorldConstants.WrapDeltaX(front.X - settlement.Min.X, _world.Circumference), ly = front.Y - settlement.GroundY, lz = front.Z - settlement.Min.Z;
+            foreach (var (dx, dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+            {
+                int x = lx + dx, z = lz + dz;
+                if (!s.InBounds(x, ly, z) || s.Get(x, ly, z) == 0 || ShapeCode.ShapeOf(s.GetShape(x, ly, z)) != (int)BlockShape.Bench)
+                {
+                    continue;
+                }
+
+                var cell = new Vector3i(front.X + dx, front.Y, front.Z + dz);
+                if (!SeatClaimed(cell))
+                {
+                    return cell;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>The unclaimed chair nearest to a bed in the settlement's layout, within <see cref="HomeSeatReach"/>; null
@@ -300,12 +358,49 @@ public sealed partial class GameServer
         return best;
     }
 
-    /// <summary>Test seam (#1887): per settlement its tier, bed count and the residents (role, job, bed) the server keeps.</summary>
+    /// <summary>Test seam (#1887): per settlement its tier, the count of its grown-ups' beds (a child's marked bed is not
+    /// one of them) and the residents (role, job, bed) the server keeps — the children among them, role "child".</summary>
     public IReadOnlyList<(string Name, string Tier, int Beds, IReadOnlyList<(string Role, string Job, Vector3i? Bed, Vector3f Home)> Residents)> SettlementResidentsForTest
-        => _settlements.Where(s => !s.Ruined).Select(s => (s.Name, s.Tier, SettlementBeds(s).Count,
+        => _settlements.Where(s => !s.Ruined).Select(s => (s.Name, s.Tier, GrownUpBedCount(s),
             (IReadOnlyList<(string, string, Vector3i?, Vector3f)>)_npcs.Where(n => n.Settlement == s.Name && n.Role != "guardian")
                 .Select(n => (n.Role, n.Job, n.Bed, n.Home)).ToList())).ToList();
 
+    private int GrownUpBedCount(SettlementInstance s)
+    {
+        var beds = SettlementBeds(s);
+        TakeChildBeds(s, beds);
+        return beds.Count;
+    }
+
     /// <summary>Test seam (#1887): the resident cap of a tier.</summary>
     public static int ResidentCapForTest(string tier) => ResidentCap(tier);
+
+    /// <summary>Test seam (the lively places): everybody whose evening seat is a bench of the plaza — the seat, whether the
+    /// settlement's layout has a bench block there and whether one of its bench markers stands right beside it.</summary>
+    public IReadOnlyList<(int Id, string Settlement, Vector3i Seat, bool IsBench, bool ByABenchMarker)> BenchSittersForTest
+        => _npcs.Where(n => n.BenchSeat && n.Seat.HasValue).Select(n =>
+        {
+            var seat = n.Seat!.Value;
+            int circ = _world.Circumference;
+            var place = _settlements.FirstOrDefault(s => s.Name == n.Settlement);
+            int lx = place is null ? 0 : WorldConstants.WrapDeltaX(seat.X - place.Min.X, circ), ly = place is null ? 0 : seat.Y - place.GroundY,
+                lz = place is null ? 0 : seat.Z - place.Min.Z;
+            bool bench = place?.Layout is { } layout && layout.InBounds(lx, ly, lz) && layout.Get(lx, ly, lz) != 0
+                && ShapeCode.ShapeOf(layout.GetShape(lx, ly, lz)) == (int)BlockShape.Bench;
+            bool marked = place is not null && place.Markers.Any(m =>
+                m.Type == SettlementPlanBaker.BenchMarker && m.Pos.ToBlock() is var front && front.Y == seat.Y
+                && System.Math.Abs(WorldConstants.WrapDeltaX(front.X - seat.X, circ)) + System.Math.Abs(front.Z - seat.Z) == 1);
+            return (n.Id, n.Settlement, seat, bench, marked);
+        }).ToList();
+
+    /// <summary>Test seam (the lively places): a villager gets a plaza bench as its evening seat, as the spawner hands it
+    /// out once the tavern is full.</summary>
+    public void GiveBenchSeatForTest(int npcId, Vector3i bench)
+    {
+        if (_npcs.FirstOrDefault(n => n.Id == npcId) is { } npc)
+        {
+            SetNpcSeat(npc, bench);
+            npc.BenchSeat = true;
+        }
+    }
 }

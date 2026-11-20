@@ -33,6 +33,9 @@ public sealed class StructureTemplatePoolTests : IDisposable
         "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "streamer", "reporter", // 2026-09: profession posts
         "rail_dealer", // #2113: the monorail's dealer at the depot
         "entrance", // #3585: the road side of a module without a door (fields, gardens, pens)
+        // #3864/#3867/#3869, the lively places: a child's small bed, a chimney's smoke, a bench, a market stall's customer
+        // side, and a room's own sound (a station's laboratory and observatory)
+        "child", "chimney", "bench", "stall", "sound",
     };
 
     private readonly string _root;
@@ -127,7 +130,10 @@ public sealed class StructureTemplatePoolTests : IDisposable
     [Fact]
     public void StampedTemplate_IsPinned_AndSurvivesARestart()
     {
-        for (long seed = 1; seed <= 60; seed++)
+        // The known hit first (since terrain generation 46 seeds 1..16 hold no whole-template settlement, and every seed
+        // tried costs a world boot — the scan took 17 boots and broke the CI's 120-s fast-tier budget); the scan stays behind
+        // it should a later generation move the hit.
+        foreach (long seed in new long[] { 17 }.Concat(Enumerable.Range(1, 60).Select(i => (long)i).Where(s => s != 17)))
         {
             string world = $"tmplpin_{seed}";
             string pinnedTemplate;

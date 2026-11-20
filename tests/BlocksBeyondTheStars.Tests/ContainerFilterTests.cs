@@ -39,6 +39,7 @@ public sealed class ContainerFilterTests : IDisposable
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
             PlaceLodges = false, // #2640: a hut's store is a crate too — keep the test's own crate the only one
+            PlaceSettlements = false, // … and so is a pen's product crate (a village of generation 46 at this spawn has a pen)
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

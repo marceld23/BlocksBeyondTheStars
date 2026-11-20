@@ -293,6 +293,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Bumped whenever <see cref="Landmarks"/> / <see cref="SoundEmitters"/> are replaced, so the views rebuild.</summary>
         public int LandmarksVersion { get; private set; }
 
+        /// <summary>The lively places: the inhabited places of the current world (bounds, colour, door signs, effect points,
+        /// market day) — the place greeting, the door signs, the place's sound layer and its lights from afar read these.</summary>
+        public NetPlace[] Places { get; private set; } = System.Array.Empty<NetPlace>();
+
+        /// <summary>Bumped whenever <see cref="Places"/> is replaced, so the views rebuild.</summary>
+        public int PlacesVersion { get; private set; }
+
         /// <summary>Start's subscriptions for the world's structures: ship stations, POIs, beacons, beams, the crystal
         /// net, lifts, bases, factories, landing pads, data cubes, speeders and trains. Called once from
         /// <see cref="Start"/>, before the transport connects.</summary>
@@ -328,6 +335,7 @@ namespace BlocksBeyondTheStars.Client
                 SoundEmitters = m.Emitters ?? System.Array.Empty<NetSoundEmitter>();
                 LandmarksVersion++;
             };
+            Network.PlacesReceived += OnPlaces; // GameBootstrap.Places.cs
             Network.LandingPadsReceived += m =>
             {
                 LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>();

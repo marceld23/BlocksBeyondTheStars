@@ -15,8 +15,52 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class SoundEmitterMix
     {
-        /// <summary>At most this many emitters play at once.</summary>
-        public const int MaxVoices = 3;
+        /// <summary>At most this many emitters play at once (four since the lively places: a village has a tavern, a
+        /// workshop, a well and a market within earshot of one another).</summary>
+        public const int MaxVoices = 4;
+
+        /// <summary>The local day fractions the time gates use — the hours a place keeps (the villagers' routine).</summary>
+        public const float DayFrom = 0.24f;
+        public const float EveningFrom = 0.62f;
+        public const float NightFrom = 0.80f;
+
+        /// <summary>How long (in day fraction) a gate takes to open or close, so a tavern's murmur swells and fades.</summary>
+        public const float GateRamp = 0.02f;
+
+        /// <summary>
+        /// How much of an emitter's level is left at a time of day, 0..1: 1 inside its hours (<paramref name="when"/>, the
+        /// wire's <c>SoundEmitterTimes</c>: 1 day, 2 evening, 3 night, 4 day and evening), easing in and out over
+        /// <see cref="GateRamp"/>; always 1 for "always" (0) and for a negative <paramref name="timeOfDay"/> (unknown).
+        /// </summary>
+        public static float TimeGate(byte when, float timeOfDay)
+        {
+            if (when == 0 || timeOfDay < 0f)
+            {
+                return 1f;
+            }
+
+            float t = timeOfDay - (float)Math.Floor(timeOfDay);
+            switch (when)
+            {
+                case 1: return Window(t, DayFrom, EveningFrom);
+                case 2: return Window(t, EveningFrom, NightFrom);
+                case 3: return Math.Max(Window(t, NightFrom, 1f + GateRamp), Window(t, -GateRamp, DayFrom));
+                case 4: return Window(t, DayFrom, NightFrom);
+                default: return 1f; // a value this client does not know: play
+            }
+        }
+
+        private static float Window(float t, float from, float to)
+        {
+            if (t <= from - GateRamp || t >= to + GateRamp)
+            {
+                return 0f;
+            }
+
+            float up = Math.Min(1f, (t - (from - GateRamp)) / GateRamp);
+            float down = Math.Min(1f, ((to + GateRamp) - t) / GateRamp);
+            return Math.Max(0f, Math.Min(up, down));
+        }
 
         /// <summary>The share of an emitter's radius, measured from the source, within which it plays at its full volume.</summary>
         public const float FullWithin = 0.12f;
@@ -24,7 +68,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>An emitter as the mix sees it: where it stands (scene space), its sound and its reach.</summary>
         public readonly struct Emitter
         {
-            public Emitter(float x, float y, float z, string sound, float radius, float volume)
+            public Emitter(float x, float y, float z, string sound, float radius, float volume, byte when = 0)
             {
                 X = x;
                 Y = y;
@@ -32,7 +76,11 @@ namespace BlocksBeyondTheStars.Client
                 Sound = sound ?? string.Empty;
                 Radius = radius;
                 Volume = volume;
+                When = when;
             }
+
+            /// <summary>When it plays (the wire's <c>SoundEmitterTimes</c>; 0 = always).</summary>
+            public byte When { get; }
 
             public float X { get; }
 
@@ -86,9 +134,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>
         /// Picks the emitters to play for a listener at (<paramref name="lx"/>, <paramref name="ly"/>,
         /// <paramref name="lz"/>): the loudest first, at most <see cref="MaxVoices"/>, one per sound. Fills
-        /// <paramref name="picks"/> (cleared first).
+        /// <paramref name="picks"/> (cleared first). <paramref name="timeOfDay"/> is the local day fraction there (negative
+        /// = unknown): an emitter outside its hours (<see cref="TimeGate"/>) is silent and takes no voice.
         /// </summary>
-        public static void Pick(IReadOnlyList<Emitter> emitters, float lx, float ly, float lz, List<Voice> picks)
+        public static void Pick(IReadOnlyList<Emitter> emitters, float lx, float ly, float lz, List<Voice> picks, float timeOfDay = -1f)
         {
             picks.Clear();
             for (int i = 0; i < emitters.Count; i++)
@@ -100,7 +149,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 float dx = e.X - lx, dy = e.Y - ly, dz = e.Z - lz;
-                float level = Level((float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz)), e.Radius, e.Volume);
+                float level = Level((float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz)), e.Radius, e.Volume) * TimeGate(e.When, timeOfDay);
                 if (level > 0f)
                 {
                     picks.Add(new Voice(i, level));

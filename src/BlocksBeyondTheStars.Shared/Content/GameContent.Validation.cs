@@ -853,6 +853,11 @@ public sealed partial class GameContent
                 problems.Add($"Village life chatter topic '{topic.Key}' has a weight below 1 ({topic.Weight}).");
             }
 
+            if (topic.Who.Length > 0 && topic.Who != VillageChatterTopic.WhoChildren)
+            {
+                problems.Add($"Village life chatter topic '{topic.Key}' has an unknown who '{topic.Who}' (empty or {VillageChatterTopic.WhoChildren}).");
+            }
+
             if (topic.Lines.Count < VillageChatterTopic.MinLines || topic.Lines.Count > VillageChatterTopic.MaxLines
                 || topic.Lines.Any(string.IsNullOrWhiteSpace))
             {

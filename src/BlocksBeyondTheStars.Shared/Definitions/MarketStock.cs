@@ -125,15 +125,16 @@ public static class MarketStock
 
     /// <summary>The mixed stock of day <paramref name="day"/>: <see cref="MixedThemeCount"/> themes drawn from the table's
     /// themes, and from each one of its trades in stock that day — both draws a stable hash of the day (FNV-1a, never
-    /// <c>string.GetHashCode</c>, which differs per process), so the client and the server pick the same.</summary>
+    /// <c>string.GetHashCode</c>, which differs per process), so the client and the server pick the same. A deal marked
+    /// <see cref="RecipeDefinition.MarketExclusive"/> (a station's own exchange) is never part of it.</summary>
     public static List<RecipeDefinition> MixedOffers(IEnumerable<RecipeDefinition> recipes, long day)
     {
         var byTheme = new SortedDictionary<string, List<RecipeDefinition>>(StringComparer.Ordinal);
         foreach (var r in recipes)
         {
-            if (!IsTrade(r) || string.IsNullOrEmpty(r.MarketTheme) || !r.OfferedOnDay(day))
+            if (!IsTrade(r) || string.IsNullOrEmpty(r.MarketTheme) || r.MarketExclusive || !r.OfferedOnDay(day))
             {
-                continue;
+                continue; // (a place's own deals never travel: a theme of nothing else is not in the mix at all)
             }
 
             if (!byTheme.TryGetValue(r.MarketTheme, out var list))

@@ -715,6 +715,10 @@ namespace BlocksBeyondTheStars.Client
             var soundEmitters = root.AddComponent<SoundEmitterView>();
             soundEmitters.Game = boot;
             soundEmitters.Camera = cam;
+            root.AddComponent<PlaceAmbienceView>().Game = boot; // the lively places: the bed of the place the player stands in
+            root.AddComponent<PlaceSignView>().Game = boot;     // … and the signs beside its doors
+            root.AddComponent<PlaceFarView>().Game = boot;      // … and its smoke and lights from afar
+            root.AddComponent<StationScreenView>().Game = boot; // … and, aboard a station, its console screens are on
 
             // #3497: the far silhouette of this world's landmarks, beyond the streamed chunks.
             var landmarkSilhouettes = root.AddComponent<LandmarkSilhouetteView>();

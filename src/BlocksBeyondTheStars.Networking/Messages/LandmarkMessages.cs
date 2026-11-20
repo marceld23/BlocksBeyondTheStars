@@ -22,6 +22,40 @@ public sealed class NetSoundEmitter
 
     /// <summary>The volume right at the source, 0..1.</summary>
     public float Volume { get; set; } = 1f;
+
+    /// <summary>The lively places: when the emitter plays (<see cref="SoundEmitterTimes"/>) — a tavern in the evening, a
+    /// workshop by day. 0 = always (every emitter before this field, and what an older server sends). Additive: an older
+    /// client ignores it and plays the loop round the clock.</summary>
+    public byte When { get; set; }
+}
+
+/// <summary>When a <see cref="NetSoundEmitter"/> plays, by the local time of day where it stands.</summary>
+public static class SoundEmitterTimes
+{
+    /// <summary>Round the clock.</summary>
+    public const byte Always = 0;
+
+    /// <summary>While the people are at work (morning to late afternoon).</summary>
+    public const byte Day = 1;
+
+    /// <summary>In the evening (the tavern).</summary>
+    public const byte Evening = 2;
+
+    /// <summary>At night.</summary>
+    public const byte Night = 3;
+
+    /// <summary>From morning until the place goes to bed (the day and the evening).</summary>
+    public const byte Waking = 4;
+
+    /// <summary>The marker setting <c>when=…</c> of a sound marker as its value (unknown or empty = always).</summary>
+    public static byte Parse(string? text) => (text ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "day" => Day,
+        "evening" => Evening,
+        "night" => Night,
+        "waking" => Waking,
+        _ => Always,
+    };
 }
 
 /// <summary>

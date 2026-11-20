@@ -335,17 +335,22 @@ public sealed partial class StructureCatalog
     /// this order — never sort).
     /// </summary>
     public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType)
-        => KitsFor(kind, tier, enabledPacks, planetType, int.MaxValue);
+        => KitsFor(kind, tier, enabledPacks, planetType, AnyGeneration);
+
+    /// <summary>The generation that asks <see cref="KitsFor(string, string?, IReadOnlyCollection{string}?, string?, int)"/> for
+    /// every kit whatever its generation bounds say (the editors' lists).</summary>
+    public const int AnyGeneration = int.MaxValue;
 
     /// <summary><see cref="KitsFor(string, string?, IReadOnlyCollection{string}?, string?)"/> for a world of terrain generation
     /// <paramref name="generation"/> (#3583): a kit younger than the world (<see cref="StructureKit.MinTerrainGeneration"/>)
-    /// is left out, so an unvisited body of an older world never draws it.</summary>
+    /// or made for older worlds only (<see cref="StructureKit.MaxTerrainGeneration"/>) is left out, so an unvisited body of an
+    /// older world never draws a new kit and a new world never draws a kit its successor replaced.</summary>
     public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType, int generation)
     {
         var list = new List<StructureKit>();
         foreach (var k in StructureKits)
         {
-            if (k.KindOrDefault != kind || k.PinOnly || k.MinTerrainGeneration > generation)
+            if (k.KindOrDefault != kind || k.PinOnly || (generation != AnyGeneration && !k.DrawnAt(generation)))
             {
                 continue; // #1885: a pin-only kit is never drawn for a new structure (KitByKey still finds it)
             }
@@ -361,6 +366,30 @@ public sealed partial class StructureCatalog
             }
 
             if (KitFits(k, enabledPacks, planetType))
+            {
+                list.Add(k);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>The lively places: the kits a world of <paramref name="generation"/> has OUTGROWN
+    /// (<see cref="StructureKit.OutgrownAt"/>) — same kind, tier, packs and planet as
+    /// <see cref="KitsFor(string, string?, IReadOnlyCollection{string}?, string?, int)"/>, in pool order. They are not part of
+    /// that regular draw; the settlement pick gives them a small share of their own. Empty for a world that has outgrown
+    /// nothing (every world before generation 46) and for the editors' "any generation".</summary>
+    public IReadOnlyList<StructureKit> OutgrownKitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType, int generation)
+    {
+        var list = new List<StructureKit>();
+        if (generation == AnyGeneration)
+        {
+            return list;
+        }
+
+        foreach (var k in KitsFor(kind, tier, enabledPacks, planetType, AnyGeneration))
+        {
+            if (k.OutgrownAt(generation))
             {
                 list.Add(k);
             }

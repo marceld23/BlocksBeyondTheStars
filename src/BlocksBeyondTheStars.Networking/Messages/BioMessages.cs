@@ -131,6 +131,17 @@ public sealed class DiscardSampleIntent
     public string Item { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Client → server (#3870): hands ONE sample of a kind to the archive of the research station the player is aboard. The
+/// archive pays data fragments by the species' rarity — once per species and player; the server checks the station, the
+/// case and the species and answers with a server message either way.
+/// </summary>
+public sealed class GiveSampleToStationIntent
+{
+    /// <summary>The full sample key as it lies in the case (a sample or a mineral sample with its species seed).</summary>
+    public string Item { get; set; } = string.Empty;
+}
+
 /// <summary>Server → client: what the lab did.</summary>
 public sealed class BioLabResult
 {

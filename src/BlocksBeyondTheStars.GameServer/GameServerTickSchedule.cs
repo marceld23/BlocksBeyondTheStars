@@ -142,6 +142,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickProfessions", TickProfessions), // the streamer asks for photos, the tamer's pet follows (2026-09)
             TickStep.Dt("TickVillageLife", TickVillageLife), // #2600: villagers talk to each other (1 Hz, scan every 3 s)
             TickStep.Dt("TickVillageFestivals", TickVillageFestivals), // #2604: the village festival (1 Hz + the tune's notes)
+            TickStep.Dt("TickPlaceEvents", TickPlaceEvents), // the lively places: market day, a calendar festival gathers a village (1 Hz)
             TickStep.Dt("TickAirFills", TickAirFills), // #2650: time-sliced base/station air fills move on
             TickStep.Dt("TickBaseWallFills", TickBaseWallFills), // #3209: time-sliced walled-yard fills move on
             TickStep.Dt("TickStationStaffing", TickStationStaffing), // #1487: crew only staffs posts in sealed rooms

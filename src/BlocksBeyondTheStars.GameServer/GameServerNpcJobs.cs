@@ -81,6 +81,18 @@ public sealed partial class GameServer
             return;
         }
 
+        if (npc.BaseId == 0 && npc.Settlement.Length > 0)
+        {
+            TickSettlementDay(npc); // the lively places: a villager's errands, the work at a village post
+            return;
+        }
+
+        if (npc.ServiceRounds)
+        {
+            TickStationRounds(npc); // … and the round through a station's posts
+            return;
+        }
+
         if (npc.BaseId == 0 || npc.Job.Length == 0 || npc.Phase != NpcPhase.Day || npc.Pose != 0)
         {
             return;

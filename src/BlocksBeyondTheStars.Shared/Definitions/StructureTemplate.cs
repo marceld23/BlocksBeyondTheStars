@@ -301,6 +301,15 @@ public static class StructureRoles
     /// <summary>A fenced pen with tame animals and a product crate (#3597).</summary>
     public const string Pen = "pen";
 
+    // --- the lively places (terrain generation 46): a place's one landmark. A landmark module's function is this prefix and
+    // its kind (landmark_mill, landmark_bell …); it is a function only — never a plot role of the classic grid. ---
+
+    /// <summary>The prefix of a landmark module's function.</summary>
+    public const string LandmarkPrefix = "landmark_";
+
+    /// <summary>Whether a function names a landmark.</summary>
+    public static bool IsLandmark(string? function) => function != null && function.StartsWith(LandmarkPrefix, System.StringComparison.Ordinal);
+
     public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot, Field, Garden, Pen };
     public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
 
@@ -319,6 +328,7 @@ public static class StructureRoles
     {
         Market or Board or Tavern => 0,
         Field or Garden or Pen or Greenhouse or Stable or Quarry => 2,
+        _ when IsLandmark(function) => 0, // a place's landmark stands at its heart
         _ => 1,
     };
 

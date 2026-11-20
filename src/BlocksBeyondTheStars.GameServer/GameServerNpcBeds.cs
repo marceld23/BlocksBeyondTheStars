@@ -170,6 +170,10 @@ public sealed partial class GameServer
         {
             claims[WorldConstants.CanonicalBlock(now, circ)] = npc;
         }
+        else
+        {
+            npc.BenchSeat = false; // the plaza bench is given up with the seat: whatever it finds next is no bench seat
+        }
     }
 
     /// <summary>Rebuilds the active world's claims from its NPCs (once per routine pass) — drops what left with an NPC.</summary>
@@ -263,6 +267,7 @@ public sealed partial class GameServer
     private void ReleaseNpcSeat(ServerNpc npc)
     {
         npc.Seat = null;
+        npc.BenchSeat = false;
         npc.SeatWait = false;
         npc.FurnitureGen = 0;
         if (npc.Phase == NpcPhase.Evening || npc.Pose == 1)

@@ -413,6 +413,19 @@ modules and the planned kits come from `tools/gen_grown_settlement_modules.py`. 
 stepper (its rows follow the layout), a clickable district map, the function pick list, and the `settlement` source's
 `relief` / `form` preview parameters. Details in [WORLD_GENERATION.md](WORLD_GENERATION.md) §56.
 
+**Lively places (generation 46).** A planned kit carries four more fields, read only by a plan of revision 2:
+`dressing` (how richly the bake furnishes the place: 0 = the default 3, 1 none … 4 rich), `palette` (the place's colour: a
+hex colour, `none`, or empty = one of ten by the seed), `noMirror` (no lot is mirrored) and `noLandmark` (the plan gets
+none). `maxTerrainGeneration` is the upper bound of a kit's regular draw (the sixteen kits from before carry 45; a newer
+world still builds about one settlement in twenty from them — they are not dead content); a station
+kit's `purposes` name the purposes it is made for (trade, mining, research — empty = a station without one). The kit
+panel shows *Dressing*, *Colour*, **☐ No mirroring** and **☐ No landmark** under a planned layout's rows and the three
+purpose toggles under a station kit's exterior row, and carries the generation bounds unchanged — a kit saved in the
+editor keeps every one of them. The modules of a lively place come from `tools/gen_lively_settlement_modules.py` (compact
+bodies, expanded at load); the station rooms and kits made for a purpose — fifteen kits, forty rooms — from
+`tools/gen_station_purpose_modules.py` (it copies the classic kit of a tier out of `data/structure_kits.json` and adds
+the purpose's rooms, so it never rewrites a classic kit). Details in [LIVELY_PLACES.md](LIVELY_PLACES.md).
+
 **Settlement modules (#1885–#1890).** Fields `style` (`""` | `alien`) and the plot functions `tavern` / `workshop`
 (house slots; markers `tavern` / `workshop` name the room's furniture and the keeper's post). Block cells may carry a
 material token (`@wall @accent @roof @floor @path`, `MaterialTokens`) instead of a block key — resolved at stamp time
@@ -541,7 +554,9 @@ entry's pool) drives all of it.
 - **Honest tools** (`StructureStampRules` in Client.Core). The palette shows only what the target reads: the keep tool where a
   ruin pass runs (a whole settlement, a settlement module, a landmark), the cavity tool in a landmark only, marker settings,
   sound and den markers where generation 38 honours them, material tokens where a resolver runs, docking ports in a station
-  kit module only, a chest marker in a station only as a whole template. The design keeps what it has — loading never drops a
+  kit module only, a chest marker in a station only as a whole template. A station kit module reads one marker with
+  settings — its **sound** marker (the lively places: the kit composer carries it into the station, so a room has a sound
+  of its own); its chests and dens are not read. The design keeps what it has — loading never drops a
   cell. **Save** names what the target will not read in the status line (keep, cavity, port cells, sound and den markers,
   marker settings) and goes ahead; it **refuses** material tokens in a station kit module, whose composer has no resolver
   (a token cell would stamp as air).

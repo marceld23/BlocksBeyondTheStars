@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
 
@@ -10,14 +11,14 @@ internal sealed partial class SettlementPlanBuilder
 {
     /// <summary>The module turned so its front (the wall its door or entrance marker sits on) faces <paramref name="front"/>
     /// (0 −Z, 1 +Z, 2 −X, 3 +X), with the door's column after turning.</summary>
-    private Shape ShapeOf(StructureTemplate m, int front)
+    private Shape ShapeOf(StructureTemplate m, int front, bool mirrored = false)
     {
-        if (_shapes.TryGetValue((m.Key, front), out var cached))
+        if (_shapes.TryGetValue((m.Key, front, mirrored), out var cached))
         {
             return cached;
         }
 
-        var (side, dx, dz) = FrontDoor(m);
+        var (side, dx, dz) = FrontDoor(mirrored ? TemplateTransform.MirrorX(m) : m);
         int turns = TurnsBetween(side, front);
         int w = m.Width, l = m.Length;
         for (int t = 0; t < turns; t++)
@@ -27,9 +28,15 @@ internal sealed partial class SettlementPlanBuilder
         }
 
         var shape = new Shape(w, l, dx, dz, turns);
-        _shapes[(m.Key, front)] = shape;
+        _shapes[(m.Key, front, mirrored)] = shape;
         return shape;
     }
+
+    /// <summary>Whether the lot of module <paramref name="index"/> stands mirrored (plan revision 2): about every other
+    /// one, by a hash of the seed and the module's place in the growth order — never a kit that forbids it, never a module
+    /// that has no mirror image (<see cref="TemplateTransform.CanMirror"/>).</summary>
+    private bool MirrorsLot(StructureTemplate m, int index)
+        => Plan.IsLively && !_r.Kit.NoMirror && StableHashing.Unit($"plan:mirror:{index}", _r.Seed) < 0.5 && TemplateTransform.CanMirror(m);
 
     /// <summary>
     /// The wall a module's front door stands on (0 −Z, 1 +Z, 2 −X, 3 +X) and the door's cell: the first door marker (or

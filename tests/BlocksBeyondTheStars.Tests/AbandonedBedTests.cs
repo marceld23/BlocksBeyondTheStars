@@ -80,10 +80,10 @@ public sealed class AbandonedBedTests : IDisposable
     }
 
     [Fact]
-    public void NewWorlds_AreCreatedAtGeneration45_WithSaveVersion17()
+    public void TheAbandonedBeds_AreGeneration45_NewWorldsAreNewer_WithSaveVersion17()
     {
         Assert.Equal(45, WorldDescription.AbandonedBedsGeneration);
-        Assert.Equal(WorldDescription.AbandonedBedsGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.AbandonedBedsGeneration < WorldDescription.CurrentTerrainGeneration); // 46: the lively places
         Assert.True(AbandonedBeds.Applies(WorldDescription.CurrentTerrainGeneration));
         Assert.False(AbandonedBeds.Applies(WorldDescription.GuardianGiantsGeneration)); // 44: the guardian giants
         Assert.False(AbandonedBeds.Applies(WorldDescription.CivilizationsGeneration));

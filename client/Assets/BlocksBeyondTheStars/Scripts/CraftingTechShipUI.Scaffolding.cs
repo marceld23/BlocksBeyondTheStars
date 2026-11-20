@@ -180,10 +180,19 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The kind word of a station body: "Space Station", or "Derelict station" for a broken old one (#2632), or
         /// "Giant wreck" for a giant ship wreck drifting in space (#3615).</summary>
-        private string StationKindLabel(string bodyId)
-            => L(BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(bodyId)
-                ? BlocksBeyondTheStars.Client.Core.GiantWreckText.DerelictKind(bodyId)
-                : "ui.map.kind_station");
+        private string StationKindLabel(string bodyId, string purpose = null)
+        {
+            if (BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(bodyId))
+            {
+                return L(BlocksBeyondTheStars.Client.Core.GiantWreckText.DerelictKind(bodyId));
+            }
+
+            // The lively places: a station with a purpose says so ("Trade station"); a key this build does not know reads
+            // as a plain station.
+            string key = string.IsNullOrEmpty(purpose) ? null : "ui.place.station." + purpose;
+            string text = key != null ? L(key) : null;
+            return !string.IsNullOrEmpty(text) && text != key ? text : L("ui.map.kind_station");
+        }
 
         /// <summary>#3615: the height of the travel screen's giant wreck paragraph (600 wide, 18 px: seven lines).</summary>
         private const float GiantWreckDetailH = 150f;

@@ -125,7 +125,7 @@ public sealed partial class GameServer
                 {
                     var phase = RoutinePhaseFor(npc);
                     npc.PhaseCheckedAt = _uptime;
-                    if (forced || phase != npc.Phase)
+                    if (forced || phase != npc.Phase || BenchWeatherTurned(npc, phase))
                     {
                         ApplyRoutinePhase(npc, phase);
                     }
@@ -156,23 +156,88 @@ public sealed partial class GameServer
         }
 
         double t = LocalDayFraction(npc.Pos);
-        bool night = t >= RoutineNightStart || t < RoutineNightEnd;
-        bool evening = !night && t >= RoutineEveningStart;
+        var (eveningStart, nightStart, nightEnd) = RoutineHoursOf(npc);
+        bool night = t >= nightStart || t < nightEnd;
+        bool evening = !night && t >= eveningStart;
         if (npc.Job == "guard")
         {
             return night || evening ? NpcPhase.Day : NpcPhase.Night; // "Day" = on duty, "Night" = asleep
         }
 
+        if (evening && npc.Job == "innkeeper" && npc.BaseId == 0)
+        {
+            return NpcPhase.Day; // the lively places: the village keeper serves while the guests sit, and goes to bed with them
+        }
+
+        if (npc.Job == NightWatchJob)
+        {
+            // The night watch: on its round from the evening through the night ("Day" = on duty), asleep until noon,
+            // off duty and resting in the afternoon.
+            return night || evening ? NpcPhase.Day : t < NightWatchSleepsUntil ? NpcPhase.Night : NpcPhase.Evening;
+        }
+
         return night ? NpcPhase.Night : evening ? NpcPhase.Evening : NpcPhase.Day;
     }
+
+    /// <summary>The lively places: a villager's and a station crew member's evening begins earlier than a base resident's
+    /// and not for everybody at once, and the night comes later — so a place sits together for a good while, the streets
+    /// empty one by one, and the morning starts one by one too.</summary>
+    private const double PlaceEveningFrom = 0.62;
+    private const double PlaceEveningSpread = 0.04;
+    private const double PlaceNightFrom = 0.80;
+    private const double PlaceNightSpread = 0.06;
+    private const double PlaceMorningFrom = 0.20;
+
+    /// <summary>A child's evening and night begin earlier than a grown-up's.</summary>
+    private const double ChildEveningFrom = 0.57;
+    private const double ChildNightFrom = 0.71;
+    private const double PlaceMorningSpread = 0.04;
+
+    /// <summary>When an NPC's evening and night begin and its night ends (local day fractions): a villager's and a station
+    /// crew member's own hours (a stable draw per person inside the place's spread), everybody else's the common ones.</summary>
+    private static (double EveningStart, double NightStart, double NightEnd) RoutineHoursOf(ServerNpc npc)
+    {
+        if (npc.BaseId != 0 || (npc.Settlement.Length == 0 && !npc.CabinBed))
+        {
+            return (RoutineEveningStart, RoutineNightStart, RoutineNightEnd);
+        }
+
+        if (npc.IsChild)
+        {
+            // A child is home before everybody else, in bed earlier and up a little later.
+            return (ChildEveningFrom + (StableUnit("routine:evening", npc.Id) * 0.02),
+                ChildNightFrom + (StableUnit("routine:night", npc.Id) * 0.03),
+                PlaceMorningFrom + PlaceMorningSpread + (StableUnit("routine:morning", npc.Id) * 0.02));
+        }
+
+        return (PlaceEveningFrom + (StableUnit("routine:evening", npc.Id) * PlaceEveningSpread),
+            PlaceNightFrom + (StableUnit("routine:night", npc.Id) * PlaceNightSpread),
+            PlaceMorningFrom + (StableUnit("routine:morning", npc.Id) * PlaceMorningSpread));
+    }
+
+    /// <summary>The lively places: whether the weather changed under somebody whose evening seat is a plaza bench — rain
+    /// began while it sits there, or stopped while it waits at home. The evening is then thought over once (the bench's
+    /// case of <see cref="ApplyRoutinePhase"/> reads the same weather).</summary>
+    private bool BenchWeatherTurned(ServerNpc npc, NpcPhase phase)
+        => phase == NpcPhase.Evening && npc.BenchSeat && npc.Seat is { } bench && BenchIsWet(bench) != npc.BenchWet;
+
+    /// <summary>The weather at a plaza bench (at the bench, not at whoever asks: one answer for the walk there and back).</summary>
+    private bool BenchIsWet(Vector3i bench) => ErrandWeatherIsBad(new Vector3f(bench.X + 0.5f, bench.Y, bench.Z + 0.5f));
 
     /// <summary>Starts a phase: stands up if needed and walks the NPC to where the phase wants it.</summary>
     private void ApplyRoutinePhase(ServerNpc npc, NpcPhase phase)
     {
         npc.Phase = phase;
         StandUp(npc);
+        ClearErrand(npc); // the lively places: an errand ends with the phase it belongs to
+        EndNightWatchShift(npc);
         npc.SeatWait = false;
         npc.SiteUntil = 0;
+        npc.BenchWet = npc.BenchSeat && npc.Seat is { } plazaBench && BenchIsWet(plazaBench);
+        if (npc.BaseId == 0)
+        {
+            npc.SiteCursor = 0; // a village gardener's round starts at the greenhouse it walks to now
+        }
         switch (phase)
         {
             case NpcPhase.Night when npc.Bed is { } bed && BedStillThere(bed):
@@ -183,7 +248,8 @@ public sealed partial class GameServer
                 npc.ActivityKey = "npc.activity.resting";
                 GoTo(npc, npc.Rest, NpcArrival.None, RestLeash);
                 break;
-            case NpcPhase.Evening when npc.Seat is { } seat && SeatStillThere(seat):
+            case NpcPhase.Evening when npc.Seat is { } seat && SeatStillThere(seat)
+                                       && !(npc.BenchSeat && npc.BenchWet): // nobody sits on the plaza in the rain
                 npc.ActivityKey = string.Empty;
                 GoTo(npc, SeatApproach(npc, seat), NpcArrival.SitOnSeat, RestLeash);
                 break;
@@ -232,6 +298,7 @@ public sealed partial class GameServer
         "gardener" => "npc.activity.tending",
         BaseLumberjackJob => "npc.activity.chopping", // #3038
         "guard" => "npc.activity.patrolling",
+        NightWatchJob => NightWatchActivityKey,
         _ => NpcProfessions.ByJob(job)?.ActivityKey ?? string.Empty,
     };
 

@@ -304,7 +304,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool here = b.Id == map.ActiveLocationId;
                 bool isStation = b.Kind == "SpaceStation";
-                string kindLabel = isStation ? StationKindLabel(b.Id) : IdLabel("ui.map.kind_", b.Kind);
+                string kindLabel = isStation ? StationKindLabel(b.Id, b.Purpose) : IdLabel("ui.map.kind_", b.Kind);
                 string status = here ? L("ui.map.here") : $"{kindLabel}  {IdLabel("ui.map.status_", b.Status)}";
 
                 // A space station shows whose it is: yours, another player's, or none (procedural/NPC).
@@ -473,7 +473,7 @@ namespace BlocksBeyondTheStars.Client
             bool isStation = body.Kind == "SpaceStation";
             UiKit.AddText(_detail, 8, y, 620, 40, body.Shown(), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y = AddOriginalNameLine(y + 40f, body.IsRenamed() ? body.Name : null) + 8f; // #2952: the real name, small
-            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? StationKindLabel(body.Id) : IdLabel("ui.map.kind_", body.Kind))}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? StationKindLabel(body.Id, body.Purpose) : IdLabel("ui.map.kind_", body.Kind))}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 32f;
             if (!string.IsNullOrEmpty(body.PlanetType))
             {

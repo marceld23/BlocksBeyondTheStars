@@ -1007,6 +1007,35 @@ player picks in the character editor (Figure tab) retunes them. It is two slider
 - **The editor** plays one `breath_exhale` in the voice the sliders show on every change and on **Listen** — through
   `ClientAudio.VoiceSample` in a world, through `UiSound.VoiceSample` in the main menu's designer.
 
+## 41. The lively places (2026-11-20) — *ElevenLabs clips*
+
+What a village, a town and a station sound like ([LIVELY_PLACES.md](LIVELY_PLACES.md) §7): the bed of the place the
+player stands in (`PlaceAmbience`, 2D, under the weather), the single sources of a place (positional emitters derived
+from its markers, `GameServerPlaceSounds.cs` and `GameServerStationLife.cs`) and five short cues. One take each, made
+with `tools/ai-assets/gen_sound.py` (prompt influence 0.3), auditioned by the maintainer and imported with
+`tools/audio/level_clips.py --import` — the loops are `bed`s (about −20 LUFS; the seven positional ones mono), the
+cues `oneshot`s (mono). The structure editor's marker panel offers the seven room loops for a `sound` marker
+(`EditorMarkerPanel.KnownSounds`).
+
+| clip | class | length | where | prompt |
+|---|---|---|---|---|
+| `amb_place_village` | bed | 20 s loop | the bed of a village by day | "quiet village square ambience by day, distant unintelligible soft murmur of a few people, occasional footsteps on gravel, a wooden door closing far away, gentle and calm, no music, no birds" |
+| `amb_place_town` | bed | 20 s loop | the bed of a town or a city by day | "small town street ambience by day, soft unintelligible murmur of a small crowd, footsteps on paving stones, a distant hand cart rolling, calm and friendly, no music, no engines" |
+| `amb_place_market` | bed | 20 s loop | the bed of a place on market day | "friendly open-air market ambience, lively unintelligible chatter of a small crowd, crates and clay pots clinking, footsteps, cheerful, no music, no shouting" |
+| `amb_place_tavern` | bed | 20 s loop, mono | a tavern, in the evening | "cozy tavern interior ambience in the evening, soft unintelligible conversation, wooden mugs and bowls clinking, a chair scraping now and then, warm and calm, no music" |
+| `amb_place_workshop` | bed | 20 s loop, mono | a workshop, by day | "small craft workshop ambience, steady light hammer taps on metal, a file rasping, wood creaking, calm rhythm, no voices, no music" |
+| `amb_place_stall` | bed | 16 s loop, mono | a lively place's market stall, by day (#3868) | "market stall ambience close up, wooden crates set down, clay pots and baskets clinking, a few coins, soft rustle of cloth and paper, calm and friendly, no voices, no music" |
+| `amb_place_well` | bed | 16 s loop, mono | a well, round the clock | "gentle water dripping and trickling inside a stone well, small soft splashes, calm, close and quiet, no voices" |
+| `amb_station_deck` | bed | 20 s loop | the bed aboard a station — its level and pitch are computed from the station's size and purpose (`PlaceAmbience.StationHumLevel`, `PitchFor`) | "space station interior deck ambience, soft low air ventilation hum, faint electronic ticks far apart, calm and clean, no voices, no alarms" |
+| `amb_station_hangar` | bed | 20 s loop, mono | a station's hangar | "large spaceship hangar ambience, deep airy room tone, distant metallic clanks, a slow hydraulic hiss now and then, no voices, no alarms" |
+| `amb_station_canteen` | bed | 20 s loop, mono | a station's canteen while the crew is awake | "space station canteen ambience, soft unintelligible conversation of a few people, trays and cutlery clinking, ventilation hum underneath, calm, no music" |
+| `amb_station_lab` | bed | 16 s loop, mono | a station's rooms with equipment (and a module's own `sound` marker) | "quiet laboratory equipment ambience, soft bubbling liquid, gentle electronic beeps far apart, low steady hum, calm, no voices" |
+| `place_arrive` | oneshot | 1.5 s | the place banner when the player walks in | "soft warm two-note chime, friendly arrival jingle, marimba and small bell, short and gentle" |
+| `place_market_bell` | oneshot | 2.5 s | a market day begins | "small brass hand bell rung three times, cheerful market bell, clear and friendly" |
+| `place_platform_bell` | oneshot | 2 s | a train halts at a place's stop | "railway platform bell, two clear friendly dings, short" |
+| `station_gong` | oneshot | 2 s | an announcement aboard a station | "soft futuristic two-tone announcement chime, space station public address signal, gentle and clear" |
+| `npc_broom_sweep` | oneshot | 0.8 s | a villager's broom stroke — played at `NpcWorkTools.SweepVolume` (0.18, well below the chop: the maintainer found the first level too loud), within the swing-effect radius, two sweepers never stacked | "one stroke of a straw broom sweeping a stone floor, short, dry, close" |
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

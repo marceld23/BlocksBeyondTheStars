@@ -131,6 +131,11 @@ refreshed 2026-10-23.
   woodcutting with replanting, hunting — and animals that notice hunters), wanderers, and the client side.
 - [VILLAGE_LIFE.md](VILLAGE_LIFE.md) — "the village lives" (epic #2589): the shared rules (data, AI two-mode lines,
   no sound jumble, no FOMO), the village festival (#2604) and the villagers' personal wishes (#2601).
+- [LIVELY_PLACES.md](LIVELY_PLACES.md) — settlements and stations that are varied and alive (generation 46 for what a
+  place is built from; every world for what happens there): plan revision 2 (mirrored lots, the place's colour, street
+  furniture, landmarks), errand rounds and visible work, the longer evening, night watch, market day, children and
+  household pets, sounds with hours and the place's sound bed, the place list for the client (banner, door signs, far
+  silhouettes), and a space station's purpose, colour and announcements.
 - [FESTIVALS.md](FESTIVALS.md) — the real-world calendar's festivals (epic #3000): `data/festivals.json` (fixed, weekday and
   dated windows), the order of authority (operator override → world rule → `/festival` pick → calendar), VEGA's greeting,
   the menu card, HUD chip and the client-side mood; fifty-two multicultural festivals with kid-friendly explanations.

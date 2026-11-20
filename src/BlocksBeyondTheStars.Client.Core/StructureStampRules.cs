@@ -324,7 +324,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Where chest, sound and den markers carry their settings (terrain generation 38): settlement whole templates,
         /// settlement and city modules, whole station templates, landmarks, giant ships (chests and sounds) — not a station kit
-        /// module, not an underground template (enclosed as built). A civilization's site reads them like a landmark.</summary>
+        /// module (it reads its sound marker only, <see cref="ReadsSoundMarker"/>), not an underground template (enclosed as
+        /// built). A civilization's site reads them like a landmark.</summary>
         public static bool ReadsMarkerSettings(StampTarget t) => t is StampTarget.SettlementWhole or StampTarget.SettlementModule
             or StampTarget.CityModule or StampTarget.StationWhole or StampTarget.Landmark or StampTarget.GiantShip or StampTarget.Civilization;
 
@@ -338,9 +339,16 @@ namespace BlocksBeyondTheStars.Client
             GiantShipRules.DoorMarker => t == StampTarget.GiantShip,
             CivilizationRules.PropMarker => t == StampTarget.Civilization,
             LandmarkRules.DenMarker => t is not (StampTarget.GiantShip or StampTarget.Civilization) && ReadsMarkerSettings(t),
-            LandmarkRules.ChestMarker or LandmarkRules.SoundMarker => ReadsMarkerSettings(t),
+            LandmarkRules.ChestMarker => ReadsMarkerSettings(t),
+            LandmarkRules.SoundMarker => ReadsSoundMarker(t),
             _ => false,
         };
+
+        /// <summary>Where a sound marker is read: wherever chests, sounds and dens are
+        /// (<see cref="ReadsMarkerSettings(StampTarget)"/>) — and, since the lively places, in a station kit module: the kit
+        /// composer carries a module's sound marker with its settings into the station, so a room has a sound of its own. It
+        /// is the one marker with settings a kit module reads; chests and dens stay a whole template's.</summary>
+        public static bool ReadsSoundMarker(StampTarget t) => ReadsMarkerSettings(t) || t == StampTarget.StationModule;
 
         /// <summary>Where material tokens resolve: every settlement-side target (its planet's or the city's materials), a
         /// landmark (village style), a whole station template (the station hull, generation 38) and a civilization's site (its
@@ -441,12 +449,12 @@ namespace BlocksBeyondTheStars.Client
                 KindPort => ReadsPorts(t),
                 KindKeep => ReadsKeep(t),
                 KindCavity => ReadsCavity(t),
-                KindSettings => ReadsMarkerSettings(t),
+                KindSettings => ReadsSoundMarker(t), // a station kit module: for its sound marker (Warnings names any other)
                 KindDevice => !IsEntry(t) && t != StampTarget.GiantShip,
                 KindZone => ReadsZones(t),
                 KindAir => ReadsAir(t),
                 "marker" when id is RelicCacheMarker or CivilizationRules.PropMarker => false,
-                "marker" when id == LandmarkRules.SoundMarker => ReadsMarkerSettings(t),
+                "marker" when id == LandmarkRules.SoundMarker => ReadsSoundMarker(t),
                 "marker" when id == LandmarkRules.DenMarker => ReadsMarkerSettings(t, id),
                 "marker" when id == LandmarkRules.ChestMarker && IsStation(t) => t == StampTarget.StationWhole,
                 _ => true,
@@ -466,7 +474,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var m in d.Markers)
             {
                 bool lifeMarker = m.Id is LandmarkRules.SoundMarker or LandmarkRules.DenMarker;
-                if (lifeMarker && !ReadsMarkerSettings(t))
+                if (lifeMarker && !(m.Id == LandmarkRules.SoundMarker ? ReadsSoundMarker(t) : ReadsMarkerSettings(t)))
                 {
                     life++;
                 }

@@ -244,6 +244,7 @@ namespace BlocksBeyondTheStars.Client
                 Cells = cells, Centre = centre, Pos = new Vector3(m.PosX, m.PosY, m.PosZ), Root = null, MeshDirty = true, Kind = m.Kind,
                 Doors = SpaceDoors.DoorsOf(m), // #2607: a player station's doors are doors out here too
                 OwnerId = m.OwnerId ?? string.Empty,
+                Purpose = m.Purpose ?? string.Empty,
                 Id = m.Id ?? string.Empty,
                 Derelict = m.Kind == "station" && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsGeneratedDerelictId(m.Id), // #2676 (not The Long Quiet)
                 Instance = Game.Space?.InstanceId ?? string.Empty, // #3409: which flight it belongs to

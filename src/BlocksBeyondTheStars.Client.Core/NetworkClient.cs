@@ -161,6 +161,8 @@ namespace BlocksBeyondTheStars.Client
         public event Action<DataCubeList>? DataCubesReceived;
         public event Action<FactoryList>? FactoriesReceived; // factories on the current world (animated machines + terminals)
         public event Action<LandmarkList>? LandmarksReceived; // #3494/#3497: the world's landmark silhouettes and sound emitters
+        public event Action<PlaceList>? PlacesReceived;       // the lively places: the inhabited places of the current world
+        public event Action<NpcEmote>? NpcEmoteReceived;      // … and an NPC's gesture without a line
         public event Action<GameUnlocks>? GameUnlocksReceived;
 
         // Story system ("The VEGA Protocol"): the active story's shared progress, the world's net fragments,
@@ -912,6 +914,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Throws every sample of one kind out of the sample case (#2301), addressed by its full sample key.
         /// Irreversible: only call this behind a confirmation. The research book keeps the species.</summary>
         public void SendDiscardSample(string item) => Send(new DiscardSampleIntent { Item = item });
+
+        /// <summary>#3870: hands one sample of a kind to the archive of the research station the player is aboard.</summary>
+        public void SendGiveSampleToStation(string item) => Send(new GiveSampleToStationIntent { Item = item });
 
         // --- Ship docking (M18) ---
         public void SendDockRequest(string targetPlayer) => Send(new DockRequestIntent { TargetPlayer = targetPlayer });

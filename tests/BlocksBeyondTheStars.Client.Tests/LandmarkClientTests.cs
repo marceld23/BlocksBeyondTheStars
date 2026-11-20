@@ -44,20 +44,65 @@ public sealed class LandmarkClientTests
     }
 
     [Fact]
-    public void TheLoudestThreePlay_OnePerSound_AndSilentOnesNever()
+    public void TheLoudestFourPlay_OnePerSound_AndSilentOnesNever()
     {
         var emitters = new List<SoundEmitterMix.Emitter>
         {
             E(90f, "amb_sounder"), E(20f, "amb_sounder"), E(50f, "soundi_call_01"), E(70f, "plant_harp_vine_loop"),
-            E(30f, "plant_chime_reed_loop"), E(400f, "amb_sounder"), E(5f, string.Empty),
+            E(30f, "plant_chime_reed_loop"), E(400f, "amb_sounder"), E(5f, string.Empty), E(80f, "amb_place_well"),
         };
         var picks = new List<SoundEmitterMix.Voice>();
         SoundEmitterMix.Pick(emitters, 0f, 0f, 0f, picks);
-        Assert.Equal(new[] { 1, 4, 2 }, picks.Select(p => p.Emitter)); // 20, 30 and 50 blocks away; the farther amb_sounder is the same sound
-        Assert.True(picks[0].Level > picks[1].Level && picks[1].Level > picks[2].Level);
+        // 20, 30, 50 and 70 blocks away; the farther amb_sounder is the same sound, the well at 80 is the fifth voice
+        Assert.Equal(new[] { 1, 4, 2, 3 }, picks.Select(p => p.Emitter));
+        Assert.Equal(SoundEmitterMix.MaxVoices, picks.Count);
+        Assert.True(picks[0].Level > picks[1].Level && picks[1].Level > picks[2].Level && picks[2].Level > picks[3].Level);
 
         SoundEmitterMix.Pick(emitters, 1000f, 0f, 0f, picks);
         Assert.Empty(picks);
+    }
+
+    [Fact]
+    public void AnEmitterKeepsItsHours_ATavernInTheEvening_AWorkshopByDay()
+    {
+        // The gates: 1 day, 2 evening, 3 night, 4 day and evening; 0 and an unknown time always play.
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Always, 0.9f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Evening, -1f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Day, 0.4f));
+        Assert.Equal(0f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Day, 0.7f));
+        Assert.Equal(0f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Evening, 0.4f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Evening, 0.7f));
+        Assert.Equal(0f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Evening, 0.9f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Night, 0.9f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Night, 0.05f)); // past midnight
+        Assert.Equal(0f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Night, 0.5f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Waking, 0.7f));
+        Assert.Equal(0f, SoundEmitterMix.TimeGate(SoundEmitterTimes.Waking, 0.95f));
+        Assert.Equal(1f, SoundEmitterMix.TimeGate(99, 0.5f)); // a value this client does not know: play
+
+        // The gate eases: the tavern swells as the evening begins instead of switching on.
+        float before = SoundEmitterMix.TimeGate(SoundEmitterTimes.Evening, SoundEmitterMix.EveningFrom - 0.015f);
+        float after = SoundEmitterMix.TimeGate(SoundEmitterTimes.Evening, SoundEmitterMix.EveningFrom - 0.005f);
+        Assert.InRange(before, 0.01f, 0.5f);
+        Assert.True(after > before && after < 1f);
+
+        // In the mix a closed emitter takes no voice.
+        var emitters = new List<SoundEmitterMix.Emitter>
+        {
+            new(10f, 0f, 0f, "amb_place_tavern", 40f, 1f, SoundEmitterTimes.Evening),
+            new(20f, 0f, 0f, "amb_place_workshop", 40f, 1f, SoundEmitterTimes.Day),
+        };
+        var picks = new List<SoundEmitterMix.Voice>();
+        SoundEmitterMix.Pick(emitters, 0f, 0f, 0f, picks, timeOfDay: 0.4f);
+        Assert.Equal(1, Assert.Single(picks).Emitter);
+        SoundEmitterMix.Pick(emitters, 0f, 0f, 0f, picks, timeOfDay: 0.7f);
+        Assert.Equal(0, Assert.Single(picks).Emitter);
+        SoundEmitterMix.Pick(emitters, 0f, 0f, 0f, picks); // an unknown time: both
+        Assert.Equal(2, picks.Count);
+
+        Assert.Equal(SoundEmitterTimes.Evening, SoundEmitterTimes.Parse(" Evening "));
+        Assert.Equal(SoundEmitterTimes.Always, SoundEmitterTimes.Parse("sometimes"));
+        Assert.Equal(SoundEmitterTimes.Always, SoundEmitterTimes.Parse(null));
     }
 
     private static NetLandmark Model(int w, int h, int l, params (int X, int Y, int Z, byte P)[] filled)
@@ -194,12 +239,42 @@ public sealed class LandmarkClientTests
     public void AWorldWithoutALandmark_SendsAnEmptyList()
     {
         var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
-        using var h = new ClientServerHarness(content);
+        // No settlement either: since the lively places a settlement sends its far silhouette and its own sounds along.
+        using var h = new ClientServerHarness(content, c => c.PlaceSettlements = false);
         LandmarkList? list = null;
         h.Client.LandmarksReceived += m => list = m;
         h.Join();
         Assert.True(h.PumpUntil(() => list != null), "no LandmarkList arrived after the join");
         Assert.Empty(list!.Landmarks);
         Assert.Empty(list.Emitters);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)] // the encoded wire: the place's fields must survive MessagePack
+    public void AJoiningClient_IsSentTheWorldsPlaces_AndAgainWhenOneChanges(bool passObjects)
+    {
+        var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        using var h = new ClientServerHarness(content, c => c.PlaceSettlements = false, passObjects: passObjects);
+        var lists = new List<PlaceList>();
+        h.Client.PlacesReceived += lists.Add;
+        h.Join();
+        Assert.True(h.PumpUntil(() => lists.Count > 0), "no PlaceList arrived after the join");
+        Assert.Empty(lists[0].Places); // an empty list is sent too: it clears the places of the world the client left
+
+        h.Server.RegisterTestSettlementForTest("Mira Mill",
+            new BlocksBeyondTheStars.Shared.Geometry.Vector3i(100, 70, 200), new BlocksBeyondTheStars.Shared.Geometry.Vector3i(155, 90, 255));
+        h.Server.BroadcastPlacesForTest();
+        Assert.True(h.PumpUntil(() => lists.Count > 1), "no PlaceList arrived after the settlement changed");
+        var place = Assert.Single(lists[^1].Places);
+        Assert.Equal((PlaceKinds.Settlement, "Mira Mill", "village"), (place.Kind, place.Name, place.Tier));
+        Assert.Equal((100, 200, 155, 255, 70), (place.MinX, place.MinZ, place.MaxX, place.MaxZ, place.Y));
+        Assert.StartsWith("settle_", place.Key);
+        Assert.Equal(PlaceStates.None, place.State);
+
+        // The client's own tracker reads the list: walking in greets once.
+        var tracker = new PlaceTracker();
+        Assert.Same(place, tracker.Update(lists[^1].Places, 120, 71, 220, 4096, now: 0));
+        Assert.Null(tracker.Update(lists[^1].Places, 121, 71, 220, 4096, now: 1));
     }
 }

@@ -82,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
             public List<SpaceDoors.Door> Doors = new();
             public HashSet<Vector3i> DoorCells = new();
             public string OwnerId = string.Empty;
+            public string Purpose = string.Empty; // the lively places: a station's purpose ("" = none)
 
             // #2676: a derelict station's hull gets the broken-look extras (sparks, tumbling pieces, a flickering beacon).
             public string Id = string.Empty;
@@ -411,6 +412,10 @@ namespace BlocksBeyondTheStars.Client
             if (vs.Derelict)
             {
                 AddDerelictDecor(vs);
+            }
+            else if (vs.IsStation && !vs.Id.StartsWith("pstation:", System.StringComparison.Ordinal)) // a player's own build stays theirs
+            {
+                AddStationLife(vs); // the lively places: position lights and a turning dish (SpaceView.StationLife.cs)
             }
         }
 

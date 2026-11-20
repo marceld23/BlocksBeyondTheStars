@@ -716,6 +716,17 @@ public sealed class StationKitRecord
     /// station that already exists. Null in saves from before #1918. Additive JSON field.
     /// </summary>
     public StationKitExteriorRecord? Exterior { get; set; }
+
+    /// <summary>
+    /// The lively places: what the station is for (<c>StationPurposes</c>: trade, mining, research), pinned when it is
+    /// first composed in a world of terrain generation 46 or later. "" for every station from before — those have no
+    /// purpose and stay exactly as they are. Additive JSON field.
+    /// </summary>
+    public string Purpose { get; set; } = string.Empty;
+
+    /// <summary>The lively places: the station's own colour (0xRRGGBB) — a band along its walls and the edge of its
+    /// floors; pinned with <see cref="Purpose"/>, 0 = none (every station from before). Additive JSON field.</summary>
+    public int Colour { get; set; }
 }
 
 /// <summary>A kit station's pinned exterior detail counts (#1918).</summary>

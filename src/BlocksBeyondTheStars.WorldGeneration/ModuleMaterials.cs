@@ -20,6 +20,54 @@ public sealed class ModuleMaterials
     public ushort Floor;
     public ushort Path;
 
+    /// <summary>The lively places: the dye (0xRRGGBB; 0 = none) a roof token and an accent token cell get when the module
+    /// gives it none of its own — the settlement's colour (<see cref="SettlementPalette"/>).</summary>
+    public int RoofTint;
+    public int AccentTint;
+
+    /// <summary>The dye of a token cell (0 for a token that carries none, and for anything that is not a token).</summary>
+    public int TintOf(string id) => id switch
+    {
+        MaterialTokens.Roof => RoofTint,
+        MaterialTokens.Accent => AccentTint,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// The lively places (plan revision 2): a settlement's materials with its own colour and a wall of its own. The colour
+    /// dyes the roofs and the accents. A village-style wall is no longer always the planet's first surface block: by the
+    /// settlement's seed it is that block, planks, or the stone of the land (sandstone on sand) — still the planet's
+    /// materials, but two neighbouring villages need not be built of the same one; its roof is planks, so the dye shows.
+    /// A town keeps its iron.
+    /// </summary>
+    public static ModuleMaterials ForLivelySettlement(string tier, string surface, bool alien, GameContent content, long seed, int colour)
+    {
+        ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
+        var m = ForSettlement(tier, surface, alien, content);
+        m.RoofTint = colour;
+        m.AccentTint = colour;
+        if (StructureRoles.IsTownStyleTier(tier))
+        {
+            return m;
+        }
+
+        ushort stone = surface == "sand" ? B("sandstone", B("stone")) : B("stone");
+        ushort planks = B(Shared.World.StableHashing.Index("settlement:planks", seed, 2) == 0 ? "wood_planks" : "wood_planks_light", B("wood_planks", m.Wall));
+        m.Wall = Shared.World.StableHashing.Index("settlement:wall", seed, 3) switch
+        {
+            0 => m.Wall,
+            1 => planks,
+            _ => stone,
+        };
+        m.Floor = m.Wall;
+        if (!alien)
+        {
+            m.Roof = planks; // a wooden roof takes the dye; an alien roof stays its crystal
+        }
+
+        return m;
+    }
+
     /// <summary>The block for a token cell, 0 for anything that is not a token.</summary>
     public ushort Resolve(string id) => id switch
     {

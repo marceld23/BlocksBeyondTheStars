@@ -93,7 +93,9 @@ public sealed class NpcDialogTests : IDisposable
     private static (int Id, string Name, string Role, string CharacterId)? SettlerWithoutWish(SvGameServer s)
     {
         var wishGivers = s.WishGiverIdsForTest("Friend");
-        return FirstNpc(s, n => n.Role == "settler" && n.CharacterId.Length == 0 && !wishGivers.Contains(n.Id));
+        // Without a post too: the innkeeper, a profession or the night watch (role "settler" all of them) open their own talk.
+        var plain = s.PersonKeysForTest.Where(n => n.Job.Length == 0).Select(n => n.Id).ToHashSet();
+        return FirstNpc(s, n => n.Role == "settler" && n.CharacterId.Length == 0 && !wishGivers.Contains(n.Id) && plain.Contains(n.Id));
     }
 
     private static (int Id, string Name, string Role, string CharacterId)? FirstNpc(SvGameServer s, Func<(int Id, string Name, string Role, string CharacterId), bool> where)

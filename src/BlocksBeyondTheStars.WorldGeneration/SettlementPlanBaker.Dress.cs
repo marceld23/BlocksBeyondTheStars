@@ -16,6 +16,10 @@ internal sealed partial class PlanBake
         DressGreen();
         PlaceLamps();
         PlaceGardens();
+        if (Lively)
+        {
+            DressLively(); // plan revision 2: stalls, benches, awnings and signs, crates and flower pots
+        }
     }
 
     private double Hash(string key) => StableHashing.Unit(key, _seed);
@@ -30,6 +34,12 @@ internal sealed partial class PlanBake
         }
 
         int y = _plan.HeightAt(cx, cz) + 1;
+        if (Lively)
+        {
+            DressLivelyPlazaCentre(cx, cz, y); // a hamlet's fire, a village's well, a town's three
+            return;
+        }
+
         ushort accent = _materials.Accent;
         switch (StableHashing.Index("plan:plaza", _seed, 3))
         {
@@ -72,6 +82,11 @@ internal sealed partial class PlanBake
             return;
         }
 
+        if (Lively)
+        {
+            DressLivelyGreen(); // first: the flowers and trees below grow around the fire and leave the well's spot free
+        }
+
         for (int x = 1; x < _w - 1; x++)
         {
             for (int z = 1; z < _l - 1; z++)
@@ -83,6 +98,11 @@ internal sealed partial class PlanBake
 
                 int y = _plan.HeightAt(x, z) + 1;
                 double r = Hash($"plan:green:{x}:{z}");
+                if (_standCells.Contains((x * _l) + z))
+                {
+                    continue; // somebody stands here (a lively place's well spot)
+                }
+
                 if (r < 0.035 && Get(x, y, z) == 0)
                 {
                     Tree(x, y, z);
@@ -94,7 +114,10 @@ internal sealed partial class PlanBake
             }
         }
 
-        Set(_plan.PlazaX, _plan.HeightAt(_plan.PlazaX, _plan.PlazaZ), _plan.PlazaZ, B("water"));
+        if (!_pondBuilt)
+        {
+            Set(_plan.PlazaX, _plan.HeightAt(_plan.PlazaX, _plan.PlazaZ), _plan.PlazaZ, B("water")); // a lively green has its pond
+        }
     }
 
     private bool IsSquare(int x, int z)
@@ -138,6 +161,12 @@ internal sealed partial class PlanBake
     private void DressSquare(PlanLot lot)
     {
         int cx = lot.X + (lot.W / 2), cz = lot.Z + (lot.L / 2), y = lot.Y + 1;
+        if (Lively)
+        {
+            DressLivelySquare(lot, cx, y, cz);
+            return;
+        }
+
         if (Hash($"plan:square:{lot.X}:{lot.Z}") < 0.5)
         {
             Ring(cx, y, cz, _materials.Accent);
@@ -208,8 +237,16 @@ internal sealed partial class PlanBake
                 continue;
             }
 
-            Set(nx, y + 1, nz, Lamp);
-            Set(nx, y + 2, nz, Lamp);
+            if (Lively)
+            {
+                LanternPost(nx, y + 1, nz); // a post with a lantern that casts light
+            }
+            else
+            {
+                Set(nx, y + 1, nz, Lamp);
+                Set(nx, y + 2, nz, Lamp);
+            }
+
             return true;
         }
 

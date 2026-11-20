@@ -165,6 +165,7 @@ public sealed partial class GameServer
             DockZ = s.DockZ,
             DockOutX = s.DockOutX,
             DockOutZ = s.DockOutZ,
+            Purpose = s.Kind == "station" ? StationPurposeOf(s.Id) : string.Empty, // the lively places
         };
 
         if (withDoors)

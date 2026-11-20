@@ -549,6 +549,7 @@ namespace BlocksBeyondTheStars.Client
             WorldMinimap.Pump(); // #2172: planet map bakes — worker threads on desktop, time slices in the browser
 
             TickSkyScan();
+            TickPlaces(); // the lively places: which place the player stands in (GameBootstrap.Places.cs)
 
             TickConnect();
 

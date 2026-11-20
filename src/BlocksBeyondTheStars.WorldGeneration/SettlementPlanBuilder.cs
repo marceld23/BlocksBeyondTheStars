@@ -38,7 +38,16 @@ internal sealed partial class SettlementPlanBuilder
         _mainWidth = request.Kit.MainStreet > 0 ? System.Math.Clamp(request.Kit.MainStreet, 1, 4) : 2;
         _spacing = request.Kit.Spacing > 0 ? System.Math.Clamp(request.Kit.Spacing, 1, 4) : 3;
         _grid = request.Kit.Layout == StructureKit.LayoutGrid;
-        Plan = new SettlementPlan(_e, _e) { Layout = _grid ? StructureKit.LayoutGrid : StructureKit.LayoutGrown };
+        Plan = new SettlementPlan(_e, _e)
+        {
+            Layout = _grid ? StructureKit.LayoutGrid : StructureKit.LayoutGrown,
+            Revision = System.Math.Clamp(request.Revision, SettlementPlan.ClassicRevision, SettlementPlan.CurrentRevision),
+        };
+        if (Plan.IsLively)
+        {
+            Plan.Colour = SettlementPalette.ColourFor(request.Seed, request.Kit.Palette);
+            Plan.Dressing = request.Kit.DressingLevel;
+        }
         _level = new bool[_e * _e];
         _px = _pz = _e / 2;
     }
@@ -61,12 +70,30 @@ internal sealed partial class SettlementPlanBuilder
             FormSkeleton(Plan.Form);
         }
 
+        PlaceCentre();
         GrowAll(modules);
         AddSquares(TierRank switch { 0 => 0, 1 => 1, _ => 2 });
         AssignHeights();
         ClaimYards();
         Plan.PlazaX = _px;
         Plan.PlazaZ = _pz;
+    }
+
+    /// <summary>
+    /// The lively places: a whole settlement template at the heart of the plan (<see cref="SettlementPlanRequest.Centre"/>) —
+    /// a hand-built village no longer stands instead of a settlement, the settlement grows round it. Placed first, like a
+    /// plaza function, on the best frontage near the plaza; a template too big for any frontage is simply left out (the
+    /// settlement is then an ordinary one).
+    /// </summary>
+    private void PlaceCentre()
+    {
+        if (!Plan.IsLively || _r.Centre.Length == 0 || SettlementPlanner.ModuleByKey(_r.Centres, _r.Centre) is not { } centre
+            || centre.Width <= 0 || centre.Length <= 0)
+        {
+            return;
+        }
+
+        TryPlace(front => ShapeOf(centre, front), 0, "centre", centre.Key, SettlementPlanBaker.CentreFunction, SettlementPlan.LotColumn);
     }
 
     /// <summary>The form of a grown settlement: the request's when it names one, else a draw from the kit's forms (every form

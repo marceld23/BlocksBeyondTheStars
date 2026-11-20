@@ -158,7 +158,8 @@ namespace BlocksBeyondTheStars.Client
                 var playtestReady = PlaytestHub.Instance != null ? PlaytestHub.Instance.ReadyBanners : null; // #3848
                 bool playtestWaits = playtestReady != null && playtestReady.Count > 0;
                 if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0
-                     && Game.AchievementRewardsWaiting.Count == 0 && Game.FestivalsBegan.Count == 0 && !playtestWaits)
+                     && Game.AchievementRewardsWaiting.Count == 0 && Game.FestivalsBegan.Count == 0
+                     && Game.PlaceGreetings.Count == 0 && !playtestWaits)
                     || _canvas == null || !_canvas.enabled || cutscene)
                 {
                     return;
@@ -181,9 +182,13 @@ namespace BlocksBeyondTheStars.Client
                     var waiting = Game.AchievementRewardsWaiting.Dequeue(); // #3082
                     StartRewardWaitingToast(waiting.Key, waiting.Slots);
                 }
-                else
+                else if (Game.FestivalsBegan.Count > 0)
                 {
                     StartFestivalToast(Game.FestivalsBegan.Dequeue()); // #3003
+                }
+                else
+                {
+                    StartPlaceToast(Game.PlaceGreetings.Dequeue()); // the lively places: last — an arrival is an aside
                 }
             }
 

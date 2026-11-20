@@ -44,8 +44,8 @@ public sealed partial class GameServer
         StoryMinigameResultIntent => true, // #3352: the note-key window holds a singleplayer world; it only writes the player's own ledger
         // #3344: the Companions tab's follow choice (one sent on board leaves the world, one taken along steps out beside its
         // owner) and #3398's "take back" of the robot's gear — the Tab menu may hold a singleplayer world; both change only the
-        // sender's own companions and backpack.
-        SetCompanionFollowIntent or TakeCompanionGearIntent => true,
+        // sender's own companions and backpack. #3870: so does a sample for a research station's archive (Tab → Samples).
+        SetCompanionFollowIntent or TakeCompanionGearIntent or GiveSampleToStationIntent => true,
         // #3346: the melody bar can be open while a scene holds a singleplayer world (the sing duel, an Echo's question).
         // A note only advances the sender's own puzzle; its prompts and time-outs wait for the world to run again.
         MelodyNoteIntent => true,

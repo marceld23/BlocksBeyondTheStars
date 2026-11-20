@@ -41,13 +41,20 @@ public static class StationKitExterior
     /// <param name="get">The baked block at a structure cell (0 outside the structure).</param>
     /// <param name="set">Writes a cell: block, shape, tint, glow.</param>
     /// <param name="modules">Every module's box (inclusive), the start module first.</param>
-    public static void Apply(Func<int, int, int, ushort> get, Action<int, int, int, ushort, int, int, int> set, int w, int h, int l,
-        IReadOnlyList<(Vector3i Min, Vector3i Max)> modules, int solarWings, int antennas, int domes, GameContent content, Random rng)
+    /// <param name="clearOfWindows">The lively places: no cell of a piece may lie beside a see-through cell of ANY module
+    /// (a wing's end next to the neighbouring room's window, a mast beside the upper deck's glass). False = the placement
+    /// every station composed before has, unchanged.</param>
+    /// <param name="purpose">#3871: the station's purpose ("" = none); a station with one gets its purpose's own hull parts
+    /// after every other piece (<see cref="StationKitPurposeParts"/>).</param>
+    /// <returns>How many purpose parts found room (0 without a purpose).</returns>
+    public static int Apply(Func<int, int, int, ushort> get, Action<int, int, int, ushort, int, int, int> set, int w, int h, int l,
+        IReadOnlyList<(Vector3i Min, Vector3i Max)> modules, int solarWings, int antennas, int domes, GameContent content, Random rng,
+        bool clearOfWindows = false, string purpose = "")
     {
         ushort hull = content.GetBlock("iron_wall")?.NumericId.Value ?? 0;
         if (hull == 0 || modules.Count == 0)
         {
-            return;
+            return 0;
         }
 
         ushort dark = content.GetBlock("carbon")?.NumericId.Value ?? hull;
@@ -90,8 +97,23 @@ public static class StationKitExterior
             return false;
         }
 
+        bool BesideAWindow(int x, int y, int z)
+        {
+            foreach (var (dx, dz) in Faces)
+            {
+                int nx = x + dx, nz = z + dz;
+                if (nx >= 0 && nz >= 0 && nx < w && nz < l && InModule(nx, y, nz) && seeThrough.Contains(get(nx, y, nz)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         bool Free(int x, int y, int z)
-            => x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < l && get(x, y, z) == 0 && !InModule(x, y, z) && !InCorridor(x, y, z);
+            => x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < l && get(x, y, z) == 0 && !InModule(x, y, z) && !InCorridor(x, y, z)
+               && (!clearOfWindows || !BesideAWindow(x, y, z));
 
         bool Opaque(int x, int y, int z)
         {
@@ -179,6 +201,9 @@ public static class StationKitExterior
                 }
             }
         }
+
+        // Last: no draw of the older pieces moves, and a station without a purpose draws nothing more.
+        return purpose.Length > 0 ? StationKitPurposeParts.Place(purpose, modules, Free, Opaque, get, set, content, rng) : 0;
     }
 
     /// <summary>The space in front of every force-field wall patch that opens to the outside (a hangar mouth — the ship's

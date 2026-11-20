@@ -341,6 +341,7 @@ public sealed partial class GameServer
             StructureKit? kit = null;
             SettlementLayoutSpec? layout = null;
             StructureTemplate? source = null; // #3518: a generator entry, drawn fresh or pinned
+            StructureTemplate? centre = null; // the lively places: a whole template at the heart of a planned settlement
             if (pinnedProcedural)
             {
                 template = null; // the coin above was still drawn (stream contract); a procedural instance takes no template
@@ -375,10 +376,20 @@ public sealed partial class GameServer
                 // #1888 (Marcel 2026-09-14): the option is the SHARE of complete templates — a coin at its probability on
                 // the instance's own lane, then a weighted pick among the tier's templates or its kits.
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
-                var kits = _content.KitsFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key, _meta.Description.TerrainGeneration); // #3583
                 var lane = RngFor(instSeed, "kitpick");
+                // #3583: the kits of this world's generation — and, in a lively world, now and then the ones from before.
+                var kits = KitsOfThisPick(tier, packs, lane);
                 // #3518: generation 38 appends the tier's generator entries after the kits (none: the same draw as before).
                 (template, kit, source) = PickTemplateKitOrSource(templates, kits, SettlementSourcesFor(tier), lane.NextDouble() < useP, lane);
+
+                // The lively places: a hand-built village or town no longer stands INSTEAD of the settlement — the settlement is
+                // planned round it (a hamlet stays the one house it is). The kit is drawn on the same lane, after the pick.
+                if (LivelyWorld && template is { IsSource: false } && tier is "village" or "town" && kits.Any(k => k.IsPlanned))
+                {
+                    centre = template;
+                    template = null;
+                    kit = PickTemplateOrKit(System.Array.Empty<StructureTemplate>(), kits.Where(k => k.IsPlanned).ToList(), wantTemplate: false, lane).Kit;
+                }
 
                 if (kit != null)
                 {
@@ -405,7 +416,7 @@ public sealed partial class GameServer
             // #3584/#3589: a planned kit (grid or grown) is seated first and planned into its site, a pinned plan baked again.
             if ((pinRec is { Placed: true } && pinRec.Plan.Length > 0) || (fresh && kit is { IsPlanned: true }))
             {
-                if (StampPlannedInstance(new PlannedInstance(i, instSeed, ir, pinRec, kit, tier, rolledTier, h, surface), reserved, usedNames, kitPool) is { } planned)
+                if (StampPlannedInstance(new PlannedInstance(i, instSeed, ir, pinRec, kit, tier, rolledTier, h, surface, centre), reserved, usedNames, kitPool) is { } planned)
                 {
                     placed.Add(planned);
                     reserved.Add((planned.Origin.X + planned.Structure.Width / 2, planned.Origin.Z + planned.Structure.Length / 2,
@@ -518,7 +529,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
+                name = UniqueName(CoinSettlementName(tier, ruined, RngFor(instSeed, "name")), usedNames);
                 RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, RecordedSettlementTemplate(template, source, kit),
                     modules: kit != null ? 2 : 1, composition: composition, kit: kit?.Key ?? string.Empty,
                     kitLayout: RecordedSettlementLayout(kit, layout, turns), // #3519: a turned template pins turns=…

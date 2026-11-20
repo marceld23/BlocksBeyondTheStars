@@ -45,7 +45,10 @@ public sealed partial class TemplatePipelineWorldTests
             Assert.StartsWith("test_station_", server.Metadata.StationTemplates[stationId], StringComparison.Ordinal);
             var origin = server.StationStampOriginForTest(stationId);
             ushort At(Vector3i local) => server.World.GetBlock(new Vector3i(origin.X + local.X, origin.Y + local.Y, origin.Z + local.Z)).Value;
-            var emitters = server.LandmarkListForTest(pilot).Emitters;
+            // The template's own emitters: the station's derived room sounds (the lively places, every world — the hangar,
+            // the canteen, the rooms with equipment; StationPurposeTests) ride in the same list and are not this test's.
+            var emitters = server.LandmarkListForTest(pilot).Emitters
+                .Where(e => !e.Sound.StartsWith("amb_station_", StringComparison.Ordinal)).ToArray();
             if (generation >= Gen38)
             {
                 Assert.Equal(content.GetBlock("iron_wall")!.NumericId.Value, At(wall));

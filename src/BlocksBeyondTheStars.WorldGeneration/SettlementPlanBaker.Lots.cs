@@ -11,7 +11,7 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>The lots of a baked plan (#3584, #3585, #3595): each module turned and stamped on its floor, its markers.</summary>
 internal sealed partial class PlanBake
 {
-    private readonly Dictionary<(string Key, int Turns), StructureTemplate> _turned = new();
+    private readonly Dictionary<(string Key, int Turns, bool Mirrored), StructureTemplate> _turned = new();
 
     private void StampLot(PlanLot lot)
     {
@@ -27,16 +27,23 @@ internal sealed partial class PlanBake
             return;
         }
 
-        if (!_turned.TryGetValue((lot.Module, lot.Turns), out var turned))
+        bool mirrored = lot.Mirrored && _plan.IsLively;
+        if (!_turned.TryGetValue((lot.Module, lot.Turns, mirrored), out var turned))
         {
-            turned = TemplateTransform.RotateY(module, lot.Turns);
-            _turned[(lot.Module, lot.Turns)] = turned;
+            turned = TemplateTransform.RotateY(mirrored ? TemplateTransform.MirrorX(module) : module, lot.Turns); // mirrored first, then turned
+            _turned[(lot.Module, lot.Turns, mirrored)] = turned;
         }
 
         var local = new List<SettlementMarker>();
         long furnish = WorldGenerator.StableHash($"furnish:plan:{_seed}:{lot.X}:{lot.Z}");
+        var furniture = RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(_tier, _alien), _content);
+        if (_plan.IsLively && _alien)
+        {
+            furniture.Light = B("crystal", furniture.Light); // revision 2: a room lamp that casts light (the classic one only glowed)
+        }
+
         SettlementGenerator.StampModule(turned, lot.X, lot.Y, lot.Z, _content, Get, _sink, local,
-            RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(_tier, _alien), _content), furnish, _materials, markerSettings: true,
+            furniture, furnish, _materials, markerSettings: true,
             keep: (x, y, z) => _keep.Add((((x * _h) + y) * _l) + z));
         _buildings++;
         AddLotMarkers(lot, turned, local);
@@ -65,6 +72,7 @@ internal sealed partial class PlanBake
             StructureRoles.Market => "vendor",
             StructureRoles.Board => "mission_board",
             StructureRoles.Field or StructureRoles.Garden or StructureRoles.Pen => null,
+            _ when StructureRoles.IsLandmark(function) => null, // a landmark is nobody's home
             _ => "npc",
         };
         if (role != null && !local.Exists(m => m.Type == role))

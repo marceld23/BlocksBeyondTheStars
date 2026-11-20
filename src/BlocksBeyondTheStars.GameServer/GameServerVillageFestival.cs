@@ -389,6 +389,11 @@ public sealed partial class GameServer
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var npc in run.Spots.Keys)
         {
+            if (npc.IsChild)
+            {
+                continue; // a child cheers along, but no standing hangs on it
+            }
+
             string npcKey = NpcKeyForNpc(hero, npc);
             if (keys.Add(npcKey))
             {
@@ -640,7 +645,15 @@ public sealed partial class GameServer
 
         var awake = run.Spots.Keys.Where(n => n.Pose != 2 && !n.VisitingAway).ToList();
         var arrived = awake.Where(n => n.Goal is null).ToList();
+        if (run.HeroId.Length == 0)
+        {
+            FestivalDance(arrived, speaker: null); // a calendar gathering has no hero to cheer: it dances and claps
+            return;
+        }
+
         var pool = arrived.Count > 1 ? arrived : awake;
+        var children = pool.FindAll(n => n.IsChild && n.Goal is null); // they dance along; the thanks are a grown-up's to say
+        pool.RemoveAll(n => n.IsChild);
         if (pool.Count > 1 && run.LastCheer is { } last)
         {
             pool.Remove(last);
@@ -666,6 +679,30 @@ public sealed partial class GameServer
         if (id != 0)
         {
             run.LastCheer = speaker;
+        }
+
+        FestivalDance(children.Count == 0 ? arrived : arrived.Union(children).ToList(), speaker);
+    }
+
+    /// <summary>How many people of the ring dance or clap with one cheer.</summary>
+    private const int FestivalDancersPerCheer = 4;
+
+    /// <summary>The lively places: with every cheer a few others in the ring dance and clap — no line, no voice
+    /// (<see cref="BroadcastNpcEmote"/>), so the ring moves while one voice at a time speaks.</summary>
+    private void FestivalDance(List<ServerNpc> arrived, ServerNpc? speaker)
+    {
+        int n = 0;
+        for (int i = 0; i < arrived.Count && n < FestivalDancersPerCheer; i++)
+        {
+            var npc = arrived[(i + _festivalRng.Next(arrived.Count)) % arrived.Count];
+            if ((speaker is not null && ReferenceEquals(npc, speaker)) || _uptime < npc.NodReadyAt)
+            {
+                continue;
+            }
+
+            npc.NodReadyAt = _uptime + 4.0; // not the same dancer twice in one cheer
+            BroadcastNpcEmote(npc, n % 2 == 0 ? NpcGestures.Dance : NpcGestures.Clap);
+            n++;
         }
     }
 

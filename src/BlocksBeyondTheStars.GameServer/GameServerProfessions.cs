@@ -224,6 +224,7 @@ public sealed partial class GameServer
         _professionTickAt[world] = _uptime + 1.0;
         TickStreamers();
         SyncTamerPets();
+        SyncHouseholdPets(); // the lively places: a household or two keep a small animal (GameServerHouseholdPets.cs)
         TickSettlementFarms(); // #3597: the pens' animals and their products
     }
 
@@ -411,7 +412,7 @@ public sealed partial class GameServer
             var c = _creatures[i];
             if (c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal)
                 && (!int.TryParse(c.OwnerId.Substring(NpcPetOwnerPrefix.Length), out int ownerNpc)
-                    || !_npcs.Any(n => n.Id == ownerNpc && n.Job == "tamer")))
+                    || !_npcs.Any(n => n.Id == ownerNpc && (n.Job == "tamer" || n.HasPet))))
             {
                 _creatures.RemoveAt(i);
                 changed = true;

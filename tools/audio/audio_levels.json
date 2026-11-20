@@ -171,6 +171,48 @@
    "peak": -5.7,
    "sha256": "db6512f1d4df01901d7b993a1d9e9fead0901e1c1c24c7e77266dcf994d1e1b8"
   },
+  "amb_place_market": {
+   "class": "bed",
+   "level": -20.6,
+   "peak": -1.4,
+   "sha256": "cabe53f01df34bb2a0dd2a98fdd54ea25b58340eea10540c486f809a4ffe3bef"
+  },
+  "amb_place_stall": {
+   "class": "bed",
+   "level": -21.2,
+   "peak": -0.9,
+   "sha256": "6b65cb5cc2ea45801102b45587493c4439ec30ca3653fe198137dd688d8c7bfd"
+  },
+  "amb_place_tavern": {
+   "class": "bed",
+   "level": -20.8,
+   "peak": -1.3,
+   "sha256": "2eb273e2811deaf21c0ad049fd18cda2c67d4774763cfa143ecd80c7272b747c"
+  },
+  "amb_place_town": {
+   "class": "bed",
+   "level": -20.6,
+   "peak": -1.4,
+   "sha256": "76f8105440c778f7871411b665b4c5aa2a307c91853a9fcef4f13dd47a6d7b98"
+  },
+  "amb_place_village": {
+   "class": "bed",
+   "level": -21.1,
+   "peak": -0.8,
+   "sha256": "562fe9170958798fd64f86f3e4b4ac8b68614c8347a374c6649726ee37fafda1"
+  },
+  "amb_place_well": {
+   "class": "bed",
+   "level": -20.8,
+   "peak": -0.8,
+   "sha256": "095e92ebb8645d8c6d791108d2c6bc9f3ef198527890daf09ef445f2920d1e91"
+  },
+  "amb_place_workshop": {
+   "class": "bed",
+   "level": -21.1,
+   "peak": -0.6,
+   "sha256": "161b2743b8a5dc8979077a8d4371dd18789f487798693dcf24d116f3d4e9593b"
+  },
   "amb_portasseum_wind": {
    "class": "bed",
    "level": -20.5,
@@ -194,6 +236,30 @@
    "level": -20.4,
    "peak": -6.7,
    "sha256": "2ce780bcd1f340f9cd184e6cd71672a2d6aa4d67d856f6e8e50dc4e66871e2fc"
+  },
+  "amb_station_canteen": {
+   "class": "bed",
+   "level": -20.4,
+   "peak": -1.0,
+   "sha256": "6defd0c21ba2af58bfb1d6143a6c695df08711d03b593bdbe523c96d032300ec"
+  },
+  "amb_station_deck": {
+   "class": "bed",
+   "level": -20.4,
+   "peak": -7.8,
+   "sha256": "2540806bddb6e8d8894b30e828b6477005850e0777ddd55a091979f2be7cd913"
+  },
+  "amb_station_hangar": {
+   "class": "bed",
+   "level": -20.4,
+   "peak": -1.8,
+   "sha256": "268edd594f1e7c77fe1cd70a8e399da8c9172e48de8610295f37e83ba31ddd58"
+  },
+  "amb_station_lab": {
+   "class": "bed",
+   "level": -20.4,
+   "peak": -2.9,
+   "sha256": "994858e65b670943268af51bb94476162f38e0d400a972a56a0d99a48c465273"
   },
   "amb_swamp": {
    "class": "bed",
@@ -2097,6 +2163,12 @@
    "peak": -0.4,
    "sha256": "27831e9f13b363f24597065818081803472cbc3ab2766b0d3321b540c7f6f0dd"
   },
+  "npc_broom_sweep": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -1.3,
+   "sha256": "a957767e15c226195d8298e09e664a82f25149b37a0f44589c655a013a2b1329"
+  },
   "npc_human_ack": {
    "class": "voice",
    "level": -12.5,
@@ -2247,6 +2319,12 @@
    "peak": -0.7,
    "sha256": "193c27a135e538ba3f01ddfce4b61afbc19f271b1f33b3cc394ea22ca10d1f12"
   },
+  "place_arrive": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -3.8,
+   "sha256": "2e664309b41a2ea10d1bc90ee2cf19231f3355116cb1dba4dedec09b6fd4c099"
+  },
   "place_block": {
    "class": "oneshot",
    "level": -13.2,
@@ -2295,6 +2373,12 @@
    "peak": -1.2,
    "sha256": "3a668766dd011d969c89afecf6d52cceb4ed1de9b38cd26f19bb2514a6815034"
   },
+  "place_market_bell": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": 1.0,
+   "sha256": "a589ea66ad0eb03317839d32c955f3230bdbf048be041a10649f80b943573e7e"
+  },
   "place_metal": {
    "class": "oneshot",
    "level": -14.9,
@@ -2306,6 +2390,12 @@
    "level": -14.6,
    "peak": -1.3,
    "sha256": "d6e90a165d643e3137f44258a475c8041f2401c410c56a9fb978dd90a0b6faae"
+  },
+  "place_platform_bell": {
+   "class": "oneshot",
+   "level": -12.6,
+   "peak": -4.1,
+   "sha256": "696ba0f25c4d6b37ece07bfc2a93096c33f3e6775f98a1c717eca4121cc2b9d0"
   },
   "place_stone": {
    "class": "oneshot",
@@ -2828,6 +2918,12 @@
    "level": -11.9,
    "peak": -3.7,
    "sha256": "92b91af2407f9ef905da935ef218dd29b0ffd560106d82356d61299f58176395"
+  },
+  "station_gong": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -2.1,
+   "sha256": "dc6c8b45a89ab4746bba0153f02ee5f1aab64fde46ef759e2a5a04533856999c"
   },
   "stealth_off": {
    "class": "oneshot",

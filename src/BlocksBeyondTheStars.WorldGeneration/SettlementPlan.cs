@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
 
@@ -34,6 +35,17 @@ public sealed class PlanLot
 
     public int L { get; set; }
 
+    /// <summary>Plan revision 2: the module is mirrored left to right (<see cref="TemplateTransform.MirrorX"/>) before it
+    /// is turned — the same house with its door, stairs and rooms on the other side.</summary>
+    public bool Mirrored { get; set; }
+
+    /// <summary>The lot's flags as the plan text carries them (bit 0 = <see cref="Mirrored"/>).</summary>
+    internal int Flags
+    {
+        get => Mirrored ? 1 : 0;
+        set => Mirrored = (value & 1) != 0;
+    }
+
     /// <summary>Whether a column lies on the lot.</summary>
     public bool Covers(int x, int z) => x >= X && x < X + W && z >= Z && z < Z + L;
 }
@@ -47,7 +59,20 @@ public sealed class PlanLot
 public sealed class SettlementPlan
 {
     /// <summary>The plan format a fresh plan is written with.</summary>
-    public const int CurrentRevision = 1;
+    public const int CurrentRevision = LivelyRevision;
+
+    /// <summary>The first plan format (terrain generation 41 … 45): a lot is eight fields, the baker dresses the plan with
+    /// a well, lamp posts of two glowing blocks and a few flowers.</summary>
+    public const int ClassicRevision = 1;
+
+    /// <summary>The lively places (terrain generation 46): a lot carries a ninth field of flags (mirrored), and the baker
+    /// gives the settlement its colour, lanterns that cast light and its street furniture (<see cref="IsLively"/>). The
+    /// revision is the baker's only switch — a plan pinned with revision 1 bakes block for block as it always did.</summary>
+    public const int LivelyRevision = 2;
+
+    /// <summary>The revision a world of <paramref name="terrainGeneration"/> plans its fresh settlements with.</summary>
+    public static int RevisionFor(int terrainGeneration)
+        => terrainGeneration >= WorldDescription.LivelyPlacesGeneration ? LivelyRevision : ClassicRevision;
 
     // --- column kinds ---
     public const byte Unclaimed = 0;
@@ -71,6 +96,9 @@ public sealed class SettlementPlan
 
     public int Revision { get; set; } = CurrentRevision;
 
+    /// <summary>Whether this plan is baked as a lively place (<see cref="LivelyRevision"/> or later).</summary>
+    public bool IsLively => Revision >= LivelyRevision;
+
     /// <summary><c>grid</c> or <c>grown</c> (<see cref="Shared.Definitions.StructureKit.Layout"/>).</summary>
     public string Layout { get; set; } = string.Empty;
 
@@ -87,6 +115,14 @@ public sealed class SettlementPlan
     public int PlazaZ { get; set; }
 
     public List<PlanLot> Lots { get; } = new();
+
+    /// <summary>Plan revision 2: the settlement's own colour (0xRRGGBB; 0 = none) — its roofs, trims and awnings carry it
+    /// (<see cref="SettlementPalette"/>). Pinned with the plan, so editing the kit later never repaints a place that stands.</summary>
+    public int Colour { get; set; }
+
+    /// <summary>Plan revision 2: how much street furniture the baker sets out — 1 none, 2 sparse, 3 normal, 4 rich
+    /// (<c>StructureKit.DressingLevel</c>, pinned with the plan).</summary>
+    public int Dressing { get; set; } = Shared.Definitions.StructureKit.DressingDefault;
 
     /// <summary>The world height of floor row 0 when the plan was planned into a site's ground (#3589) — the structure's
     /// ground row; null for a plan on flat ground. Not part of the pinned text (the record keeps the ground row).</summary>
@@ -153,8 +189,9 @@ public sealed class SettlementPlan
     }
 
     /// <summary>The plan's text form: <c>plan|rev|layout|form|w|l|px|pz|lots|columns</c> — a lot is
-    /// <c>module,function,x,z,y,turns,w,l</c> (lots joined by <c>;</c>), the columns are the kinds then the heights, deflated
-    /// and base64-encoded.</summary>
+    /// <c>module,function,x,z,y,turns,w,l</c> and, from revision 2, <c>,flags</c> (lots joined by <c>;</c>), the columns are
+    /// the kinds then the heights, deflated and base64-encoded. Revision 2 adds an eleventh part, the plan's options:
+    /// <c>c=&lt;colour as hex&gt;;d=&lt;dressing&gt;</c>.</summary>
     public string Serialize()
     {
         var lots = new StringBuilder();
@@ -170,11 +207,43 @@ public sealed class SettlementPlan
             {
                 lots.Append(',').Append(n.ToString(CultureInfo.InvariantCulture));
             }
+
+            if (IsLively)
+            {
+                lots.Append(',').Append(lot.Flags.ToString(CultureInfo.InvariantCulture));
+            }
         }
 
-        return string.Join("|", Prefix, Revision.ToString(CultureInfo.InvariantCulture), Layout, Form,
+        string text = string.Join("|", Prefix, Revision.ToString(CultureInfo.InvariantCulture), Layout, Form,
             Width.ToString(CultureInfo.InvariantCulture), Length.ToString(CultureInfo.InvariantCulture),
             PlazaX.ToString(CultureInfo.InvariantCulture), PlazaZ.ToString(CultureInfo.InvariantCulture), lots.ToString(), PackColumns());
+        return IsLively
+            ? text + "|c=" + Colour.ToString("X6", CultureInfo.InvariantCulture) + ";d=" + Dressing.ToString(CultureInfo.InvariantCulture)
+            : text;
+    }
+
+    /// <summary>Reads a revision-2 plan's options part (<c>c=…;d=…</c>); an unknown key is skipped.</summary>
+    private void ReadOptions(string text)
+    {
+        foreach (string part in text.Split(';'))
+        {
+            int eq = part.IndexOf('=');
+            if (eq <= 0)
+            {
+                continue;
+            }
+
+            string value = part.Substring(eq + 1);
+            switch (part.Substring(0, eq))
+            {
+                case "c" when int.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int colour):
+                    Colour = colour & 0xFFFFFF;
+                    break;
+                case "d" when TryInt(value, out int dressing):
+                    Dressing = System.Math.Clamp(dressing, 1, 4);
+                    break;
+            }
+        }
     }
 
     /// <summary>Reads <see cref="Serialize"/>'s text; false (and no plan) for anything malformed.</summary>
@@ -187,7 +256,7 @@ public sealed class SettlementPlan
         }
 
         var parts = text!.Split('|');
-        if (parts.Length != 10 || parts[0] != Prefix || !TryInt(parts[1], out int rev) || !TryInt(parts[4], out int w)
+        if ((parts.Length != 10 && parts.Length != 11) || parts[0] != Prefix || !TryInt(parts[1], out int rev) || !TryInt(parts[4], out int w)
             || !TryInt(parts[5], out int l) || w <= 0 || l <= 0 || !TryInt(parts[6], out int px) || !TryInt(parts[7], out int pz))
         {
             return false;
@@ -197,6 +266,11 @@ public sealed class SettlementPlan
         if (!ReadLots(parts[8], parsed.Lots) || !parsed.UnpackColumns(parts[9]))
         {
             return false;
+        }
+
+        if (parts.Length == 11)
+        {
+            parsed.ReadOptions(parts[10]);
         }
 
         plan = parsed;
@@ -213,13 +287,13 @@ public sealed class SettlementPlan
         foreach (var entry in text.Split(';'))
         {
             var f = entry.Split(',');
-            if (f.Length != 8)
+            if (f.Length != 8 && f.Length != 9)
             {
-                return false;
+                return false; // eight fields (revision 1) or nine (revision 2: the flags)
             }
 
-            var n = new int[6];
-            for (int i = 0; i < 6; i++)
+            var n = new int[7];
+            for (int i = 0; i < f.Length - 2; i++)
             {
                 if (!TryInt(f[i + 2], out n[i]))
                 {
@@ -227,7 +301,7 @@ public sealed class SettlementPlan
                 }
             }
 
-            lots.Add(new PlanLot { Module = f[0], Function = f[1], X = n[0], Z = n[1], Y = n[2], Turns = n[3] & 3, W = n[4], L = n[5] });
+            lots.Add(new PlanLot { Module = f[0], Function = f[1], X = n[0], Z = n[1], Y = n[2], Turns = n[3] & 3, W = n[4], L = n[5], Flags = n[6] });
         }
 
         return true;

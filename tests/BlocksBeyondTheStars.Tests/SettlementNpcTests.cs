@@ -87,6 +87,7 @@ public sealed class SettlementNpcTests : IDisposable
                     "quartermaster" => new[] { "mission_board" },
                     "settler" => new[] { "npc", "greenhouse", "workshop", "tavern", "vendor", "mission_board", "streamer", "reporter" },
                     "guardian" => new[] { "guard_post" },
+                    "child" => new[] { "npc" }, // the lively places: a child starts at the settlers' spot nearest to its bed
                     _ => throw new Xunit.Sdk.XunitException($"Unexpected NPC role '{npc.Role}'."),
                 };
 

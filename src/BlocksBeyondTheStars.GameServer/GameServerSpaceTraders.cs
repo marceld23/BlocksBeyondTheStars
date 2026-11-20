@@ -25,6 +25,7 @@ internal enum NpcTraderPhase
     Cruising,   // heading for its destination (a station to dock at, or an inner waypoint to pass)
     Departing,  // heading back out to the system edge to warp away
     Descending, // #3824: its pad is reserved — it holds at the body while the clients draw the dive
+    Docked,     // the lively places: moored beside a station's hangar while its pilot trades aboard (GameServerDockedTraders.cs)
     Done,       // reached its end this tick — removed after the sweep
 }
 
@@ -48,6 +49,9 @@ internal sealed class NpcTrader
 
     /// <summary>#3824: uptime the dive into the destination body is over (the trader then leaves the flight scene).</summary>
     public double DescentEndsAt;
+
+    /// <summary>The lively places: uptime until which the trader lies moored at <see cref="DestStationId"/>.</summary>
+    public double DockedUntil;
 
     /// <summary>The station body id this trader is flying in to dock at — empty = no station leg.</summary>
     public string DestStationId = string.Empty;
@@ -107,6 +111,12 @@ public sealed partial class GameServer
         public uint SkinRgb;
         public uint OutfitRgb;
         public double ExpiresAt;
+
+        /// <summary>The lively places: the ship the merchant came in — it lies moored at the station meanwhile, in every
+        /// flight scene that shows the station (GameServerDockedTraders.cs).</summary>
+        public string TraderId = string.Empty;
+        public string ShipType = string.Empty;
+        public int HullRgb;
     }
 
     /// <summary>Planets/moons a trader has LANDED on — its parked ship + pilot are (re)materialized on that
@@ -151,6 +161,17 @@ public sealed partial class GameServer
         /// <summary>#3146: the hull has stood on its pad once — re-standing it after a world reload never gives the pad up
         /// for having been built over meanwhile (nothing moves a parked ship; the hull's own box was never buildable).</summary>
         public bool HasStood;
+
+        // --- the lively places: the pilot's walk to a market (GameServerTraderPilot.cs) ---
+
+        /// <summary>Where the pilot is on its one walk to a nearby market and back.</summary>
+        public PilotWalk Walk;
+
+        /// <summary>Uptime the pilot's stay at the market ends.</summary>
+        public double WalkUntil;
+
+        /// <summary>Where the pilot stands at its ship (the spot it comes back to).</summary>
+        public Vector3f PilotHome;
 
         public string OwnerId => "npc:" + Id;
         public string StructureId => "ship:npc:" + Id;
@@ -279,7 +300,9 @@ public sealed partial class GameServer
             _ => 0,
         };
 
-        if (traffic != TraderTraffic.None && instance.Traders.Count < cap && _uptime >= instance.NextTraderSpawnAt)
+        EnsureMooredTraders(instance); // the lively places: a merchant aboard a station has a ship lying at it
+        int flying = instance.Traders.Count(t => t.Phase != NpcTraderPhase.Docked); // a moored ship is no traffic
+        if (traffic != TraderTraffic.None && flying < cap && _uptime >= instance.NextTraderSpawnAt)
         {
             SpawnTrader(instance);
             instance.NextTraderSpawnAt = _uptime + TraderSpawnGap(traffic, first: false);
@@ -345,7 +368,8 @@ public sealed partial class GameServer
 
         // Destination: dock at a station contact (about half the time, if one exists), else head into the inner
         // system to LAND on a planet/moon (if a pad is free on arrival) or simply pass through and warp out.
-        var stations = instance.Entities.Where(e => e.Kind == CombatEntityKind.SpaceStation && !IsDerelictId(e.Id)).ToList(); // #2632
+        var stations = instance.Entities.Where(e => e.Kind == CombatEntityKind.SpaceStation && !IsDerelictId(e.Id) // #2632
+            && !StationHasVisitor(e.Id)).ToList(); // one merchant at a station at a time: its berth is taken
         if (stations.Count > 0 && _traderRng.NextDouble() < 0.5)
         {
             var target = stations[_traderRng.Next(stations.Count)];
@@ -371,17 +395,7 @@ public sealed partial class GameServer
 
         // Cache + hand out the trader's real voxel ship (rendered exactly like a remote player's ship). Storing
         // it in instance.Structures means players who ENTER later get it via the existing cross-send.
-        var design = BuildNpcShipStructure(trader.StructureId, trader.ShipType);
-        design.Position = trader.Pos;
-        instance.Structures[design.Id] = design;
-        foreach (var pid in instance.Players)
-        {
-            if (FindSessionByPlayerId(pid) is { } s)
-            {
-                SendShipDesign(s, design, "ship_remote");
-            }
-        }
-
+        ShowTraderHull(instance, trader);
         BroadcastWarpFx(instance, trader.Pos, arriving: true);
         BroadcastSpaceState(instance);
         _log.Info($"NPC trader '{trader.Name}' ({trader.ShipType}) warped into {instance.Id}"
@@ -455,9 +469,7 @@ public sealed partial class GameServer
                     {
                         if (dist <= TraderDockRange)
                         {
-                            DockTrader(instance, t);
-                            t.Phase = NpcTraderPhase.Done;
-                            (finished ??= new List<NpcTrader>()).Add(t);
+                            DockTrader(instance, t); // it stays: moored beside the hangar while its pilot trades aboard
                         }
                     }
                     else if (dist <= TraderWaypointRange)
@@ -471,6 +483,15 @@ public sealed partial class GameServer
                             SetExitTarget(t); // no pad free / no landable body → pass through and warp out
                             t.Phase = NpcTraderPhase.Departing;
                         }
+                    }
+
+                    break;
+
+                case NpcTraderPhase.Docked:
+                    if (DockedTraderIsDue(t))
+                    {
+                        CastOffTrader(t);
+                        moved = true;
                     }
 
                     break;
@@ -510,12 +531,13 @@ public sealed partial class GameServer
         return moved;
     }
 
-    /// <summary>The trader reached a station: it slips into the bay (warp-out flash + leaves the flight view)
-    /// and registers its pilot as a visiting merchant on that station for a while.</summary>
+    /// <summary>The trader reached a station: its pilot becomes a visiting merchant aboard for a while, and — the lively
+    /// places — the ship stays where one can see it, moored beside the hangar (it used to vanish in a warp flash).</summary>
     private void DockTrader(SpaceInstance instance, NpcTrader t)
     {
-        BroadcastWarpFx(instance, t.Pos, arriving: false);
         RegisterVisitingTrader(t.DestStationId, t);
+        MoorTrader(t, _visitingTraders.TryGetValue(t.DestStationId, out var vt) ? vt.ExpiresAt : _uptime);
+        BroadcastSpaceState(instance);
         _log.Info($"NPC trader '{t.Name}' docked at station {t.DestStationId}.");
     }
 
@@ -569,6 +591,7 @@ public sealed partial class GameServer
                 Yaw = t.Yaw,
                 Eva = false,
                 Hull = t.HullRgb,
+                Parked = t.Phase == NpcTraderPhase.Docked, // moored: engines off, the plate says so
             });
         }
 
@@ -599,7 +622,11 @@ public sealed partial class GameServer
             SkinRgb = skins[look.Next(skins.Length)],
             OutfitRgb = outfits[look.Next(outfits.Length)],
             ExpiresAt = _uptime + TraderDwellMin + _traderRng.NextDouble() * (TraderDwellMax - TraderDwellMin),
+            TraderId = t.Id,
+            ShipType = t.ShipType,
+            HullRgb = t.HullRgb,
         };
+        AnnounceAboardStation(stationId, "trader_docked", t.Name); // the lively places: everybody aboard hears it
     }
 
     /// <summary>Called from <see cref="SpawnStationNpcs"/>: if a trader has recently docked here and is still
@@ -630,6 +657,7 @@ public sealed partial class GameServer
         npc.Name = vt.Name;
         npc.SkinRgb = vt.SkinRgb;
         npc.OutfitRgb = vt.OutfitRgb;
+        npc.VisitingPilot = true; // the lively places: it leaves with its ship (SyncVisitingPilot)
         _npcs.Add(npc);
         _log.Info($"Visiting trader '{vt.Name}' is trading at station '{station.Name}'.");
     }
@@ -769,6 +797,7 @@ public sealed partial class GameServer
             return;
         }
 
+        StepTraderPilotWalk(lt); // the lively places: once per stay the pilot walks to a nearby market and back
         if (AnyPlayerNearLandedTrader(lt))
         {
             lt.LastPlayerNearAt = _uptime;
@@ -943,6 +972,7 @@ public sealed partial class GameServer
 
         // The pilot stands a couple of blocks in front of the ship (its window end), feet on the pad surface.
         lt.PilotPos = new Vector3f(pad.CenterX + 0.5f, y0 + 1f, pad.CenterZ + s.Length / 2f + 2.5f);
+        lt.PilotHome = lt.PilotPos;
         var rng = new System.Random(unchecked((int)WorldGenerator.StableHash("landed-pilot:" + lt.Id)));
         var npc = MakeNpc("vendor", LandedTraderTheme(lt), robotic: false, lt.PilotPos, rng); // #2630: its own goods per visit
         npc.Name = lt.Name;

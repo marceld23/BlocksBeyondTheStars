@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.Client
     /// <item><b>Outdoor</b> — the planet's own motes (<see cref="AmbientMotes.StyleFor"/>: dust, pollen, embers, ash,
     /// frost, rising violet spores on fungal worlds …), only in the open air: never in space, a station, an airless sky,
     /// aboard, in a cave or under a roof (a tree's canopy is no roof). Stepping home fades the outdoor ones out at once.</item>
-    /// <item><b>Lamplight</b> — at home (aboard the own ship, or under a roof in the own base's air) a few very slow,
+    /// <item><b>Lamplight</b> — at home (aboard the own ship, or under a roof in the own base's air) and, since the lively
+    /// places, under a roof in an inhabited village or town: a few very slow,
     /// warm amber-cream motes drift in the light of the fixtures nearby (<see cref="NearbyLights"/>: the world's light
     /// index plus the parked ships' lamps). Off with Reduced effects.</item>
     /// <item><b>Beam</b> (#3230) — faint dust near the visor where no other motes drift, shown only by the headlamp.</item>
@@ -147,8 +148,12 @@ namespace BlocksBeyondTheStars.Client
 
             bool airless = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.StationName)
                            || (Game.Environment != null && Game.Environment.SpaceSky) || Game.OnFootInSpace;
-            bool home = Game.AtHome && !Game.SpaceViewActive;
-            var mode = AmbientMotes.ModeFor(airless, Game.Aboard, home, OpenAir(), FxKit.ReducedEffects, Headlamp.LocalLit, // #3230
+            bool openAir = OpenAir();
+            // The lively places: the lamplight dust of a home drifts in every lived-in room too — under a roof in a
+            // village or a town (not aboard a station: its air counts as airless here, as it always did).
+            bool home = (Game.AtHome && !Game.SpaceViewActive)
+                        || (!airless && !Game.Aboard && !openAir && Game.CurrentPlace is { Kind: BlocksBeyondTheStars.Networking.Messages.PlaceKinds.Settlement });
+            var mode = AmbientMotes.ModeFor(airless, Game.Aboard, home, openAir, FxKit.ReducedEffects, Headlamp.LocalLit, // #3230
                 underwater: Sky.UnderwaterFog > 0.5f); // #3698
             if (mode != _mode)
             {
