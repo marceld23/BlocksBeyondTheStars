@@ -605,7 +605,7 @@ namespace BlocksBeyondTheStars.Client
         public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown() || _touch.JumpDown();
         public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld() || _touch.CrouchHeld();
 
-        /// <summary>The crouch control read as a plain hold, for everything it does besides sneaking: sinking in flight and
+        /// <summary>The crouch control read as a plain hold, for everything it does besides sneaking: diving in water (#3860), sinking in flight and
         /// in zero-g, climbing down, letting go of a wall or the rope, standing up from a seat or a bed. Never the
         /// <see cref="CrouchToggle"/> switch — that one is for sneaking on the ground (<see cref="CrouchHeld"/>) alone.</summary>
         public static bool DescendHeld() => _desktop.DescendHeld() || _pad.DescendHeld() || _touch.DescendHeld();

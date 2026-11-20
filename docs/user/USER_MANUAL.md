@@ -232,10 +232,10 @@ Last updated: 2026-10-04.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
-| **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. Not while crouched, swimming, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface** (at the surface you simply float); **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
+| **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. **In water it is a sprint swim** — faster, lying level in the water. Not while crouched, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. **Sneaking is quiet:** a sleeping animal does not wake when you sneak up to it (see *Creatures*), and the sandworms do not hear your steps. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; **dive down in water**; descend in zero-g. **Sneaking is quiet:** a sleeping animal does not wake when you sneak up to it (see *Creatures*), and the sandworms do not hear your steps. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** or the **Quantum Teleporter** selected it opens the destination picker — ship, allies, bases, beam blocks, beacons and map markers, and with the Quantum Teleporter typed coordinates or the map waypoint, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -297,7 +297,7 @@ buttons — retuning is tracked in issue #195):
 | **D-pad ◄ ►** | Cycle hotbar slot |
 | **D-pad ▲** | Open the chat (the on-screen keyboard, with the chat window above it) |
 | **D-pad ▼** | Turn the building block you are holding |
-| **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up; jump at a wall, push the stick towards it and hold (A) to hold on and climb — let go of (A) to slide down, **(B)** drops you off, see §5 → Climbing walls) |
+| **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up, float at the surface; jump at a wall, push the stick towards it and hold (A) to hold on and climb — let go of (A) to slide down, **(B)** drops you off, see §5 → Climbing walls) |
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera (only that — it no longer jumps as well) |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
@@ -1325,8 +1325,12 @@ round.
   deliberate campfire is a real survival tool, not just a hazard.
 
 ### Swimming & diving
-- Water is not solid: you sink in with gentle buoyancy and **dive**; hold **Space** to swim up and
-  surface. Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds.
+- Water is not solid: under the surface you sink slowly with gentle buoyancy; hold **Space** (pad A) to swim up and
+  surface, and hold **Crouch** (Ctrl / C, pad B) to **dive** down. At the surface you **float** with your head above
+  the water — with or without Space, no bobbing. Swimming against a low bank lifts you out onto the land; at a higher
+  bank, press **Space** while you swim towards it. Hold **Run** (Left Shift, or the pad/touch run switch) to **sprint
+  swim**: faster, lying level in the water like a crawl stroke (it uses stamina like running). Water **breaks falls**.
+  Deep, swimmable water (lakes, ponds, seas) is common on wet worlds.
   With your head under water your suit runs on its tank — on **every** world, even one with breathable air. On a world
   with breathable air the tank fills up again as soon as your head is back in the air: at the surface, or in a trapped
   **air pocket** (a sunken ruin may have one, see *Lost civilizations*).
@@ -1403,8 +1407,8 @@ On foot you can **run**: hold **Left Shift** (rebindable in Settings → Control
 about **half again as fast** as walking. On a gamepad, **click the left stick while you move**; on a tablet, tap
 **RUN** (above the stick) while you move. Both switch running on until you stop, your stamina runs out or you press
 again — standing still, the left-stick click still opens the Actions list. A jump out of a run keeps the speed. You
-run only on your feet on the ground: not crouched, swimming, on a ladder or a wall, on the rope, flying, gliding,
-in zero-g, seated or riding.
+run only on your feet on the ground — or swim faster in water (the sprint swim, see *Swimming & diving*): not crouched,
+on a ladder or a wall, on the rope, flying, gliding, in zero-g, seated or riding.
 
 - **Stamina** is the small bar **under the crosshair**. It appears only while it is not full and fades away again
   a moment after it has filled up. Running and wall climbing use the same stamina.

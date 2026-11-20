@@ -61,7 +61,8 @@ namespace BlocksBeyondTheStars.Client
                 _sprintPossibleFrame = Time.frameCount;
             }
 
-            bool running = _sprint.Step(InputMap.SprintKeyHeld(), InputMap.SprintToggleDown(), h, v, grounded, allowed, _stamina.CanSprint);
+            // #3860: in the water a sprint swim starts without ground under the feet.
+            bool running = _sprint.Step(InputMap.SprintKeyHeld(), InputMap.SprintToggleDown(), h, v, grounded || inWater, allowed, _stamina.CanSprint);
             float dt = Time.deltaTime;
             if (running)
             {
@@ -73,10 +74,11 @@ namespace BlocksBeyondTheStars.Client
             return running ? SprintState.SpeedFactor : 1f;
         }
 
-        /// <summary>Where running exists at all: on foot under gravity, not crouched, swimming, on a ladder, on a wall or the
-        /// rope, flying, gliding, on a jetpack burn, seated, resting, riding a train or watching as an observer.</summary>
+        /// <summary>Where running exists at all: on foot under gravity or in the water (#3860: the sprint swim), not crouched,
+        /// on a ladder, on a wall or the rope, flying, gliding, on a jetpack burn, seated, resting, riding a train or watching
+        /// as an observer.</summary>
         private bool SprintAllowedHere(bool inWater, bool onLadder)
-            => Game != null && !Game.Spectating && !inWater && !onLadder && !_crouched && !_flying && !_climbing && !_pullingUp
+            => Game != null && !Game.Spectating && !onLadder && !_crouched && !_flying && !_climbing && !_pullingUp
                && !_rope.Attached && !Gliding && !_jetpackActive && !Game.OnFootInSpace && !Game.StationZeroG && !Game.InEva
                && string.IsNullOrEmpty(Game.InSpeeder) && _train.Frame == null && _seatCell is null && !Resting;
 
