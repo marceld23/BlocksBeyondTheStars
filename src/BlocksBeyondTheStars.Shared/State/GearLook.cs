@@ -122,6 +122,10 @@ public static class GearLook
     /// never does — and a bit of this mask because a presence may not grow a field.</summary>
     public const int CarryingOverhead = 1 << 29;
 
+    /// <summary>#3862: the titanium boots — set together with <see cref="Boots"/>, like the other titanium pieces carry a bit
+    /// of their own (the titanium look is the classic style plus that bit). Bit 30, the last one below the sign.</summary>
+    public const int TitanBoots = 1 << 30;
+
     /// <summary>The style of the head piece in <paramref name="mask"/> (0 = classic).</summary>
     public static int HeadStyle(int mask) => (mask >> HeadStyleShift) & StyleBits;
 
@@ -154,6 +158,7 @@ public static class GearLook
         g |= Bit(worn("suit_lamp") || worn("ressaw_lamp"), Lamp); // #3339: every lamp the lamp key switches (SuitEquipment.IsLamp)
         g |= Bit(worn("boots"), Boots);
         g |= Bit(worn("spring_boots"), Boots | SpringBoots);
+        g |= Bit(worn("titan_boots"), Boots | TitanBoots);
         g |= Bit(worn("oxygen_tank_1") || worn("oxygen_tank_2") || worn("oxygen_tank_3"), Tank);
         g |= Bit(worn("climbing_gloves"), ClimbingGloves);
         g |= Bit(worn("climbing_claws"), ClimbingClaws);
@@ -161,8 +166,8 @@ public static class GearLook
         return g;
     }
 
-    /// <summary>#3290–#3292, #3337: the pieces of the guardian, robber and flower sets and of the Ressaw diving suit — the
-    /// slot's generic bit plus its style.</summary>
+    /// <summary>#3290–#3292, #3337, #3862: the pieces of the guardian, robber and flower sets and of the Ressaw diving suit —
+    /// the slot's generic bit plus its style.</summary>
     private static int SetPieces(Func<string, bool> worn)
     {
         int g = 0;
@@ -177,6 +182,7 @@ public static class GearLook
         g |= Bit(worn("guardian_legs"), Legs | Style(LegsStyleShift, StyleGuardian));
         g |= Bit(worn("ressaw_leggings"), Legs | Style(LegsStyleShift, StyleRessaw));
         g |= Bit(worn("ressaw_boots"), Boots | Style(BootsStyleShift, StyleRessaw));
+        g |= Bit(worn("guardian_boots"), Boots | Style(BootsStyleShift, StyleGuardian)); // #3862
         g |= ObsidianPieces(worn);
         return g;
     }
@@ -188,6 +194,7 @@ public static class GearLook
     {
         int g = Bit(worn(SoundersIds.ObsidianHelmet), Helmet | Style(HeadStyleShift, StyleObsidian));
         g |= Bit(worn(SoundersIds.ObsidianLegs), Legs | Style(LegsStyleShift, StyleObsidian));
+        g |= Bit(worn(SoundersIds.ObsidianBoots), Boots | Style(BootsStyleShift, StyleObsidian)); // #3862
         if (!worn(SoundersIds.ObsidianChest))
         {
             return g;

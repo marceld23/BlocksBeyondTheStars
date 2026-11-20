@@ -341,6 +341,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 } ]
   },
   {
+    "key": "titan_boots", "nameKey": "blueprint.titan_boots.name", "descriptionKey": "blueprint.titan_boots.desc",
+    "category": "Suit", "prerequisites": [ "boots" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 6 } ]
+  },
+  {
     "key": "guardian_gear", "nameKey": "blueprint.guardian_gear.name", "descriptionKey": "blueprint.guardian_gear.desc",
     "category": "Suit", "prerequisites": [ "titan_chest" ], "knowledgeCost": 70,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "guardian_plate", "count": 6 } ]
