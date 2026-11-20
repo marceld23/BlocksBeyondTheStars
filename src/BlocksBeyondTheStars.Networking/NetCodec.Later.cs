@@ -115,5 +115,15 @@ public static partial class NetCodec
         Register(355, typeof(PlaytestWatchIntent));          // Client -> Server
         Register(356, typeof(PlaytestWatchAck));             // Server -> Client
         Register(357, typeof(PlaytestEvent));                // Server -> Client
+
+        // The lively places: the inhabited places of the current world (bounds, colour, door signs, effect points, market
+        // day) and an NPC's gesture without a line. No protocol bump — an older client drops both (no place greeting, no
+        // signs, no place sound; the gesture is simply not played).
+        Register(358, typeof(PlaceList));                    // Server -> Client
+        Register(359, typeof(NpcEmote));                     // Server -> Client
+
+        // #3870: a sample handed to a research station's archive. An older server drops it (the client offers the button
+        // only aboard a research station, which an older server never makes). The next message after this takes 361.
+        Register(360, typeof(GiveSampleToStationIntent));    // Client -> Server
     }
 }

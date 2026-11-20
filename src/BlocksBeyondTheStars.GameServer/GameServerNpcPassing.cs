@@ -130,6 +130,17 @@ public sealed partial class GameServer
                     continue; // behind a wall: they cannot see the player walk by
                 }
 
+                if (npc.IsChild)
+                {
+                    // The lively places: a child's hello — a line and a wave, nothing remembered and nothing earned.
+                    MarkPassingGreeted(npc, p.PlayerId);
+                    SendChildHello(session, npc);
+                    npc.AttendUntil = _uptime + PassingAttendSeconds;
+                    npc.AttendPos = p.Position;
+                    session.Npc.PassingGreetReadyAt = _uptime + PassingGreetPlayerGap;
+                    break;
+                }
+
                 string npcKey = NpcKeyForNpc(session, npc);
                 if (RelationshipTier(RelationshipValue(p, npcKey)) == "hostile")
                 {
@@ -160,12 +171,13 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Whether an NPC may greet a passer-by at all: awake, not walking a route (the patrolling guard included),
-    /// not a G.D.S. guardian, not the streamer (it has its own call-out), not in the middle of a chat with a neighbour
-    /// (#2600 — two voices at once would be the jumble the voice budget exists to prevent), not away visiting a base and
-    /// not a guest at one (#2602 — a guest greets with its own line), not cheering in a festival ring (#2604).</summary>
+    /// <summary>Whether an NPC may greet a passer-by at all: awake, not walking a route (the patrolling guard included) —
+    /// but for a villager on an errand, who says hello while it walks on —, not a G.D.S. guardian, not the streamer (it has
+    /// its own call-out), not in the middle of a chat with a neighbour (#2600 — two voices at once would be the jumble the
+    /// voice budget exists to prevent), not away visiting a base and not a guest at one (#2602 — a guest greets with its
+    /// own line), not cheering in a festival ring (#2604).</summary>
     private bool MayGreetInPassing(ServerNpc npc)
-        => npc.Pose != 2 && npc.Goal is null && npc.Role != "guardian" && npc.Job != "streamer"
+        => npc.Pose != 2 && (npc.Goal is null || npc.OnErrand) && npc.Role != "guardian" && npc.Job != "streamer"
            && (npc.TalkWith is null || _uptime >= npc.TalkUntil)
            && !npc.VisitingAway && !IsGuestJob(npc.Job) && npc.Phase != NpcPhase.Festival;
 
@@ -234,6 +246,11 @@ public sealed partial class GameServer
         {
             purpose = NpcLinePurposes.PassingHello;
             pool = KeyPool("npc.hello." + (tier is "known" or "trusted" ? tier : "stranger") + ".", 3);
+            if (npc.Job == NightWatchJob && npc.Held == NightWatchLantern)
+            {
+                // The lively places: on its round the night watch has lines of its own (every other hello).
+                jobLine = "npc.hello.watch." + (_passingRng.Next(NightWatchHelloLines) + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
         }
 
         string name = p.Name ?? string.Empty;

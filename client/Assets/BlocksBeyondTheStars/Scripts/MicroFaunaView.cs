@@ -309,7 +309,7 @@ namespace BlocksBeyondTheStars.Client
             int kindIdx = _surfaceKinds[Random.Range(0, _surfaceKinds.Count)];
             var kind = MicroFauna.Kinds[kindIdx];
 
-            if (!RingPosition(out float wx, out float wz)) return false;
+            if (!GatheringOrRingPosition(night, out float wx, out float wz)) return false;
             bool airborne = kind.Motion is CritterMotion.Fly or CritterMotion.Drift;
             // #2581: fliers and drifters take a pond's or the gas sea's surface as their reference; crawlers and
             // hoppers need a real floor, so a ring spot over open water, lava, oil or gas spawns none of them.
@@ -414,6 +414,24 @@ namespace BlocksBeyondTheStars.Client
             if (gy == int.MinValue) return false;
             Spawn(kindIdx, new Vector3(wx, gy + CrawlSurfaceY, wz), -1, gy + 1f);
             return true;
+        }
+
+        /// <summary>The lively places: in an inhabited place a share of the surface creatures appears at a garden by day
+        /// and at a street lantern by night (<see cref="PlaceGathering"/>) — the rest, and everything in the wild, keeps
+        /// the ring around the player.</summary>
+        private bool GatheringOrRingPosition(bool night, out float wx, out float wz)
+        {
+            var place = Game.CurrentPlace;
+            if (place != null && Random.value < PlaceGathering.Share
+                && PlaceGathering.TryPick(place, night, Game.PlayerPosition.x, Game.PlayerPosition.z, Game.Circumference, Random.value,
+                    out float dx, out float dz))
+            {
+                wx = Game.PlayerPosition.x + dx + Random.Range(-PlaceGathering.Spread, PlaceGathering.Spread);
+                wz = Game.PlayerPosition.z + dz + Random.Range(-PlaceGathering.Spread, PlaceGathering.Spread);
+                return true;
+            }
+
+            return RingPosition(out wx, out wz);
         }
 
         private bool RingPosition(out float wx, out float wz)

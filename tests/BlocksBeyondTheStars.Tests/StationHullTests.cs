@@ -55,7 +55,7 @@ public sealed class StationHullTests
     public void ShippedKits_CarryExteriorDetail()
     {
         var kits = ShippedStationKits();
-        Assert.Equal(5, kits.Count);
+        Assert.Equal(20, kits.Count); // the five classic kits and, since the lively places, one per tier and purpose
         Assert.All(kits, k => Assert.True(k.SolarWings > 0 && k.Antennas > 0 && k.Domes > 0, $"kit '{k.Key}' has no exterior detail"));
         var small = kits.First(k => k.Tier == "small");
         var colossal = kits.First(k => k.Tier == "colossal");
@@ -160,7 +160,11 @@ public sealed class StationHullTests
         {
             for (long seed = 1; seed <= 4; seed++)
             {
-                var s = StationKitComposer.Compose(kit, Module, seed, Content, out var comp, out var failure);
+                // As the game composes it: a kit made for a purpose is only ever drawn for that purpose (and such a station
+                // keeps every piece off the sides of its windows as well, StationKitExterior.Apply).
+                string purpose = kit.Purposes.Count > 0 ? kit.Purposes[0] : StationPurposes.None;
+                var s = StationKitComposer.Compose(kit, Module, seed, Content, out var comp, out var failure, purpose,
+                    purpose.Length > 0 ? StationPurposes.ColourFor(seed) : 0);
                 Assert.True(s != null, failure);
                 var boxes = Boxes(comp);
                 for (int x = 0; x < s!.Width; x++)

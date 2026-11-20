@@ -54,6 +54,14 @@ public sealed class VillageChatterTopic
     /// <summary>A few English words about the topic for the AI re-wording ("rain on the gardens"); "" = the key.</summary>
     public string Hint { get; set; } = string.Empty;
 
+    /// <summary>The lively places: who talks about it — "" (two grown-ups, every topic before this field) or
+    /// <see cref="WhoChildren"/> (two children; such a topic is never re-worded by the AI, and a child and a grown-up
+    /// share no topic at all).</summary>
+    public string Who { get; set; } = string.Empty;
+
+    /// <summary><see cref="Who"/>: a topic of two children.</summary>
+    public const string WhoChildren = "children";
+
     /// <summary>The lines, speaker A first, then alternating (locale keys, <see cref="MinLines"/>–<see cref="MaxLines"/>).
     /// Placeholders: <c>{a}</c>/<c>{b}</c> (the speakers), <c>{place}</c> (the village), plus what the need provides
     /// (<see cref="VillageChatterNeeds.TokensFor"/>).</summary>

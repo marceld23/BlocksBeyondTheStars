@@ -66,6 +66,9 @@ public sealed partial class GameServer
         public required string Sound { get; init; }
         public required float Radius { get; init; }
         public required float Volume { get; init; }
+
+        /// <summary>When it plays (<c>SoundEmitterTimes</c>; 0 = always) — the lively places.</summary>
+        public byte When { get; init; }
     }
 
     /// <summary>One den of a landmark.</summary>
@@ -114,6 +117,7 @@ public sealed partial class GameServer
             Sound = sound,
             Radius = (float)System.Math.Clamp(settings.GetDouble("radius", 48), 4, 256),
             Volume = (float)System.Math.Clamp(settings.GetDouble("volume", 1.0), 0, 1),
+            When = SoundEmitterTimes.Parse(settings.Get("when")),
         });
     }
 
@@ -385,8 +389,10 @@ public sealed partial class GameServer
     private LandmarkList LandmarkListFor(PlayerSession session) => new()
     {
         // #3610: the giant wrecks after the landmarks — their silhouettes and emitters, drawn and played the same way
-        Landmarks = _landmarks.Concat(_giantWrecks).Concat(_civSites.Where(c => c.WaterTop is null)).Select(lm => ToNetLandmark(lm, session)).ToArray(), // #3642: no sunken silhouette
-        Emitters = _landmarks.Concat(_giantWrecks).Concat(_civSites).SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Select(e => new NetSoundEmitter
+        // … and, since the lively places, the settlements' silhouettes at the tail (GameServerPlaceSilhouettes.cs).
+        Landmarks = _landmarks.Concat(_giantWrecks).Concat(_civSites.Where(c => c.WaterTop is null)).Select(lm => ToNetLandmark(lm, session)) // #3642: no sunken silhouette
+            .Concat(PlaceSilhouettesOfActiveWorld()).ToArray(),
+        Emitters = _landmarks.Concat(_giantWrecks).Concat(_civSites).SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Concat(PlaceEmittersOfActiveWorld()).Select(e => new NetSoundEmitter
         {
             X = e.Position.X,
             Y = e.Position.Y,
@@ -394,12 +400,17 @@ public sealed partial class GameServer
             Sound = e.Sound,
             Radius = e.Radius,
             Volume = e.Volume,
+            When = e.When,
         }).ToArray(),
     };
 
     /// <summary>Sends this world's landmarks and sound emitters to a session (on world entry). An empty list is sent too:
     /// it clears what the client held from the world it came from.</summary>
-    private void SendLandmarks(PlayerSession session) => Send(session, LandmarkListFor(session));
+    private void SendLandmarks(PlayerSession session)
+    {
+        Send(session, LandmarkListFor(session));
+        SendPlaces(session); // the lively places ride along: the same moments, the same "an empty list clears" contract
+    }
 
     /// <summary>Test seam: what a session is sent on world entry.</summary>
     internal LandmarkList LandmarkListForTest(PlayerSession session) => LandmarkListFor(session);

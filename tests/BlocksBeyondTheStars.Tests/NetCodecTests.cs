@@ -402,6 +402,9 @@ public sealed class NetCodecTests
         [355] = typeof(PlaytestWatchIntent),     // the Test Pilot page: the game events a playtest task waits for
         [356] = typeof(PlaytestWatchAck),        // … the server watches them
         [357] = typeof(PlaytestEvent),           // … and reports the ones the player causes
+        [358] = typeof(PlaceList),               // the lively places: the inhabited places of the current world
+        [359] = typeof(NpcEmote),                // … and an NPC's gesture without a line
+        [360] = typeof(GiveSampleToStationIntent), // #3870: a sample for a research station's archive
 
     };
 

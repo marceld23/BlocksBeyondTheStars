@@ -86,6 +86,10 @@ public sealed class SettlementStructure
     public IReadOnlyList<SettlementMarker> Markers { get; }
     public int BuildingCount { get; }
 
+    /// <summary>The settlement's own colour (0xRRGGBB; 0 = none): a lively place's roofs and awnings carry it
+    /// (<see cref="SettlementPalette"/>), the client's door signs too.</summary>
+    public int Colour { get; internal set; }
+
     internal SettlementStructure(int w, int h, int l, string tier, bool ruined, string inhabitant,
         ushort[] blocks, IReadOnlyList<SettlementMarker> markers, int buildingCount,
         Dictionary<int, (int Tint, int Glow)>? mods = null, Dictionary<int, int>? shapes = null)
@@ -127,6 +131,7 @@ public sealed class SettlementStructure
     internal SettlementStructure WithCells(VoxelGrid grid)
         => new(Width, Height, Length, Tier, Ruined, Inhabitant, grid.Blocks, Markers, BuildingCount, grid.Mods, grid.Shapes)
         {
+            Colour = Colour,
             ColumnFloors = ColumnFloors,
         };
 
@@ -946,12 +951,15 @@ public static partial class SettlementGenerator
             }
             else
             {
-                ushort id = MaterialTokens.IsToken(cell.Id)
+                bool token = MaterialTokens.IsToken(cell.Id);
+                ushort id = token
                     ? (materials ?? ModuleMaterials.ForSettlement(module.Tier, "stone", module.IsAlienStyle, content)).Resolve(cell.Id) // #1885
                     : content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
                 if (id != 0)
                 {
-                    setCell(ox + cell.X, oy + cell.Y, oz + cell.Z, id, cell.Shape, cell.Tint, cell.Glow);
+                    // The lively places: a roof or accent token cell without a dye of its own takes the settlement's colour.
+                    int tint = cell.Tint != 0 || !token || materials is null ? cell.Tint : materials.TintOf(cell.Id);
+                    setCell(ox + cell.X, oy + cell.Y, oz + cell.Z, id, cell.Shape, tint, cell.Glow);
                     if (cell.Keep)
                     {
                         keep?.Invoke(ox + cell.X, oy + cell.Y, oz + cell.Z);

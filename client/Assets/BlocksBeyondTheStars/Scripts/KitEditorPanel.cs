@@ -32,6 +32,13 @@ namespace BlocksBeyondTheStars.Client
         public int mainStreet, spacing, extent, minTerrainGeneration;
         public bool flat, grown;
 
+        // The lively places: a planned settlement's dressing, mirroring, colour and landmark; a station kit's purposes;
+        // and the upper generation bound — all carried, so saving a kit here never drops them.
+        public int maxTerrainGeneration, dressing;
+        public bool noMirror, noLandmark;
+        public string palette = string.Empty;
+        public List<string> purposes = new List<string>();
+
         public static KitJson From(StructureKit k)
         {
             var j = new KitJson
@@ -46,6 +53,8 @@ namespace BlocksBeyondTheStars.Client
                 layout = k.Layout ?? string.Empty, forms = new List<string>(k.Forms), mainStreet = k.MainStreet, spacing = k.Spacing,
                 extent = k.Extent, flat = k.Flat, grown = k.Grown, suburbKit = k.SuburbKit ?? string.Empty,
                 minTerrainGeneration = k.MinTerrainGeneration,
+                maxTerrainGeneration = k.MaxTerrainGeneration, dressing = k.Dressing, noMirror = k.NoMirror, noLandmark = k.NoLandmark,
+                palette = k.Palette ?? string.Empty, purposes = new List<string>(k.Purposes),
             };
             foreach (var e in k.Entries)
             {
@@ -68,6 +77,8 @@ namespace BlocksBeyondTheStars.Client
                 Grid = grid, DistrictSize = districtSize, Street = street, Height = height, RoleMap = new List<string>(roleMap ?? new List<string>()),
                 Layout = layout ?? string.Empty, Forms = new List<string>(forms ?? new List<string>()), MainStreet = mainStreet, Spacing = spacing,
                 Extent = extent, Flat = flat, Grown = grown, SuburbKit = suburbKit ?? string.Empty, MinTerrainGeneration = minTerrainGeneration,
+                MaxTerrainGeneration = maxTerrainGeneration, Dressing = dressing, NoMirror = noMirror, NoLandmark = noLandmark,
+                Palette = palette ?? string.Empty, Purposes = new List<string>(purposes ?? new List<string>()),
             };
             foreach (var e in entries ?? new List<KitEntryJson>())
             {
@@ -439,6 +450,7 @@ namespace BlocksBeyondTheStars.Client
                 IntField(panel, x0 + IntStep, y, L("ui.kit.antennas"), k2.antennas, v => k2.antennas = Mathf.Max(0, v));
                 IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.domes"), k2.domes, v => k2.domes = Mathf.Max(0, v));
                 y += 40f;
+                y = StationPurposeRow(panel, x0, y, k2); // the lively places: what the kit is made for
             }
             else if (k2.kind == StructureKit.KindCity)
             {

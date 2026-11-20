@@ -57,6 +57,10 @@ public sealed partial class GameServer
         /// <summary>#3731: the deposits of which this player traded a sample away — still known to them, so the next
         /// block of such a deposit is not a "first block" again. Additive: a save from before simply has none.</summary>
         public HashSet<uint> SamplesTradedAway { get; set; } = new();
+
+        /// <summary>#3870: the species of which this player handed a sample to a research station's archive — the archive
+        /// pays once per species. Additive: a save from before has none.</summary>
+        public HashSet<uint> GivenToStations { get; set; } = new();
     }
 
     private static string BioResearchBlob(string playerId) => "bio:research:" + playerId;
@@ -318,6 +322,7 @@ public sealed partial class GameServer
                 research.Analysed ??= new HashSet<uint>();
                 research.Changes ??= new List<string>();
                 research.SamplesTradedAway ??= new HashSet<uint>();
+                research.GivenToStations ??= new HashSet<uint>();
             }
             catch (JsonException ex)
             {

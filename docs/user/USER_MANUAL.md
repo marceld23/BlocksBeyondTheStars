@@ -2265,6 +2265,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   market* below). It stays **10–15 minutes**, and it **never lifts off while a player is near it**
   (within about 32 blocks of the pilot or ship) or trading: it leaves only after nobody has been close for
   about half a minute. One landed trader per body at a time; they re-appear when you return to that world.
+  While it waits the pilot does not just stand there: beside a settlement it walks to the market and back once; out
+  in the wild it steps a few blocks off to **look its ship over** and then **sits down on a crate** in front of it. It
+  gets up as soon as you come close — you can trade with it all the while.
 - **Traders also come to you on the ground.** You don't have to fly to meet one: while you are on a planet or moon,
   a trader ship now and then comes in to land by itself — roughly every **15–25 minutes** in a busy system and
   **30–45 minutes** in a quiet one (a bit sooner while you are home at a **Market** base, #3036), and even in a system
@@ -2308,6 +2311,38 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Every world has its own station people** (worlds created since generation 27): a station's quartermaster and
   what its extra traders sell are rolled per world, so your start station in a new world greets you with a new face.
   The first trader always sells the station's usual goods. Older worlds keep the crews you know.
+- **A station has a purpose and a colour** (stations first seen in worlds created since generation 46): it is a
+  **trade station**, a **mining station** or a **research station** — the banner says so when you come aboard, and so
+  do the dock prompt and the star map once the station has been seen. The
+  station of your start system always trades; where a system has asteroid fields, mining stations are common. The first
+  trader sells the purpose's goods (a mining station's sells ore, a research station's data), the crew wears the
+  purpose's colours, and on a trade station the traders cover all four kinds of goods between them. Each purpose has
+  **rooms of its own**: a trade station a bazaar hall with three stalls and a customs office, a mining station an ore
+  bay, a smelter and an assay office, a research station a laboratory, an observatory with a telescope under a glass
+  roof and an archive (the bigger the station, the more of them). The **smelter's furnaces work**: stand beside one
+  and you can smelt there as at a forge of your own. The first trader of a mining or a research station
+  runs the **station's own exchange** — the same goods at better rates: at a mining station 4 silicate buy 8 iron ore
+  (elsewhere 6), 3 silicate 5 lead ore (4), 6 carbon a crystal (8), and 5 silicate 2 titanium ore; at a research
+  station a data fragment costs 2 titanium ore and a crystal (elsewhere 3 and one), a fragment buys 3 circuit boards
+  (2), and 3 rune stones 2 fragments (2 for one). The travelling merchant never carries these deals. A research
+  station also keeps an **archive of samples**: aboard one, open a sample's card (Tab → Inventory → Samples) and choose
+  **Give one to the station archive** — it collects every species once and pays 1 to 5 data fragments, more for rarer
+  ones (a species it already has is politely declined). You can tell the stations apart from outside too: a trade
+  station carries racks of freight crates on its walls, a mining station ore hoppers on its roofs, a research station
+  radio dishes — and inside, a trade station is built round a concourse, a mining station along a long spine, a research
+  station on more than one deck. The **mission
+  board** follows the purpose too: a mining station offers five delivery jobs at a time instead of three, a research
+  station three survey jobs instead of one. A **band in the
+  station's own colour** runs along its walls and floors, inside and on the hull. Stations you already know stay as they
+  are.
+- **Aboard you hear the station** (every world): the deck hums, the hangar, the canteen and the rooms with equipment
+  have their own sounds, and a **gong with a short announcement** tells everybody aboard when a trader has docked or
+  casts off, when the night rest begins and when the day shift starts. In the hangar a dock hand is at work, and one of
+  the crew — a service android where there is one — **makes the rounds** from post to post through the day.
+- **A station shows that somebody lives there** (every world): position lights blink on its hull — red on one side,
+  green on the other — and a small dish turns on top. A **trader that docks stays**: its ship lies moored beside the
+  hangar (its nameplate says *parked*) for as long as its pilot trades aboard — at the station's trade post, also when
+  you were aboard already — and then you can watch it cast off and fly out.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
   block — the station, its default name, the "commissioned" message and the achievement stay the owner's (an owner who
@@ -2363,6 +2398,36 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   at the edge, and the place thins out toward the open land. On sloping ground the village **follows the hill**: each
   house stands on its own terrace and the roads climb in small steps (never more than one block at a time). The
   corners between the houses are left as they were — trees, grass and all.
+- **Lively places (worlds created since generation 46).** New villages and towns are no longer alike: there are two or
+  three kinds of every building, about half of them mirrored, and each place has **its own colour** — on the roofs, the
+  awnings over the doors and the market stalls. On the plaza stand **stalls, benches and lanterns**, a hamlet gathers
+  round a **fire** (a real campfire — you may cook at it), a village has its **well** — a green village a real **pond**
+  with a little **jetty** and a lantern at its end; crates, barrels and flower pots stand beside the doors, and many places
+  have one **landmark** — a mill, a bell, a water tower, a clock. A building that offers something hangs a **sign beside
+  its door** (a mug for the tavern, a hammer for the workshop, a basket for the market), so you can read a street
+  without opening every door. A family house has a third, small bed: **children** live there. Places have names of their
+  own, often after their landmark or their shape. About **one settlement in twenty** is still built from the houses
+  older worlds know — the same lanterns and benches on its plaza where it is a planned village, but no children's beds.
+- **What the people do (every world, old or new).** By day the people without a post go on **errands**: to the stall, the
+  notice board, the well, a bench, the edge of a field — the small line under a name says what somebody is doing. They
+  nod to each other, some **sweep** in front of their house in the morning, the gardener carries the harvest to the
+  market, the craftsman's hammer throws sparks, and where a place has a pen the **animal keeper** walks over to the
+  fence now and then to watch the animals (it stays at its stall while you stand there). In rain or a storm everybody
+  goes home. The **evening is longer**: people
+  sit together from late afternoon and go to bed one by one — in a new village, when the tavern is full, some spend a
+  dry evening on the **benches of the plaza**. A town has a **night watch** who walks the streets with a
+  lantern. Every third day is **market day**: travelling merchants set up at the plaza until the afternoon — nothing
+  runs out, the next one is three days away. When a calendar festival is on, the village meets on the plaza in the early
+  evening and dances. **Children** play tag on the plaza, wave when you walk by and answer when you talk to them; they
+  have no wishes and nothing to trade. One or two households keep a **small tame animal** that walks along with its
+  person.
+- **Entering a place.** When you walk into a village, a town or aboard a station, a small banner names it: what kind of
+  place it is, its name and what it offers. You hear the place too — a quiet murmur on the plaza by day, the tavern in
+  the evening, hammering at the workshop, water at the well — and from far away you can make out its roofs. Indoors
+  fine dust drifts in the lamplight, and the small creatures of the world keep to the place's gardens by day and to its
+  lanterns at night. Aboard a **station** the deck hums — louder and deeper the bigger the station, deepest on a mining
+  station, a little brighter on a research station — and the **console screens** of its rooms glow and flicker (not
+  with *Reduced effects*).
 - **Fields, gardens and pens.** You may harvest a village's **fields** and **gardens** like a greenhouse — a field is
   bigger, so its crops take about four minutes to grow back. A **pen** keeps two or three tame animals of the planet; its
   **crate in the fence** fills slowly (about one product every three minutes, up to twelve) with what they give: an

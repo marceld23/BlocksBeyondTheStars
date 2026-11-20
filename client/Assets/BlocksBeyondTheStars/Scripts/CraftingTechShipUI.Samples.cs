@@ -141,7 +141,28 @@ namespace BlocksBeyondTheStars.Client
                 y = AddDetailPara(y, L("ui.bio.unknown_substance"), UiKit.CyanDim);
             }
 
-            return AddSampleDiscard(y + 8f, key);
+            return AddSampleDiscard(AddArchiveGive(y + 8f, key), key);
+        }
+
+        /// <summary>
+        /// #3870: aboard a research station, "Give one to the station archive" — the archive pays data fragments by the
+        /// species' rarity, once per species (the server decides and answers with a line either way). One sample leaves the
+        /// case; nothing is offered anywhere else.
+        /// </summary>
+        private float AddArchiveGive(float y, string key)
+        {
+            if (Game.CurrentPlace is not { Kind: PlaceKinds.Station } place
+                || place.Purpose != BlocksBeyondTheStars.WorldGeneration.StationPurposes.Research
+                || Game.Bio.SampleCount(ItemKey.Seed(key), ItemKey.Base(key) == BlocksBeyondTheStars.Shared.Bio.BioItems.MineralSample) <= 0)
+            {
+                return y;
+            }
+
+            UiKit.AddButton(_detail, 8, y, 420, 46, L("ui.bio.give_archive"), () => Game.Network?.SendGiveSampleToStation(key));
+            y += 52f;
+            var hint = UiKit.AddText(_detail, 8, y, 620, 44, L("ui.bio.give_archive_hint"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            return y + 50f;
         }
 
         /// <summary>

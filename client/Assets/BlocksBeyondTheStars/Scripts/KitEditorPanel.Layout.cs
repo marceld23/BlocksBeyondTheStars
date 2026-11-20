@@ -46,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
             IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.extent"), k.extent, v => k.extent = Mathf.Clamp(v, 0, 128));
             UiKit.AddFitButton(panel, x0 + (3f * IntStep), y, 192f, 30f, (k.flat ? "☑ " : "☐ ") + L("ui.kit.flat"), () => { k.flat = !k.flat; Rebuild(); });
             y += 40f;
+            y = LivelyRows(panel, x0, y, k);
             if (k.layout != StructureKit.LayoutGrown)
             {
                 return y;
@@ -61,6 +62,43 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y + 76f;
+        }
+
+        /// <summary>The lively places: one more row for a planned settlement kit — how richly the place is dressed (0 = the
+        /// default, 1 none … 4 rich), its colour (a hex colour, "none", or empty = by the seed), and the two switches that keep
+        /// its lots unmirrored and its plan without a landmark. Only a plan of revision 2 (a world of generation 46) reads them.</summary>
+        private float LivelyRows(Transform panel, float x0, float y, KitJson k)
+        {
+            IntField(panel, x0, y, L("ui.kit.dressing"), k.dressing, v => k.dressing = Mathf.Clamp(v, 0, 4));
+            Field(panel, x0 + IntStep, y, L("ui.kit.palette"), k.palette, v => k.palette = (v ?? string.Empty).Trim().ToLowerInvariant());
+            y += 40f;
+            UiKit.AddFitButton(panel, x0, y, 192f, 30f, (k.noMirror ? "☑ " : "☐ ") + L("ui.kit.no_mirror"), () => { k.noMirror = !k.noMirror; Rebuild(); });
+            UiKit.AddFitButton(panel, x0 + IntStep, y, 192f, 30f, (k.noLandmark ? "☑ " : "☐ ") + L("ui.kit.no_landmark"), () => { k.noLandmark = !k.noLandmark; Rebuild(); });
+            return y + 40f;
+        }
+
+        /// <summary>The lively places: the purposes a station kit is made for (none ticked = a kit for a station without one).</summary>
+        private float StationPurposeRow(Transform panel, float x0, float y, KitJson k)
+        {
+            FieldLabel(panel, x0, y, L("ui.kit.purposes"));
+            for (int i = 0; i < StationPurposes.All.Length; i++)
+            {
+                string purpose = StationPurposes.All[i];
+                bool on = k.purposes != null && k.purposes.Contains(purpose);
+                UiKit.AddFitButton(panel, x0 + FieldLabelW + 4f + (i * FormToggleStep), y, FormToggleW, 30f,
+                    (on ? "☑ " : "☐ ") + L("ui.kit.purpose." + purpose), () =>
+                    {
+                        k.purposes ??= new List<string>();
+                        if (!k.purposes.Remove(purpose))
+                        {
+                            k.purposes.Add(purpose);
+                        }
+
+                        Rebuild();
+                    });
+            }
+
+            return y + 40f;
         }
 
         /// <summary>The width of one village-form toggle and the step to the next (two rows of three beside the label column — a

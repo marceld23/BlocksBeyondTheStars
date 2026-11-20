@@ -141,6 +141,7 @@ internal static partial class CityGrowth
                     Form = "street",
                     Axis = gates[g].Side is 2 or 3 ? "x" : "z",
                     Straight = true,
+                    Revision = SettlementPlan.ClassicRevision, // a suburb is part of its city: it keeps the city's look
                 });
             }
 

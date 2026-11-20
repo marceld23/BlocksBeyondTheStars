@@ -229,6 +229,9 @@ public sealed class VillagerWishTests
         Assert.Empty(w.Server.HeldWishesForTest(pid));
         Assert.Equal(0, w.Player.State.Inventory.CountOf("berries"));
         Assert.StartsWith("Berries! They smell wonderful", Last<NpcDialogState>(w, w.Player)!.Text, StringComparison.Ordinal);
+
+        // The lively places: the thanks is said with a bow.
+        Assert.Contains(Sent(w, w.Player).OfType<NpcEmote>(), e => e.NpcId == offer.GiverId && e.Gesture == NpcGestures.Bow);
     }
 
     [Fact]

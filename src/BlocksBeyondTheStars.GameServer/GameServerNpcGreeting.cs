@@ -198,7 +198,7 @@ public sealed partial class GameServer
         string persona = pool[PersonaSlot(npcKey, pool.Length)];
         return string.IsNullOrEmpty(theme) ? persona
             : MarketStock.IsMixed(theme) ? $"{persona}; a travelling merchant with goods from everywhere" // #2630
-            : $"{persona}; lives among {theme}";
+            : $"{persona}; lives among {BlocksBeyondTheStars.WorldGeneration.StationPurposes.LookOf(theme)}"; // a station exchange: its trade
     }
 
     /// <summary>#2591: the persona of an NPC as a small number for AI-line cache keys (<c>p{index}</c>) — the same

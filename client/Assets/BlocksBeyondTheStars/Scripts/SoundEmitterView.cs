@@ -12,8 +12,9 @@ namespace BlocksBeyondTheStars.Client
     /// statue that sings across a valley). The server names them (<see cref="GameBootstrap.SoundEmitters"/>, sent on world
     /// entry, so a late joiner hears them too); <see cref="SoundEmitterMix"/> picks the loudest
     /// <see cref="SoundEmitterMix.MaxVoices"/> four times a second, one per sound, and each plays on a pooled positional
-    /// voice that fades in and out. The mix fades by distance itself — Unity only pans. In space, in a cabin, on a station
-    /// and under a cutscene's duck the voices fall silent.
+    /// voice that fades in and out. The mix fades by distance itself — Unity only pans. In space, in a vacuum and under a
+    /// cutscene's duck the voices fall silent; aboard a station they play (the lively places). An emitter may keep hours
+    /// (<see cref="NetSoundEmitter.When"/>): a tavern murmurs in the evening, a workshop rings by day.
     /// </summary>
     public sealed class SoundEmitterView : MonoBehaviour
     {
@@ -85,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var sources = Game.SoundEmitters;
-            if (sources == null || sources.Length == 0 || !Audible())
+            if (sources == null || sources.Length == 0 || !Audible(audio))
             {
                 return;
             }
@@ -94,11 +95,11 @@ namespace BlocksBeyondTheStars.Client
             foreach (var e in sources)
             {
                 var scene = Game.ScenePos(e.X, e.Y, e.Z); // the copy nearest the player across the world's seam
-                _emitters.Add(new SoundEmitterMix.Emitter(scene.x, scene.y, scene.z, e.Sound, e.Radius, e.Volume));
+                _emitters.Add(new SoundEmitterMix.Emitter(scene.x, scene.y, scene.z, e.Sound, e.Radius, e.Volume, e.When));
             }
 
             var listener = Camera != null ? Camera.transform.position : Game.PlayerPosition;
-            SoundEmitterMix.Pick(_emitters, listener.x, listener.y, listener.z, _picks);
+            SoundEmitterMix.Pick(_emitters, listener.x, listener.y, listener.z, _picks, Game.LocalTimeOfDay); // a tavern in the evening, a workshop by day
             var taken = new bool[_voices.Length];
             foreach (var pick in _picks)
             {
@@ -156,8 +157,10 @@ namespace BlocksBeyondTheStars.Client
             return -1;
         }
 
-        private bool Audible()
+        /// <summary>The lively places: aboard a station (and a boarded wreck, which reaches the client the same way) the
+        /// emitters play too — its ventilation, its hangar, a giant wreck's hull — as long as there is air to carry them.</summary>
+        private bool Audible(ClientAudio audio)
             => Game.Environment != null && Game.World != null && !Game.InSpace && !Game.SpaceViewActive
-               && !Game.InEva && !Game.OnFootInSpace && string.IsNullOrEmpty(Game.StationName);
+               && !Game.InEva && !audio.InVacuum; // the vacuum covers a tower above the air and a world without any
     }
 }

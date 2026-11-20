@@ -37,6 +37,11 @@ public sealed class RecipeDefinition
     /// different goods. Ignored for non-market recipes.</summary>
     public string MarketTheme { get; set; } = string.Empty;
 
+    /// <summary>For themed market recipes: a deal of ONE kind of place — a station's own exchange (the lively places) — that
+    /// the travelling merchant's mixed stock never carries (<see cref="MarketStock.MixedOffers"/>): its better rate is what
+    /// the trip to that place is for. A vendor of the recipe's theme sells it as ever. JSON <c>marketExclusive</c>.</summary>
+    public bool MarketExclusive { get; set; }
+
     /// <summary>For market recipes: offered only on every N-th in-game day (2026-09, the doctor's "sometimes a bed and a
     /// stretcher"); 0 or 1 = every day. Which days is a pure function of the recipe key and the day index, so the
     /// client's list and the server's check agree.</summary>

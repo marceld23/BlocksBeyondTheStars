@@ -41,7 +41,7 @@ internal sealed partial class SettlementPlanBuilder
         public int Turns { get; }
     }
 
-    private readonly Dictionary<(string Key, int Front), Shape> _shapes = new();
+    private readonly Dictionary<(string Key, int Front, bool Mirrored), Shape> _shapes = new();
 
     private void GrowAll(List<StructureTemplate> modules)
     {
@@ -49,10 +49,11 @@ internal sealed partial class SettlementPlanBuilder
         {
             var m = modules[i];
             int ring = StructureRoles.Ring(m.FunctionOrRole);
+            bool mirrored = MirrorsLot(m, i);
             bool placed = false;
             for (int attempt = 0; attempt < 4 && !placed; attempt++)
             {
-                placed = TryPlace(front => ShapeOf(m, front), ring, $"{i}", m.Key, m.FunctionOrRole, SettlementPlan.LotColumn);
+                placed = TryPlace(front => ShapeOf(m, front, mirrored), ring, $"{i}", m.Key, m.FunctionOrRole, SettlementPlan.LotColumn, mirrored);
                 if (!placed && !_grid)
                 {
                     GrowLane();
@@ -82,7 +83,8 @@ internal sealed partial class SettlementPlanBuilder
     /// Places one building on the best frontage. <paramref name="ring"/> steers the score (−1 = a square near the plaza);
     /// the chosen lot's columns become <paramref name="fill"/>, its footpath <see cref="SettlementPlan.Footpath"/>.
     /// </summary>
-    private bool TryPlace(System.Func<int, Shape> shapeFor, int ring, string tag, string module, string function, byte fill)
+    private bool TryPlace(System.Func<int, Shape> shapeFor, int ring, string tag, string module, string function, byte fill,
+        bool mirrored = false)
     {
         double bestScore = double.MaxValue;
         (int Ox, int Oz, int X, int Z, int Dir, int S, Shape Shape) best = default;
@@ -129,19 +131,23 @@ internal sealed partial class SettlementPlanBuilder
         }
 
         Claim(best.Ox, best.Oz, best.Shape, best.X, best.Z, best.Dir, best.S, fill);
-        Plan.Lots.Add(new PlanLot
-        {
-            Module = module,
-            Function = function,
-            X = best.Ox,
-            Z = best.Oz,
-            Turns = best.Shape.Turns,
-            W = best.Shape.W,
-            L = best.Shape.L,
-        });
+        AddLot(best.Ox, best.Oz, best.Shape, module, function, mirrored);
         _frontage.Add((best.X, best.Z));
         return true;
     }
+
+    private void AddLot(int ox, int oz, Shape shape, string module, string function, bool mirrored)
+        => Plan.Lots.Add(new PlanLot
+        {
+            Module = module,
+            Function = function,
+            X = ox,
+            Z = oz,
+            Turns = shape.Turns,
+            W = shape.W,
+            L = shape.L,
+            Mirrored = mirrored,
+        });
 
     /// <summary>The lot's west / north corner for a road column, a side and a setback: its front wall stands
     /// <paramref name="s"/> + 1 columns from the road, its door in line with the road column.</summary>

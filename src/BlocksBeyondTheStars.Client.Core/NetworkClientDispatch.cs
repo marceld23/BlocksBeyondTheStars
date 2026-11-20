@@ -209,6 +209,8 @@ namespace BlocksBeyondTheStars.Client
             On<DataCubeList>(map, (c, m) => c.DataCubesReceived?.Invoke(m));
             On<FactoryList>(map, (c, m) => c.FactoriesReceived?.Invoke(m));
             On<LandmarkList>(map, (c, m) => c.LandmarksReceived?.Invoke(m)); // #3494/#3497
+            On<PlaceList>(map, (c, m) => c.PlacesReceived?.Invoke(m)); // the lively places
+            On<NpcEmote>(map, (c, m) => c.NpcEmoteReceived?.Invoke(m));
             On<GameUnlocks>(map, (c, m) => c.GameUnlocksReceived?.Invoke(m));
             On<MiningProgress>(map, (c, m) => c.MiningProgressReceived?.Invoke(m));
             On<FloraRegrowStarted>(map, (c, m) => c.FloraRegrowStartedReceived?.Invoke(m));

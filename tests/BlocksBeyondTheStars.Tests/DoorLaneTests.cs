@@ -227,7 +227,7 @@ public sealed class DoorLaneTests
     public void EveryShippedStationKit_KeepsEveryDoorLaneWalkable_AndEveryCabinIsReachableOnFoot()
     {
         var kits = Content.StructureKits.Where(k => k.Kind == StructureKit.KindStation).ToList();
-        Assert.Equal(5, kits.Count);
+        Assert.Equal(20, kits.Count); // the five classic kits and, since the lively places, one per tier and purpose
         foreach (var kit in kits)
         {
             for (long seed = 1; seed <= 4; seed++)

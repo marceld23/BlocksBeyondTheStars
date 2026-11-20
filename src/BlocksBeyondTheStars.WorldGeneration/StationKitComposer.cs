@@ -42,6 +42,16 @@ public sealed class StationComposition
 
     /// <summary>True when the station carries any exterior detail — its bake then reserves the exterior margin.</summary>
     public bool HasExterior => SolarWings > 0 || Antennas > 0 || Domes > 0;
+
+    /// <summary>The lively places: what the station is for (<see cref="StationPurposes"/>; "" = none) and its own colour
+    /// (0xRRGGBB, 0 = none) — set by the caller before the first bake and pinned with the composition, so a replay paints
+    /// the same band. A composition without a colour bakes what it always baked.</summary>
+    public string Purpose = string.Empty;
+    public int Colour;
+
+    /// <summary>#3871: how many of its purpose's hull parts the last bake placed (<see cref="StationKitPurposeParts"/>). Set
+    /// by the bake, never pinned — a replay places the same parts again from the same modules.</summary>
+    public int PurposeParts;
 }
 
 /// <summary>
@@ -118,11 +128,13 @@ public static class StationKitComposer
         }
     }
 
-    /// <summary>Composes a station; null (with <paramref name="failure"/> set) when the kit cannot be assembled.</summary>
+    /// <summary>Composes a station; null (with <paramref name="failure"/> set) when the kit cannot be assembled. The lively
+    /// places: <paramref name="purpose"/> and <paramref name="colour"/> are pinned with the composition, and a colour dyes
+    /// the station's band (<see cref="PaintBand"/>); without them the station bakes as it always did.</summary>
     public static StationStructure? Compose(StructureKit kit, Func<string, StructureTemplate?> moduleByKey, long seed, GameContent content,
-        out StationComposition composition, out string? failure)
+        out StationComposition composition, out string? failure, string purpose = "", int colour = 0)
     {
-        var station = ComposeExplained(kit, moduleByKey, seed, content, out composition, out var problem);
+        var station = ComposeExplained(kit, moduleByKey, seed, content, out composition, out var problem, purpose, colour);
         failure = station is null ? problem?.English ?? string.Empty : null;
         return station;
     }
@@ -130,10 +142,12 @@ public static class StationKitComposer
     /// <summary><see cref="Compose"/> with the failure as a code the structure editor translates (#3692): the same composition,
     /// the same English sentence.</summary>
     public static StationStructure? ComposeExplained(StructureKit kit, Func<string, StructureTemplate?> moduleByKey, long seed, GameContent content,
-        out StationComposition composition, out TemplateProblem? failure)
+        out StationComposition composition, out TemplateProblem? failure, string purpose = "", int colour = 0)
     {
         composition = new StationComposition
         {
+            Purpose = purpose,
+            Colour = colour,
             KitKey = kit.Key,
             Seed = seed,
             SolarWings = Math.Max(0, kit.SolarWings),
@@ -162,6 +176,10 @@ public static class StationKitComposer
             return null;
         }
 
+        // The lively places: a station with a purpose never gets a module in front of its hangar's mouth (its kits are
+        // bigger, and a walled-in mouth leaves the ship to dock at a wall). A composition without one draws exactly what
+        // it always drew.
+        bool keepMouthsFree = purpose.Length > 0;
         TemplateProblem? lastFailure = null;
         for (int attempt = 0; attempt < Attempts; attempt++)
         {
@@ -184,7 +202,7 @@ public static class StationKitComposer
                 var entry = kit.Entries[e];
                 while (counts[e] < entry.MinOrRequired)
                 {
-                    if (TryPlace(entry, placed, rng, maxExtent, cache))
+                    if (TryPlace(entry, placed, rng, maxExtent, cache, keepMouthsFree, StationPurposes.Climbs(purpose, entry.Module)))
                     {
                         counts[e]++;
                     }
@@ -242,7 +260,7 @@ public static class StationKitComposer
                     break;
                 }
 
-                if (TryPlace(kit.Entries[pick], placed, rng, maxExtent, cache))
+                if (TryPlace(kit.Entries[pick], placed, rng, maxExtent, cache, keepMouthsFree, StationPurposes.Climbs(purpose, kit.Entries[pick].Module)))
                 {
                     counts[pick]++;
                 }
@@ -292,6 +310,8 @@ public static class StationKitComposer
             SolarWings = Math.Max(0, composition.SolarWings),
             Antennas = Math.Max(0, composition.Antennas),
             Domes = Math.Max(0, composition.Domes),
+            Purpose = composition.Purpose,
+            Colour = composition.Colour,
         };
         var baked = Bake(composition.KitKey, tier, composition.Seed, placed, content, again);
         // A composition pinned before its exterior margin existed (#1918) bakes its modules further in; the caller moves the
@@ -381,6 +401,26 @@ public static class StationKitComposer
         return maxX - minX + 1 > maxExtent || maxY - minY + 1 > maxExtent || maxZ - minZ + 1 > maxExtent;
     }
 
+    /// <summary>The lively places: whether a module at <paramref name="origin"/> would stand in the way out of a hangar's
+    /// mouth — the candidate in front of a placed hangar, or (a hangar itself) a placed module in front of it. A hangar is
+    /// never turned: its mouth is its −Z wall, and the dock approach runs straight out of it to the station's edge.</summary>
+    private static bool BlocksAHangarMouth(Vector3i origin, StructureTemplate t, List<Placed> placed)
+    {
+        var max = new Vector3i(origin.X + t.Width - 1, origin.Y + t.Height - 1, origin.Z + t.Length - 1);
+        bool hangar = t.FunctionOrRole == StructureRoles.Hangar;
+        foreach (var p in placed)
+        {
+            var pMax = p.Max;
+            bool sameLane = max.X >= p.Origin.X && origin.X <= pMax.X && max.Y >= p.Origin.Y && origin.Y <= pMax.Y;
+            if (sameLane && ((p.Function == StructureRoles.Hangar && max.Z < p.Origin.Z) || (hangar && pMax.Z < origin.Z)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool HasCabin(StructureTemplate t)
     {
         foreach (var c in t.Cells)
@@ -394,7 +434,28 @@ public static class StationKitComposer
         return false;
     }
 
-    private static bool TryPlace(KitEntry entry, List<Placed> placed, Random rng, int maxExtent, ModuleCache cache)
+    /// <summary>The open ports in the order a climbing module tries them: upward ports, then ports of modules above the
+    /// start deck, then the others — each group in the order it came in.</summary>
+    private static List<(Placed P, int I)> PreferUpstairs(List<(Placed P, int I)> open, int startDeck)
+    {
+        var ordered = new List<(Placed P, int I)>(open.Count);
+        for (int rank = 2; rank >= 0; rank--)
+        {
+            foreach (var o in open)
+            {
+                int r = o.P.Ports[o.I].Face == PortFace.PlusY ? 2 : o.P.Origin.Y > startDeck ? 1 : 0;
+                if (r == rank)
+                {
+                    ordered.Add(o);
+                }
+            }
+        }
+
+        return ordered;
+    }
+
+    private static bool TryPlace(KitEntry entry, List<Placed> placed, Random rng, int maxExtent, ModuleCache cache, bool keepMouthsFree,
+        bool climb)
     {
         var open = new List<(Placed P, int I)>();
         foreach (var p in placed)
@@ -423,6 +484,12 @@ public static class StationKitComposer
         // (their keeper's cabin behind the shop) do.
         bool cabinModule = cache.Get(entry.Module, 0) is { } first && HasCabin(first.T);
         int startDeck = placed[0].Origin.Y;
+        if (climb)
+        {
+            // #3871: a research station's decks — an upward port first, then a port on a deck above the start's, then the
+            // rest in the drawn order (a stable sort, so the shuffle still decides among equals).
+            open = PreferUpstairs(open, startDeck);
+        }
 
         foreach (var (a, ai) in open)
         {
@@ -445,7 +512,8 @@ public static class StationKitComposer
                     }
 
                     var origin = MinCell(pa.Cells) + a.Origin + pa.Outward - MinCell(q.Cells);
-                    if ((cabinModule && origin.Y != startDeck) || Overlaps(origin, t, placed) || ExceedsExtent(origin, t, placed, maxExtent))
+                    if ((cabinModule && origin.Y != startDeck) || Overlaps(origin, t, placed) || ExceedsExtent(origin, t, placed, maxExtent)
+                        || (keepMouthsFree && BlocksAHangarMouth(origin, t, placed)))
                     {
                         continue;
                     }
@@ -531,6 +599,50 @@ public static class StationKitComposer
             : RoomFurnisher.RoomRole.Hall,
     };
 
+    /// <summary>
+    /// The lively places: dyes a band in the station's colour into every module's shell — the foot and the head row of
+    /// its walls and the edge of its floor. Only plain wall and floor blocks that carry no dye of their own are touched
+    /// (a window, a lamp, a port a joint opened and an author's own colour stay as they are); the wall is one block thick,
+    /// so the band shows on the hull from outside too.
+    /// </summary>
+    private static void PaintBand(List<Placed> placed, Vector3i shift, int colour, ushort wall, ushort floor,
+        ushort[] blocks, Dictionary<int, (int Tint, int Glow)> mods, int w, int h, int l)
+    {
+        void Dye(int x, int y, int z, ushort only)
+        {
+            if (only == 0 || x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l)
+            {
+                return;
+            }
+
+            int idx = (((x * h) + y) * l) + z;
+            if (blocks[idx] == only && !mods.ContainsKey(idx))
+            {
+                mods[idx] = (colour, 0);
+            }
+        }
+
+        foreach (var p in placed)
+        {
+            var o = p.Origin + shift;
+            int mw = p.Template.Width, mh = p.Template.Height, ml = p.Template.Length;
+            for (int x = 0; x < mw; x++)
+            {
+                for (int z = 0; z < ml; z++)
+                {
+                    if (x != 0 && z != 0 && x != mw - 1 && z != ml - 1)
+                    {
+                        continue; // the shell only
+                    }
+
+                    Dye(o.X + x, o.Y, o.Z + z, floor);
+                    Dye(o.X + x, o.Y + 1, o.Z + z, wall);
+                    Dye(o.X + x, o.Y + mh - 2, o.Z + z, wall);
+                }
+            }
+        }
+    }
+
     private static StationStructure Bake(string kitKey, string tier, long seed, List<Placed> placed, GameContent content, StationComposition composition)
     {
         int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
@@ -580,7 +692,10 @@ public static class StationKitComposer
                 var pos = new Vector3i(o.X + c.X, o.Y + c.Y, o.Z + c.Z);
                 if (c.Kind == "marker")
                 {
-                    markers.Add(new StationMarker(c.Id, pos));
+                    // The lively places: a module's SOUND marker keeps its settings (which sound, how far), as a whole
+                    // station template's does — a room can have a sound of its own. Every other marker is what it was: a
+                    // kit module reads no chest and no den (StructureStampRules).
+                    markers.Add(new StationMarker(c.Id, pos, c.Id == LandmarkRules.SoundMarker ? c.Config ?? string.Empty : string.Empty));
                     markerCells.Add(pos);
                     if (c.Id == "room" && StructureRoles.IsLoungeFunction(p.Function))
                     {
@@ -651,6 +766,12 @@ public static class StationKitComposer
 
                 markers.Add(new StationMarker("door_" + pa.Door, best + j.A.Origin + shift));
             }
+        }
+
+        if (composition.Colour != 0)
+        {
+            // The lively places: the station's own colour, after the joints (a wall they opened stays open and undyed).
+            PaintBand(placed, shift, composition.Colour, B("iron_wall"), B("steel_floor"), blocks, mods, w, h, l);
         }
 
         // Arrival: the start module's own spawn marker, else its floor centre.
@@ -787,8 +908,11 @@ public static class StationKitComposer
                 boxes.Add((p.Origin + shift, p.Max + shift));
             }
 
-            StationKitExterior.Apply(Get, SetCell, w, h, l, boxes, composition.SolarWings, composition.Antennas, composition.Domes,
-                content, new Random(unchecked((int)WorldGenerator.StableHash($"kitexterior:{kitKey}:{seed}"))));
+            // A station with a purpose (the lively places) keeps every piece off its windows' sides too; a station from
+            // before keeps the placement it has always had, piece for piece.
+            composition.PurposeParts = StationKitExterior.Apply(Get, SetCell, w, h, l, boxes, composition.SolarWings, composition.Antennas, composition.Domes,
+                content, new Random(unchecked((int)WorldGenerator.StableHash($"kitexterior:{kitKey}:{seed}"))),
+                clearOfWindows: composition.Purpose.Length > 0, purpose: composition.Purpose);
         }
 
         return new StationStructure(w, h, l, tier, startModule.Template.Width, startModule.Template.Height, startModule.Template.Length,

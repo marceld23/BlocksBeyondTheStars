@@ -62,7 +62,7 @@ public sealed partial class GameServer
         BeginAuthoredCasting(station.Id); // #1150: at most one authored face per place
 
         var cabins = station.Markers.Where(m => m.Type == "cabin").ToList();
-        var posts = new List<(string Role, Vector3f Pos, NpcProfession? Profession)>();
+        var posts = new List<(string Role, Vector3f Pos, NpcProfession? Profession, string Marker)>();
         foreach (var (type, pos) in station.Markers)
         {
             var profession = NpcProfessions.ByMarker(type); // an author's profession post (2026-09)
@@ -75,7 +75,7 @@ public sealed partial class GameServer
             };
             if (role != null)
             {
-                posts.Add((role, pos, profession));
+                posts.Add((role, pos, profession, type));
             }
         }
 
@@ -83,7 +83,9 @@ public sealed partial class GameServer
         // professions, then the settler posts (hangar, medbay, greenhouse, lounges) — each profession room brings its keeper's
         // cabin, but its post might otherwise fall behind a settler post past the last cabin. A station without profession
         // posts (every station of an older world) keeps its exact order.
-        if (posts.Any(post => post.Profession != null))
+        // The lively places: a station with a purpose staffs its stalls first as well — a trade station's four trades are
+        // only all aboard when every stall has its trader.
+        if (posts.Any(post => post.Profession != null) || StationPurposeOf(station.Id).Length > 0)
         {
             posts = posts.Where(post => post.Profession == null && post.Role is "vendor" or "quartermaster")
                 .Concat(posts.Where(post => post.Profession != null))
@@ -92,7 +94,9 @@ public sealed partial class GameServer
         }
 
         var seats = LoungeSeats(station);
+        string crewTheme = StationCrewTheme(station.Id); // the lively places: the purpose's trade ("traders" without one)
         int vendorIndex = 0, seatCursor = 0, added = 0;
+        var withoutPost = new List<ServerNpc>(); // the lively places: one of them walks the posts by day
         for (int i = 0; i < cabins.Count; i++)
         {
             var (_, cabinPos) = cabins[i];
@@ -100,8 +104,11 @@ public sealed partial class GameServer
             string role = hasPost ? posts[i].Role : "settler";
             var profession = hasPost ? posts[i].Profession : null;
             string theme = profession is { Trades: true } ? profession.Theme
-                : role == "vendor" ? StationVendorTheme(station.Id, vendorIndex++) : "traders";
-            bool robotic = theme == "researchers" || (role == "settler" && rng.NextDouble() < 0.3);
+                : role == "vendor" ? KitStationVendorTheme(station.Id, vendorIndex++) : crewTheme;
+            // Research staff are androids — the vendor of that trade, and on a station without a purpose everybody of it;
+            // on a research station the crew only wears the trade's colours.
+            bool robotic = (StationPurposes.LookOf(theme) == "researchers" && (role != "settler" || crewTheme == "traders"))
+                || (role == "settler" && rng.NextDouble() < 0.3);
 
             // The cabin spot is where the resident rests at night (#1775: a standable cell that holds air); the crew
             // starts its day at the post (the hall for those without one), so a boarder meets a staffed station at once.
@@ -127,11 +134,17 @@ public sealed partial class GameServer
             else if (hasPost)
             {
                 npc.Job = role is "vendor" or "quartermaster" ? role : string.Empty; // the post leash + nameplate
+                if (posts[i].Marker == "hangar")
+                {
+                    npc.Held = "npc_hammer"; // the lively places: the dock hand works on the deck where one can see it
+                }
+
                 ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
             }
             else
             {
                 npc.Size = 0.9f + (float)rng.NextDouble() * 0.22f;
+                withoutPost.Add(npc);
             }
 
             _npcs.Add(npc);
@@ -147,6 +160,7 @@ public sealed partial class GameServer
             added++;
         }
 
+        AssignServiceRounds(withoutPost);
         if (added > 0)
         {
             _log.Info($"Spawned {added} crew NPCs at station '{station.Name}' ({cabins.Count} cabins, {posts.Count} posts).");
@@ -202,6 +216,8 @@ public sealed partial class GameServer
             Seed = composition.Seed,
             Revision = StationKitRecord.CurrentRevision,
             Exterior = new StationKitExteriorRecord { SolarWings = composition.SolarWings, Antennas = composition.Antennas, Domes = composition.Domes },
+            Purpose = composition.Purpose,
+            Colour = composition.Colour,
         };
         foreach (var m in composition.Modules)
         {
@@ -220,6 +236,8 @@ public sealed partial class GameServer
             SolarWings = rec.Exterior?.SolarWings ?? 0,
             Antennas = rec.Exterior?.Antennas ?? 0,
             Domes = rec.Exterior?.Domes ?? 0,
+            Purpose = rec.Purpose,
+            Colour = rec.Colour,
         };
         foreach (var m in rec.Modules)
         {

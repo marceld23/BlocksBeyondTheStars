@@ -241,6 +241,27 @@
   // #3338: researchers study the G.D.S. crystal — a second buyer for the ruins' tier-3 ore (no row makes it, so no loop).
   { "key": "market_sell_ressaw_crystal", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "ressaw_crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
 
+  // The lively places — a station's own exchange (docs/developer/LIVELY_PLACES.md §8): the first trader of a MINING station
+  // deals in "ore_exchange", the first of a RESEARCH station in "data_exchange". Each list is the miners' / researchers'
+  // goods at the station's rates; marketExclusive keeps them out of the travelling merchant's mixed stock. A rate is
+  // better only where nothing trades the goods back: silicate → copper stays 4 → 3 (copper → silicate is 4 → 3, and at
+  // the full trader discount a better row would mint copper), and iron → titanium is not offered at all (titanium → iron
+  // pays 4) — titanium comes straight for silicate instead, at what "silicate → iron" plus the common "5 iron → 1
+  // titanium" make of it. The loop guard (GearSetsTests) checks every pair at every discount.
+  { "key": "station_ore_iron",     "station": "market", "marketTheme": "ore_exchange", "marketExclusive": true, "inputs": [ { "item": "silicate", "count": 4 } ], "outputs": [ { "item": "iron_ore", "count": 8 } ] },
+  { "key": "station_ore_copper",   "station": "market", "marketTheme": "ore_exchange", "marketExclusive": true, "inputs": [ { "item": "silicate", "count": 4 } ], "outputs": [ { "item": "copper_ore", "count": 3 } ] },
+  { "key": "station_ore_lead",     "station": "market", "marketTheme": "ore_exchange", "marketExclusive": true, "inputs": [ { "item": "silicate", "count": 3 } ], "outputs": [ { "item": "lead_ore", "count": 5 } ] },
+  { "key": "station_ore_titanium", "station": "market", "marketTheme": "ore_exchange", "marketExclusive": true, "inputs": [ { "item": "silicate", "count": 5 } ], "outputs": [ { "item": "titanium_ore", "count": 2 } ] },
+  { "key": "station_ore_crystal",  "station": "market", "marketTheme": "ore_exchange", "marketExclusive": true, "inputs": [ { "item": "carbon", "count": 6 } ],   "outputs": [ { "item": "crystal", "count": 1 } ] },
+  // Data fragments end in circuit boards and nothing makes ore of either, so every one of these may be the better deal.
+  // (Not built: a research station that takes bio or mineral samples — a sample carries its species in its key and lies in
+  // the sample case, which no market recipe reads.)
+  { "key": "station_data_fragment", "station": "market", "marketTheme": "data_exchange", "marketExclusive": true, "inputs": [ { "item": "titanium_ore", "count": 2 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+  { "key": "station_data_circuit",  "station": "market", "marketTheme": "data_exchange", "marketExclusive": true, "inputs": [ { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "circuit_board", "count": 3 } ] },
+  { "key": "station_data_rune",     "station": "market", "marketTheme": "data_exchange", "marketExclusive": true, "inputs": [ { "item": "rune_stone", "count": 3 } ],    "outputs": [ { "item": "data_fragment", "count": 2 } ] },
+  { "key": "station_data_uranium",  "station": "market", "marketTheme": "data_exchange", "marketExclusive": true, "inputs": [ { "item": "uranium", "count": 1 } ],       "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+  { "key": "station_data_ressaw",   "station": "market", "marketTheme": "data_exchange", "marketExclusive": true, "inputs": [ { "item": "ressaw_crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+
   // #3293: selling meat back is 4 → 1 — at 4 → 3 next to "3 iron → 5 meat" the settlers paid out 3.75 iron for every 3.
   { "key": "market_sell_meat",         "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "creature_meat", "count": 4 } ], "outputs": [ { "item": "iron_ore", "count": 1 } ] },
   { "key": "market_buy_food",          "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "iron_ore", "count": 3 } ],      "outputs": [ { "item": "creature_meat", "count": 5 } ] },

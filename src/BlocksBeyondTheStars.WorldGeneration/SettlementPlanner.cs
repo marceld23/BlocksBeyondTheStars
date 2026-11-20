@@ -41,6 +41,18 @@ public sealed class SettlementPlanRequest
 
     /// <summary>A main road without bends (a suburb's road is the city's gate road running on).</summary>
     public bool Straight { get; set; }
+
+    /// <summary>The plan revision to plan with (<see cref="SettlementPlan.RevisionFor"/> of the world's terrain generation):
+    /// revision 1 plans exactly what terrain generations 41 … 45 planned, revision 2 also mirrors modules and may seat a
+    /// landmark or a whole template at the centre. The editor's preview plans with the current one.</summary>
+    public int Revision { get; set; } = SettlementPlan.CurrentRevision;
+
+    /// <summary>Revision 2: the whole settlement templates of this tier (hand-built villages) that may stand at the centre
+    /// of the plan instead of a landmark; empty = none.</summary>
+    public IReadOnlyList<StructureTemplate> Centres { get; set; } = System.Array.Empty<StructureTemplate>();
+
+    /// <summary>Revision 2: the centre the caller insists on — the key of one of <see cref="Centres"/> ("" = drawn).</summary>
+    public string Centre { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -132,6 +144,11 @@ public static class SettlementPlanner
             picked.Add(entries[pick].Module);
         }
 
+        if (r.Revision >= SettlementPlan.LivelyRevision)
+        {
+            OneLandmark(r, entries.ConvertAll(e => e.Module), picked);
+        }
+
         var ordered = new List<StructureTemplate>(picked.Count);
         for (int ring = 0; ring <= 2; ring++)
         {
@@ -139,6 +156,28 @@ public static class SettlementPlanner
         }
 
         return ordered;
+    }
+
+    /// <summary>How often a lively settlement whose kit offers landmarks gets one.</summary>
+    private const double LandmarkChance = 0.75;
+
+    /// <summary>
+    /// The lively places: a settlement has at most ONE landmark — the thing it is known by. Whatever the weighted draws
+    /// picked is taken out again; then, unless the kit forbids it or a whole template stands at the settlement's heart
+    /// (<see cref="SettlementPlanRequest.Centre"/>), one of the kit's landmarks is put in by a hash of the seed
+    /// (<see cref="LandmarkChance"/>). Hash draws only: the stream of the other picks is untouched.
+    /// </summary>
+    private static void OneLandmark(SettlementPlanRequest r, List<StructureTemplate> offered, List<StructureTemplate> picked)
+    {
+        picked.RemoveAll(m => StructureRoles.IsLandmark(m.FunctionOrRole));
+        var landmarks = offered.FindAll(m => StructureRoles.IsLandmark(m.FunctionOrRole));
+        if (landmarks.Count == 0 || r.Kit.NoLandmark || r.Centre.Length > 0
+            || StableHashing.Unit("plan:landmark", r.Seed) >= LandmarkChance)
+        {
+            return;
+        }
+
+        picked.Add(landmarks[StableHashing.Index("plan:landmark:which", r.Seed, landmarks.Count)]);
     }
 
     private static int? DrawEntry(List<(KitEntry Entry, StructureTemplate Module)> entries, int[] counts, System.Random rng)

@@ -1007,8 +1007,9 @@ public sealed partial class GameServer
         string giver = StationGiverName(stationId); // #2739: world-seeded from generation 27
         EnsureLegacyBoardStreams(player, prefix, stationId, _stationMissionIds, giver, currentBoardIds, station: true, withBuild: false);
         string rolls = prefix + MixedRollsInfix;
-        EnsureBoardWindow(player, rolls, stationId, _stationMissionIds, giver, currentBoardIds);
-        EnsureBoardWindow(player, rolls + "s", stationId, _stationMissionIds, giver, currentBoardIds, BoardSlotKind.StationScan, window: 1); // #1205: asteroid survey
+        var (deliveries, surveys) = StationBoardWindows(stationId); // the lively places: a purpose shows more of its kind of job
+        EnsureBoardWindow(player, rolls, stationId, _stationMissionIds, giver, currentBoardIds, window: deliveries);
+        EnsureBoardWindow(player, rolls + "s", stationId, _stationMissionIds, giver, currentBoardIds, BoardSlotKind.StationScan, window: surveys); // #1205: asteroid survey
         EnsureBigOrders(player, rolls, stationId, _stationMissionIds, giver, currentBoardIds, station: true); // #1212
         EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board (one id per station)
     }

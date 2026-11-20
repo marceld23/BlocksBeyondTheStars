@@ -55,6 +55,9 @@ namespace BlocksBeyondTheStars.Client
             // #1869: the routine as the server reports it.
             public byte Pose;              // 0 stand, 1 sit, 2 lie asleep
             public string Held = string.Empty;
+            public Light Lantern;          // the lively places: the light of a carried lantern (null until one is carried)
+            public GameObject CrateSeat;   // … and the crate a trader's pilot sits on (null until it sits down)
+            public bool Child;             // … and a child villager (its own proportions, its plate over its own head)
             public string ActivityKey = string.Empty;
             public string NameKey = string.Empty; // 2026-09: a profession's nameplate key also picks its greeting
             public string CachedActivityKey;
@@ -203,6 +206,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.NpcsReceived += OnNpcs;
                 Game.Network.WorldResetReceived += OnWorldReset;
                 Game.Network.NpcGreetingReceived += OnGreeting;
+                Game.Network.NpcEmoteReceived += OnEmote;
                 Game.Network.CraftCompleted += OnCraftCompleted;
                 _subscribed = true;
             }
@@ -279,6 +283,10 @@ namespace BlocksBeyondTheStars.Client
                         if (n.Held == NpcWorkTools.Axe)
                         {
                             Chop(n); // #2647
+                        }
+                        else
+                        {
+                            SwingFx(n); // the lively places: sparks off the hammer, a broom's stroke
                         }
                     }
 
@@ -536,6 +544,9 @@ namespace BlocksBeyondTheStars.Client
                 case NpcGestures.Cheer:
                 case NpcGestures.HandsUp: // #3769: startled — both hands up, the mouth wide open
                     PlayArmsUp(n, gesture);
+                    break;
+                default:
+                    PlayNpcEmote(n, gesture); // the lively places: point, head shake, dance, clap, bow
                     break;
             }
         }
@@ -913,7 +924,13 @@ namespace BlocksBeyondTheStars.Client
                     Color? hair = HairColor(NpcLooks.HairToneFor(seed, nd.IsRobot));
                     // #2123: no breather strip on NPCs — a civilian's own facial hair (about 65 % none since #2433) in its hair
                     // tone, an android's speaker grille. Same seed, so the face stays the same every visit.
-                    var lowerFace = NpcLooks.LowerFaceFor(seed, nd.IsRobot);
+                    bool child = ChildFigure.Is(nd.Look); // the lively places: a child's own proportions, and never a beard
+                    if (child && hair == null)
+                    {
+                        hair = new Color(0.36f, 0.24f, 0.14f); // … nor a bald head
+                    }
+
+                    var lowerFace = child ? LowerFace.Bare : NpcLooks.LowerFaceFor(seed, nd.IsRobot);
                     // #2682: a pioneer wears a pixel skin — picked from the pool and recoloured by its seed, nothing more on the
                     // wire. Its base colours replace the server's palette; the face and paintings go on after the build.
                     var pixelSkin = nd.Look == PixelSkins.LookKey && !nd.IsRobot ? PixelSkinTextures.Pool.SkinFor(seed) : null;
@@ -939,6 +956,11 @@ namespace BlocksBeyondTheStars.Client
                     {
                         avatar.SetGuardianLook(); // #1793: the G.D.S. machines — red stripe band, glowing eyes
                     }
+                    else if (child)
+                    {
+                        avatar.SetChildProportions();
+                    }
+
                     avatar.SetVisible(true);
                     avatar.NeverAirborne = true; // #2667: NPCs never jump — a smoothed step up is not a leap
 
@@ -960,6 +982,7 @@ namespace BlocksBeyondTheStars.Client
                         GestureHi = hi,
                         GestureTimer = Random.Range(lo, hi),
                         IsRobot = nd.IsRobot,
+                        Child = child,
                         Seed = seed,
                         Voice = NpcVoice.VoiceFor(seed, nd.IsRobot, guardian),
                         Pitch = NpcVoice.Pitch(seed, nd.IsRobot, nd.Size > 0f ? nd.Size : 1f),
@@ -996,12 +1019,14 @@ namespace BlocksBeyondTheStars.Client
 
                 ApplyRide(n, nd, at, snapPos, snapVel, stamped); // #3445: boarding and stepping off are snaps too
 
+                SetCrateSeat(n, nd.Pose == 1 && nd.Held == NpcWorkTools.CrateSeat); // a trader's pilot sits on its crate
                 string held = nd.Pose == 0 ? nd.Held ?? string.Empty : string.Empty; // the tool is put away to sit or sleep
                 if (held != n.Held)
                 {
                     n.Held = held;
                     var (kind, tint) = HeldItem.ForNpc(held);
                     n.Avatar.SetHeldItem(kind, tint);
+                    SetLantern(n, held == NpcWorkTools.Lantern); // the night watch's lantern shines
                     var (lo, hi) = WorkCadence(nd);
                     n.GestureLo = lo;
                     n.GestureHi = hi;
@@ -1176,7 +1201,8 @@ namespace BlocksBeyondTheStars.Client
                 // plate sits low over the bed instead of two metres over an empty mattress.
                 var plateAnchor = n.Pose == 2 ? n.Go.transform.position + Vector3.up * 0.9f
                     : n.Pose == 1 ? n.Go.transform.position + Vector3.up * 1.7f
-                    : n.Go.transform.position + Vector3.up * (n.SounderHead > 0f ? n.SounderHead + 0.9f : 2.1f); // #3355: over the ears
+                    : n.Go.transform.position + Vector3.up * (n.SounderHead > 0f ? n.SounderHead + 0.9f // #3355: over the ears
+                        : ChildFigure.PlateHeight(n.Go.transform.localScale.y, n.Child)); // a child's plate sits over its own head
                 labels.World(cam, plateAnchor, label, UiKit.Cyan, false, 18f, 28f, occludeIn: Game); // #2531: not through walls
 
                 // A live greeting bubble sits just above the nameplate (item 15). #2605: wrapped, growing upward from just
@@ -1212,6 +1238,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.NpcsReceived -= OnNpcs;
                 Game.Network.WorldResetReceived -= OnWorldReset;
                 Game.Network.NpcGreetingReceived -= OnGreeting;
+                Game.Network.NpcEmoteReceived -= OnEmote;
                 Game.Network.CraftCompleted -= OnCraftCompleted;
             }
         }

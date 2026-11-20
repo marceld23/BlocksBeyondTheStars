@@ -35,6 +35,44 @@ public static class SettlementPlanBaker
     /// <summary>A pen's product crate (#3597).</summary>
     public const string PenBoxMarker = "pen_box";
 
+    // --- the lively places (plan revision 2): where the street furniture stands. The server reads these as the places a
+    // villager can go and do something (the errand rounds) and hands them to the client as effect points. ---
+
+    /// <summary>The foot of a building's front door (data <c>fn=&lt;function&gt;;side=0..3</c>: the function of the building
+    /// and the direction the door looks out, −Z, +Z, −X, +X) — the client hangs the building's sign there.</summary>
+    public const string SignMarker = "sign";
+
+    /// <summary>A bench somebody can sit on in the open.</summary>
+    public const string BenchMarker = "bench";
+
+    /// <summary>The standing place at a well.</summary>
+    public const string WellMarker = "well";
+
+    /// <summary>#3872: half the width (x) and length (z) of a lively green village's pond around the green's middle — three
+    /// by five blocks of water with a plank jetty from the east bank.</summary>
+    public const int PondHalfW = 1, PondHalfL = 2;
+
+    /// <summary>The customer's side of a market stall on the plaza.</summary>
+    public const string StallMarker = "stall";
+
+    /// <summary>The fire place of a hamlet or a village.</summary>
+    public const string FireMarker = "fire";
+
+    /// <summary>A street lantern's foot.</summary>
+    public const string LampMarker = "lamp";
+
+    /// <summary>A module's marker beside a bed: the resident of that bed is a child (never baked by the dressing).</summary>
+    public const string ChildMarker = "child";
+
+    /// <summary>A module's marker over a chimney: the client lets smoke rise there.</summary>
+    public const string ChimneyMarker = "chimney";
+
+    /// <summary>The function of a whole settlement template standing at the heart of a planned settlement.</summary>
+    public const string CentreFunction = "centre";
+
+    /// <summary>The markers the dressing of a lively place adds — none of them is a post, a door or a room.</summary>
+    public static readonly string[] FurnitureMarkers = { SignMarker, BenchMarker, WellMarker, StallMarker, FireMarker, LampMarker };
+
     /// <summary>Bakes the plan. <paramref name="pool"/> resolves the lots' modules by key; a module that is gone leaves its
     /// lot an empty yard (warned).</summary>
     public static SettlementStructure Bake(SettlementPlan plan, string tier, bool ruined, long seed, string surface, GameContent content,
@@ -95,7 +133,9 @@ internal sealed partial class PlanBake
         _content = content;
         _pool = pool;
         _warn = warn;
-        _materials = ModuleMaterials.ForSettlement(tier, surface, _alien, content);
+        _materials = plan.IsLively
+            ? ModuleMaterials.ForLivelySettlement(tier, surface, _alien, content, seed, plan.Colour) // revision 2: its own colour and wall
+            : ModuleMaterials.ForSettlement(tier, surface, _alien, content);
         _w = plan.Width;
         _l = plan.Length;
         _h = plan.MaxHeight() + TallestModule() + 4;
@@ -143,7 +183,7 @@ internal sealed partial class PlanBake
 
         return new SettlementStructure(_w, _h, _l, _tier, _ruined, _ruined ? string.Empty : _alien ? "alien" : "human", _blocks, _markers,
             System.Math.Max(1, _buildings), _mods, _shapes)
-        { ColumnFloors = _floors };
+        { ColumnFloors = _floors, Colour = Lively ? _plan.Colour : 0 };
     }
 
     /// <summary>Fills every claimed column from row 0 up to its floor with the surface (the editor's preview plinths); the

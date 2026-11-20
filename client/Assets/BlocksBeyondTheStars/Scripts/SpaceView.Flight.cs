@@ -443,7 +443,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         best = dist;
                         _nearStationId = e.Id;
-                        _nearStationName = e.Name;
+                        _nearStationName = StationLabel(e.Name, e.Id); // the lively places: with its purpose, once known
                         _boardTargetPos = new Vector3(e.X, e.Y, e.Z);
                         _nearStationSq = dist * dist;
                     }

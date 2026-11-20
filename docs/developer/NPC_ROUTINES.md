@@ -223,6 +223,13 @@ reach of a board block nobody staffs says the same (`HandleRequestMissions`).
 2 s. Phases by local time: night ≥ 0.78 or < 0.22, evening ≥ 0.68, else day. The guard inverts it (on duty evening
 and night, asleep by day).
 
+Those are a base resident's hours. A **villager** and a **kit station's crew member** keep their own
+(`RoutineHoursOf`, the lively places): the evening begins between 0.62 and 0.66, the night between 0.80 and 0.86, the
+morning between 0.20 and 0.24 — a stable draw per person, so a place sits together for a while and its streets empty one
+by one. A child's evening and night begin earlier still (0.57 / 0.71). A village innkeeper works through the evening; a
+town's night watch is on its round from the evening through the night and asleep until noon. By day a villager without
+a post goes on errand rounds and a child plays — see [LIVELY_PLACES.md](LIVELY_PLACES.md) §4–§6.
+
 | Phase | Goal | On arrival |
 |---|---|---|
 | Day | `Work` (a post, bench, garden, patrol — or the spawn spot) | idle with the work leash |

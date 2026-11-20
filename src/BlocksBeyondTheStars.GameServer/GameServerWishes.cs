@@ -631,6 +631,7 @@ public sealed partial class GameServer
         }
 
         Send(session, new NpcDialogState { NpcId = npc.Id, Name = npc.Name, Text = thanks + "\n\n" + gift, End = true });
+        BroadcastNpcEmote(npc, NpcGestures.Bow); // the lively places: the thanks is said with a bow
         return true;
     }
 
@@ -744,6 +745,7 @@ public sealed partial class GameServer
                     Text = WishThanksText(session, giver, plan),
                     GreetingId = NextGreetingId(),
                     Kind = NpcGreetingKinds.Addressed,
+                    Gesture = NpcGestures.Bow, // the lively places: the thanks is said with a bow
                 });
             }
         }

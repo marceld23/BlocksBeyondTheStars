@@ -161,6 +161,31 @@ public sealed partial class GameServer
 
         // --- #3446: a trip by train between two places (GameServerRailTrips.cs) ---
         public RailTrip? Trip;                  // the trip it is on (null = none): its routine, chatter and jobs pause
+
+        // --- the lively places: a villager's errand rounds by day (GameServerNpcErrands.cs) ---
+        public bool OnErrand;                   // walking to an anchor of its settlement, or standing at one
+        public PlaceAnchorKind ErrandKind;      // which kind of anchor
+        public double ErrandUntil;              // uptime its stay at the anchor ends (0 = still on the way)
+        public double ErrandNextAt;             // uptime before which it starts no new errand (0 = not scheduled yet)
+        public int ErrandCount;                 // errands done in the current round — a round ends at home
+        public int ErrandRound;                 // how many errands the current round has (0 = no round drawn)
+        public string? ErrandHeld;              // what it held before an errand put something in its hand (null = nothing changed)
+        public double ErrandWeatherAt;          // uptime of the next look at the sky while it stands outside
+        public double NodReadyAt;               // uptime from which it nods to a neighbour again
+        public bool HomeChore;                  // it walks home after a round and will sweep there until the next one
+
+        // The lively places, the children (GameServerChildren.cs): a villager who lives in a bed with a child marker.
+        public bool IsChild;                    // role "child": plays by day, has no wish, no trade, no friendship, no AI line
+        public bool Playing;                    // on a short run to a playmate, a parent or a spot on the plaza
+        public double PlayNextAt;               // uptime of its next run
+        public double ChildWaveAt;              // uptime from which it waves at a passing player again
+        public int ChildLine;                   // which of its answers comes next when a player speaks to it
+        public bool HasPet;                     // one of the households that keep a small animal (GameServerHouseholdPets.cs)
+        public bool VisitingPilot;              // the merchant of a trader ship moored at this station (GameServerDockedTraders.cs)
+        public bool ServiceRounds;              // the one of a kit station's crew that walks the posts by day (GameServerStationRounds.cs)
+        public int RoundStop;                   // … and the stop of the round it walked to last
+        public bool BenchSeat;                  // its evening seat is a bench on the plaza: only in dry weather
+        public bool BenchWet;                   // … and the weather its evening was last decided in (a change decides again)
     }
 
     /// <summary>What an NPC does when it reaches its walk goal (#1867).</summary>
@@ -231,7 +256,8 @@ public sealed partial class GameServer
         uint[] chassisTones = { 0xBFC7CF, 0xD5DBE1, 0xA8B2BC, 0xC9CCB8 };
         // Six outfit tones per theme (was three), lifted out of the mud: the client multiplies these by the
         // greyscale suit texture, so anything authored dark lands near black on screen (#711).
-        uint[] outfitByTheme = theme switch
+        // (A station's own exchange dresses as the trade it belongs to — StationPurposes.LookOf.)
+        uint[] outfitByTheme = BlocksBeyondTheStars.WorldGeneration.StationPurposes.LookOf(theme) switch
         {
             "miners" => new uint[] { 0xD97B29, 0xA8ADB5, 0x8A6A45, 0xE0B23C, 0x6E7B8A, 0xB5651D },
             "traders" => new uint[] { 0x3D7EBF, 0x8A63BF, 0xD9AE33, 0x2FA48E, 0xC24B5A, 0x2E5E8C },

@@ -120,6 +120,159 @@ public sealed class LandedTraderStayTests : IDisposable
     }
 
     [Fact]
+    public void ThePilot_WalksToAMarketNearby_OncePerStay_AndItsGoodsGoAlong()
+    {
+        var server = NewServer("traderwalk");
+        var pilot = server.AddLocalPlayer("Pilot");
+        string body = pilot.CurrentLocationId;
+        Assert.True(server.LandTraderForTest(body));
+        server.Tick(0.1);
+        var ship = server.LandedTraderPilotPosForTest(body)!.Value;
+        Assert.Equal("AtShip", server.LandedTraderPilotWalkForTest(body));
+
+        // A settlement with a vendor's stall a short walk from the pad; the player watches from a distance (NPCs only
+        // move while somebody is on the world, and a customer at the ship would keep the pilot there).
+        var stall = new Vector3f(ship.X + 9f, ship.Y, ship.Z + 2f);
+        server.RegisterTestSettlementForTest("Padside", new Vector3i((int)ship.X - 24, (int)ship.Y - 4, (int)ship.Z - 24),
+            new Vector3i((int)ship.X + 24, (int)ship.Y + 8, (int)ship.Z + 24));
+        server.AddSettlementMarkerForTest("Padside", "vendor", stall);
+        pilot.State.Position = new Vector3f(ship.X - 22f, ship.Y, ship.Z);
+
+        // Too early: it stays; a while after touchdown it sets out.
+        server.Tick(0.1);
+        Assert.Equal("AtShip", server.LandedTraderPilotWalkForTest(body));
+        server.AdvanceUptimeForTest(60.0);
+        string walk = "AtShip";
+        for (int i = 0; i < 20 && walk == "AtShip"; i++)
+        {
+            server.Tick(0.25);
+            walk = server.LandedTraderPilotWalkForTest(body);
+        }
+
+        if (walk == "AtShip")
+        {
+            Assert.Fail("the pilot never set out for the stall");
+        }
+
+        Assert.Equal("ToMarket", walk);
+        for (int i = 0; i < 400 && server.LandedTraderPilotWalkForTest(body) == "ToMarket"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        Assert.Equal("AtMarket", server.LandedTraderPilotWalkForTest(body));
+        var atMarket = server.LandedTraderPilotPosForTest(body)!.Value;
+        Assert.True(Math.Sqrt(Math.Pow(atMarket.X - ship.X, 2) + Math.Pow(atMarket.Z - ship.Z, 2)) > 3.0, "the pilot's goods stayed at the ship");
+
+        // A customer at the stall keeps it there past its time; alone again it walks home and stays for the rest of the stay.
+        pilot.State.Position = new Vector3f(atMarket.X + 1f, atMarket.Y, atMarket.Z);
+        server.AdvanceUptimeForTest(400.0);
+        server.Tick(0.25);
+        Assert.Equal("AtMarket", server.LandedTraderPilotWalkForTest(body));
+        pilot.State.Position = new Vector3f(ship.X - 22f, ship.Y, ship.Z);
+        for (int i = 0; i < 400 && server.LandedTraderPilotWalkForTest(body) is "AtMarket" or "Back"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        Assert.Equal("Done", server.LandedTraderPilotWalkForTest(body));
+        var home = server.LandedTraderPilotPosForTest(body)!.Value;
+        Assert.True(Math.Sqrt(Math.Pow(home.X - ship.X, 2) + Math.Pow(home.Z - ship.Z, 2)) < 4.0, "the pilot did not come back to its ship");
+    }
+
+    [Fact]
+    public void WithNoMarketNear_ThePilotStepsOffForALookAtItsShip_Once_AndComesBackForACustomer()
+    {
+        var server = NewServer("traderlook");
+        var pilot = server.AddLocalPlayer("Pilot");
+        string body = pilot.CurrentLocationId;
+        Assert.True(server.LandTraderForTest(body));
+        server.Tick(0.1);
+        var ship = server.LandedTraderPilotPosForTest(body)!.Value;
+        pilot.State.Position = new Vector3f(ship.X - 22f, ship.Y, ship.Z); // watching from a distance (no customer at the ship)
+
+        // Too early it stays; a while after touchdown it sets out — there is no market, so for a look at its ship.
+        server.Tick(0.1);
+        Assert.Equal("AtShip", server.LandedTraderPilotWalkForTest(body));
+        server.AdvanceUptimeForTest(60.0);
+        for (int i = 0; i < 20 && server.LandedTraderPilotWalkForTest(body) == "AtShip"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        // (A pad hemmed in on every side would leave it "Done" at once — this world's pad has open ground beside it.)
+        Assert.Equal("ToLook", server.LandedTraderPilotWalkForTest(body));
+        for (int i = 0; i < 200 && server.LandedTraderPilotWalkForTest(body) == "ToLook"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        Assert.Equal("AtLook", server.LandedTraderPilotWalkForTest(body));
+        var looking = server.LandedTraderPilotPosForTest(body)!.Value;
+        double off = Math.Sqrt(Math.Pow(looking.X - ship.X, 2) + Math.Pow(looking.Z - ship.Z, 2));
+        Assert.InRange(off, 2.5, 9.0); // a few steps off, not across the plain
+
+        // A customer comes to the ship: the pilot walks back at once, stays on its feet for them, and that was its one walk.
+        pilot.State.Position = new Vector3f(ship.X + 1f, ship.Y, ship.Z);
+        for (int i = 0; i < 200 && server.LandedTraderPilotWalkForTest(body) is "AtLook" or "BackToSit"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        Assert.Equal("Done", server.LandedTraderPilotWalkForTest(body));
+        var home = server.LandedTraderPilotPosForTest(body)!.Value;
+        Assert.True(Math.Sqrt(Math.Pow(home.X - ship.X, 2) + Math.Pow(home.Z - ship.Z, 2)) < 4.0, "the pilot did not come back to its ship");
+        Assert.Equal((byte)0, server.NpcRoutineForTest(server.LandedTraderPilotIdForTest(body)).Pose);
+    }
+
+    [Fact]
+    public void BackFromItsLook_WithNobodyThere_ThePilotSitsOnItsCrate_AndGetsUpForACustomer()
+    {
+        var server = NewServer("tradersit");
+        var pilot = server.AddLocalPlayer("Pilot");
+        string body = pilot.CurrentLocationId;
+        Assert.True(server.LandTraderForTest(body));
+        server.Tick(0.1);
+        var ship = server.LandedTraderPilotPosForTest(body)!.Value;
+        int id = server.LandedTraderPilotIdForTest(body);
+        pilot.State.Position = new Vector3f(ship.X - 22f, ship.Y, ship.Z); // watching from a distance
+
+        server.Tick(0.1);
+        server.AdvanceUptimeForTest(60.0);
+        for (int i = 0; i < 200 && server.LandedTraderPilotWalkForTest(body) is "AtShip" or "ToLook"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        // It has looked long enough: back to its spot, and down onto the crate — a seated pose and the crate as its prop.
+        Assert.Equal("AtLook", server.LandedTraderPilotWalkForTest(body));
+        server.AdvanceUptimeForTest(100.0);
+        for (int i = 0; i < 200 && server.LandedTraderPilotWalkForTest(body) is "AtLook" or "BackToSit"; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        Assert.Equal("Sitting", server.LandedTraderPilotWalkForTest(body));
+        var seated = server.NpcRoutineForTest(id);
+        Assert.Equal((byte)1, seated.Pose);
+        Assert.Equal(SvGameServer.PilotCrateSeat, seated.Held);
+        Assert.True(Math.Sqrt(Math.Pow(seated.Pos.X - ship.X, 2) + Math.Pow(seated.Pos.Z - ship.Z, 2)) < 1.6, "the pilot does not sit at its spot");
+
+        // It keeps sitting while nobody comes …
+        server.AdvanceUptimeForTest(30.0);
+        server.Tick(0.25);
+        Assert.Equal("Sitting", server.LandedTraderPilotWalkForTest(body));
+
+        // … and is on its feet, the crate gone, once a customer stands in front of it.
+        pilot.State.Position = new Vector3f(ship.X + 2f, ship.Y, ship.Z);
+        server.Tick(0.25);
+        Assert.Equal("Done", server.LandedTraderPilotWalkForTest(body));
+        var up = server.NpcRoutineForTest(id);
+        Assert.Equal((byte)0, up.Pose);
+        Assert.NotEqual(SvGameServer.PilotCrateSeat, up.Held);
+    }
+
+    [Fact]
     public void APlayerBeyondTheStayRadius_DoesNotHoldIt()
     {
         var server = NewServer("traderbeyond");

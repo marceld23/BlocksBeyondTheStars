@@ -26,7 +26,28 @@ public sealed partial class GameServer
 {
     /// <summary>Everything one planned instance of the settlement roll carries into its stamp.</summary>
     private readonly record struct PlannedInstance(int Index, long InstSeed, System.Random Stream, StructurePlacementRecord? Record,
-        StructureKit? Kit, string Tier, string RolledTier, double Hospitability, string Surface);
+        StructureKit? Kit, string Tier, string RolledTier, double Hospitability, string Surface, StructureTemplate? Centre = null);
+
+    /// <summary>The modules a planned settlement's lots may name: the kit modules, and on a world of the lively places the
+    /// whole settlement templates too (one may stand at a settlement's heart, <see cref="SettlementPlanBaker.CentreFunction"/>).</summary>
+    private IReadOnlyList<StructureTemplate> PlannedPool(IReadOnlyList<StructureTemplate> kitPool)
+    {
+        if (!LivelyWorld)
+        {
+            return kitPool;
+        }
+
+        var pool = new List<StructureTemplate>(kitPool);
+        foreach (var t in _content.SettlementTemplates)
+        {
+            if (!t.IsModule && !t.IsSource)
+            {
+                pool.Add(t);
+            }
+        }
+
+        return pool;
+    }
 
     /// <summary>The planned settlement of one instance (fresh or pinned), or null when it has no spot (recorded) or its plan
     /// cannot be read (warned; the stamped blocks stay).</summary>
@@ -59,7 +80,7 @@ public sealed partial class GameServer
         }
 
         string tier = rec.Tier is { Length: > 0 } t ? t : pi.Tier;
-        var structure = SettlementPlanBaker.Bake(plan, tier, ruined, pi.InstSeed, pi.Surface, _content, kitPool, _log.Warn);
+        var structure = SettlementPlanBaker.Bake(plan, tier, ruined, pi.InstSeed, pi.Surface, _content, PlannedPool(kitPool), _log.Warn);
         usedNames.Add(rec.Name);
         return NewPlanned(structure, new Vector3i(rec.X, rec.GroundY, rec.Z), rec.GroundY, tier, ruined, rec.OnIsland, rec.Name, pi.Stream, rec.Seat);
     }
@@ -87,16 +108,33 @@ public sealed partial class GameServer
             Pool = kitPool,
             Ground = FollowsGround(seat, onIsland) ? (x, z) => _generator.SurfaceHeight(_world.Planet, origin.X + x, origin.Z + z) : null,
             WaterSide = WaterSideOf(origin.X, origin.Z, extent),
+            Revision = SettlementPlan.RevisionFor(_meta.Description.TerrainGeneration),
+            Centres = pi.Centre is { } centre ? new[] { centre } : System.Array.Empty<StructureTemplate>(),
+            Centre = pi.Centre?.Key ?? string.Empty,
         });
         groundY = plan.GroundBase ?? groundY;
         origin = new Vector3i(origin.X, groundY, origin.Z);
-        var structure = SettlementPlanBaker.Bake(plan, pi.Tier, ruined, pi.InstSeed, pi.Surface, _content, kitPool, _log.Warn);
-        string name = UniqueName(SettlementDisplayName(pi.Tier, ruined, RngFor(pi.InstSeed, "name")), usedNames);
+        var structure = SettlementPlanBaker.Bake(plan, pi.Tier, ruined, pi.InstSeed, pi.Surface, _content, PlannedPool(kitPool), _log.Warn);
+        string name = UniqueName(CoinSettlementName(pi.Tier, ruined, RngFor(pi.InstSeed, "name"), plan.Form, LandmarkOf(plan)), usedNames);
         RecordPlacement("settlement", pi.Index, origin, groundY, onIsland, seat, name, FreshProceduralTemplate(kit),
             modules: 2, kit: kit.Key, hashRevision: StructurePlacementRecord.MixedHashRevision);
         FindPlacementRecord("settlement", pi.Index)!.Plan = plan.Serialize();
         ReservePlanGround(kind, plan, origin, groundY, seat);
         return NewPlanned(structure, origin, groundY, pi.Tier, ruined, onIsland, name, pi.Stream, seat);
+    }
+
+    /// <summary>The function of a plan's landmark lot (<c>landmark_*</c>, the lively places), or "".</summary>
+    private static string LandmarkOf(SettlementPlan plan)
+    {
+        foreach (var lot in plan.Lots)
+        {
+            if (lot.Function.StartsWith(StructureRoles.LandmarkPrefix, System.StringComparison.Ordinal))
+            {
+                return lot.Function;
+            }
+        }
+
+        return string.Empty;
     }
 
     /// <summary>Whether a seat lets a planned settlement follow the ground: on land, not on stilts, lava or an island.</summary>

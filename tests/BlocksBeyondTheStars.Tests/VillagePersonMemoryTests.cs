@@ -142,10 +142,17 @@ public sealed class VillagePersonMemoryTests : IDisposable
                         continue;
                     }
 
+                    if (n.Role == SvGameServer.ChildRole)
+                    {
+                        Assert.Equal(string.Empty, n.PersonKey); // the lively places: a child is nobody's counterpart — no memory, no standing
+                        continue;
+                    }
+
                     Assert.StartsWith(loc + "#", n.PersonKey, StringComparison.Ordinal);
                     Assert.EndsWith(":" + n.Role, n.PersonKey, StringComparison.Ordinal);
                     string slot = n.PersonKey.Substring(loc.Length + 1);
-                    Assert.True(n.Job.Length > 0 ? slot.StartsWith(n.Job + "@", StringComparison.Ordinal)
+                    // The night watch keeps the slot of its bed: the job is handed out after the keys, so nobody loses a friend to it.
+                    Assert.True(n.Job.Length > 0 && n.Job != "watch" ? slot.StartsWith(n.Job + "@", StringComparison.Ordinal)
                         : slot.StartsWith("bed@", StringComparison.Ordinal) || slot.StartsWith("settler#", StringComparison.Ordinal),
                         $"{n.Name} ({n.Role}/{n.Job}): unexpected slot '{slot}'");
                 }
@@ -171,7 +178,9 @@ public sealed class VillagePersonMemoryTests : IDisposable
     /// when it fails, decide whether renaming the villagers of existing worlds is acceptable, then update the list.
     /// Pinned per generation: from generation 26 the bodies are sized by the world seed (#2691), which moves the
     /// settlements of a new world and with them the draws — the generation-25 rows are the EXISTING worlds, the
-    /// generation-26 row the worlds created today; a rename of either must be deliberate.</summary>
+    /// generation-26 row the worlds created today; a rename of either must be deliberate.
+    /// <para>The lively places (2026-11): the last plain resident of a town is its night watch (job <c>watch</c>) in every
+    /// world — the job is given after all the draws, so no name moved; only the job column of the last row changed.</para></summary>
     [Theory]
     [InlineData(1L, 25)]
     [InlineData(2L, 25)]
@@ -208,25 +217,25 @@ public sealed class VillagePersonMemoryTests : IDisposable
         {
             "Moust Gheizrullsko|vendor|vendor", "Stoth Shiotiokklaeth|quartermaster|quartermaster", "Kloch Laishqukro|settler|gardener",
             "Zych Toozress|settler|craftsman", "Vhoth Groossspuvheek|settler|innkeeper", "Gheich Yeqiol|settler|",
-            "Druax Traiphuaz|settler|", "Me Speekivo|settler|", "Sheedrech Mexaen|settler|", "Kuam Zreeljedrei|settler|",
+            "Druax Traiphuaz|settler|", "Me Speekivo|settler|", "Sheedrech Mexaen|settler|", "Kuam Zreeljedrei|settler|watch",
         },
         (1, _) => new[]
         {
             "Moust Gheizrullsko|vendor|vendor", "Kron Zuavroo|quartermaster|quartermaster", "Kloch Laishqukro|settler|gardener",
             "Zych Toozress|settler|craftsman", "Vhoth Groossspuvheek|settler|innkeeper", "Gheich Yeqiol|settler|",
-            "Telae Klaskgroum|settler|", "Shooth Thoosill|settler|", "Phoutrioch Kruqum|settler|", "Kethourk Maeghill|settler|",
+            "Telae Klaskgroum|settler|", "Shooth Thoosill|settler|", "Phoutrioch Kruqum|settler|", "Kethourk Maeghill|settler|watch",
         },
         (_, >= 26) => new[]
         {
             "Ghuast Dromeyok|vendor|vendor", "Speishreex Naephkispeiz|vendor|vendor", "Troophstai Skivheingyyz|quartermaster|quartermaster",
             "Tuarkvuash Plioghorn|vendor|vendor", "Grillkum Klovreerk|quartermaster|quartermaster", "Laph Roobreesk|settler|gardener",
-            "Souplo Qemiokdrou|settler|", "Kistthul Kreneimeich|settler|", "Lyzroox Rerusk|settler|", "Vrooch Ghekoorkkreem|settler|",
+            "Souplo Qemiokdrou|settler|", "Kistthul Kreneimeich|settler|", "Lyzroox Rerusk|settler|", "Vrooch Ghekoorkkreem|settler|watch",
         },
         _ => new[]
         {
             "Ghuast Dromeyok|vendor|vendor", "Klush Manaephki|vendor|vendor", "Leng Truagruvrio|quartermaster|quartermaster",
             "Briork Xeetuash|vendor|vendor", "Rooth Plaedruaqouph|quartermaster|quartermaster", "Qeek Drairkleerkplir|settler|gardener",
-            "Yist Rioriornyai|settler|", "Stost Treross|settler|", "Tystooth Phavhithith|settler|", "Zrualljaill Sykroox|settler|",
+            "Yist Rioriornyai|settler|", "Stost Treross|settler|", "Tystooth Phavhithith|settler|", "Zrualljaill Sykroox|settler|watch",
         },
     };
 

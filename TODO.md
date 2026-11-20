@@ -49,6 +49,51 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - **Ideas filed for later:** #3857 (the Guardian armour as the SPS soldiers' uniform, a time-capsule soldier, the
   Guardian laser) and #3858 (SPS communication tower ruins on inhabited planets, tied into the VEGA story).
 
+### 🏘️ Lively places: settlements and stations that are varied and alive — #3873 (epic), #3863–#3872 — ✅ done 2026-11-20 (⚠ playtest open; terrain generation 46; two additive messages `PlaceList` 358 + `NpcEmote` 359 and one intent 360, no protocol bump, no save version bump; new texts in 14 languages)
+
+- **Why.** Settlements of one tier looked alike, nothing stood in the streets, people stood at home all day, a village
+  was silent, and every station was the same station. Full description: [docs/developer/LIVELY_PLACES.md](docs/developer/LIVELY_PLACES.md).
+- **Built so far (server + shared + world generation; targeted tests green).** Terrain generation 46 with plan
+  revision 2 (mirrored lots, the place's colour, dressing level, at most one landmark, a hand-made template as the
+  centre of a planned settlement), 124 new modules and eight landmark kinds stored compact, the lively bake (lanterns
+  that cast light, stalls, benches, fire, well, awnings, door-sign and street-furniture markers), coined names; the
+  place list and the gesture-only message (`PlaceList` 358, `NpcEmote` 359); place anchors, errand rounds, visible work,
+  sweeping, the staggered longer evening, the night watch, market day, the calendar gathering, the trader pilot's walk,
+  the platform bell; children (their own beds, play, lines and chatter topics) and household pets; emitters with hours,
+  sounds derived from a place's markers, far silhouettes of settlements; a station's purpose and colour band, purpose
+  kits, vendor themes, the station as a place, room sounds and announcements; VEGA's station hint no longer promises a
+  refit (14 languages). Since then: evening seats on the plaza's benches (dry weather only), a trader's ship that stays
+  moored at the station while its pilot trades, the dock hand, one crew member on a round through the station's posts,
+  the purpose on the dock prompt and the star map (two additive wire fields), a purpose's mission board (more delivery
+  jobs on a mining station, more surveys on a research station), rooms and kits made for a purpose
+  (`tools/gen_station_purpose_modules.py`), marker settings on kit modules (a room's own sound), the station's own
+  exchange (a mining and a research station's first trader sells its trade's goods at better rates — ten market rows,
+  loop-safe at every trader discount), and the settlement kits from before stay in use (about one settlement in twenty
+  of a new world; an older world draws exactly what it did). Decided and built on 2026-11-20: the smelter of a mining
+  station has two real forges (a refinery for whoever stands beside them — the one purpose room that works), the
+  animal keeper walks to the pen and back, a landed trader's pilot without a market near looks its ship over and then
+  sits on a crate in front of it, the night watch has hello lines of its own, a villager bows when a wish is granted.
+- **Built so far (client).** Place tracker and banner, the place's sound bed, door signs, emitters aboard stations with
+  hours and a fourth voice, NPC emotes, the lantern's light, hammer sparks and the broom, a child's proportions and
+  nameplate, far lights and smoke over a place, hull lights and a turning dish on a station, kit editor rows for the
+  new kit fields, lamplight dust under a village's roofs, small creatures gathering at gardens and lanterns, a station's
+  hum computed from its size and purpose (one loop, its level and pitch), flickering console screens aboard a station,
+  the crate under the seated pilot. Fifteen sounds (ElevenLabs) and eighteen icons (OpenAI: fifteen door signs, three
+  station emblems) were auditioned by the maintainer and imported; the broom's stroke plays quieter. All new texts are
+  in the 14 languages.
+- **Taken out again.** Plaza lanterns on a daylight sensor (the maintainer's decision, 2026-11-20: a Crystal Net
+  circuit in every village was too invasive). Plaza lanterns are plain lanterns.
+- **Verified locally (2026-11-20).** Server tests in five groups and the kit group green, client suite 4794 green, clean
+  build without warnings, `dotnet format` clean, local Unity build without compile or shader errors; a village and a
+  town looked at in recorded clips (day, evening, night).
+- **Dropped.** Window glow at night (the maintainer's decision, 2026-11-20: a place's light at night is its lanterns).
+- **Built last (2026-11-20).** The station archive takes samples once per species and pays data fragments by rarity
+  (#3870); hull parts and floor plans by purpose — cargo racks, ore hoppers, radio dishes; concourse, spine, decks
+  (#3871); a real pond with a plank jetty and a lantern in a lively green village (#3872); a market stall's own sound
+  source (`amb_place_stall`, #3868).
+- **Open.** The low preset and the browser build are not measured; a station could not be recorded from the inside, so
+  everything aboard is tested but not yet looked at; a playtest.
+
 ### 🧭 Test Pilot: a tester always knows what to test right now — #3853 (epic), #3846–#3852, PR #3854 (`d70669d6`) — ✅ released in v2026.11.25 (⚠ playtest open; client + validator + data; one new key binding, no new message, no protocol bump, no save change; 22 new texts in 14 languages)
 
 - **Why.** A tester who took a task up and started a world saw one small card with one step's text — no task name, no

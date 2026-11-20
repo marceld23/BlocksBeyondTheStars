@@ -38,6 +38,10 @@ namespace BlocksBeyondTheStars.Client
             "amb_portasseum_wind", "amb_mine_drip", "amb_soaniri_castle", "amb_singer_choir",
             // The giant ship wrecks (#3623): an empty hull's creaks, a crystal wreck's hum, an ark's overgrown greenhouse.
             "amb_giant_hull", "amb_giant_crystal", "amb_giant_greenhouse",
+            // The lively places: the rooms of a settlement and of a station (a tavern, a workshop, a well; a hangar, a
+            // canteen, a laboratory).
+            "amb_place_tavern", "amb_place_workshop", "amb_place_well", "amb_place_stall",
+            "amb_station_hangar", "amb_station_canteen", "amb_station_lab",
         };
 
         private static readonly string[] CrateBlocks = { "wood_crate", "crate" };

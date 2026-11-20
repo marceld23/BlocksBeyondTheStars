@@ -248,6 +248,14 @@ public sealed partial class GameServer
             return;
         }
 
+        if (npc.IsChild)
+        {
+            // The lively places: a child answers with a line of its own — no dialogue, no wish, no memory, no AI.
+            StopVillageChat(npc);
+            SayChildLine(session, npc);
+            return;
+        }
+
         RaiseGameEvent(session, GameEventKeys.NpcTalked, npc.Role); // #2482: the neighbours course
         StopVillageChat(npc); // #2600: a villager chatting with a neighbour turns to the player who spoke to them
         string npcKey = DialogNpcKey(session, npc);

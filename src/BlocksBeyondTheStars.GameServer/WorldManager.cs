@@ -43,6 +43,19 @@ internal sealed class SettlementInstance
 
     /// <summary>#3592: a planned settlement's town-zone depth map (the box grown by the zone's margin), built on first use.</summary>
     public byte[]? TownDepth { get; set; }
+
+    /// <summary>The lively places: where a villager can go and do something (<c>GameServer.PlaceAnchorsOf</c>), built on
+    /// first use and again after <see cref="AnchorsUntil"/> — never set it elsewhere.</summary>
+    public List<PlaceAnchor>? Anchors { get; set; }
+
+    /// <summary>Server uptime until which <see cref="Anchors"/> are kept.</summary>
+    public double AnchorsUntil { get; set; }
+
+    /// <summary>The lively places: the far silhouette (<c>GameServer.PlaceSilhouetteOf</c>), built on first use — null with
+    /// <see cref="SilhouetteBuilt"/> set means the settlement has none.</summary>
+    public LandmarkSilhouette? Silhouette { get; set; }
+
+    public bool SilhouetteBuilt { get; set; }
 }
 
 /// <summary>One stamped factory on a world: an industrial hall with a production terminal and one or more

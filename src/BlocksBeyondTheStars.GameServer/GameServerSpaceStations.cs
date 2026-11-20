@@ -980,7 +980,10 @@ public sealed partial class GameServer
                 // Bernoulli draw at the option's probability), then a weighted pick among the templates or the kits.
                 // #3518: generation 38 appends the tier's generator entries after the kits (none: the same draw as before).
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindStation, station.SizeTier, packs, null);
-                var kits = _content.KitsFor(StructureKit.KindStation, station.SizeTier, packs, null);
+                // The world's generation bounds the kits (as for settlements, #3583): a station an older world composes for
+                // the first time never draws a kit made for a newer one.
+                string purpose = NewStationPurpose(station.Id, sSeed); // the lively places ("" before generation 46)
+                var kits = KitsOfPurpose(_content.KitsFor(StructureKit.KindStation, station.SizeTier, packs, null, _meta.Description.TerrainGeneration), purpose);
                 var (pickedTemplate, kit, pickedSource) = PickTemplateKitOrSource(templates, kits, StationSourcesFor(station.SizeTier), legacyHit, roll);
                 template = pickedTemplate;
                 sourceStructure = pickedSource is null ? null : BuildStationSource(station, pickedSource.Key, sSeed);
@@ -988,7 +991,16 @@ public sealed partial class GameServer
 
                 if (kit != null)
                 {
-                    kitStructure = StationKitComposer.Compose(kit, key => _content.TemplateByKey(StructureKit.KindStation, key), sSeed, _content, out composition, out var failure);
+                    kitStructure = StationKitComposer.Compose(kit, key => _content.TemplateByKey(StructureKit.KindStation, key), sSeed, _content, out composition, out var failure,
+                        purpose, purpose.Length > 0 ? StationPurposes.ColourFor(sSeed) : 0);
+                    if (kitStructure is null && purpose.Length > 0)
+                    {
+                        // The lively places: the purpose's own kit did not fit from this seed — the station keeps its purpose
+                        // and is built from the tier's kit without one.
+                        _log.Warn($"Station '{station.Name}': kit '{kit.Key}' could not be assembled ({failure}) — the tier's kit without a purpose instead.");
+                        kitStructure = ComposeWithoutPurposeRooms(station, sSeed, purpose, out composition);
+                    }
+
                     if (kitStructure is null)
                     {
                         _log.Warn($"Station '{station.Name}': kit '{kit.Key}' could not be assembled ({failure}) — procedural interior instead.");

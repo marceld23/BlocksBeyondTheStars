@@ -58,7 +58,7 @@ public sealed class SettlementResidentTests : IDisposable
                 foreach (var (name, tier, beds, all) in server.SettlementResidentsForTest)
                 {
                     // 2026-09: a profession post brings one extra resident on top of the bed-bound people below.
-                    var residents = all.Where(r => NpcProfessions.ByJob(r.Job) == null).ToList();
+                    var residents = all.Where(r => NpcProfessions.ByJob(r.Job) == null && r.Role != SvGameServer.ChildRole).ToList();
                     int cap = SvGameServer.ResidentCapForTest(tier);
                     int services = residents.Count(r => r.Job is "vendor" or "quartermaster");
                     Assert.Equal(Math.Max(Math.Min(beds, cap), services), residents.Count);
@@ -98,7 +98,7 @@ public sealed class SettlementResidentTests : IDisposable
             {
                 foreach (var (name, tier, beds, all) in server.SettlementResidentsForTest)
                 {
-                    var residents = all.Where(r => NpcProfessions.ByJob(r.Job) == null).ToList(); // professions are extra (2026-09)
+                    var residents = all.Where(r => NpcProfessions.ByJob(r.Job) == null && r.Role != SvGameServer.ChildRole).ToList(); // professions are extra (2026-09)
                     if (!residents.Any(r => r.Job == "innkeeper"))
                     {
                         continue;

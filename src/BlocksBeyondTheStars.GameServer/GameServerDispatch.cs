@@ -103,6 +103,7 @@ public sealed partial class GameServer
         On<UseGadgetIntent>(map, (gs, s, m) => gs.HandleUseGadget(s, m));
         On<BioLabIntent>(map, (gs, s, m) => gs.HandleBioLab(s, m)); // #2203
         On<DiscardSampleIntent>(map, (gs, s, m) => gs.HandleDiscardSample(s, m)); // #2301
+        On<GiveSampleToStationIntent>(map, (gs, s, m) => gs.HandleGiveSampleToStation(s, m)); // #3870: the station archive
         On<TameRespondIntent>(map, (gs, s, m) => gs.HandleTameRespond(s, m));
         On<BanditResponseIntent>(map, (gs, s, m) => gs.HandleBanditResponse(s, m));
         On<RequestCompanionsIntent>(map, (gs, s, _) => gs.HandleRequestCompanions(s));

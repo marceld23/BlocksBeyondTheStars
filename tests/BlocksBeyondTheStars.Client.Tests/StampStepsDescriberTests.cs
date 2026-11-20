@@ -131,8 +131,14 @@ public sealed class StampStepsDescriberTests
     public void ThePaletteShowsWhatTheTargetReads()
     {
         Assert.False(StructureStampRules.ShowsInPalette(StampTarget.StationModule, "block", MaterialTokens.Wall));
-        Assert.False(StructureStampRules.ShowsInPalette(StampTarget.StationModule, StructureStampRules.KindSettings, "settings"));
-        Assert.False(StructureStampRules.ShowsInPalette(StampTarget.StationModule, "marker", "sound"));
+        // The lively places: a kit module reads one marker with settings — its sound marker (a room's own sound). The
+        // settings tool is there for it; a chest or a den stays a whole template's.
+        Assert.True(StructureStampRules.ShowsInPalette(StampTarget.StationModule, StructureStampRules.KindSettings, "settings"));
+        Assert.True(StructureStampRules.ShowsInPalette(StampTarget.StationModule, "marker", "sound"));
+        Assert.True(StructureStampRules.ReadsMarkerSettings(StampTarget.StationModule, "sound"));
+        Assert.False(StructureStampRules.ReadsMarkerSettings(StampTarget.StationModule, "chest"));
+        Assert.False(StructureStampRules.ReadsMarkerSettings(StampTarget.StationModule, "den"));
+        Assert.False(StructureStampRules.ShowsInPalette(StampTarget.StationModule, "marker", "den"));
         Assert.False(StructureStampRules.ShowsInPalette(StampTarget.StationModule, "marker", "chest"));
         Assert.True(StructureStampRules.ShowsInPalette(StampTarget.StationModule, StructureStampRules.KindPort, "door"));
         Assert.True(StructureStampRules.ShowsInPalette(StampTarget.StationWhole, "block", MaterialTokens.Wall));

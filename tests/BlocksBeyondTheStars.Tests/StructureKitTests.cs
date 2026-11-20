@@ -143,12 +143,15 @@ public sealed class StructureKitTests
         }
 
         var kits = c.StructureKits.Where(k => k.Kind == StructureKit.KindStation).ToList();
-        Assert.Equal(new[] { "small", "medium", "large", "huge", "colossal" }, kits.Select(k => k.Tier));
+        // The five classic kits (no purpose: every older world, every station without one) — and, since the lively
+        // places, one more per tier and purpose (StationPurposeKitTests), composed here as the game composes them.
+        Assert.Equal(new[] { "small", "medium", "large", "huge", "colossal" }, kits.Where(k => k.Purposes.Count == 0).Select(k => k.Tier));
         foreach (var kit in kits)
         {
+            string purpose = kit.Purposes.Count > 0 ? kit.Purposes[0] : string.Empty;
             for (long seed = 1; seed <= 5; seed++)
             {
-                var s = BlocksBeyondTheStars.WorldGeneration.StationKitComposer.Compose(kit, key => c.TemplateByKey("station", key), seed, c, out var comp, out var failure);
+                var s = BlocksBeyondTheStars.WorldGeneration.StationKitComposer.Compose(kit, key => c.TemplateByKey("station", key), seed, c, out var comp, out var failure, purpose);
                 Assert.True(s != null, $"kit '{kit.Key}' seed {seed}: {failure}");
                 Assert.InRange(comp.Modules.Count, kit.EffectiveBounds().Min, kit.EffectiveBounds().Max);
                 Assert.Contains(s!.Markers, m => m.Type == "spawn");

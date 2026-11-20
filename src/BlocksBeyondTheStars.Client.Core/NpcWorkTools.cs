@@ -18,6 +18,26 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The hunter's bow (<c>NetNpc.Held</c>).</summary>
         public const string Bow = "npc_bow";
 
+        /// <summary>The night watch's lantern (<c>NetNpc.Held</c>) — carried, never swung; it shines.</summary>
+        public const string Lantern = "npc_lantern";
+
+        /// <summary>The broom a villager sweeps with at home (<c>NetNpc.Held</c>).</summary>
+        public const string Broom = "npc_broom";
+
+        /// <summary>The basket somebody carries from the field or the market (<c>NetNpc.Held</c>).</summary>
+        public const string Basket = "npc_basket";
+
+        /// <summary>The crate a landed trader's pilot sits on in front of its ship (<c>NetNpc.Held</c> of a seated NPC) —
+        /// drawn under the figure, never in a hand.</summary>
+        public const string CrateSeat = "npc_crate_seat";
+
+        /// <summary>The broom's stroke — client-local, on the sweeper's swing (quiet and short-range like the chop).</summary>
+        public const string SweepClip = "npc_broom_sweep";
+
+        /// <summary>The broom stroke's volume (before master × SFX): well below the chop — it is heard stroke after
+        /// stroke, right beside a house.</summary>
+        public const float SweepVolume = 0.18f;
+
         /// <summary>The axe's chop — client-local, on the woodcutter's swing.</summary>
         public const string ChopClip = "npc_axe_chop";
 
@@ -64,6 +84,7 @@ namespace BlocksBeyondTheStars.Client
                 case "npc_camera": return (3.0f, 5.5f);      // the streamer films
                 case "npc_microphone": return (4.0f, 7.0f);  // the reporter takes notes
                 case Axe: return (2.2f, 3.4f);               // #2647: the woodcutter's steady chop
+                case Broom: return (1.3f, 2.1f);             // the lively places: stroke after stroke
             }
 
             string t = (theme ?? string.Empty).ToLowerInvariant();
@@ -82,8 +103,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Whether an NPC holding <paramref name="held"/> plays the periodic work swing — everyone but the hunter,
-        /// whose bow only moves for a shot.</summary>
-        public static bool SwingsPeriodically(string? held) => held != Bow;
+        /// whose bow only moves for a shot, and the night watch, whose lantern is carried, not swung.</summary>
+        public static bool SwingsPeriodically(string? held) => held != Bow && held != Lantern;
 
         /// <summary>The volume a server <c>SoundFx</c> <paramref name="soundId"/> plays at: the bow shot and a falling tree
         /// are quiet; every other id keeps <paramref name="fallback"/>.</summary>

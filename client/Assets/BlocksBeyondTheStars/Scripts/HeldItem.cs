@@ -42,6 +42,9 @@ namespace BlocksBeyondTheStars.Client
             // #2647: the wilderness folk — the gatherer keeps the basket and the miner the pick; new models for these two.
             "npc_axe" => (Kind.Axe, new Color(0.62f, 0.64f, 0.68f)),        // the woodcutter's axe (iron head)
             "npc_bow" => (Kind.Bow, new Color(0.58f, 0.38f, 0.19f)),        // the hunter's wooden bow
+            // The lively places: re-tinted models again — the night watch's lantern (NpcView adds its light) and a broom.
+            "npc_lantern" => (Kind.Gadget, new Color(1f, 0.82f, 0.42f)),
+            "npc_broom" => (Kind.Hoe, new Color(0.78f, 0.66f, 0.36f)),
             _ => (Kind.None, Color.white),
         };
 

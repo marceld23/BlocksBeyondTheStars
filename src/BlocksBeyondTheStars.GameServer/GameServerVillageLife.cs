@@ -579,8 +579,16 @@ public sealed partial class GameServer
         chat.NextLineAt = _uptime + ChatterLineGap;
         var speaker = index % 2 == 0 ? chat.A : chat.B;
         BroadcastNpcLine(speaker, ChatterRecipientRange, s => ChatterLineFor(chat, s.Locale, index),
-            NpcGreetingKinds.Chatter, NpcGestures.None);
+            NpcGreetingKinds.Chatter, ChatterGesture(chat.Topic.Key, index));
     }
+
+    /// <summary>The lively places: the gesture that goes with a line of chatter — whoever opens a talk about something out
+    /// there (the landed trader, a camp, a hut in the woods) points; the answer to a deed of a player is a clap; every other
+    /// line is said with the hands still.</summary>
+    private static byte ChatterGesture(string topicKey, int lineIndex)
+        => lineIndex == 0 && topicKey is "trader" or "camp_near" or "lodge_near" ? NpcGestures.Point
+            : lineIndex == 1 && topicKey.StartsWith("deed_", System.StringComparison.Ordinal) ? NpcGestures.Clap
+            : NpcGestures.None;
 
     private string ChatterLineFor(VillageChat chat, string locale, int index)
     {
@@ -747,9 +755,10 @@ public sealed partial class GameServer
             if ((_chatterTopicForTest is not null && topic.Key != _chatterTopicForTest)
                 || topic.Lines.Count < VillageChatterTopic.MinLines
                 || (topic.When == "day" && evening) || (topic.When == "evening" && !evening)
-                || place.RecentTopics.Contains(topic.Key))
+                || place.RecentTopics.Contains(topic.Key)
+                || ((topic.Who == VillageChatterTopic.WhoChildren) != (a.IsChild && b.IsChild)) || (a.IsChild != b.IsChild))
             {
-                continue;
+                continue; // … and children talk about their own things, with each other
             }
 
             var values = new Dictionary<string, string>(System.StringComparer.Ordinal)
@@ -913,7 +922,7 @@ public sealed partial class GameServer
             raw[i] = Localize(locale, chat.Topic.Lines[i]);
         }
 
-        if (AiLinesEnabled)
+        if (AiLinesEnabled && chat.Topic.Who != VillageChatterTopic.WhoChildren) // a child's lines are the written ones, always
         {
             string key = ChatterCacheKey(chat, locale);
             var allowed = VillageChatterNeeds.TokensFor(chat.Topic.Needs);
@@ -1339,13 +1348,15 @@ public sealed partial class GameServer
     /// <summary>Test seam (#2600): spawns a villager of <paramref name="settlement"/> with a daily routine and a person key,
     /// standing still at <paramref name="pos"/> (its home, work and rest spot). Returns its id. With
     /// <paramref name="looksForFurniture"/> it looks for a bed and a seat around itself like a villager (#2655); without, it
-    /// never does and rests where it stands.</summary>
+    /// never does and rests where it stands. With <paramref name="errands"/> it goes on errand rounds by day like a real
+    /// villager (the lively places); without, it never sets out — "standing still" is what most fixtures want.</summary>
     public int SpawnVillagerForTest(string settlement, Vector3f pos, string role = "settler", string job = "", bool robot = false,
-        bool looksForFurniture = false)
+        bool looksForFurniture = false, bool errands = false)
     {
         var npc = MakeNpc(role, "settlers", robot, pos, new System.Random(_nextNpcId * 7919));
         npc.Settlement = settlement;
         npc.Job = job;
+        npc.ErrandNextAt = errands ? 0 : double.MaxValue;
         npc.RoutineEnabled = true;
         npc.FurnitureGen = looksForFurniture ? 0 : long.MaxValue; // MaxValue: never older than the world's furniture — no look
         npc.Leash = 0f;

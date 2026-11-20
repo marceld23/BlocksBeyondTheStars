@@ -7009,6 +7009,7 @@ public sealed partial class GameServer
             PlanetType = b.PlanetType,
             Status = b.Status.ToString(),
             OwnerName = b.Kind == CelestialKind.SpaceStation ? StationOwnerName(b.Id) : string.Empty,
+            Purpose = b.Kind == CelestialKind.SpaceStation ? StationPurposeOf(b.Id) : string.Empty,
             SystemX = b.SystemX,
             SystemY = b.SystemY,
             SystemZ = b.SystemZ,

@@ -254,8 +254,19 @@ public sealed class WorldDescription
     /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines,
     /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes,
     /// #3680 the fallen guardian giants, the abandoned beds: a ruin's and a wreck's beds look like today's bed and
-    /// work as none).</summary>
-    public const int CurrentTerrainGeneration = AbandonedBedsGeneration;
+    /// work as none, the lively places: a settlement's own colour and shells, street furniture, lamps that shine, a
+    /// landmark, stations with a purpose and a colour).</summary>
+    public const int CurrentTerrainGeneration = LivelyPlacesGeneration;
+
+    /// <summary>The generation of the lively places (docs/developer/LIVELY_PLACES.md): a body stamped for the first time in a
+    /// world of this generation or later plans its settlements with plan revision 2 (<c>SettlementPlan.CurrentRevision</c>:
+    /// mirrored modules, a colour per settlement, street furniture, lanterns that cast light, a landmark or a whole template
+    /// as the centre) from the kits made for it (<c>StructureKit.MinTerrainGeneration</c>; the older settlement kits end at
+    /// the generation before, <c>StructureKit.MaxTerrainGeneration</c>), coins its settlement names from the larger name
+    /// table, and a station composed for the first time gets a purpose and a colour (pinned in its kit record). Server-side
+    /// stamps only: every chunk of every older generation stays bit-identical, and every settlement and station that already
+    /// stands replays exactly as before.</summary>
+    public const int LivelyPlacesGeneration = 46;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
     /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a

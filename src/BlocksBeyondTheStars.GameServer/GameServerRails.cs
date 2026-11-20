@@ -1320,6 +1320,7 @@ public sealed partial class GameServer
                 }
             }
 
+            OnTrainHaltedAtPlace(cell); // the lively places: a town's platform rings its bell, whoever waits there waves
             return true;
         }
 

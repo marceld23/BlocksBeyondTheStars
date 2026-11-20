@@ -94,4 +94,22 @@ public static class NpcGestures
     /// <summary>#3769: startled — both hands straight up and the mouth wide open for a moment (~1.6 s). An older client
     /// does not know the value and plays no gesture; the line still shows.</summary>
     public const byte HandsUp = 4;
+
+    // The lively places: the emotes a player's figure already knows (PlayerEmotes), now also for NPCs — sent with a line
+    // (NpcGreeting.Gesture) or on their own (NpcEmote). An older client does not know the values and plays nothing.
+
+    /// <summary>Points ahead with one arm (a villager telling where the trader landed).</summary>
+    public const byte Point = 5;
+
+    /// <summary>Shakes the head.</summary>
+    public const byte HeadShake = 6;
+
+    /// <summary>Dances on the spot (a festival).</summary>
+    public const byte Dance = 7;
+
+    /// <summary>Claps.</summary>
+    public const byte Clap = 8;
+
+    /// <summary>Bows (thanks for a wish fulfilled).</summary>
+    public const byte Bow = 9;
 }

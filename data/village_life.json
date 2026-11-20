@@ -62,7 +62,24 @@
     { "key": "pet", "when": "any", "needs": "", "weight": 1, "hint": "a pet asleep on the roof",
       "lines": ["village.chat.pet.1", "village.chat.pet.2"] },
     { "key": "dream", "when": "any", "needs": "", "weight": 1, "hint": "a dream about flying like a bird",
-      "lines": ["village.chat.dream.1", "village.chat.dream.2", "village.chat.dream.3"] }
+      "lines": ["village.chat.dream.1", "village.chat.dream.2", "village.chat.dream.3"] },
+
+    // The lively places: what two CHILDREN talk about ("who": "children"). A child and a grown-up share no topic, every
+    // other topic is the grown-ups', and a child's lines are never re-worded by the AI — they are these written ones.
+    { "key": "kids_tag", "who": "children", "when": "day", "needs": "", "weight": 3, "hint": "playing tag",
+      "lines": ["village.chat.kids_tag.1", "village.chat.kids_tag.2"] },
+    { "key": "kids_stars", "who": "children", "when": "day", "needs": "", "weight": 1, "hint": "counting the stars",
+      "lines": ["village.chat.kids_stars.1", "village.chat.kids_stars.2"] },
+    { "key": "kids_ship", "who": "children", "when": "day", "needs": "", "weight": 2, "hint": "flying to the stars one day",
+      "lines": ["village.chat.kids_ship.1", "village.chat.kids_ship.2"] },
+    { "key": "kids_hide", "who": "children", "when": "day", "needs": "", "weight": 2, "hint": "hide and seek",
+      "lines": ["village.chat.kids_hide.1", "village.chat.kids_hide.2"] },
+    { "key": "kids_stone", "who": "children", "when": "day", "needs": "", "weight": 1, "hint": "a blue stone one of them found",
+      "lines": ["village.chat.kids_stone.1", "village.chat.kids_stone.2", "village.chat.kids_stone.3"] },
+    { "key": "kids_race", "who": "children", "when": "day", "needs": "", "weight": 2, "hint": "a race across the plaza",
+      "lines": ["village.chat.kids_race.1", "village.chat.kids_race.2"] },
+    { "key": "kids_animal", "who": "children", "when": "day", "needs": "", "weight": 1, "hint": "a tiny animal by the field",
+      "lines": ["village.chat.kids_animal.1", "village.chat.kids_animal.2", "village.chat.kids_animal.3"] }
   ],
 
   // #2598 (C3): what a villager FRIEND (own standing >= 40) hands over when you talk, at most every 30 min of world

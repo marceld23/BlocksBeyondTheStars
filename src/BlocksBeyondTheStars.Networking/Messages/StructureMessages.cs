@@ -68,6 +68,11 @@ public sealed class SpaceShipDesign
     public int[] Glow { get; set; } = System.Array.Empty<int>();
     public int[] Shape { get; set; } = System.Array.Empty<int>();
 
+    /// <summary>The lively places: a station's purpose (<c>StationPurposes</c>: trade, mining, research; "" = none, and for
+    /// everything that is no station). The flight view adds it to the station's name in the dock prompt.
+    /// Contractless-additive.</summary>
+    public string Purpose { get; set; } = string.Empty;
+
     /// <summary>#1917: a generated station hull's hangar mouth — its centre in design cell units (the same space as
     /// <see cref="X"/>/<see cref="Y"/>/<see cref="Z"/>; cell (x,y,z) spans x..x+1) and the horizontal direction pointing
     /// out of it. The flight view docks there. Contractless-additive: older payloads leave <see cref="HasDock"/> false.</summary>

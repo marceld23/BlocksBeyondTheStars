@@ -4006,3 +4006,40 @@ derelict stations (no beds), the landmarks and civilization sites (their templat
 in a ruin writes `bed_abandoned`).
 
 **Tests.** `AbandonedBedTests`, `SaveCompatibilityTests`.
+
+## 61. Generation 46 — the lively places (2026-11-20)
+
+**Why.** Settlements of one tier looked alike (in a classic village more than half the houses shared one shell), nothing
+stood in the streets, the lamps were two glowing blocks that cast no light, and a station was a station. The full
+picture — including everything that is behaviour and therefore not tied to a generation — is in
+[LIVELY_PLACES.md](LIVELY_PLACES.md).
+
+**The gate.** `WorldDescription.LivelyPlacesGeneration` = 46 = `CurrentTerrainGeneration`; the save version stays 17 (no
+block was added). The planner and the baker know no generation: a new plan gets `SettlementPlan.RevisionFor(generation)`
+— revision 2 from generation 46 — and the pinned plan text carries it, so a settlement of an older world, and a suburb of
+a grown city (`CityGrowth.Wall` keeps revision 1 on purpose), bake exactly as before.
+
+**What a new world generates differently.**
+
+- **Kits.** The planned kits `<tier>_grown_2` / `<tier>_grid_2` (`minTerrainGeneration` 46) are the only settlement kits
+  a new world draws; the sixteen older ones carry `maxTerrainGeneration` 45 (`StructureKit.DrawnAt`). A hand-made
+  village or town template becomes the centre of a planned settlement instead of being the whole settlement.
+- **Modules.** 124 new shells and eight landmark kinds (`tools/gen_lively_settlement_modules.py`), two to three variants
+  per function, human and alien, stored compact and expanded at load (`TemplateBody.Expand`).
+- **The plan.** About half the lots mirrored along X; the place's colour and dressing level pinned in the plan's options
+  part (`|c=<hex>;d=<n>`); at most one landmark.
+- **The bake.** Lanterns on posts, stalls and benches on the plaza, a fire or a well, props at the facades, awnings in
+  the place's colour, dyed roofs and accents, a seeded wall material — and the markers (`lamp`, `bench`, `well`, `stall`,
+  `fire`, `sign`, `chimney`, `child`) the server and the client read.
+- **Names.** Coined from forty roots with an ending by landmark, form or tier (`GameServerSettlementNames.cs`).
+- **Residents.** A bed with a `child` marker houses a child, on top of the residents.
+- **Stations.** A kit station composed for the first time gets a purpose (trade, mining, research) and a colour, both
+  pinned in its `StationKitRecord`; `StationKitComposer.PaintBand` dyes the band. A station that exists already keeps
+  neither.
+
+**What moves in an older world: nothing that is generated.** Its settlements, kits, names, residents and stations are
+drawn as before; the pinned villager names of generations 25 and 26 are unchanged (the last plain resident of a town is
+its night watch now — a job given after every draw).
+
+**Tests.** `LivelyPlacesFoundationTests`, `LivelySettlementBakeTests`, `LivelyModuleContentTests`, `StationPurposeTests`,
+`ChildVillagerTests`, `VillagePersonMemoryTests`.

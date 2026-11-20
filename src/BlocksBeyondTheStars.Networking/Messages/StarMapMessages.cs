@@ -61,6 +61,10 @@ public sealed class NetBody
     /// non-station bodies). Lets the travel screen mark a station "yours" and otherwise show "Station of {owner}".</summary>
     public string OwnerName { get; set; } = string.Empty;
 
+    /// <summary>The lively places: for a SpaceStation body, what it is for (<c>StationPurposes</c>) once the station has
+    /// been composed — the map then calls it a trade, mining or research station; "" otherwise. Contractless-additive.</summary>
+    public string Purpose { get; set; } = string.Empty;
+
     /// <summary>System-space coordinates (star at origin) for the system-scale flight layer.</summary>
     public float SystemX { get; set; }
     public float SystemY { get; set; }

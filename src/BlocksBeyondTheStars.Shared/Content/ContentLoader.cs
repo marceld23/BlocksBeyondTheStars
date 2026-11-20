@@ -103,6 +103,12 @@ public static class ContentLoader
         var stationTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "station_templates.json"));
         var settlementTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "settlement_templates.json"));
 
+        // The lively places: a shipped settlement or station module may carry the compact body (a palette and run-length
+        // rows, #3485) — a tenth of one JSON object per cell. Every reader of these two pools walks the cell list (the
+        // composers, the turn and the mirror, the furnisher, the editors), so the body is expanded here, once, at load.
+        stationTemplates.ForEach(TemplateBody.Expand);
+        settlementTemplates.ForEach(TemplateBody.Expand);
+
         // Writable user-content folder (editor output): one StructureTemplate per file. Merged on top of
         // the shipped pools so in-game builds are picked up at world creation without a rebuild.
         if (!string.IsNullOrEmpty(userContentDir) && Directory.Exists(userContentDir))

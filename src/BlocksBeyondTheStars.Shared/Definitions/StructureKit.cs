@@ -135,6 +135,48 @@ public sealed class StructureKit
     /// replay finds a kit by key whatever this says.</summary>
     public int MinTerrainGeneration { get; set; }
 
+    /// <summary>The youngest terrain generation whose regular draw this kit is part of; 0 = no upper bound. The settlement
+    /// kits from before the lively places end at generation 45: a newer world's regular draw is their successors. A kit past
+    /// this bound is not gone, though — a world that has outgrown it (<see cref="OutgrownAt"/>) still builds a small share of
+    /// its settlements from the kits from before (<c>GameServer.KitsFromBeforeShare</c>), so no shipped kit is dead content.
+    /// A pinned replay finds a kit by key whatever this says.</summary>
+    public int MaxTerrainGeneration { get; set; }
+
+    /// <summary>Whether a world of <paramref name="generation"/> has this kit in its regular draw for a fresh structure.</summary>
+    public bool DrawnAt(int generation)
+        => MinTerrainGeneration <= generation && (MaxTerrainGeneration <= 0 || generation <= MaxTerrainGeneration);
+
+    /// <summary>Whether a world of <paramref name="generation"/> is past this kit's <see cref="MaxTerrainGeneration"/> (and old
+    /// enough for it at all): the kit is one "from before" there — out of the regular draw, in the rare one.</summary>
+    public bool OutgrownAt(int generation)
+        => MaxTerrainGeneration > 0 && generation > MaxTerrainGeneration && MinTerrainGeneration <= generation;
+
+    // --- the lively places (terrain generation 46, plan revision 2) ---
+
+    /// <summary>A planned kit's street furniture: 0 = the kit's default (<see cref="DressingDefault"/>), 1 = none,
+    /// 2 = sparse, 3 = normal, 4 = rich — benches, market stalls, a well, crates, fences, flower pots, a fire place.</summary>
+    public int Dressing { get; set; }
+
+    /// <summary>The street furniture level a kit without a value gets.</summary>
+    public const int DressingDefault = 3;
+
+    /// <summary>The effective street furniture level, 1 (none) … 4 (rich).</summary>
+    public int DressingLevel => Dressing <= 0 ? DressingDefault : System.Math.Min(4, Dressing);
+
+    /// <summary>A planned kit whose modules are never mirrored (the default mirrors about half the lots).</summary>
+    public bool NoMirror { get; set; }
+
+    /// <summary>A planned kit's fixed settlement colour as 0xRRGGBB text ("" = one of the palette by the settlement's
+    /// seed; "none" = no colour).</summary>
+    public string Palette { get; set; } = string.Empty;
+
+    /// <summary>A planned kit that never gets a landmark or a whole template as its centre.</summary>
+    public bool NoLandmark { get; set; }
+
+    /// <summary>Station kits: the purposes (<c>StationPurposes</c>) this kit is made for; empty = a station without a
+    /// purpose (every kit from before the lively places).</summary>
+    public List<string> Purposes { get; set; } = new();
+
     /// <summary>Settlement kits: how the composer lays the settlement out — <see cref="LayoutPlots"/> (the classic grid of
     /// <see cref="ColsMin"/> … <see cref="ModulesOnly"/>), <see cref="LayoutGrid"/> or <see cref="LayoutGrown"/> (a pinned
     /// settlement plan, #3584).</summary>

@@ -94,7 +94,7 @@ public sealed partial class GameServer
     /// <summary>Whether an NPC can be startled at all: awake, not a G.D.S. guardian, not away visiting a base, not busy in
     /// a talk with a player.</summary>
     private bool MayBeStartled(ServerNpc npc)
-        => npc.Pose != 2 && npc.Role != "guardian" && !npc.VisitingAway && !NpcInPlayerDialog(npc);
+        => npc.Pose != 2 && npc.Role != "guardian" && !npc.IsChild && !npc.VisitingAway && !NpcInPlayerDialog(npc); // nobody frightens a child
 
     /// <summary>A player on the surface fired or swung a weapon at <paramref name="at"/> (from <see cref="HandleFxIntent"/>,
     /// after its checks): the nearest NPCs around call out. Returns how many did.</summary>
