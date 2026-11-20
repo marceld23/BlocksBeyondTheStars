@@ -11,6 +11,128 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.26] — 2026-11-21
+
+The lively-places release. Villages and towns are **no longer alike**: every place has **its own colour**, stalls,
+benches and lanterns on its plaza, signs beside its doors and often a landmark. Its **people go about their day** — on
+errands, at work, on a bench in the evening, on market day — and **children and pets** live among them. A place now
+**greets you with a banner and sounds like itself**. **Space stations get a purpose** — trade, mining or research —
+with rooms, goods and missions of their own, and every station hums, blinks and keeps its traders moored. Besides:
+**tall trees keep their crowns in the distance**, **swimming no longer bounces**, **armour covers the whole figure**,
+and the **titanium, guardian and obsidian sets get boots**.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 17**. The **terrain generation rises to 46**: the new
+villages, towns and stations come with **worlds you create from now on**; your existing worlds keep every settlement
+and station block for block — but their people go on errands, their stations hum and blink, and the boots can be
+built everywhere. The **network protocol stays at version 12**: players of the previous version can still play
+together with this one; they miss what is new on their own screen (the banners, the door signs, the sounds, the
+gestures, the new swimming and the armour's new look).
+
+### 🏘️ Villages that are no longer alike (#3864, #3872)
+
+- In a new world, villages and towns are built from **two or three kinds of every building**, about half of them
+  **mirrored**, and every place has **its own colour** — on the roofs, the awnings over the doors and the market stalls.
+- On the plaza stand **stalls, benches and lanterns** that light the square at night. A hamlet gathers round a
+  **campfire** (a real one — you may cook at it), a village has its **well**, a green village a **pond with a plank
+  jetty** and a lantern at its end. Crates, barrels and flower pots stand beside the doors, and many places have **one
+  landmark**: a mill, a bell tower, a water tower, a light tower, a market hall, a clock tower, a glass dome — or, in
+  an alien place, a crystal spire.
+- A building that offers something hangs a **sign beside its door** — a mug for the tavern, a hammer for the workshop,
+  a basket for the market — so you can read a street without opening every door.
+- Places have **names of their own**, often after their landmark or their shape.
+- About **one settlement in twenty** is still built from the houses older worlds know.
+
+### 🧑‍🌾 People who go about their day (#3865, #3866)
+
+- In **every world, old or new**, the people without a post now go on **errands** by day — to the stall, the notice
+  board, the well, a bench, the edge of a field. The small line under a name says what somebody is doing. They nod to
+  each other, some **sweep** in front of their house in the morning, the gardener carries the harvest to the market,
+  the craftsman's hammer throws sparks, and the **animal keeper** walks over to the pen now and then. In rain or a
+  storm everybody goes home.
+- The **evening is longer**: people sit together from late afternoon and go to bed one by one; in a new village some
+  spend a dry evening on the **benches of the plaza**. A town has a **night watch** who walks the streets with a
+  lantern.
+- Every third day is **market day**: travelling merchants set up at the plaza until the afternoon. When a calendar
+  festival is on, the village meets on the plaza in the early evening and **dances**.
+- A landed trader's pilot does not just stand beside its ship any more: near a settlement it walks to the market and
+  back, out in the wild it **looks its ship over** and **sits on a crate** in front of it — and gets up as soon as you
+  come close.
+
+### 🧒 Children and pets (#3867)
+
+- In the new villages a family house has a third, small bed: **children** live there. They play **tag** on the plaza,
+  wave when you walk by and answer when you talk to them — they have no wishes and nothing to trade.
+- In every world, one or two households of a settlement keep a **small tame animal** that walks along with its person.
+
+### 🔔 A place you can hear and see (#3868)
+
+- When you walk into a village, a town or aboard a station, a small **banner** names it: what kind of place it is, its
+  name and what it offers — on market day and on a festival evening it says so.
+- You **hear the place**: a quiet murmur on the plaza by day, the tavern in the evening, hammering at the workshop,
+  water at the well, the market stall.
+- From far away you can make out its **roofs, its lights and the smoke of its chimneys**. Indoors fine dust drifts in
+  the lamplight, and the small creatures of the world keep to the place's gardens by day and to its lanterns at night.
+
+### 🛰️ Stations with a purpose (#3869, #3870, #3871)
+
+- A station first seen in a world created from now on is a **trade station**, a **mining station** or a **research
+  station** — the banner says so when you come aboard, and so do the dock prompt and the star map. The station of your
+  start system always trades; near asteroid fields mining stations are common. A **band in the station's own colour**
+  runs along its walls and floors.
+- Each purpose has **rooms of its own**: a bazaar hall and a customs office, an ore bay, a smelter and an assay office,
+  a laboratory, an observatory and an archive. **The smelter's furnaces work** — stand beside one and smelt as at a
+  forge of your own. From outside a trade station carries freight racks, a mining station ore hoppers, a research
+  station radio dishes, and inside each is laid out its own way.
+- The first trader of a mining or a research station runs the **station's own exchange** — its trade's goods at
+  better rates than anywhere else. The **mission board** follows the purpose too: five delivery jobs on a mining
+  station instead of three, three survey jobs on a research station instead of one.
+- A research station keeps an **archive of samples**: open a sample's card (Tab → Inventory → Samples) and choose
+  **Give one to the station archive** — it collects every species once and pays **1 to 5 data fragments**, more for
+  rarer ones.
+- **Aboard every station** (old worlds too) the deck **hums** — deeper the bigger the station — the hangar, the canteen
+  and the rooms with equipment sound like themselves, console screens flicker (not with *Reduced effects*), and a
+  **gong with a short announcement** tells everybody aboard when a trader docks or casts off and when the night rest
+  and the day shift begin. A dock hand works in the hangar, and one of the crew makes the **rounds** from post to post.
+- Outside, **position lights** blink on the hull and a small dish turns on top. A **trader that docks stays**: its ship
+  lies moored beside the hangar while its pilot trades aboard, and then you can watch it cast off.
+
+### 🌲 Whole trees in the distance (#3859)
+
+- Giant trees and tall trees on high ground were **cut off flat** until you came close — the world sent too little of
+  a far column. Now every column is sent up to the top of its tallest tree, so the crowns stand on the horizon too.
+
+### 🏊 Swimming without bouncing (#3860)
+
+- With Space and forward held, you used to **jump out of the water** every time your head broke the surface. Now you
+  simply **float** at the surface, with or without Space; the little hop out onto the land only comes where a bank
+  stands in front of you.
+- Hold **Crouch** (Ctrl / C, pad B) to **dive**. Hold **Run** to **sprint swim** — faster, lying level in the water
+  like a crawl stroke (it uses stamina like running), and other players see you swim that way too.
+
+### 🛡️ Armour that covers the whole figure (#3861)
+
+- A chest piece now also plates your **upper arms, forearms and waist**, a leg piece your **shins** — a full set covers
+  most of your figure.
+- Every set has **its own outline**: the titanium set a visor brim and two-tier shoulder pads, the guardian set cheek
+  guards, short fins on the crown and stepped shoulders, the Sounders' obsidian set domed shoulders.
+
+### 🥾 Boots for every set (#3862)
+
+- **Titanium Boots** (a blueprint of their own after the boots), **Guardian Boots** (with the Guardian armour
+  blueprint — a guardian giant's crate may hold a pair too) and **Obsidian Boots** (with the Sounders' obsidian
+  blueprint) complete their sets. The obsidian set's quiet steps still need only helmet, chest and legs.
+
+### 🔧 Under the hood
+
+- Terrain generation 46 with settlement plan revision 2: mirrored lots, the place's colour, a dressing level, at most
+  one landmark, a hand-made template as the heart of a planned settlement. 124 new settlement modules and eight
+  landmark kinds are stored compact (about 0.4 MB instead of 4.8 MB) and expanded on load.
+- Three new messages (`PlaceList` 358, `NpcEmote` 359, the archive intent 360) and two additive fields — older peers
+  drop them, so no protocol bump.
+- The kit editor has rows for the new kit fields (dressing, mirroring, colour, landmark, purposes).
+- 16 new sounds and 18 new pictures (door signs and station emblems) for the places; 3 new item icons for the boots.
+- Thank you for the reports that brought the trees, the swimming, the armour and the boots into this release!
+
 ## [2026.11.25] — 2026-11-20
 
 The signpost release. A **Test Pilot** task now tells you what you are testing while you play: the card at the right
@@ -11432,7 +11554,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.25...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.26...HEAD
+[2026.11.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.25...v2026.11.26
 [2026.11.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.24...v2026.11.25
 [2026.11.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.23...v2026.11.24
 [2026.11.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.22...v2026.11.23

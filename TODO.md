@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧰 Player reports of 2026-11-20: whole trees in the distance, swimming without bouncing, armour that covers the body, set boots — #3859–#3862, PR #3874 — ✅ 2026-11-20 (server streaming + client + data; no protocol bump, no save change; 10 texts in 14 languages, 3 new item icons)
+### 🧰 Player reports of 2026-11-20: whole trees in the distance, swimming without bouncing, armour that covers the body, set boots — #3859–#3862, PR #3874 (`857c276d`) — ✅ released in v2026.11.26 (server streaming + client + data; no protocol bump, no save change; 10 texts in 14 languages, 3 new item icons)
 
 - **Tall trees cut off flat in the distance (#3859).** A far chunk column streamed one chunk above its surface, a near
   column three above the player's chunk; giant trees (up to 64 blocks) and ordinary trees over a high surface lost their
@@ -49,7 +49,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - **Ideas filed for later:** #3857 (the Guardian armour as the SPS soldiers' uniform, a time-capsule soldier, the
   Guardian laser) and #3858 (SPS communication tower ruins on inhabited planets, tied into the VEGA story).
 
-### 🏘️ Lively places: settlements and stations that are varied and alive — #3873 (epic), #3863–#3872 — ✅ done 2026-11-20 (⚠ playtest open; terrain generation 46; two additive messages `PlaceList` 358 + `NpcEmote` 359 and one intent 360, no protocol bump, no save version bump; new texts in 14 languages)
+### 🏘️ Lively places: settlements and stations that are varied and alive — #3873 (epic), #3863–#3872, PR #3875 (`966033a4`) — ✅ released in v2026.11.26 (⚠ playtest open; terrain generation 46; two additive messages `PlaceList` 358 + `NpcEmote` 359 and one intent 360, no protocol bump, no save version bump; new texts in 14 languages)
 
 - **Why.** Settlements of one tier looked alike, nothing stood in the streets, people stood at home all day, a village
   was silent, and every station was the same station. Full description: [docs/developer/LIVELY_PLACES.md](docs/developer/LIVELY_PLACES.md).
