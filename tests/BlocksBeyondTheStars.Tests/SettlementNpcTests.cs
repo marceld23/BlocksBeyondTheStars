@@ -167,8 +167,21 @@ public sealed class SettlementNpcTests : IDisposable
                     // #1867: midday at the settlement — at dusk the residents walk off to their chairs and beds.
                     server.SetLocalDayFractionForTest(0.45, p.State.Position.X);
                     server.TickForTest(0.5);
+
+                    // #3866: two kinds of people are no strollers, so the home leash does not apply to them. A town's
+                    // night watch sleeps until noon after its shift — at this hour it walks to its bed, which may stand
+                    // on an upper floor of its house. A market day's travelling merchants arrive during the sim: their
+                    // "home" is the road exit they came in by, and they walk from there to a stall on the plaza.
+                    var notStrolling = server.PersonKeysForTest
+                        .Where(k => k.Job is SvGameServer.NightWatchJob or SvGameServer.MarketTraderJob)
+                        .Select(k => k.Id).ToHashSet();
                     foreach (var n in server.NpcSnapshots)
                     {
+                        if (notStrolling.Contains(n.Id))
+                        {
+                            continue;
+                        }
+
                         if (n.Pos.DistanceSquared(n.Home) > 0.01f) { anyMoved = true; }
 
                         // The leash is HORIZONTAL (the code checks XZ only); Y follows the real floor now
@@ -184,7 +197,7 @@ public sealed class SettlementNpcTests : IDisposable
                         Assert.True(dx * dx + dz * dz <= 16f, // leash ~1.6 → max ~3.6m overshoot
                             $"NPC '{n.Role}' at marker '{marker}' (seed {seed}, tick {i}) wandered too far from home ({dx * dx + dz * dz}): home {n.Home}, now {n.Pos}.");
                         Assert.True(System.Math.Abs(n.Pos.Y - n.Home.Y) <= 3f,
-                            $"NPC '{n.Role}' drifted vertically ({n.Pos.Y} vs home {n.Home.Y}).");
+                            $"NPC '{n.Role}' at marker '{marker}' (seed {seed}, tick {i}) drifted vertically ({n.Pos.Y} vs home {n.Home.Y}).");
                     }
                 }
 

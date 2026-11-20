@@ -91,6 +91,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   (#3870); hull parts and floor plans by purpose — cargo racks, ore hoppers, radio dishes; concourse, spine, decks
   (#3871); a real pond with a plank jetty and a lantern in a lively green village (#3872); a market stall's own sound
   source (`amb_place_stall`, #3868).
+- **Main CI find (2026-11-21).** The slow leash test `SettlementNpcTests.Npcs_Stroll_ButStayNearHome_WhilePlayerPresent`
+  (never run on a PR) went red: at its midday hour the night watch sleeps and walks to a bed upstairs, and a market
+  day's merchants walk in from a road exit. Both as designed — the test now leaves those two jobs out of the leash.
 - **Open.** The low preset and the browser build are not measured; a station could not be recorded from the inside, so
   everything aboard is tested but not yet looked at; a playtest.
 
