@@ -33,6 +33,9 @@ public sealed class StructureTemplatePoolTests : IDisposable
         "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "streamer", "reporter", // 2026-09: profession posts
         "rail_dealer", // #2113: the monorail's dealer at the depot
         "entrance", // #3585: the road side of a module without a door (fields, gardens, pens)
+        // #3864/#3867/#3869, the lively places: a child's small bed, a chimney's smoke, a bench, a market stall's customer
+        // side, and a room's own sound (a station's laboratory and observatory)
+        "child", "chimney", "bench", "stall", "sound",
     };
 
     private readonly string _root;
