@@ -130,7 +130,10 @@ public sealed class StructureTemplatePoolTests : IDisposable
     [Fact]
     public void StampedTemplate_IsPinned_AndSurvivesARestart()
     {
-        for (long seed = 1; seed <= 60; seed++)
+        // The known hit first (since terrain generation 46 seeds 1..16 hold no whole-template settlement, and every seed
+        // tried costs a world boot — the scan took 17 boots and broke the CI's 120-s fast-tier budget); the scan stays behind
+        // it should a later generation move the hit.
+        foreach (long seed in new long[] { 17 }.Concat(Enumerable.Range(1, 60).Select(i => (long)i).Where(s => s != 17)))
         {
             string world = $"tmplpin_{seed}";
             string pinnedTemplate;
