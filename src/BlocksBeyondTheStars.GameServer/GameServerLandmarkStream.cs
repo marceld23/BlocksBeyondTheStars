@@ -54,7 +54,7 @@ public sealed partial class GameServer
     /// <summary>Test/util: the chunk-Y span column (dx, dz) streams around <paramref name="center"/> for a view radius.</summary>
     internal (int LoDy, int HiDy) StreamColumnSpanForTest(ChunkCoord center, int dx, int dz, int viewRadius)
         => StreamColumnSpan(center, dx, dz, NearFullColumnRadius, _generator.SeaLevel(_world.Planet),
-            NoLandmarkStands ? 0 : System.Math.Min(viewRadius + 4, 20) - 1);
+            NoLandmarkStands ? 0 : System.Math.Min(viewRadius + 4, 20) - 1, System.Math.Min(viewRadius + 4, 20) - 1);
 
     internal sealed partial class LandmarkInstance
     {

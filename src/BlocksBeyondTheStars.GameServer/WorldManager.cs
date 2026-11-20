@@ -243,6 +243,10 @@ internal sealed class LoadedWorld
     /// per column instead of once per player per tick (a SurfaceHeight call = a full noise chain each).</summary>
     public Dictionary<(int Cx, int Cz), (int LoCy, int HiCy)> FarColumnBands { get; } = new();
 
+    /// <summary>#3859: the highest chunk Y the tall flora (a tree, a giant tree) of a chunk column reaches, or
+    /// <c>int.MinValue</c> — a pure function of the generator, cached per column like <see cref="FarColumnBands"/>.</summary>
+    public Dictionary<(int Cx, int Cz), int> FloraTopChunks { get; } = new();
+
     /// <summary>#3211: the chunks this world keeps resident away from its players (Crystal Nets, lift shafts, base builds)
     /// and the ones still waiting to be loaded — see <c>GameServerChunkAnchors.cs</c>.</summary>
     public GameServer.ChunkAnchorState ChunkAnchors { get; } = new();

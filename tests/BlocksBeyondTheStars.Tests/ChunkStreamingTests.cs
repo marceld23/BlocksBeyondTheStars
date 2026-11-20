@@ -439,10 +439,19 @@ public sealed class ChunkStreamingTests : IDisposable
         // A far column (dx=5, Chebyshev 5 > 4) streams only the band around its surface — count over a wide
         // vertical window so we catch the band wherever the terrain there sits.
         int farLayers = 0;
+        int farLowest = int.MaxValue;
         for (int cy = center.Y - 8; cy <= center.Y + 8; cy++)
         {
-            if (server.World.IsChunkLoaded(new ChunkCoord(center.X + 5, cy, center.Z))) farLayers++;
+            if (server.World.IsChunkLoaded(new ChunkCoord(center.X + 5, cy, center.Z)))
+            {
+                farLayers++;
+                farLowest = System.Math.Min(farLowest, cy);
+            }
         }
+
+        // #3859: a column with tall flora (a tree, a giant tree) lifts its band up to the flora's top chunk.
+        int floraTop = server.FloraTopChunkForTest(center.X + 5, center.Z);
+        int floraLayers = floraTop == int.MinValue || farLowest == int.MaxValue ? 0 : floraTop - farLowest + 1;
 
         // A SUBMERGED far column stretches its band up to the waterline (#987), so its ceiling is the cap, not
         // the three-chunk surface band. Probe for that only after counting — GetBlock caches the chunks it reads.
@@ -456,7 +465,7 @@ public sealed class ChunkStreamingTests : IDisposable
         }
 
         Assert.Equal(7, nearLayers); // near column: full vertical span
-        Assert.InRange(farLayers, 1, submerged ? 6 : 3); // far column: the surface band, stretched to the waterline when flooded
+        Assert.InRange(farLayers, 1, System.Math.Max(submerged ? 6 : 3, floraLayers)); // far column: the surface band, stretched to the waterline when flooded and to the flora's top
     }
 
     [Theory]
