@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧰 Player reports of 2026-11-20: whole trees in the distance, swimming without bouncing, armour that covers the body, set boots — #3859–#3862, PR __PR__ — ✅ 2026-11-20 (server streaming + client + data; no protocol bump, no save change; 10 texts in 14 languages, 3 new item icons)
+### 🧰 Player reports of 2026-11-20: whole trees in the distance, swimming without bouncing, armour that covers the body, set boots — #3859–#3862, PR #3874 — ✅ 2026-11-20 (server streaming + client + data; no protocol bump, no save change; 10 texts in 14 languages, 3 new item icons)
 
 - **Tall trees cut off flat in the distance (#3859).** A far chunk column streamed one chunk above its surface, a near
   column three above the player's chunk; giant trees (up to 64 blocks) and ordinary trees over a high surface lost their
