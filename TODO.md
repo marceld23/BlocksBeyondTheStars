@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧭 Test Pilot: a tester always knows what to test right now — #3853 (epic), #3846–#3852, PR #3854 — ✅ 2026-11-20 (⚠ playtest open; client + validator + data; one new key binding, no new message, no protocol bump, no save change; 22 new texts in 14 languages)
+### 🧭 Test Pilot: a tester always knows what to test right now — #3853 (epic), #3846–#3852, PR #3854 (`d70669d6`) — ✅ released in v2026.11.25 (⚠ playtest open; client + validator + data; one new key binding, no new message, no protocol bump, no save change; 22 new texts in 14 languages)
 
 - **Why.** A tester who took a task up and started a world saw one small card with one step's text — no task name, no
   "step 2 of 5", no word about what to do with a step the game cannot recognise, and a long text cut without a mark.
@@ -61,9 +61,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   (`player:fallen`), `pillar-climb` (`gear:equipped` ×2), `guardian-giant` (`guardian_giant:defeated`); `rev` 2 and
   `minVersion` 2026.11.25 each. The validator warns about the shape this removes (`CheckStepOrder`: an in-game task
   with a hand-ticked step before a recognised one; an editor task is exempt — its list is on the screen).
-- **Open.** (1) ⚠ The inbox still serves the old task files: push the seven reworked ones after the release that
-  carries this (`tools/playtests/sync_playtests.py push`) — until then nothing changes for a player, and after the
-  push a client older than 2026.11.25 no longer sees those seven. (2) ⚠ Playtest: the card, the key, the start card
+- **Open.** (1) The seven reworked task files go into the inbox with the fleet roll of v2026.11.25, right after
+  the release run (the admin routes, as with the first twelve) — from then on a client older than 2026.11.25 no longer
+  sees those seven until it has updated. (2) ⚠ Playtest: the card, the key, the start card
   and the reworked tasks have been played by nobody yet; the HUD card is not in `TestPilotTextFitEditModeTests` (the
   HUD is TextMeshPro and needs a running game) — its texts wrap and the card grows, look at it once per language
   family. (3) A pad has no Test Pilot button; its way stays the pause menu's row.

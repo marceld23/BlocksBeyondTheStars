@@ -11,6 +11,80 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.25] — 2026-11-20
+
+The signpost release. A **Test Pilot** task now tells you what you are testing while you play: the card at the right
+of the screen names the **task, the step and what to do about it**, **F4** opens the whole list straight from the
+game, a **start card** introduces a task in its test world, and a banner says when **all steps are done**. In the
+editors the list is **open when you enter**. Every open step can be closed with **"Did not work"**, and **seven tasks
+were reworked** so the card no longer stands still in the middle of a task.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 17**, the **terrain generation at 45** and the
+**network protocol at 12**. Players of the previous version can still play together with this one. **Seven Test Pilot
+tasks need this version**: an older game no longer shows them until it has updated.
+
+### 🧭 The Test Pilot card says what you are testing (#3846)
+
+- While you work on a task in a world, the card at the right of the screen now reads **"TEST PILOT · STEP 2 OF 5"**,
+  the **task's name**, the **whole text of the step** and a line that says what to do: *"The game notices this by
+  itself."* or *"Done? Press F4 and tick it off."* Before, it showed one step's text and nothing else.
+- A long step is **no longer cut off** — the card grows with its text. A step that counts ("Walk 50 metres") now
+  **counts live** on the card; it used to stand at "0 of 50" until the step was done.
+- When every step is closed the card **stays** and says **"All steps done"** with the way to the report. It used to
+  disappear without a word.
+
+### ⌨️ F4 opens your task (#3847)
+
+- **F4** is the new **Test Pilot key** (rebindable under Settings → Controls). In a world it opens the task you are
+  working on with all its steps — there you tick off what the game cannot notice. **F4 again, or Esc, takes you
+  straight back into the game.** A singleplayer world waits meanwhile.
+- In an editor F4 opens and folds the task's list. Without a task the key does nothing. On a gamepad the way stays the
+  **Test Pilot** row of the pause menu, and the card says so.
+
+### 🚦 A task says when it starts and when it is done (#3848)
+
+- In the **test world** a task brings, a **start card** greets you once the world is up: the task's name, what it is
+  about, how many steps it has and where you find them. **Let's go** starts it; the world waits behind the card.
+- In **any other world** a line names the task that is running.
+- When the game recognises your **last open step**, a banner says **"All steps done"** — only the report is missing
+  then.
+
+### 🛠️ In the editors (#3849)
+
+- The task's list is **open the first time you enter** the editor — before, it hid behind a small chip that read
+  "TEST PILOT 1/4". **Fold away** makes room; folded once, it stays folded.
+- The chip says **"✔ Recognised by the game"** for a moment when the editor ticked a step for you (saved, opened …),
+  and becomes **Write report** when every step is closed.
+
+### 📋 On the Test Pilot page (#3850)
+
+- A task in an editor has the button **Open: Ship Editor** (or whichever editor it is) — no more searching the main
+  menu for the right one of seven.
+- A task without a test world says that **any of your own worlds** will do.
+- In a task's own test world the page no longer tells you to "leave this world first".
+- **Put aside** takes a task off your screen (your ticks stay), **Take up** brings it back. Before, a task you had
+  opened once kept its card in every world until its report was sent.
+
+### ✋ "Did not work" for every step (#3851)
+
+- A step the game recognises by itself had **no button at all**: if you did not find the key for a barrel roll, or no
+  hostile machine to hit, the task could never be finished. Every open step now has **Did not work** — say in a
+  sentence what happened and go on. Those are the reports that help the most.
+- A step closed that way can be taken back with **Undo**; the game then recognises it again.
+
+### 🧑‍🚀 Seven tasks reworked (#3852)
+
+- **Barrel roll and boost**, **Through the night with the lamp**, **Throwing blocks** — and four of the six tasks that
+  come later — now have one shape: first the things you **do**, which the game recognises by itself (putting the lamp
+  on, the barrel roll, the boost, lifting and throwing a block, a hit on a hostile machine), then the questions only
+  **you** can answer. A step that needs a key names it.
+- Ticks you already made are kept. These seven tasks need this version of the game.
+
+### 🔧 Under the hood
+
+- The task validator warns about a hand-ticked step that stands before a recognised one in an in-game task — the shape
+  the rework removed.
+
 ## [2026.11.24] — 2026-11-19
 
 The landing release. A trader that lands is now **seen landing**: it flies to its planet and dives into the air,
@@ -11358,7 +11432,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.24...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.25...HEAD
+[2026.11.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.24...v2026.11.25
 [2026.11.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.23...v2026.11.24
 [2026.11.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.22...v2026.11.23
 [2026.11.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.21...v2026.11.22
