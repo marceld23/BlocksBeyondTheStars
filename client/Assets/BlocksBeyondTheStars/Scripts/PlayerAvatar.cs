@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Feel;
 using UnityEngine;
 using BodyPaint = BlocksBeyondTheStars.Shared.State.BodyPaint;
 using GearLook = BlocksBeyondTheStars.Shared.State.GearLook;
@@ -244,6 +245,10 @@ namespace BlocksBeyondTheStars.Client
             _torso = OwnLit(torso, _suitTex);
             _arms = OwnLit(arms, _suitTex);
             _legs = OwnLit(legs, _suitTex);
+            _armJoint = OwnLit(JointTone(arms), _suitTex); // #3885: a touch darker, so the joint reads as a joint
+            _legJoint = OwnLit(JointTone(legs), _suitTex);
+            _gait = HumanGait.StyleFor(variantSeed);       // #3882: a villager's own way of walking (seed 0: the stock gait)
+            BuildBodyPivots();                              // #3883: the hips and the upper body move; every part below hangs on them
 
             // Per-NPC face variation (#711): tiny deterministic offsets from the seed so a settlement crowd
             // isn't a row of identical clones. Seed 0 (players, previews) keeps the exact stock face.
@@ -314,8 +319,8 @@ namespace BlocksBeyondTheStars.Client
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -AvatarArmourFit.ShoulderX, out _elbowL, out _handL); // #3861: the boxes the armour fits over
             _armR = AddArm("ArmRight", AvatarArmourFit.ShoulderX, out _elbowR, out _handR);
-            _legL = AddLeg("LegLeft", -AvatarArmourFit.HipX, out _kneeL);
-            _legR = AddLeg("LegRight", AvatarArmourFit.HipX, out _kneeR);
+            _legL = AddLeg("LegLeft", -AvatarArmourFit.HipX, out _kneeL, out _ankleL);
+            _legR = AddLeg("LegRight", AvatarArmourFit.HipX, out _kneeR, out _ankleR);
 
             if (_suit)
             {
@@ -478,6 +483,10 @@ namespace BlocksBeyondTheStars.Client
             RegisterPaint(BodyPaint.Arms, row,
                 AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), ArmLowerSize, _arms),
                 ArmLowerCenter);
+            // #3885: the elbow's joint block turns with the forearm and fills the notch a bend opens; painted with the arm.
+            RegisterPaint(BodyPaint.Arms, row,
+                AddCube(name + "ElbowJoint", elbow, AvatarArmourFit.ElbowJoint, _armJoint),
+                new Vector3(0f, AvatarArmourFit.ElbowDrop, 0f));
             hand = NewPivot(name + "Hand", elbow, new Vector3(0f, -0.44f, 0f));
             // Suited players wear gloves (arm colour); NPCs keep bare hands.
             RegisterPaint(BodyPaint.Arms, row,
@@ -504,7 +513,7 @@ namespace BlocksBeyondTheStars.Client
                 : BuildPaintedMesh(ArmLowerCenter, ArmLowerSize, min, max, BodyPaint.Arms, row);
         }
 
-        private Transform AddLeg(string name, float x, out Transform knee)
+        private Transform AddLeg(string name, float x, out Transform knee, out Transform ankle)
         {
             int row = x < 0f ? 0 : 1; // editor rows: top = left limb, bottom = right limb
             var hip = NewPivot(name, transform, new Vector3(x, AvatarArmourFit.HipY, 0f));
@@ -515,14 +524,21 @@ namespace BlocksBeyondTheStars.Client
             RegisterPaint(BodyPaint.Legs, row,
                 AddCube(name + "Lower", knee, AvatarArmourFit.LowerLeg, _legs),
                 new Vector3(0f, -0.67f, 0f));
+            // #3885: the knee's joint block (painted with the leg); #3884: the foot hangs on its own ankle, which turns it
+            // about the bottom of the shin (an origin pivot like the body's, so the knee-frame positions stay as they were).
             RegisterPaint(BodyPaint.Legs, row,
-                AddCube(name + "Foot", knee, new Vector3(0f, -0.44f, 0.06f), new Vector3(0.24f, 0.12f, 0.32f), _legs),
+                AddCube(name + "KneeJoint", knee, AvatarArmourFit.KneeJoint, _legJoint),
+                new Vector3(0f, AvatarArmourFit.KneeDrop, 0f));
+            ankle = NewPivot(name + "Ankle", knee, Vector3.zero);
+            RegisterPaint(BodyPaint.Legs, row,
+                AddCube(name + "Foot", ankle, new Vector3(0f, -0.44f, 0.06f), new Vector3(0.24f, 0.12f, 0.32f), _legs),
                 new Vector3(0f, -0.90f, 0.06f));
             return hip;
         }
 
-        private static Transform NewPivot(string name, Transform parent, Vector3 localPos)
+        private Transform NewPivot(string name, Transform parent, Vector3 localPos)
         {
+            parent = RouteParent(parent, localPos); // #3883/#3884: a part of the body or of the foot hangs on its pivot
             var t = new GameObject(name).transform;
             t.SetParent(parent, false);
             t.localPosition = localPos;
@@ -531,6 +547,7 @@ namespace BlocksBeyondTheStars.Client
 
         private GameObject AddCube(string partName, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
         {
+            parent = RouteParent(parent, localPos); // #3883/#3884: a part of the body or of the foot hangs on its pivot
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = partName;
             var col = go.GetComponent<Collider>();
@@ -587,7 +604,7 @@ namespace BlocksBeyondTheStars.Client
 
             float moving = Mathf.Clamp01(speed / 3.2f); // legs reach a full stride a bit sooner (slow NPC strolls read as walking)
             float run = Mathf.Clamp01((speed - 4.5f) / 4f); // extra emphasis once sprinting
-            float cycleRate = 4f + speed * 1.4f; // rad/s
+            float cycleRate = (4f + speed * 1.4f) * _gait.Cadence; // rad/s; #3882: a figure's own cadence (the stride follows)
             _walkPhase += dt * cycleRate;
             float t = Time.time + _phase;
 
@@ -597,7 +614,8 @@ namespace BlocksBeyondTheStars.Client
             float legLength = HipHeight * Mathf.Max(0.2f, transform.lossyScale.y);
             float strideHalf = speed * (2f * Mathf.PI) / cycleRate / 4f; // the foot's reach either side of the hip
             float strideDeg = Mathf.Asin(Mathf.Clamp01(strideHalf / legLength)) * Mathf.Rad2Deg;
-            float swing = Mathf.Sin(_walkPhase) * Mathf.Min(40f, Mathf.Max(Mathf.Lerp(2f, 40f, moving), strideDeg));
+            float amp = Mathf.Min(40f, Mathf.Max(Mathf.Lerp(2f, 40f, moving), strideDeg));
+            float swing = Mathf.Sin(_walkPhase) * amp;
             float armL = -swing, armR = swing, legL = swing, legR = -swing;
             float kneeL = 0f, kneeR = 0f, elbowL = -(12f + run * 25f), elbowR = -(12f + run * 25f); // #3401: negative = the forearm bends forward
             float headYaw = 0f;
@@ -672,17 +690,18 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (idle)
             {
-                float breath = Mathf.Sin(Time.time * 1.5f) * 2.5f; // idle sway
+                float breath = Mathf.Sin(t * 1.5f) * 2.5f; // idle sway — on the figure's own clock, so a crowd breathes out of step
                 armL = -breath; armR = breath; legL = 0f; legR = 0f;
+                elbowL = elbowR = -HumanGait.Elbow(0f, 0f, 0f, _gait.ElbowRest); // #3882: the arms hang a little bent …
+                rollL = -_gait.ArmOut;                                          // … and a little away from the body
+                rollR = _gait.ArmOut;
                 headYaw = Mathf.Sin(t * 0.5f) * 9f;                 // slow look-around
             }
             else
             {
-                // Walk/run: the recovering leg bends at the knee, arms counter-swing with elbow bend.
-                kneeL = Mathf.Max(0f, Mathf.Sin(_walkPhase)) * Mathf.Lerp(10f, 45f, moving);
-                kneeR = Mathf.Max(0f, -Mathf.Sin(_walkPhase)) * Mathf.Lerp(10f, 45f, moving);
-                elbowL -= Mathf.Max(0f, -Mathf.Sin(_walkPhase)) * 22f * moving;
-                elbowR -= Mathf.Max(0f, Mathf.Sin(_walkPhase)) * 22f * moving;
+                // Walk/run (#3882): the knee gives after the heel strike and folds in the swing, the arms counter-swing and
+                // bend at the elbow on their forward swing (PlayerAvatar.Gait.cs).
+                WalkLimbs(amp, moving, run, ref armL, ref armR, ref elbowL, ref elbowR, ref kneeL, ref kneeR, ref rollL, ref rollR);
             }
 
             // #2778: the holster / draw of a hotbar switch — the waiting item is swapped in at the bottom. A pose that owns
@@ -842,10 +861,14 @@ namespace BlocksBeyondTheStars.Client
                 _held.transform.localRotation = Quaternion.Euler((-(armR + elbowR) - _carryTip) * level, 0f, 0f); // or a pick tipped up (#3763)
             }
 
+            // #3883: the hips dip, sway and turn with the stride and the upper body counters them; standing, the weight rests
+            // on one leg. The legs roll against the hips' sway, so the feet stay where they stand (PlayerAvatar.Gait.cs).
+            PoseBody(dt, t, moving, run, amp, airborne, idle, ref legL, ref legR, ref kneeL, ref kneeR, out float legRoll, out float legYaw);
+
             _armL.localRotation = Quaternion.Euler(armL, yawL, rollL);
             _armR.localRotation = Quaternion.Euler(armR, yawR, rollR);
-            _legL.localRotation = Quaternion.Euler(legL, 0f, 0f);
-            _legR.localRotation = Quaternion.Euler(legR, 0f, 0f);
+            _legL.localRotation = Quaternion.Euler(legL, legYaw, legRoll);
+            _legR.localRotation = Quaternion.Euler(legR, legYaw, legRoll);
             // #3401: like the shoulder, NEGATIVE bends the forearm forward (the arm hangs along −y, its front +z) — the older
             // poses had it positive and hyperextended every elbow backwards (seen in the character editors' big figure).
             if (_elbowL != null) _elbowL.localRotation = Quaternion.Euler(elbowL, 0f, elbowRollL);
@@ -855,6 +878,7 @@ namespace BlocksBeyondTheStars.Client
             // leg bent the wrong way. The poses' knee angles are all positive "bend" amounts.
             if (_kneeL != null) _kneeL.localRotation = Quaternion.Euler(kneeL, 0f, 0f);
             if (_kneeR != null) _kneeR.localRotation = Quaternion.Euler(kneeR, 0f, 0f);
+            PoseAnkles(dt, moving, run, airborne, legL + kneeL, legR + kneeR); // #3884: flat in the stance, rolling off
             // #2434: the head nods to where its player looks (clamped — a head does not fold onto the chest), eased so the
             // 10 Hz presence steps read as a glance, not a twitch; the idle look-around keeps riding on the yaw.
             float wantPitch = _lying ? 0f : Mathf.Clamp(_lookPitch, -LookPitchLimit, LookPitchLimit);
@@ -877,7 +901,8 @@ namespace BlocksBeyondTheStars.Client
                 headYaw = Mathf.Lerp(headYaw, _lookYaw, _lookYawBlend);
             }
 
-            if (_head != null) _head.localRotation = Quaternion.Euler(_headPitch + nod, headYaw, 0f);
+            // #3883: the head keeps its gaze while the upper body leans and turns under it.
+            if (_head != null) _head.localRotation = Quaternion.Euler(_headPitch + nod - _headSteadyPitch, headYaw - _headSteadyYaw, 0f);
         }
 
         /// <summary>#2435: how far the caller lowers the avatar root while <see cref="CrouchBlend"/> is 1 — the folded legs
@@ -1415,7 +1440,10 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private Transform BuildSpringBoot(string side, Transform knee)
         {
-            var root = NewPivot("GearSpring" + side, knee, new Vector3(0f, -0.35f, 0f)); // the top of the sole block
+            // The top of the sole block — on the ankle (#3884), so the coil stays on the sole as the foot rolls; the ankle is an
+            // origin pivot under the knee, so the knee-frame position holds.
+            var ankle = knee == _kneeL ? _ankleL : knee == _kneeR ? _ankleR : null;
+            var root = NewPivot("GearSpring" + side, ankle != null ? ankle : knee, new Vector3(0f, -0.35f, 0f));
             _gear.Add(root.gameObject);
             for (int i = 0; i < 4; i++)
             {
@@ -1678,6 +1706,7 @@ namespace BlocksBeyondTheStars.Client
             _torso.color = ShaderColor.Srgb(torso);
             _arms.color = ShaderColor.Srgb(arms);
             _legs.color = ShaderColor.Srgb(legs);
+            TintJoints(); // #3885: the knees and elbows follow the limbs' new colour
 
             // A custom face composites its transparent pixels onto the skin, so re-bake it when skin changes.
             if (!FacePalette.IsEmpty(_faceString))

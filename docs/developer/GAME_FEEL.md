@@ -86,6 +86,10 @@ reverb and muffling are baked into the clips (`SampleKit`), and a mixer would be
 - **Body states**: a flinch when hurt, sinking down when defeated (until the figure is somewhere else, or 12 s), a
   swimming stroke in water, a give in the knees on landing.
 - **Eased legs**: the leg joints follow their pose (rate 22/s) instead of snapping from walk to tuck to stand.
+- **A walk with a body** (#3882–#3886, [AVATAR_RIG.md](AVATAR_RIG.md)): the knee folds in the swing, the elbow on the
+  arm's forward swing, the hips dip, sway and turn with the stride and the shoulders against them, the feet stay flat
+  and roll off on their ankles, a standing figure rests its weight on one leg; visible knee and elbow joints; every
+  villager its own gait, machines stiffer.
 - **Face**: the stock face blinks (3–6.5 s, different for every figure) and its mouth moves while its owner speaks
   (`Talk`). A drawn pixel face hides the stock features.
 - **Contact shadow** (`BlobShadow.cs`): a soft quad under players, NPCs, bandits and walking animals where the sun's

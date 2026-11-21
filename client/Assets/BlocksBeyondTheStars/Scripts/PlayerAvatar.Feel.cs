@@ -311,7 +311,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 _bowEmoteTimer -= dt;
                 float k = EmoteCurves.Envelope(1f - Mathf.Clamp01(_bowEmoteTimer / EmoteCurves.BowSeconds), 0.3f, 0.3f);
-                nod += 40f * k; // the figure has no waist: it bows with a deep head and the arms held back
+                _bowBend = 34f * k; // #3883: the figure bows at the waist now (PoseBody), the head a little further
+                nod += 12f * k;
+
                 armL = Mathf.Lerp(armL, 16f, k);
                 armR = Mathf.Lerp(armR, 16f, k);
                 elbowL = Mathf.Lerp(elbowL, -8f, k);

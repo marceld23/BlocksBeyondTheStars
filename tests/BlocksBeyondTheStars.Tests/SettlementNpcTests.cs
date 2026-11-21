@@ -68,6 +68,44 @@ public sealed class SettlementNpcTests : IDisposable
     }
 
     [Fact]
+    public void EveryVillager_WalksAtItsOwnPace_MachinesAtTheSharedOne()
+    {
+        // #3887: "every villager strolls at exactly the same pace" — the pace is drawn per NPC from its id and name.
+        var paces = Enumerable.Range(1, 400).Select(id => SvGameServer.NpcPaceFactor(id, "Villager" + id, child: false, machine: false)).ToList();
+        Assert.All(paces, f => Assert.InRange(f, SvGameServer.NpcPaceMin, SvGameServer.NpcPaceMax));
+        Assert.Contains(paces, f => f < 0.92f);   // some amble …
+        Assert.Contains(paces, f => f > 1.12f);   // … some walk briskly
+        Assert.True(paces.Distinct().Count() > 300, "a crowd, not a handful of speeds");
+
+        // Stable: the same person walks at the same pace every time (its look is drawn from the same id and name).
+        Assert.Equal(SvGameServer.NpcPaceFactor(7, "Mara", false, false), SvGameServer.NpcPaceFactor(7, "Mara", false, false));
+
+        // A child a little faster than a grown-up of the same draw; androids and guardians at the even shared pace.
+        Assert.Equal(SvGameServer.NpcPaceFactor(7, "Mara", false, false) * SvGameServer.ChildPaceFactor,
+            SvGameServer.NpcPaceFactor(7, "Mara", child: true, machine: false), 4);
+        Assert.Equal(1f, SvGameServer.NpcPaceFactor(7, "Mara", child: false, machine: true));
+
+        // The pace is what the stroll walks at: the shared gait's cruise scaled by it, the route's burst slowed by a slow
+        // pace — and nobody ever faster than the shared burst (0.9), the pace the route stepping is tuned to: a guard at
+        // 1.07 blocks/s wedged itself at the foot of a one-wide staircase (BaseResidentsUpstairsTests).
+        for (int id = 1; id <= 400; id++)
+        {
+            foreach (bool child in new[] { false, true })
+            {
+                var npc = new SvGameServer.ServerNpc { Id = id, Name = "Villager" + id, IsChild = child };
+                var profile = SvGameServer.PaceProfile(npc);
+                float pace = SvGameServer.NpcPaceFactor(id, npc.Name, child, false);
+                Assert.Equal(Math.Min(0.7f * pace, 0.9f), profile.CruiseSpeed, 4);
+                Assert.Equal(0.9f * Math.Min(pace, 1f), profile.BurstSpeed, 4);
+                Assert.True(profile.CruiseSpeed <= 0.9f + 1e-5f && profile.BurstSpeed <= 0.9f + 1e-5f);
+            }
+        }
+
+        var robot = SvGameServer.PaceProfile(new SvGameServer.ServerNpc { Id = 7, Name = "Mara", IsRobot = true });
+        Assert.Equal((0.7f, 0.9f), (robot.CruiseSpeed, robot.BurstSpeed));
+    }
+
+    [Fact]
     public void InhabitedSettlement_SpawnsNpcs_AtItsMarkers()
     {
         var server = StartedInhabited(out var repo);
