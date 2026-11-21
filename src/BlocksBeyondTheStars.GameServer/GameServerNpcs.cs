@@ -77,13 +77,17 @@ public sealed partial class GameServer
         return child ? pace * ChildPaceFactor : pace;
     }
 
-    /// <summary>The shared gait at <paramref name="npc"/>'s own pace.</summary>
+    /// <summary>The shared gait at <paramref name="npc"/>'s own pace — but never faster than the shared gait's burst
+    /// (0.9 blocks/s), the pace a walker on a route (<c>MoveMode.Seek</c>) always took: the route stepping and its world
+    /// sweep are tuned to it, and a guard at 1.07 blocks/s wedged itself at the foot of a one-wide staircase until the
+    /// fallback had to set it down (<c>BaseResidentsUpstairsTests</c>). So the stroll varies 0.6–0.84 (a child up to the
+    /// burst) and a route 0.77–0.9; the brisk ones walk their routes at the burst as before.</summary>
     internal static LocomotionProfile PaceProfile(ServerNpc npc)
     {
         var p = NpcProfile;
         float f = NpcPaceFactor(npc.Id, npc.Name, npc.IsChild, npc.IsRobot);
-        p.CruiseSpeed *= f;
-        p.BurstSpeed *= f;
+        p.CruiseSpeed = System.Math.Min(NpcProfile.CruiseSpeed * f, NpcProfile.BurstSpeed);
+        p.BurstSpeed = NpcProfile.BurstSpeed * System.Math.Min(f, 1f);
         return p;
     }
 

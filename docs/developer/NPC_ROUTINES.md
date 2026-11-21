@@ -311,7 +311,8 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
   the head toward the headboard, lifted onto the mattress, a "z z z" above. No gestures while seated or asleep.
 - **Pace and gait (#3887, #3882, #3886).** Every NPC walks the shared stroll (`NpcProfile`, cruise 0.7 blocks/s) at its
   own pace: `GameServer.NpcPaceFactor` draws 0.85–1.2 from the id and name its face is drawn from (a child × 1.15,
-  androids and guardians the even 1.0), and `PaceProfile` scales the cruise and burst speed by it. The client needs no
+  androids and guardians the even 1.0), and `PaceProfile` applies it — never above the shared burst of 0.9, the pace the
+  route stepping is tuned to (a guard at 1.07 wedged itself at a one-wide staircase's foot). The client needs no
   field for it — the figure's walk follows the speed it measures. The figure walks its own gait from the same look seed
   (`HumanGait.StyleFor`), and `SetMachine(nd.IsRobot)` makes androids and guardians stiffer — see
   [AVATAR_RIG.md](AVATAR_RIG.md).

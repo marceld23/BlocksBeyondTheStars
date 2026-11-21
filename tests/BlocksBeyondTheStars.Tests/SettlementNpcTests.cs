@@ -85,13 +85,24 @@ public sealed class SettlementNpcTests : IDisposable
             SvGameServer.NpcPaceFactor(7, "Mara", child: true, machine: false), 4);
         Assert.Equal(1f, SvGameServer.NpcPaceFactor(7, "Mara", child: false, machine: true));
 
-        // The pace is what the stroll walks at: the shared gait's cruise and burst, scaled by it.
-        var npc = new SvGameServer.ServerNpc { Id = 7, Name = "Mara" };
-        var profile = SvGameServer.PaceProfile(npc);
-        float pace = SvGameServer.NpcPaceFactor(7, "Mara", false, false);
-        Assert.Equal(0.7f * pace, profile.CruiseSpeed, 4);
-        Assert.Equal(0.9f * pace, profile.BurstSpeed, 4);
-        Assert.Equal(0.7f, SvGameServer.PaceProfile(new SvGameServer.ServerNpc { Id = 7, Name = "Mara", IsRobot = true }).CruiseSpeed, 4);
+        // The pace is what the stroll walks at: the shared gait's cruise scaled by it, the route's burst slowed by a slow
+        // pace — and nobody ever faster than the shared burst (0.9), the pace the route stepping is tuned to: a guard at
+        // 1.07 blocks/s wedged itself at the foot of a one-wide staircase (BaseResidentsUpstairsTests).
+        for (int id = 1; id <= 400; id++)
+        {
+            foreach (bool child in new[] { false, true })
+            {
+                var npc = new SvGameServer.ServerNpc { Id = id, Name = "Villager" + id, IsChild = child };
+                var profile = SvGameServer.PaceProfile(npc);
+                float pace = SvGameServer.NpcPaceFactor(id, npc.Name, child, false);
+                Assert.Equal(Math.Min(0.7f * pace, 0.9f), profile.CruiseSpeed, 4);
+                Assert.Equal(0.9f * Math.Min(pace, 1f), profile.BurstSpeed, 4);
+                Assert.True(profile.CruiseSpeed <= 0.9f + 1e-5f && profile.BurstSpeed <= 0.9f + 1e-5f);
+            }
+        }
+
+        var robot = SvGameServer.PaceProfile(new SvGameServer.ServerNpc { Id = 7, Name = "Mara", IsRobot = true });
+        Assert.Equal((0.7f, 0.9f), (robot.CruiseSpeed, robot.BurstSpeed));
     }
 
     [Fact]

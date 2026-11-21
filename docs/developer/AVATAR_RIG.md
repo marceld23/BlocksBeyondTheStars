@@ -85,8 +85,11 @@ joints. Their look seed is 0, so they all walk the even stock gait — stiffer t
 
 All settlement NPCs share one stroll (`GameServer.NpcProfile`, cruise 0.7 blocks/s, burst 0.9). `NpcPaceFactor(id, name,
 child, machine)` gives each its own factor — 0.85–1.2 from the same id and name its face is drawn from, a child × 1.15,
-machines the even 1.0 — and `PaceProfile` scales the stroll by it before every step. The client gets no new field: the
-figure's walk follows the speed it measures. See [NPC_ROUTINES.md](NPC_ROUTINES.md) §8.
+machines the even 1.0 — and `PaceProfile` applies it before every step, **never above the shared burst of 0.9**: the
+stroll (cruise) becomes 0.6–0.84 (a child up to 0.9), a route (`MoveMode.Seek`, which walks at the burst) 0.77–0.9. The
+cap is deliberate: the route stepping and its world sweep are tuned to 0.9, and a guard at 1.07 blocks/s wedged itself
+at the foot of a one-wide staircase until the fallback had to set it down (`BaseResidentsUpstairsTests`). The client gets
+no new field: the figure's walk follows the speed it measures. See [NPC_ROUTINES.md](NPC_ROUTINES.md) §8.
 
 ## 7. Cost
 

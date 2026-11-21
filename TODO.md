@@ -46,7 +46,9 @@ have knees and elbows? They had (every humanoid is one `PlayerAvatar`), but the 
   with the limb; clear of every armour plate (`AvatarArmourFitTests`).
 - **Machines (#3886).** Androids and G.D.S. guardians move at half the liveliness, on servo-coloured joints.
 - **Pace (#3887).** `GameServer.NpcPaceFactor`: each villager strolls at 0.85–1.2 × the shared pace (a child × 1.15,
-  machines even), drawn from its id and name.
+  machines even), drawn from its id and name — never above the shared burst of 0.9 blocks/s. Found on the way: a route
+  walker faster than 0.9 wedges itself at the foot of a one-wide staircase (the route step and its world sweep are tuned
+  to 0.9; `BaseResidentsUpstairsTests` caught a guard at 1.07), hence the cap.
 - ⚠ **Playtest:** watch a market crowd stroll and stand, a child, a guardian on its beat, a bandit, the own figure in
   third person running and crouching, armour and boots on a moving figure.
 
