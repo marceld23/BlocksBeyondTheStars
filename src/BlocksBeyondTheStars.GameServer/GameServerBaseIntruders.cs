@@ -15,7 +15,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// fill counts as walkable, stayed there for good. This sweep sends such an animal away again: a wild animal
 /// standing on player-placed floor, or in a sealed room or a walled area of a base, despawns while no player is
 /// looking at it (the crowd-prune idea, #1356 — what is on screen stays put). #3453: the same sweep sends a wild ground
-/// animal out of a town once it has stayed there too long (<see cref="TownStayOverdue"/>, GameServerCreatureTownRules).
+/// animal out of a town once it has stayed there too long (<see cref="TownStayOverdue"/>, GameServerCreatureTownRules), and
+/// — #3881 — a land animal that stood in deep water too long (<see cref="DeepWaterStayOverdue"/>, GameServerLandInDeepWater).
 /// <list type="bullet">
 /// <item>Never pets (a player's companion or a tamer's), bio-lab clones, giants or the shapeshifter.</item>
 /// <item>Never an animal a player is busy with: provoked, hunting, begging or called by a caller block, held in stasis,
@@ -78,11 +79,14 @@ public sealed partial class GameServer
 
         // Decide first, remove after: the sealed-room and walled-yard lookups may refresh their caches as they go. #3453: a
         // wild ground animal that outstayed its grace in a town leaves the same way — its town clock is asked first, so it
-        // keeps running for every animal on every sweep (GameServerCreatureTownRules).
+        // keeps running for every animal on every sweep (GameServerCreatureTownRules). #3881: so does the deep-water clock of a
+        // land animal that could not wade out of a pond (GameServerLandInDeepWater) — both are asked, never short-circuited.
         _intrudersScratch.Clear();
         foreach (var c in _creatures)
         {
-            if ((TownStayOverdue(c) || IsBaseIntruder(c)) && !SeenByAnyPlayer(c.Position, _intruderWatchers))
+            bool overdue = TownStayOverdue(c);
+            overdue |= DeepWaterStayOverdue(c);
+            if ((overdue || IsBaseIntruder(c)) && !SeenByAnyPlayer(c.Position, _intruderWatchers))
             {
                 _intrudersScratch.Add(c);
             }

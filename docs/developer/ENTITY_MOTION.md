@@ -57,6 +57,21 @@ Interpolation can only draw what the server simulates. These rules removed kinks
   the detour its new roam heading; a hunter or fleer keeps to it for `CreatureDetourHoldSeconds` (aiming the
   controller along it) instead of turning back into the wall every tick.
 - **Boxed in, an animal slows down**, so the way out starts with an ease-in.
+- **Boxed in on every side, it stands calmly** (#3880, `GameServerCreatureBoxedIn`): when the step and every detour ahead
+  are blocked, the eight neighbouring columns are probed for a way out (a step to each column's centre through every
+  barrier, a one-block rise allowed; the answer is kept per feet cell for a second). One open — a corner, a dead end —
+  becomes the turn target (a roamer's `TurnTo`, a hunter's or fleer's detour hold). None open: the animal stands still and
+  holds its heading for `CreatureBoxedHoldSeconds` (`LocomotionState.BoxedTimer` — no flight jink, no weave, a roamer's
+  segment becomes a pause), then tries again. A detour that never leaves the animal's own column counts only while a
+  neighbouring column is open: from the edge of its column a short sideways step stays inside, and a fleer in a pit or a
+  land animal in deep water slid round the inside of its column, its heading turning every tick.
+- **A land animal in deep water wades out** (#3881): the wading gate (`CreatureBehaviour.TerrainStepBlocked`) lets a
+  walker or crawler step into water deeper than one cell only when it is no deeper than the water it already stands in —
+  from dry ground or a wading depth deep water stays shut. A big body's column check (#750, `LargeBodyColumnOpen`) lets
+  water and plants standing in it pass on a step — it read the water above a big animal's knees as masonry, so a big
+  animal stayed trapped where the depth gate let it pass (the spawn check keeps air only). One still in deep water after
+  `DeepWaterGraceSeconds` leaves while nobody looks (`GameServerLandInDeepWater`, the intruder sweep), as the stranded
+  fish of #3552 does.
 - **Personal space between animals** (#2753, `GameServerCreatureSpacing`): a ground-bound wild animal is nudged out
   of the footprint (`CreatureFootprint.Radius`, the drawn body's reach) of the neighbour it stands deepest inside —
   any species — before its step runs through the ship/fence/terrain/body barriers, so a nudge into a wall is refused
@@ -168,7 +183,11 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
   adaptive delay, yaw, flags.
 - `CreatureMotionStreamTests` (Client.Tests): real client against the real server over the encoded wire — the stream
   every second tick, only for near animals, positions and velocities matching the list; `TickVelocity`.
-- `LocomotionControllerTests`: roam segment changes stay within the turn clamp; a re-roll mid-turn finishes the turn.
+- `LocomotionControllerTests`: roam segment changes stay within the turn clamp; a re-roll mid-turn finishes the turn; a
+  boxed-in fleer stands and holds its heading (no jink), a boxed-in roamer pauses.
+- `BoxedInAnimalTests`: a fleer or roamer in a one-column pit mostly holds its heading and walks out once a side opens;
+  the wading gate lets an animal in deep water wade along and out but never deeper; a land animal on a pond bed leaves
+  while nobody looks after its grace, an amphibian or an animal on the rim is never counted.
 - `CreatureMotionArenaTests`: the running jump never stalls at the lip and never clips the ledge; a hunter steering
   round a wall never turns faster than the clamp.
 - `CreatureSpacingTests`: two big animals of different species planted inside each other step apart; an awake animal

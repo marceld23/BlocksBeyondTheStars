@@ -137,7 +137,11 @@ public static class CreatureBehaviour
     /// <item><b>Walkers / crawlers</b>: the ground may rise by at most <see cref="CreatureMotion.StepUpLimit"/>
     /// (one block — a jump for walkers, a slow climb-over for crawlers and giants; two is a wall, as for the
     /// player) and drop by at most <see cref="CreatureMotion.StepDownLimit"/> (a real fall: walkers 3, crawlers
-    /// 2, giants 1). The target column's water must be wadeable (≤ 1 deep) unless the animal is amphibious.</item>
+    /// 2, giants 1). The target column's water must be wadeable (≤ 1 deep) unless the animal is amphibious — or, #3881,
+    /// no deeper than the water the animal already stands in: one that ended up in a deep pond found every neighbouring
+    /// water column blocked too and was trapped for good, turning on the spot. Now it may wade along and out (the server
+    /// sends one that stays in deep water away while nobody looks); from dry ground or a wading depth it still never
+    /// enters deep water.</item>
     /// <item><b>Swimmers</b>: never step into a dry column — in water they keep to their water body, and a stranded one
     /// (#3552: its old "legacy freedom" let a fish glide along a player's walkway) can only step back into water. The
     /// server sends a stranded fish away while nobody looks. Amphibians may leave. The water must be at least
@@ -146,8 +150,8 @@ public static class CreatureBehaviour
     /// gates as a walker (#1862, <see cref="CreatureMotion.IsLandHoverer"/>): it floats 0.8 above the ground, so a
     /// two-block wall and a moat must stop it like everything else that lives down there.</item>
     /// </list>
-    /// Depths are in water cells (surface − bed); pass 0 for a dry column. Since #3552 only the target column's depth
-    /// decides; <paramref name="curWaterDepth"/> is kept so the callers' argument lists stay as they are.
+    /// Depths are in water cells (surface − bed); pass 0 for a dry column. Swimmers read only the target column's depth
+    /// (#3552); walkers and crawlers compare it with <paramref name="curWaterDepth"/> (#3881).
     /// </summary>
     public static bool TerrainStepBlocked(
         MotionClass motion,
@@ -173,7 +177,9 @@ public static class CreatureBehaviour
                     return true; // too far to drop — a cliff edge
                 }
 
-                return !amphibious && nextWaterDepth > 1; // wading is fine, swimming is not (amphibians swim)
+                // Wading is fine, swimming is not (amphibians swim) — but an animal already in deep water may take any step
+                // that does not get deeper, so it can wade out instead of being walled in by its own pond (#3881).
+                return !amphibious && nextWaterDepth > 1 && nextWaterDepth > curWaterDepth;
             case MotionClass.Swimmer:
                 // Never onto dry land — stranded, only back into water (#3552) — nor into a puddle (Lyxette report 2026-11-18).
                 return !amphibious && nextWaterDepth < MinSwimDepth;

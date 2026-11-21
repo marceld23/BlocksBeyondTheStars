@@ -26,6 +26,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧰 Player reports of 2026-11-21: small pets, calm boxed-in animals, land animals wade out of deep water — #3879–#3881 — ✅ 2026-11-21 (server + shared only; no protocol bump, no save change, no new texts)
+
+- **A villager's pet stood half through the shop's walls (#3879).** The household pets of the lively places (and the
+  tamer's pet) were small only relative to their species (× 0.6 / × 0.8): a 3.35-block arachnid followed its person into
+  the shop 4.4 blocks long. A person's pet is never a giant now and never wider than `PetMaxRadius` (0.8 blocks of
+  footprint radius) — a big species comes as a young one (`PetScaleFor`); older pets shrink, a giant one is replaced.
+  Tests: `PersonPetSizeTests`.
+- **A boxed-in animal thrashed on the spot (#3880).** With every neighbouring column shut, the detour probes kept finding
+  a "free" step inside the animal's own column (it slid round its column, the heading turning every tick), and without
+  one a fleer kept its flight's jink and a roamer re-rolled heading after heading. The eight neighbouring columns are
+  probed now (`GameServerCreatureBoxedIn`, cached per cell for a second): an open one becomes the turn target; with none
+  the animal stands still and holds its heading for two seconds (`LocomotionState.BoxedTimer`), then tries again.
+  Tests: `BoxedInAnimalTests`, `LocomotionControllerTests`.
+- **A land animal in deep water was trapped (#3881).** The wading gate let walkers and crawlers only into water ≤ 1 deep,
+  so one already in deep water found every way blocked — and a big body's column check (#750) read the water above its
+  knees as a wall. It may take any step that does not get deeper now (water passes the big-body check); one still in
+  deep water after 20 s leaves while nobody looks (`GameServerLandInDeepWater`, the intruder sweep). Tests:
+  `BoxedInAnimalTests`.
+
 ### 🚶 Lively figures: a walk, a body and joints that read as alive — #3888 (epic), #3882–#3887 — ✅ 2026-11-21 (⚠ playtest open; client + one server rule; no protocol bump, no save change, no new texts)
 
 Marcel, 2026-11-21: villagers and characters look wooden and stiff from outside, the NPCs' walk most of all; do NPCs

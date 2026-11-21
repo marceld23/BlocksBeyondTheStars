@@ -33,8 +33,67 @@ public sealed partial class GameServer
     /// <summary>… and is gone again when nobody is within this range (more than the first, so it does not flicker).</summary>
     private const float HouseholdPetVanish = 128f;
 
-    /// <summary>A household pet is a small one.</summary>
+    /// <summary>A household pet is a small one — at most this share of its species' size, and never wider than
+    /// <see cref="PetMaxRadius"/> (<see cref="PetScaleFor"/>).</summary>
     private const float HouseholdPetScale = 0.6f;
+
+    /// <summary>The size factor the animal tamer's pet prefers (<see cref="SyncTamerPets"/>), capped the same way.</summary>
+    private const float TamerPetScale = 0.8f;
+
+    /// <summary>#3879: the largest ground radius in blocks (<see cref="CreatureFootprint.Radius"/>) a person's pet may have,
+    /// so its drawn body fits a house's rooms and doorway. A household pet used to be small only relative to its species
+    /// (× 0.6): a 3.35-block arachnid followed its person into the shop 4.4 blocks long and stood half through the walls —
+    /// the server tracks a creature as one point, and nothing else keeps a wide body off a wall.</summary>
+    internal const float PetMaxRadius = 0.8f;
+
+    /// <summary>The smallest size factor a pet is drawn at (the client's builders clamp a tiny body anyway).</summary>
+    private const float PetMinScale = 0.1f;
+
+    /// <summary>#3879: the species a person's pet may be — a peaceful land animal of the world, never a giant (the pens'
+    /// rule; a giant moves by its own rules and is never anybody's pet).</summary>
+    private static bool IsPersonPetSpecies(CreatureSpecies sp)
+        => sp.Habitat == CreatureHabitat.Land
+           && (sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish)
+           && sp.GiantHeight <= 0f;
+
+    /// <summary>#3879: the size factor a person's pet of <paramref name="sp"/> is drawn at — <paramref name="preferred"/> when
+    /// its body fits within <see cref="PetMaxRadius"/>, otherwise less until it does: a big species comes as a young one.
+    /// The footprint follows the drawn size, but not quite in proportion near the builders' clamps, so it is refined.</summary>
+    internal static float PetScaleFor(CreatureSpecies sp, float preferred)
+    {
+        float scale = preferred;
+        for (int i = 0; i < 4; i++)
+        {
+            float radius = CreatureFootprint.Radius(sp, scale);
+            if (radius <= PetMaxRadius || scale <= PetMinScale)
+            {
+                break;
+            }
+
+            scale = Math.Max(PetMinScale, scale * PetMaxRadius / radius * 0.98f);
+        }
+
+        return scale;
+    }
+
+    /// <summary>#3879: brings a person's existing pet to its size — one that appeared under the old rule shrinks on the next
+    /// pass. True when it changed (the caller re-broadcasts).</summary>
+    private bool FitPetSize(CombatEntity pet, float preferred)
+    {
+        if (!_speciesById.TryGetValue(pet.SpeciesId, out var sp))
+        {
+            return false;
+        }
+
+        float scale = PetScaleFor(sp, preferred);
+        if (Math.Abs(pet.SizeScale - scale) < 1e-4f)
+        {
+            return false;
+        }
+
+        pet.SizeScale = scale;
+        return true;
+    }
 
     /// <summary>Picks the pet keepers among a settlement's people without a post (not the night watch, who sleeps by day):
     /// the ones whose person key hashes lowest — stable for a world, and no draw from any shared generator.</summary>
@@ -77,6 +136,10 @@ public sealed partial class GameServer
                     _creatures.RemoveAt(at);
                     changed = true;
                 }
+                else
+                {
+                    changed |= FitPetSize(_creatures[at], HouseholdPetScale);
+                }
 
                 continue;
             }
@@ -86,9 +149,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            candidates ??= _speciesRoster
-                .Where(sp => sp.Habitat == CreatureHabitat.Land && sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish)
-                .ToList();
+            candidates ??= _speciesRoster.Where(IsPersonPetSpecies).ToList();
             if (candidates.Count == 0)
             {
                 return;
@@ -116,7 +177,7 @@ public sealed partial class GameServer
         HullMax = species.MaxHealth,
         Position = CompanionSpotNear(species, owner, keeperPos),
         DamagePerSecond = 0f,
-        SizeScale = HouseholdPetScale,
+        SizeScale = PetScaleFor(species, HouseholdPetScale), // #3879: never wider than a house allows
         OwnerId = owner,
         CompanionId = owner,
     };

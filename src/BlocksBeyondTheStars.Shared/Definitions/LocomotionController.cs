@@ -68,6 +68,13 @@ public struct LocomotionState
     /// a half-turn at the profile's rate plus <see cref="LocomotionController.TurnGraceSeconds"/>; past that the turn is given
     /// up (a schooler whose alignment keeps pulling it back may never arrive) and the segment re-rolls as usual.</summary>
     public float TurnAge;
+
+    /// <summary>#3880: seconds the actor still stands boxed in — the caller found no free step in any direction around it.
+    /// While it runs the actor stands still and holds its heading: no flight jink, no weave, no new roam heading (a boxed-in
+    /// fleer used to swing ±34° on the spot and a roamer pivoted from one random heading to the next). It counts down in
+    /// <see cref="LocomotionController.Step"/>; afterwards the actor tries again, and the caller boxes it in anew if every
+    /// way is still shut — so nothing can get stuck.</summary>
+    public float BoxedTimer;
 }
 
 /// <summary>The result of one movement step.</summary>
@@ -116,6 +123,11 @@ public static class LocomotionController
             s.Mode = MoveMode.Roam;
             s.ModeTimer = Lerp(p.HoldMin, p.HoldMax, Unit(Mix(seed, s.Seq++)));
             s.Speed = 0f;
+        }
+
+        if (s.BoxedTimer > 0f)
+        {
+            return HoldBoxedIn(s, p, cur, intent, ft);
         }
 
         float desired = s.Heading;
@@ -235,6 +247,30 @@ public static class LocomotionController
             cur.Z + (float)System.Math.Sin(s.Heading) * move);
 
         return new LocomotionResult(s, pos, s.Heading, (float)System.Math.Sin(s.VertPhase), s.Speed > 0.05f);
+    }
+
+    /// <summary>#3880: one tick of a boxed-in actor (<see cref="LocomotionState.BoxedTimer"/>): it stands where it is and
+    /// holds its heading. A chase or flight keeps its mode, so the caller's intent reads unchanged; a roamer's segment
+    /// becomes a pause that lasts at least as long as the hold, so it does not pick a fresh heading the moment the hold ends
+    /// mid-segment. The vertical life keeps its beat (a flier keeps flying, a swimmer keeps its bob).</summary>
+    private static LocomotionResult HoldBoxedIn(LocomotionState s, in LocomotionProfile p, Vector3f cur, MoveMode intent, float ft)
+    {
+        s.BoxedTimer = System.Math.Max(0f, s.BoxedTimer - ft);
+        s.Speed = 0f;
+        s.Turning = false;
+        s.TurnAge = 0f;
+        if (intent is MoveMode.Seek or MoveMode.Flee)
+        {
+            s.Mode = intent;
+        }
+        else
+        {
+            s.Mode = MoveMode.Pause;
+            s.ModeTimer = System.Math.Max(s.ModeTimer, s.BoxedTimer);
+        }
+
+        s.VertPhase += ft * p.VertFreq;
+        return new LocomotionResult(s, cur, s.Heading, (float)System.Math.Sin(s.VertPhase), false);
     }
 
     /// <summary>A tamed companion's movement: hurry toward the owner when it has fallen behind, otherwise loiter

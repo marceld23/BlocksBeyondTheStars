@@ -403,7 +403,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Keeps one tame animal beside every animal tamer on a planet (none on stations): a passive land species of
-    /// the world, picked from the tamer's name, invulnerable, owned by the NPC. A pet whose tamer is gone disappears.</summary>
+    /// the world, picked from the tamer's name, invulnerable, owned by the NPC. A pet whose tamer is gone disappears.
+    /// #3879: never a giant, and never wider than a house allows (<see cref="PetScaleFor"/>) — an older, bigger pet shrinks,
+    /// a giant one (or a household pet of a species no person may keep) is replaced.</summary>
     private void SyncTamerPets()
     {
         bool changed = false;
@@ -412,7 +414,8 @@ public sealed partial class GameServer
             var c = _creatures[i];
             if (c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal)
                 && (!int.TryParse(c.OwnerId.Substring(NpcPetOwnerPrefix.Length), out int ownerNpc)
-                    || !_npcs.Any(n => n.Id == ownerNpc && (n.Job == "tamer" || n.HasPet))))
+                    || !_npcs.Any(n => n.Id == ownerNpc && (n.Job == "tamer" || n.HasPet))
+                    || (_speciesById.TryGetValue(c.SpeciesId, out var petSp) && !IsPersonPetSpecies(petSp))))
             {
                 _creatures.RemoveAt(i);
                 changed = true;
@@ -429,9 +432,7 @@ public sealed partial class GameServer
             return; // a station has no animals, and neither has a world whose wildlife is switched off
         }
 
-        var candidates = _speciesRoster
-            .Where(sp => sp.Habitat == CreatureHabitat.Land && sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish)
-            .ToList();
+        var candidates = _speciesRoster.Where(IsPersonPetSpecies).ToList();
         foreach (var npc in _npcs)
         {
             if (npc.Job != "tamer" || candidates.Count == 0)
@@ -440,8 +441,9 @@ public sealed partial class GameServer
             }
 
             string owner = NpcPetOwnerPrefix + npc.Id;
-            if (_creatures.Any(c => c.OwnerId == owner))
+            if (_creatures.Find(c => c.OwnerId == owner) is { } pet)
             {
+                changed |= FitPetSize(pet, TamerPetScale);
                 continue;
             }
 
@@ -456,7 +458,7 @@ public sealed partial class GameServer
                 HullMax = sp.MaxHealth,
                 Position = CompanionSpotNear(sp, owner, npc.Pos),
                 DamagePerSecond = 0f,
-                SizeScale = 0.8f,
+                SizeScale = PetScaleFor(sp, TamerPetScale),
                 OwnerId = owner,
                 CompanionId = owner,
             });

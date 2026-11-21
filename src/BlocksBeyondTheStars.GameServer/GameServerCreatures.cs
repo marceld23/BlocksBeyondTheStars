@@ -1474,7 +1474,8 @@ public sealed partial class GameServer
                 // skirting an obstacle. Only when every probe is blocked too does it fall back to the re-roll,
                 // which preserves the "nothing can ever get stuck" property.
                 c.Vert.ClimbTargetY = 0f; // whatever it was hauling toward is off the table
-                if (TrySteerAround(c, sp, motion, stepped, terrainGates, out var detour, out float detourHeading))
+                if (TrySteerAround(c, sp, motion, stepped, terrainGates, out var detour, out float detourHeading)
+                    && !DetourLeadsNowhere(c, sp, motion, detour, terrainGates)) // #3880: not round and round its own column
                 {
                     // #2668: the body takes the free detour step, but the heading TURNS toward it (twice the turn rate)
                     // instead of snapping 35-110° in one tick. A roamer makes the detour its new roam heading; a hunter or
@@ -1497,9 +1498,9 @@ public sealed partial class GameServer
                 }
                 else
                 {
-                    c.Loco.ModeTimer = 0f; // boxed in — re-roll a fresh heading next tick
-                    // #2668: and it slows down, so the way out starts with an ease-in instead of at full cruise.
-                    c.Loco.Speed = System.Math.Max(0f, c.Loco.Speed - (2f * prof.Accel * (float)dt));
+                    // #3880: no detour ahead — turn toward a free neighbouring column, or stand calmly when there is none
+                    // (GameServerCreatureBoxedIn). It slows down either way (#2668), so the way out starts with an ease-in.
+                    OnNoDetourAhead(c, sp, motion, stepped, intent, prof, dt, terrainGates);
                 }
             }
             else if (needsRise)
@@ -2062,9 +2063,10 @@ public sealed partial class GameServer
         // A large body treats a filled column as a wall (#750): ground-height deltas alone made ruin
         // walls invisible to fauna (NPCs have PathBlockedByWorld; creatures had nothing), so titans
         // pathed straight through masonry and bit the player from inside rooms. Titan-scale only, so
-        // the extra block reads stay off the common path.
+        // the extra block reads stay off the common path. #3881: water is no masonry — the depth gate below decides on it;
+        // a big animal in a deep pond read every neighbouring water column as a wall and was trapped.
         if (sp.Size >= LargeBodySize && groundRules
-            && !LargeBodyColumnOpen(sp, nx, nextFeet, nz))
+            && !LargeBodyColumnOpen(sp, nx, nextFeet, nz, waterPasses: true))
         {
             return true;
         }
@@ -2706,13 +2708,16 @@ public sealed partial class GameServer
 
     /// <summary>Single-column variant of the body-volume check for the per-step gate (#750): the
     /// destination column must be open from just above the feet through the body height, so a titan
-    /// treats a ruin wall as a barrier instead of a ground-height quirk.</summary>
-    private bool LargeBodyColumnOpen(CreatureSpecies sp, int x, int feetY, int z)
+    /// treats a ruin wall as a barrier instead of a ground-height quirk. With <paramref name="waterPasses"/> (#3881, the
+    /// step gate) water and a plant standing in it count as open — the water-depth gate decides on them, and a big land
+    /// animal in a deep pond read every neighbouring water column as a wall and was trapped; the spawn check keeps air only.</summary>
+    private bool LargeBodyColumnOpen(CreatureSpecies sp, int x, int feetY, int z, bool waterPasses = false)
     {
         int height = (int)System.Math.Ceiling(sp.Size * 1.8f);
         for (int dy = 2; dy < height; dy++)
         {
-            if (!_world.GetBlockIfLoaded(new Vector3i(x, feetY + dy, z)).IsAir)
+            int y = feetY + dy;
+            if (!_world.GetBlockIfLoaded(new Vector3i(x, y, z)).IsAir && !(waterPasses && IsWaterOrSubmergedPlant(x, y, z)))
             {
                 return false;
             }
