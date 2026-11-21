@@ -961,6 +961,7 @@ namespace BlocksBeyondTheStars.Client
                         avatar.SetChildProportions();
                     }
 
+                    avatar.SetMachine(nd.IsRobot); // #3886: androids and guardians move stiffer, on servo joints
                     avatar.SetVisible(true);
                     avatar.NeverAirborne = true; // #2667: NPCs never jump — a smoothed step up is not a leap
 

@@ -102,6 +102,9 @@ refreshed 2026-10-23.
   pure `ClimbProbe` / `ClimbGrip` rules, the body stamina shared with running (`BodyStamina`, #3373), block `climb` data and climbing gear, the pull-up, and the pose on the wire.
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed
   limbs, fins, foot planting on real blocks, and the distance LOD tiers.
+- [AVATAR_RIG.md](AVATAR_RIG.md) — the humanoid figure every player, villager and bandit is (#3882–#3888): the rig's
+  pivots (body, upper body, ankles), how parts are routed onto them, the walk curves, the joint blocks, machines'
+  stiffness and the villagers' own pace.
 - [ENTITY_MOTION.md](ENTITY_MOTION.md) — how animals, NPCs, machines and bandits move smoothly on screen (#2664–#2670):
   the per-tick server velocity, the 7.5 Hz creature motion stream, the server-clock sync, buffered Hermite
   interpolation, the animators' speed filter and the server rules that keep paths free of kinks.

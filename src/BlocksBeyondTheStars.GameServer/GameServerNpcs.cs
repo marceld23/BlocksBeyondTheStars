@@ -32,8 +32,8 @@ public sealed partial class GameServer
     private const float NpcFaceTurnRate = 6f;         // #2666: rad/s an NPC turns its body at (a half-turn in ~0.5 s, never a snap)
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
 
-    /// <summary>One uniform inhabitant gait for ALL settlement NPCs (no per-NPC variation): a slow stroll with
-    /// frequent long pauses, so they stand around and potter rather than tracing an endless drift loop.</summary>
+    /// <summary>The inhabitants' shared gait: a slow stroll with frequent long pauses, so they stand around and potter
+    /// rather than tracing an endless drift loop. Each NPC walks it at its own pace (<see cref="NpcPaceFactor"/>, #3887).</summary>
     private static readonly LocomotionProfile NpcProfile = new()
     {
         Style = LocomotionStyle.Grazer,
@@ -51,6 +51,41 @@ public sealed partial class GameServer
         VertAmp = 0f,
         VertFreq = 0f,
     };
+
+    /// <summary>The slowest and the fastest pace a villager walks at, as a factor on <see cref="NpcProfile"/> (#3887).</summary>
+    internal const float NpcPaceMin = 0.85f, NpcPaceMax = 1.2f;
+
+    /// <summary>A child walks this much faster than a grown-up of the same draw.</summary>
+    internal const float ChildPaceFactor = 1.15f;
+
+    /// <summary>#3887 ("every villager strolls at exactly the same pace"): this NPC's own pace, a factor on the shared gait.
+    /// Drawn from the same id and name its face is drawn from (the client's <c>NpcLooks.FaceSeed</c>), so it is as stable
+    /// as its look; some amble, some walk briskly, a child a little faster. Machines — androids and guardians — keep the
+    /// even pace of the shared gait.</summary>
+    internal static float NpcPaceFactor(int id, string? name, bool child, bool machine)
+    {
+        if (machine)
+        {
+            return 1f;
+        }
+
+        uint h = unchecked((uint)((id * 486187739) ^ AtmosphereTints.StableHash(name)));
+        h ^= h >> 16;
+        h = unchecked(h * 0x7FEB352Du);
+        h ^= h >> 15;
+        float pace = NpcPaceMin + ((NpcPaceMax - NpcPaceMin) * ((h & 0xFFFFu) / 65535f));
+        return child ? pace * ChildPaceFactor : pace;
+    }
+
+    /// <summary>The shared gait at <paramref name="npc"/>'s own pace.</summary>
+    internal static LocomotionProfile PaceProfile(ServerNpc npc)
+    {
+        var p = NpcProfile;
+        float f = NpcPaceFactor(npc.Id, npc.Name, npc.IsChild, npc.IsRobot);
+        p.CruiseSpeed *= f;
+        p.BurstSpeed *= f;
+        return p;
+    }
 
     /// <summary>A settlement inhabitant. Lives only on the server; the client sees a <c>NetNpc</c>.</summary>
     internal sealed class ServerNpc
@@ -494,7 +529,7 @@ public sealed partial class GameServer
                 }
             }
 
-            var res = LocomotionController.Step(npc.Loco, NpcProfile, npc.Pos, intent, target, moveDt, (uint)npc.Id);
+            var res = LocomotionController.Step(npc.Loco, PaceProfile(npc), npc.Pos, intent, target, moveDt, (uint)npc.Id); // #3887
             npc.Loco = res.State;
 
             // Follow the REAL floor instead of freezing Y at spawn forever (#711): when the block column is

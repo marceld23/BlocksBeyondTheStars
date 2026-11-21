@@ -137,6 +137,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The plate over the shin, in its knee's frame (the Ressaw suit's shin since #3337, now every set's).</summary>
         public static readonly AvatarBox ShinPlate = new AvatarBox(0f, -0.20f, 0f, 0.25f, 0.36f, 0.25f);
 
+        // --- #3885 ("NPCs have no elbows and no knees, do they?" — they had, but the joints did not read): a joint block at each
+        // knee and elbow, centred on the pivot and turning with the lower limb. Half a centimetre proud of the limb boxes at
+        // its sides (and of the shin in front), so it reads as a joint and fills the notch a bend opens; inside every plate
+        // and pad, and within the limb's paint box, so a painting runs on over it unchanged. ---
+
+        /// <summary>The knee's joint block, in its knee's frame.</summary>
+        public static readonly AvatarBox KneeJoint = new AvatarBox(0f, 0f, 0f, 0.23f, 0.13f, 0.21f);
+
+        /// <summary>The elbow's joint block, in its elbow's frame.</summary>
+        public static readonly AvatarBox ElbowJoint = new AvatarBox(0f, 0f, 0f, 0.17f, 0.12f, 0.17f);
+
         /// <summary>Whether a face of <paramref name="a"/> and a face of <paramref name="b"/> (both in one frame, unturned)
         /// lie in one plane — closer than <paramref name="clearance"/> — facing the same way, and overlap there: the two
         /// would flicker against each other.</summary>

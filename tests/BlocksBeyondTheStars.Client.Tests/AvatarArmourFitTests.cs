@@ -173,6 +173,53 @@ public sealed class AvatarArmourFitTests
     }
 
     [Fact]
+    public void TheJointBlocks_StandProudOfTheLimbs_AndKeepClearOfEveryPlate()
+    {
+        // #3885: a knee and an elbow joint block, centred on its pivot (the knee / elbow frame).
+        var knee = AvatarArmourFit.KneeJoint;
+        var elbow = AvatarArmourFit.ElbowJoint;
+        var upperLegAtKnee = AvatarArmourFit.UpperLeg.From(0f, -AvatarArmourFit.KneeDrop);
+        var upperArmAtElbow = AvatarArmourFit.UpperArm.From(0f, -AvatarArmourFit.ElbowDrop);
+        var legPlateAtKnee = AvatarArmourFit.LegPlate.From(0f, -AvatarArmourFit.KneeDrop);
+        var armPlateAtElbow = AvatarArmourFit.ArmPlate.From(0f, -AvatarArmourFit.ElbowDrop);
+        var ressawKnee = new AvatarBox(0f, -0.02f, 0.13f, 0.22f, 0.16f, 0.06f); // PlayerAvatar.GearSets.cs BuildRessawLegs
+
+        foreach (var (name, other) in new[]
+        {
+            ("upper leg", upperLegAtKnee), ("lower leg", AvatarArmourFit.LowerLeg), ("knee pad", AvatarArmourFit.KneePad),
+            ("shin plate", AvatarArmourFit.ShinPlate), ("leg plate", legPlateAtKnee), ("Ressaw knee", ressawKnee),
+        })
+        {
+            Assert.False(AvatarArmourFit.ShareAFace(knee, other), "knee joint / " + name);
+        }
+
+        foreach (var (name, other) in new[]
+        {
+            ("upper arm", upperArmAtElbow), ("forearm", AvatarArmourFit.LowerArm), ("bracer", AvatarArmourFit.Bracer),
+            ("arm plate", armPlateAtElbow),
+        })
+        {
+            Assert.False(AvatarArmourFit.ShareAFace(elbow, other), "elbow joint / " + name);
+        }
+
+        // Proud of the limb at its sides (it reads as a joint) and of the shin in front, inside every plate around it.
+        Assert.True(knee.Width > AvatarArmourFit.UpperLeg.Width && knee.Width > AvatarArmourFit.LowerLeg.Width);
+        Assert.True(knee.Depth > AvatarArmourFit.LowerLeg.Depth);
+        Assert.True(elbow.Width > AvatarArmourFit.UpperArm.Width && elbow.Depth > AvatarArmourFit.UpperArm.Depth);
+        Assert.True(knee.Width < AvatarArmourFit.ShinPlate.Width && knee.Width < AvatarArmourFit.LegPlate.Width);
+        Assert.True(knee.Front < AvatarArmourFit.KneePad.Front, "a knee pad still covers the joint in front");
+        Assert.True(elbow.Top < armPlateAtElbow.Bottom && elbow.Bottom > AvatarArmourFit.Bracer.Top, "free between plate and bracer");
+
+        // Within the limb's paint box (the foot and the hand are the widest parts), so a painting maps as before.
+        Assert.True(knee.Width <= 0.24f && knee.Back >= -0.11f && knee.Front <= 0.22f);
+        Assert.True(elbow.Width <= 0.2f && elbow.Depth <= 0.2f);
+
+        string avatar = Script("PlayerAvatar.cs");
+        Assert.Contains("AddCube(name + \"KneeJoint\", knee, AvatarArmourFit.KneeJoint, _legJoint)", avatar);
+        Assert.Contains("AddCube(name + \"ElbowJoint\", elbow, AvatarArmourFit.ElbowJoint, _armJoint)", avatar);
+    }
+
+    [Fact]
     public void TheSetBoots_HaveTheirOwnLook()
     {
         // #3862: guardian and obsidian boots draw their set's style, the titanium boots carry a bit of their own.

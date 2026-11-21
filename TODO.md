@@ -26,6 +26,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚶 Lively figures: a walk, a body and joints that read as alive — #3888 (epic), #3882–#3887 — ✅ 2026-11-21 (⚠ playtest open; client + one server rule; no protocol bump, no save change, no new texts)
+
+Marcel, 2026-11-21: villagers and characters look wooden and stiff from outside, the NPCs' walk most of all; do NPCs
+have knees and elbows? They had (every humanoid is one `PlayerAvatar`), but the walk barely used them. Map:
+[docs/developer/AVATAR_RIG.md](docs/developer/AVATAR_RIG.md).
+
+- **The walk (#3882).** The knee bent hardest with the leg at its rearmost point and swung forward straight (a stilt
+  walk), a 0.7 blocks/s stroll peaked at ~18°, the elbow bent on the arm's back swing. `HumanGait` (Client.Core, tested):
+  a give after the heel strike and a 40–58° fold in the swing, the elbow on the forward swing, the arms a little after the
+  opposite leg and slightly away from the body; each villager its own cadence, arm swing, bounce and lean from its look
+  seed; standing, the weight on one leg in turn.
+- **The body (#3883).** New origin pivots `Hips` and `UpperBody` (parts are routed onto them by height, so no part needed
+  new numbers): the hips dip at double support, sway over the standing foot, roll and turn with the stride, the shoulders
+  turn against them, the upper body leans into the pace, the head keeps its gaze; the bow bends at the waist.
+- **The ankle (#3884).** The foot hangs on its own ankle: flat through the stance, toes up at the heel strike, the heel
+  off at push-off, relaxed in the water and the air; a boot's sole follows it.
+- **Visible joints (#3885).** A knee and an elbow block, half a centimetre proud of the limb and a touch darker, painted
+  with the limb; clear of every armour plate (`AvatarArmourFitTests`).
+- **Machines (#3886).** Androids and G.D.S. guardians move at half the liveliness, on servo-coloured joints.
+- **Pace (#3887).** `GameServer.NpcPaceFactor`: each villager strolls at 0.85–1.2 × the shared pace (a child × 1.15,
+  machines even), drawn from its id and name.
+- ⚠ **Playtest:** watch a market crowd stroll and stand, a child, a guardian on its beat, a bandit, the own figure in
+  third person running and crouching, armour and boots on a moving figure.
+
 ### 🧰 Player reports of 2026-11-20: whole trees in the distance, swimming without bouncing, armour that covers the body, set boots — #3859–#3862, PR #3874 (`857c276d`) — ✅ released in v2026.11.26 (server streaming + client + data; no protocol bump, no save change; 10 texts in 14 languages, 3 new item icons)
 
 - **Tall trees cut off flat in the distance (#3859).** A far chunk column streamed one chunk above its surface, a near
