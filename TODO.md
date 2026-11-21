@@ -40,7 +40,8 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   the animal stands still and holds its heading for two seconds (`LocomotionState.BoxedTimer`), then tries again.
   Tests: `BoxedInAnimalTests`, `LocomotionControllerTests`.
 - **A land animal in deep water was trapped (#3881).** The wading gate let walkers and crawlers only into water ≤ 1 deep,
-  so one already in deep water found every way blocked. It may take any step that does not get deeper now; one still in
+  so one already in deep water found every way blocked — and a big body's column check (#750) read the water above its
+  knees as a wall. It may take any step that does not get deeper now (water passes the big-body check); one still in
   deep water after 20 s leaves while nobody looks (`GameServerLandInDeepWater`, the intruder sweep). Tests:
   `BoxedInAnimalTests`.
 

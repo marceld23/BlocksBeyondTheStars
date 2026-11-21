@@ -67,8 +67,11 @@ Interpolation can only draw what the server simulates. These rules removed kinks
   land animal in deep water slid round the inside of its column, its heading turning every tick.
 - **A land animal in deep water wades out** (#3881): the wading gate (`CreatureBehaviour.TerrainStepBlocked`) lets a
   walker or crawler step into water deeper than one cell only when it is no deeper than the water it already stands in —
-  from dry ground or a wading depth deep water stays shut. One still in deep water after `DeepWaterGraceSeconds` leaves
-  while nobody looks (`GameServerLandInDeepWater`, the intruder sweep), as the stranded fish of #3552 does.
+  from dry ground or a wading depth deep water stays shut. A big body's column check (#750, `LargeBodyColumnOpen`) lets
+  water and plants standing in it pass on a step — it read the water above a big animal's knees as masonry, so a big
+  animal stayed trapped where the depth gate let it pass (the spawn check keeps air only). One still in deep water after
+  `DeepWaterGraceSeconds` leaves while nobody looks (`GameServerLandInDeepWater`, the intruder sweep), as the stranded
+  fish of #3552 does.
 - **Personal space between animals** (#2753, `GameServerCreatureSpacing`): a ground-bound wild animal is nudged out
   of the footprint (`CreatureFootprint.Radius`, the drawn body's reach) of the neighbour it stands deepest inside —
   any species — before its step runs through the ship/fence/terrain/body barriers, so a nudge into a wall is refused

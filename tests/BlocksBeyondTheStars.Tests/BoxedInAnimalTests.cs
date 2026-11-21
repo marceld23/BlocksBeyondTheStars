@@ -79,13 +79,18 @@ public sealed class BoxedInAnimalTests : IDisposable
 
     // ---------------- #3881: in the world ----------------
 
-    [Fact]
-    public void ALandAnimalOnAPondBed_MayWadeAlongButNotDeeper_AndLeavesWhileNobodyLooks()
+    /// <summary>Size 1 and the reported size 3.35: a big body's column check (#750) read the water above its knees as a
+    /// wall, so a big animal stayed trapped even where the depth gate let it pass.</summary>
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(3.35f)]
+    public void ALandAnimalOnAPondBed_MayWadeAlongButNotDeeper_AndLeavesWhileNobodyLooks(float size)
     {
         var server = Started(out var repo);
         using (repo)
         {
             var sp = LandAnimal(server, CreatureTemperament.Passive);
+            sp.Size = size;
             var (cx, cz) = FindDryLand(server);
             int bed = RaisedPond(server, cx, cz, depth: 3);
             var water = _content.GetBlock("water")!.NumericId;
