@@ -16,6 +16,11 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>#3923: the camera the world renders through (WorldRig's player camera — the first-person eye, the
+        /// third-person chase camera and the cutscenes all move it). The liquid washes follow ITS cell, like the underwater
+        /// haze (<c>Sky.Mist</c>) and the bubbles (<see cref="AtmosphereProbe"/>) do.</summary>
+        public Camera Camera;
+
         private const int Max = 140;
         private readonly float[] _x = new float[Max];
         private readonly float[] _phase = new float[Max];
@@ -390,18 +395,21 @@ namespace BlocksBeyondTheStars.Client
 
         private enum EyeIn { Air, Water, Gas, DenseGas, Ressaw, RedFluid }
 
-        /// <summary>What the first-person eye (≈ the head, ~1.5 above the player root) is in: water — including inside a
-        /// submerged plant, ladder or form, like the server's oxygen drain (#1902) — or, on a gas giant, the gas sea or the
-        /// dense gas under it (#2134), or Ressaw in the buried G.D.S. ruins (#3335), which the water probe counts as liquid
-        /// too. Which liquid looks like what is <see cref="LiquidLook"/>'s (Client.Core).</summary>
+        /// <summary>What the rendering camera is in: water — including inside a submerged plant, ladder or form, like the
+        /// server's oxygen drain (#1902) — or, on a gas giant, the gas sea or the dense gas under it (#2134), or Ressaw in the
+        /// buried G.D.S. ruins (#3335), which the water probe counts as liquid too. Which liquid looks like what is
+        /// <see cref="LiquidLook"/>'s (Client.Core).
+        /// <para>#3923: it used to ask the body's head point (+1.5) instead — a swimmer floating at the surface, or a
+        /// third-person camera above the water, saw the whole screen washed blue while the camera itself was in the air.
+        /// Without a camera (never in the game) the first-person eye's height stands in.</para></summary>
         private EyeIn EyeFluid()
         {
-            if (Game == null)
+            if (Game == null || Game.SpaceViewActive) // the flight view's camera is no eye in the planet's water
             {
                 return EyeIn.Air;
             }
 
-            var eye = Game.PlayerPosition + Vector3.up * 1.5f;
+            var eye = Camera != null ? Camera.transform.position : Game.PlayerPosition + Vector3.up * 1.6f;
             if (!Game.IsWaterAt(eye))
             {
                 return EyeIn.Air;

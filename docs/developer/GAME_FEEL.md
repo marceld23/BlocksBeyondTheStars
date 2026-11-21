@@ -38,7 +38,9 @@ The jump impulse now starts in one place, `BeginJump`.
 - **Velocity** follows the input: toward the wanted velocity at `1 / SpoolSeconds` (0.4 s to top speed), toward a
   stop at `1 / CoastSeconds` (0.8 s). The keep-out spheres, the station hulls and the rocks resolve the position
   exactly as before; `SettleFlightVelocity` then takes what they blocked out of the velocity, so the ship slides
-  along a wall instead of pressing into it.
+  along a wall instead of pressing into it. A push out of a body only ever takes speed away
+  (`FlightFeel.SettledSpeedScale` holds the settled speed to the speed flown, #3919 — a climb that ended inside a
+  planet's shell used to turn the one-frame push into hundreds of units a second).
 - **Bank**: the hull leans into a turn (up to 25°, plus up to 8° while strafing). It is shown only — the heading the
   ship flies on is the unrolled one, and `CameraHeading()` reads the heading back without the lean.
 - **Camera**: the chase camera follows its rigid place softly (rate 9/s, at most 4 units off); the cockpit view
@@ -85,6 +87,14 @@ reverb and muffling are baked into the clips (`SampleKit`), and a mixer would be
   emotes ride an envelope (in from rest, hold, back to rest). "Sit" lasts until the figure moves.
 - **Body states**: a flinch when hurt, sinking down when defeated (until the figure is somewhere else, or 12 s), a
   swimming stroke in water, a give in the knees on landing.
+- **Swimming** (#3924, `PlayerAvatar.SwimLevel.cs`, rules in `Client.Core/SwimRules.cs`): the body tilts about its chest
+  with the swim — `SwimRules.BodyTilt` from the speed along the facing and the vertical speed, both measured from the
+  figure's own motion (so remote players need no extra network field): ~4–10° treading water (arms sculling, slow
+  pedalling kicks), a breast stroke while slow, ~62° in the plain swim's crawl, ~78° in the sprint, ~100° head first in a
+  dive (from a 1.6 m/s sink on — the idle drift of 1.5 m/s stays upright), a small lean back swimming backwards. The tilt
+  eases at the old level pose's 252°/s; the collision capsule stays upright. The same on every graphics tier and in the
+  browser: a pose is a few joint angles, no extra draw calls. At the surface the controller floats the feet 1.3 m under
+  the water (`SwimRules.FloatDepth`, #3923) — head and breath point clear, chest in.
 - **Eased legs**: the leg joints follow their pose (rate 22/s) instead of snapping from walk to tuck to stand.
 - **A walk with a body** (#3882–#3886, [AVATAR_RIG.md](AVATAR_RIG.md)): the knee folds in the swing, the elbow on the
   arm's forward swing, the hips dip, sway and turn with the stride and the shoulders against them, the feet stay flat

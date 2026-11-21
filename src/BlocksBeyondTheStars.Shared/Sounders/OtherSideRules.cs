@@ -1,6 +1,9 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
+
 namespace BlocksBeyondTheStars.Shared.Sounders;
 
 /// <summary>
@@ -84,6 +87,30 @@ public static class OtherSideRules
     }
 
     private static readonly int[] ToneSemitones = { 0, 2, 4, 5, 7, 9, 11, 12 };
+
+    /// <summary>How far around another player's body no stranger's sound block may stand, and how far around their own
+    /// body a player may dissolve anybody's (cells): the body's two cells grown by this are a 3×4×3 box.</summary>
+    public const int BodyMargin = 1;
+
+    /// <summary>#3914: seconds of bare hands on one sound block — the mine key held, no Resonance Blaster in hand — until it
+    /// gives way. Only a block in the player's own <see cref="BodyMargin"/> box gives way to bare hands (whoever shaped
+    /// it), so nobody stays walled in without a blaster; the blaster reaches farther and is quick.</summary>
+    public const double BareHandDissolveSeconds = 2.0;
+
+    /// <summary>#3914: the longest pause between two bare-hand hits on the same sound block that still carries the work on
+    /// (the mine key's hits come every quarter second; a pause longer than this starts the block over).</summary>
+    public const double BareHandHitGapSeconds = 0.75;
+
+    /// <summary>Whether <paramref name="cell"/> lies in a body box — the feet cell <paramref name="feet"/> and the head cell
+    /// above it — grown by <paramref name="margin"/> cells on every side, the short way round the world's seam. The one
+    /// rule the server's shaping and dissolving and the client's bare-hand aim share.</summary>
+    public static bool InBodyBox(Vector3i feet, Vector3i cell, int margin, int circumference)
+    {
+        int dx = WorldConstants.WrapDeltaX(cell.X - feet.X, circumference);
+        int dy = cell.Y - feet.Y;
+        int dz = cell.Z - feet.Z;
+        return dx >= -margin && dx <= margin && dz >= -margin && dz <= margin && dy >= -margin && dy <= 1 + margin;
+    }
 
     /// <summary>Perceived brightness 0–255 of a 0xRRGGBB colour (integer Rec. 601 weights).</summary>
     private static int Brightness(int rgb)

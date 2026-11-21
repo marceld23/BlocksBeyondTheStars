@@ -144,7 +144,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Avatar.SetSwimming(_controller.enabled && IsSubmerged());
+            bool swimming = _controller.enabled && IsSubmerged();
+            Avatar.SetSwimming(swimming);
+            if (swimming)
+            {
+                Game.SwimmingFrame = Time.frameCount; // #3924: the controls line names the swim keys meanwhile
+            }
+
             float health = Game.Health;
             if (_avatarHealth >= 0f && health < _avatarHealth - 0.5f)
             {

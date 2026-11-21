@@ -50,6 +50,14 @@ public static class SystemBodyLayout
     public static float MinOrbitFor(float parentRadius, float bodyRadius)
         => parentRadius + bodyRadius + ClearGapFor(parentRadius, bodyRadius) * MoonOrbitGapFactor;
 
+    /// <summary>The orbit of the next moon slot around a parent (#548): outside the parent's surface
+    /// (<see cref="MinOrbitFor"/>) and a clear gap above the slot before it, held at <paramref name="lastOrbit"/> by a body
+    /// of <paramref name="lastRadius"/> — so a planet's moons stack outward in rings instead of sharing one radius.</summary>
+    public static float NextMoonOrbit(float parentRadius, float moonRadius, float lastOrbit, float lastRadius)
+        => System.MathF.Max(
+            MinOrbitFor(parentRadius, moonRadius),
+            lastOrbit + lastRadius + moonRadius + ClearGapFor(lastRadius, moonRadius));
+
     // ---- the flight scene's own numbers (#3824): shared, so the server can send an NPC ship to a body ----
 
     /// <summary>Where the body the pilot launched from hangs in the flight scene: below the flight plane, a little
@@ -79,6 +87,41 @@ public static class SystemBodyLayout
     /// where an NPC ship begins its descent.</summary>
     public static float LandApproachDistance(float bodyRadius) => bodyRadius + KeepOutMargin + (LandBand * 0.5f);
 
+    // ---- a moon's own flight scene (#3919) ----
+
+    /// <summary>Clear space between the launch column and any body's keep-out shell. The launch column is the line every
+    /// lift-off climbs (x = z = 0, from below up to the flight plane); its top is where the pilot gets the controls.
+    /// Roomy enough for the ship that launches beside another one (8 units to the side, #2440).</summary>
+    public const float LaunchColumnClearance = 8f;
+
+    /// <summary>
+    /// #3919: the centre distance from the launch column at which a moon's parent planet is drawn in that moon's own
+    /// flight scene. The star map's moon orbit (90 system units, 21.6 flight units for a first moon) lies inside the
+    /// planet's keep-out shell (its radius + <see cref="KeepOutMargin"/>, at least 25.4), so every launch from a first moon
+    /// ended its climb inside the shell: the keep-out shoved the ship out in one frame and the ship shot away from the
+    /// planet. The planet now sits at the first moon slot it hands out anywhere (<see cref="MinOrbitFor"/> of the moon's
+    /// true radius, not of its oversized launch-body drawing) — never closer than its shell plus
+    /// <see cref="LaunchColumnClearance"/>, and never closer than the star map puts it.
+    /// </summary>
+    public static float HomeParentDistance(float starMapDistance, float parentRadius, float homeMoonRadius)
+        => System.MathF.Max(
+            starMapDistance,
+            System.MathF.Max(MinOrbitFor(parentRadius, homeMoonRadius), parentRadius + KeepOutMargin + LaunchColumnClearance));
+
+    /// <summary>
+    /// #3919: where a moon's parent planet sits in that moon's flight scene — in its true direction (the star-map offset
+    /// <paramref name="dx"/>/<paramref name="dz"/>, already in flight units) at <see cref="HomeParentDistance"/>. The moon
+    /// you launched from holds that first slot of the planet's ring (the column is where it is), so the planet's other
+    /// moons, which are laid out around it, take the slots above it (<see cref="NextMoonOrbit"/>). The client draws the
+    /// planet here and the server sends its landing traders here — one rule, or the two disagree.
+    /// </summary>
+    public static (float X, float Z) HomeParentPosition(float dx, float dz, float parentRadius, float homeMoonRadius)
+    {
+        float len = System.MathF.Sqrt((dx * dx) + (dz * dz));
+        float dist = HomeParentDistance(len, parentRadius, homeMoonRadius);
+        return len > 0.0001f ? (dx / len * dist, dz / len * dist) : (dist, 0f);
+    }
+
     /// <summary>
     /// Relaxes overlapping bodies apart in the x-z plane until every pair has its
     /// <see cref="ClearGapFor"/> of clear space, nudging both halves of a pair by half the deficit.
@@ -86,6 +129,8 @@ public static class SystemBodyLayout
     /// centred on it) and hangs far below the flight plane, so it only pushes the bodies listed in
     /// <paramref name="boundToFixed"/> — its own moons, which are laid out in *its* plane. Without
     /// that, nothing stopped the pass from shoving one of those back into it.</para>
+    /// <para>The launch column never gives way either (#3919): every other body is held clear of it
+    /// (<see cref="ClearLaunchColumn"/>), so no climb ends inside a body's keep-out shell.</para>
     /// </summary>
     /// <param name="x">Body x coordinates, updated in place.</param>
     /// <param name="z">Body z coordinates, updated in place.</param>
@@ -158,10 +203,54 @@ public static class SystemBodyLayout
                 moved = true;
             }
 
+            moved |= ClearLaunchColumn(x, z, radius, boundToFixed);
             if (!moved)
             {
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// #3919: holds every body of the flight plane clear of the launch column (the scene's x = z = 0 axis, where every
+    /// climb ends): a body whose keep-out shell, plus <see cref="LaunchColumnClearance"/>, reaches the column is pushed
+    /// straight out from it — the column never gives way. The bodies in <paramref name="boundToFixed"/> are skipped: they
+    /// hang in the launch body's plane, far below the climb. A body there would have caught the ship as the climb ended
+    /// (its keep-out shoves the ship out in a single frame), so this used to hit a launch from a moon — its planet hung
+    /// that close — and, more rarely, a landable asteroid that happened to orbit right by the launch body.
+    /// </summary>
+    /// <returns>True when a body moved.</returns>
+    private static bool ClearLaunchColumn(
+        System.Span<float> x, System.Span<float> z, System.ReadOnlySpan<float> radius, System.ReadOnlySpan<int> boundToFixed)
+    {
+        bool moved = false;
+        for (int a = 0; a < radius.Length; a++)
+        {
+            float need = radius[a] + KeepOutMargin + LaunchColumnClearance;
+            float dist = System.MathF.Sqrt((x[a] * x[a]) + (z[a] * z[a]));
+            if (dist >= need || Contains(boundToFixed, a))
+            {
+                continue;
+            }
+
+            x[a] = dist > 0.0001f ? x[a] / dist * need : System.MathF.Cos(a * 2.39996f) * need;
+            z[a] = dist > 0.0001f ? z[a] / dist * need : System.MathF.Sin(a * 2.39996f) * need;
+            moved = true;
+        }
+
+        return moved;
+    }
+
+    private static bool Contains(System.ReadOnlySpan<int> indices, int value)
+    {
+        foreach (int i in indices)
+        {
+            if (i == value)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

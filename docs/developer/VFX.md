@@ -277,6 +277,7 @@ before it bursts breaks apart like every machine (`FxDefeat.BreakApart`) with a 
     open), every other kind as its grey closed panels. The spacewalk's door preview shows the field for an energy door
     too.
 - **Speed and lighting:** `FxSpaceDust` turns velocity into streaks. Flight motion blur finally follows speed (`UrpScenePost.SetMotion` had no caller). The hull is lit from the system's star (`Sky.SpaceSunDir`).
+- **Engines and boost** (`SpaceView.EngineFx.cs`): the flame, trail, engine light, throttle FOV punch, engine sound and THR readout follow the thrust the helm really applied this frame (`HelmThrottle`, #3920 — zero behind a menu, the full thrust under the autopilot), never the raw stick. The boost (#3925) blends in by `BoostLook` (Client.Core, 0.15 s in, 0.4 s out): a hot orange flame matching the boost gauge with more, bigger and faster particles, an orange brighter engine light, a doubled trail, speed lines in the dust (`FxSpaceDust.FlightBoost`, max-combined with the warp's), a burst of motes and a glow at the nozzles on ignition, FOV +8°/+6° with a small trauma shake through `FxCamera`, and a gently pulsing gauge. The extra particles follow `BoostLook.ParticleShare` (none on Potato, which also skips the ignition burst); Reduce flashes drops the ignition glow and the pulse.
 - **Hyperjump** (`HyperspaceWarp`): an `FxTunnel` around the camera, the dust stretched into star lines, FOV punch at the flash; the 2D overlay remains as a faint wash.
 - **Traders** warp in and out as stretched light zips.
 - **Landing and launch:** the landing descent builds a re-entry plasma sheath (scaled by the body's atmosphere). Launch sends cloud wisps rushing past.
@@ -311,7 +312,10 @@ the shader side):
   Only while the camera is in the shade and the sun is up; High 12 cards, Medium 6, Low none.
 - **Bubbles** (`AtmosphereProbe`): `Motes` rising past the visor while submerged; the caustics and the water haze
   are shader-side (`AtmosphereCommon.hlsl`, `Sky.ApplyFog`). The older IMGUI wash in `WeatherFx` thins to ~15 % while
-  that haze is active (`Sky.UnderwaterFog`, #2416) and keeps its 34 % with the effect off.
+  that haze is active (`Sky.UnderwaterFog`, #2416) and keeps its 34 % with the effect off. All three ask the rendering
+  camera's own cell (`WeatherFx.Camera`, wired in `WorldRig`): the wash used to ask the body's head point, so a swimmer
+  floating at the surface — or a third-person camera above the water — saw the whole screen blue (#3923). The same on
+  every tier: the wash is one full-screen IMGUI quad.
 - **Soft particles** (#2403): `Particle` / `ParticleAlpha` fade within 0.5 m of the depth behind them on Medium+
   (`_Sc_ScreenFx` × `_Sc_SoftParticles`). `ParticleSmoke` (#3274) fades over 0.5 m or 0.6 × the puff's half size,
   whichever is more, so a 15 m volcano puff never cuts a hard line into the slope.

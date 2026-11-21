@@ -44,7 +44,11 @@ hangs at a fixed spot, the other planets at their scaled system coordinates, moo
 overlapping bodies are nudged apart. The numbers both sides need live in `SystemBodyLayout` (Shared): `HomeX/Y/Z`,
 `HomeDiameterFactor`, `OrbitDiameter`, `KeepOutMargin`, `LandBand`. `TraderBodyInScene` is exact for the launch body —
 the one a trader prefers — and an estimate for the others (a planet's raw scaled position, a moon at its first orbit
-slot). That is enough to fly to: the dive itself is drawn by the client at the body it really shows.
+slot). That is enough to fly to: the dive itself is drawn by the client at the body it really shows. Launched from a
+moon, both sides place its planet with `SystemBodyLayout.HomeParentPosition` (#3919: its true direction, at its first
+moon slot and never closer than its keep-out shell + `LaunchColumnClearance` to the launch column — the star map's
+21.6 units put the climb's end inside the shell) and its sibling moons a slot above the launch moon (`NextMoonOrbit`);
+the client's relax pass (`SeparateXZ`) also holds every other body clear of the launch column.
 
 *The dive on the client* (`SpaceView.TraderDescent.cs`, numbers in `Client.Core/NpcDescentPath`): the ship named by
 `Subject` is taken off its server pose and flown from where it is drawn to the surface point under it — slow off the

@@ -517,32 +517,10 @@ namespace BlocksBeyondTheStars.Client
 
             // Engine flame: a real ParticleSystem thruster (BuildThruster) whose emission + jet speed track the
             // throttle. The small Unlit nozzle core (_exhaust) just glows at the vent; the old stretching flame +
-            // cube exhaust bits are retired in favour of the particle jet.
-            float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(CaptureForward()) : 0f;
-            if (_exhaust != null)
-            {
-                _exhaust.localScale = new Vector3(0.5f, 0.5f, 0.55f + throttle * 0.5f); // steady nozzle glow core
-            }
-
-            if (_thruster != null)
-            {
-                bool firing = _phase == Phase.Cruise && !_eva;
-                var em = _thruster.emission;
-                em.rateOverTime = firing ? Mathf.Lerp(20f, 130f, throttle) : 0f;
-                var main = _thruster.main;
-                main.startSpeed = 5f + throttle * 9f;
-                foreach (var extra in _extraThrusters)
-                {
-                    if (extra != null)
-                    {
-                        var xem = extra.emission;
-                        xem.rateOverTime = em.rateOverTime;
-                        var xmain = extra.main;
-                        xmain.startSpeed = main.startSpeed;
-                    }
-                }
-            }
-
+            // cube exhaust bits are retired in favour of the particle jet. #3920: the throttle is the one the helm
+            // really applied this frame — W behind the F1 dialog or a menu moves nothing, so it fires no flame either.
+            float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(HelmThrottle) : 0f;
+            UpdateEngineFlame(throttle); // #3925: and the boost's hot orange flame (SpaceView.EngineFx.cs)
             UpdateFlightFx(throttle);
         }
 

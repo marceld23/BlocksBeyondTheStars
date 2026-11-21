@@ -222,19 +222,9 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (free && _swimming && !_crouched)
             {
-                // A breast stroke: the arms reach forward and sweep out, the legs kick in turn.
-                float stroke = Mathf.Sin(t * 3.2f);
-                float kick = Mathf.Sin(t * 6.4f);
-                armL = armR = -92f + (28f * stroke);
-                elbowL = elbowR = -18f - (22f * Mathf.Max(0f, -stroke));
-                rollL = -(18f + (26f * Mathf.Max(0f, -stroke)));
-                rollR = 18f + (26f * Mathf.Max(0f, -stroke));
-                legL = 12f * kick;
-                legR = -12f * kick;
-                kneeL = 14f + (12f * Mathf.Max(0f, kick));
-                kneeR = 14f + (12f * Mathf.Max(0f, -kick));
-                headYaw = 0f;
-                PoseCrawl(t, ref armL, ref armR, ref elbowL, ref elbowR, ref legL, ref legR, ref kneeL, ref kneeR, ref rollL, ref rollR, ref nod);
+                // #3924: treading water, the breast stroke and the crawl, by the body's tilt (PlayerAvatar.SwimLevel.cs).
+                PoseSwim(t, ref armL, ref armR, ref elbowL, ref elbowR, ref legL, ref legR, ref kneeL, ref kneeR, ref rollL, ref rollR,
+                    ref headYaw, ref nod);
             }
         }
 

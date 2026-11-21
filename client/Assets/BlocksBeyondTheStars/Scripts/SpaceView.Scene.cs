@@ -134,6 +134,14 @@ namespace BlocksBeyondTheStars.Client
                     (current.SystemX, current.SystemZ, homePos, homeDiameter * 0.5f),
                 };
                 var planetIndexById = new Dictionary<string, int> { [current.Id ?? string.Empty] = 0 };
+                var moonLadder = new Dictionary<int, (float Orbit, float Radius)>(); // parent → outermost slot so far (pass 2)
+                // #3919: launched from a moon, the planet it orbits would hang at the star map's moon orbit — 21.6 units
+                // from the launch column for a first moon, inside the planet's keep-out shell, so the climb ended in it
+                // and the keep-out threw the ship away. It keeps its true direction at a clear distance (the server
+                // lays it out the same way for its traders), and the moon you launched from holds that first orbit
+                // slot, so the planet's other moons ring above it.
+                string homeParentId = current.Kind == "Moon" && !string.IsNullOrEmpty(current.ParentId) ? current.ParentId : null;
+                float homeTrueRadius = OrbitDiameterFor(homeCirc) * 0.5f;
                 foreach (var b in system.Bodies)
                 {
                     // Render every real planet in the system — even one whose PlanetType string didn't come
@@ -147,6 +155,13 @@ namespace BlocksBeyondTheStars.Client
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
                     int circ = BodySize.CircumferenceOf(b); // #2691: the server's size of the body
                     float diameter = OrbitDiameterFor(circ);
+                    if (b.Id == homeParentId)
+                    {
+                        var (px, pz) = SystemBodyLayout.HomeParentPosition(pos.x, pos.z, diameter * 0.5f, homeTrueRadius);
+                        pos = new Vector3(px, 0f, pz);
+                        moonLadder[planets.Count] = (pos.magnitude, homeTrueRadius); // the launch moon's slot is taken
+                    }
+
                     Plan(b.Id, b.Name, b.Kind, pos, diameter, type, circ, b.RingSeed);
                     planetIndexById[b.Id] = planets.Count;
                     planets.Add((b.SystemX, b.SystemZ, pos, diameter * 0.5f));
@@ -158,7 +173,6 @@ namespace BlocksBeyondTheStars.Client
                 // orbit below any planet's rendered radius, each parent hands out ascending orbit SLOTS: the
                 // first moon sits at the minimum clear orbit, every further one a clear gap above the last —
                 // a Lone Giant's 8 moons read as a family of rings instead of one crowded shell.
-                var moonLadder = new Dictionary<int, (float Orbit, float Radius)>(); // parent → outermost slot so far
                 foreach (var b in system.Bodies)
                 {
                     if (b.Id == current.Id || b.Kind != "Moon")
@@ -188,12 +202,9 @@ namespace BlocksBeyondTheStars.Client
                     float moonDia = OrbitDiameterFor(moonCirc);
                     // Outside the planet's surface, with room to spare — and above this parent's previous
                     // moon's ring, so siblings stack outward instead of sharing one radius (#548).
-                    float minClear = SystemBodyLayout.MinOrbitFor(parent.Radius, moonDia * 0.5f);
-                    if (moonLadder.TryGetValue(parentIndex, out var last))
-                    {
-                        minClear = Mathf.Max(minClear,
-                            last.Orbit + last.Radius + moonDia * 0.5f + SystemBodyLayout.ClearGapFor(last.Radius, moonDia * 0.5f));
-                    }
+                    float minClear = moonLadder.TryGetValue(parentIndex, out var last)
+                        ? SystemBodyLayout.NextMoonOrbit(parent.Radius, moonDia * 0.5f, last.Orbit, last.Radius)
+                        : SystemBodyLayout.MinOrbitFor(parent.Radius, moonDia * 0.5f);
 
                     if (rel.magnitude < minClear)
                     {
@@ -233,6 +244,7 @@ namespace BlocksBeyondTheStars.Client
                 // its clear gap (SystemBodyLayout — shared with the tests that assert the guarantee).
                 // Home is passed as the fixed body: it never moves (the scene is centred on it) and its
                 // own moons are the ones laid out in its plane, so they are the ones it has to push out.
+                // The launch column never gives way either (#3919): every other body is held clear of it.
                 var flatX = new float[positions.Count];
                 var flatZ = new float[positions.Count];
                 for (int k = 0; k < positions.Count; k++)

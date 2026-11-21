@@ -233,6 +233,47 @@ public sealed class MovementFeelTests
     }
 
     [Fact]
+    public void APushOutOfAKeepOutShell_NeverAddsSpeed()
+    {
+        // #3919: the climb from a moon ended at rest inside the planet's keep-out shell (centre 21.6 units off, shell
+        // radius 35.4). The keep-out put the ship on the shell in one frame — a 13.8-unit step — and the settled velocity
+        // became that step over the frame time: 828 units a second at zero throttle.
+        float[] pos = { 0f, 0f, 0f };
+        float[] centre = { 21.6f, 0f, 0f };
+        const float shell = 35.4f;
+        float[] pushed = PushOutOfSphere(pos, centre, shell);
+        float settled = Length(pushed[0] - pos[0], pushed[1] - pos[1], pushed[2] - pos[2]) / Frame;
+        Assert.True(settled > 500f, "the push is the step the old settle turned into a velocity");
+
+        Assert.Equal(0f, settled * FlightFeel.SettledSpeedScale(settled, 0f)); // at rest it stays at rest
+        const float cruising = 12f;
+        Assert.Equal(cruising, settled * FlightFeel.SettledSpeedScale(settled, cruising), 3); // flying, it keeps its speed
+    }
+
+    [Fact]
+    public void ABlockedMove_KeepsWhatIsLeftOfTheSpeed()
+    {
+        // Sliding along a wall loses the blocked part and keeps the rest: nothing to hold back.
+        Assert.Equal(1f, FlightFeel.SettledSpeedScale(7f, 12f));
+        Assert.Equal(1f, FlightFeel.SettledSpeedScale(12f, 12f));
+        Assert.Equal(1f, FlightFeel.SettledSpeedScale(0f, 12f));
+        Assert.Equal(1f, FlightFeel.SettledSpeedScale(float.NaN, 12f));
+        Assert.Equal(0.5f, FlightFeel.SettledSpeedScale(24f, 12f), 4);
+    }
+
+    private static float Length(float x, float y, float z) => (float)System.Math.Sqrt((x * x) + (y * y) + (z * z));
+
+    /// <summary>The flight view's keep-out step (SpaceView.Flight.cs): a point inside the sphere goes to its surface.</summary>
+    private static float[] PushOutOfSphere(float[] p, float[] c, float radius)
+    {
+        float dx = p[0] - c[0], dy = p[1] - c[1], dz = p[2] - c[2];
+        float d = Length(dx, dy, dz);
+        return d < radius && d > 0.0001f
+            ? new[] { c[0] + (dx / d * radius), c[1] + (dy / d * radius), c[2] + (dz / d * radius) }
+            : p;
+    }
+
+    [Fact]
     public void Following_CoversAShareOfTheWay_IndependentOfTheFrameRate()
     {
         float one = FlightFeel.Follow(FlightFeel.CameraFollowRate, 1f / 30f);

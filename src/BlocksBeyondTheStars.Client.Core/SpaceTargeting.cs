@@ -17,6 +17,21 @@ public enum TargetDisposition
     Friendly,
 }
 
+/// <summary>Which position the ship scanner's frame, its label and its effects follow (#3922) —
+/// <see cref="SpaceTargeting.ScanAnchorFor"/>.</summary>
+public enum ScanAnchor
+{
+    /// <summary>The position the target carries: a space object's server snapshot (nothing drawn for it), a body's spot in
+    /// the flight scene.</summary>
+    Snapshot,
+
+    /// <summary>The space object's drawn model, which interpolates the server's poses — the frame moves with the picture.</summary>
+    Model,
+
+    /// <summary>The voxel hull a station, a wreck or a rock is drawn as.</summary>
+    Hull,
+}
+
 /// <summary>One lockable object of the flight instance: a space entity (<see cref="NetCombatEntity"/>), another pilot or
 /// an NPC trader (<see cref="NetSpacePlayer"/>), or a body of the system. Positions are in the instance frame; the
 /// <see cref="Distance"/> is filled by <see cref="SpaceTargeting.Order"/>.</summary>
@@ -266,6 +281,23 @@ public static class SpaceTargeting
         float half = float.IsNaN(projectedRadius) ? 0f : projectedRadius * 1.25f;
         return System.Math.Min(LockFrameMaxHalf, System.Math.Max(LockFrameMinHalf, half));
     }
+
+    /// <summary>
+    /// #3922: where the ship scanner draws its frame, its label and its effects for a target. A space object is drawn
+    /// where its model is: the server sends a hostile's pose every 0.15 s and the model interpolates them a quarter of a
+    /// second behind, so a frame on the raw snapshot jumped about seven times a second round a drone circling the ship and
+    /// ran ahead of it. The model wins, then the voxel hull a station, wreck or rock is drawn as; with neither (nothing
+    /// drawn yet) the snapshot is all there is. A body's spot in the scene is already what is drawn. Presentation only:
+    /// the range check and the choice of target stay on the server's data.
+    /// </summary>
+    /// <param name="isBody">The target is a planet or moon of the system (not a space object).</param>
+    /// <param name="modelShown">The space object has an active view (a model) in the flight scene.</param>
+    /// <param name="hullShown">The space object is drawn as a voxel hull.</param>
+    public static ScanAnchor ScanAnchorFor(bool isBody, bool modelShown, bool hullShown)
+        => isBody ? ScanAnchor.Snapshot
+         : modelShown ? ScanAnchor.Model
+         : hullShown ? ScanAnchor.Hull
+         : ScanAnchor.Snapshot;
 
     /// <summary>True while a hostile at <paramref name="distance"/> is attacking (inside the damage aura).</summary>
     public static bool IsAttacking(string? kind, bool hostile, float distance)

@@ -141,14 +141,33 @@ public sealed class OtherSideWiringTests
         {
             string file = Path.Combine(ClientTestPaths.DataDir(), "locales", code + ".json");
             var table = ContentLoader.ParseLocaleTable(File.ReadAllText(file, System.Text.Encoding.UTF8));
-            foreach (string key in new[] { "ui.otherside.chip", "ui.otherside.gate_marker", "ui.otherside.bar_hint", "ui.otherside.count" })
+            foreach (string key in new[] { "ui.otherside.chip", "ui.otherside.gate_marker", "ui.otherside.bar_hint", "ui.otherside.count", "ui.otherside.bare_hint" })
             {
                 Assert.True(table.ContainsKey(key), $"{code}: {key} is missing");
             }
 
             Assert.Contains("{key:Place}", table["ui.otherside.bar_hint"]); // the use key shapes
             Assert.Contains("{key:Mine}", table["ui.otherside.bar_hint"]);  // the mine key dissolves
+            Assert.Contains("{key:Mine}", table["ui.otherside.bare_hint"]); // #3914: bare hands — the mine key, held
             Assert.Contains("{0}", table["ui.otherside.count"]);
         }
+    }
+
+    /// <summary>#3914: without the blaster over there the mine key works a sound block that touches the player — sent as
+    /// mine hits at a hand's pace, only for a block in the player's own body box (the shared rule the server applies), the
+    /// block outlined so the server's cracks show on it, and the controls line naming the key meanwhile.</summary>
+    [Fact]
+    public void BareHands_WorkASoundBlockThatTouchesThePlayer_WithTheServersRule()
+    {
+        string rig = Script("PlayerController.OtherSide.cs");
+        Assert.Contains("if (!HoldsResonanceBlaster())\n            {\n                BareHandsOnSound();", rig);
+        Assert.Contains("OtherSideRules.InBodyBox(feet, new Vector3i(aim.HitX, aim.HitY, aim.HitZ), OtherSideRules.BodyMargin, Game.Circumference)", rig);
+        Assert.Contains("Game.Network.SendMine(cell.x, cell.y, cell.z);", rig);
+        Assert.Contains("return BareHandSoundTarget(out cell);", rig); // the outline: where the cracks show
+        Assert.Contains("Game.BareHandSoundFrame = Time.frameCount;", rig);
+
+        string hint = Script("HudUi.HintLine.cs");
+        Assert.Contains("if (overThere && Game.BareHandSoundAimed)", hint);
+        Assert.Contains("loc.Get(\"ui.otherside.bare_hint\")", Script("HudUi.OtherSide.cs"));
     }
 }

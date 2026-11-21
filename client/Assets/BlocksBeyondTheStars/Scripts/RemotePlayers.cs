@@ -280,7 +280,7 @@ namespace BlocksBeyondTheStars.Client
                     // #2193: a climber faces the wall they hang on, not where they look.
                     float facing = r.Climbing && TryWallYaw(pos, yaw, out float wallYaw) ? wallYaw : yaw;
                     var yawRot = Quaternion.Euler(0f, facing, 0f);
-                    var swim = r.Avatar.SwimTiltOffset; // #3860: a sprint swimmer lies level, turned about its chest
+                    var swim = r.Avatar.SwimTiltOffset; // #3860/#3924: a swimmer tilts with its swim, turned about its chest
                     r.Go.transform.position = scene + (yawRot * swim);
                     r.Go.transform.rotation = yawRot * r.Avatar.SwimTilt;
                     r.Avatar.PlacedSwimOffset(swim);

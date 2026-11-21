@@ -48,7 +48,7 @@ public sealed class VegaLineBudgetTests
         "srv.base.founded", "srv.rail.placed", "srv.ship.commissioned", "srv.ship.core_placed", "srv.station.zero_g",
         // #2502 — HUD, world labels and buttons
         "ui.wreck.repair_hint", "ui.base.rename_hint", "ui.hud.loot", "ui.hud.feed", "ui.hud.stash_keys", "ui.hud.stash_filter_key",
-        "ui.scan.use_hint", "ui.hud.hint", "ui.hud.hint_fly", "ui.station.leave_hint", "ui.dock.undock_hint",
+        "ui.scan.use_hint", "ui.hud.hint", "ui.hud.hint_fly", "ui.hud.hint_swim", "ui.station.leave_hint", "ui.dock.undock_hint",
         "ui.interact.trade_dock", "ui.datacube.prompt", "ui.netfragment.prompt", "ui.chat.hidden", "ui.container_filter.hint",
         "ui.crate.stash_all", "ui.crate.take_all", "ui.arcade.empty_body", "ui.map.wreck_detail", "ui.map.debris_detail",
         "ui.spacemap.autopilot_ready", "ui.launch.yes", "ui.vendor.trade_choice", "ui.bio.workshop_choice_craft",

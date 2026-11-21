@@ -29,6 +29,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The tones of a walk over sound blocks (#3908).</summary>
         public SoundStepTones SoundSteps { get; } = new SoundStepTones();
 
+        /// <summary>#3914: the frame the player rig last aimed at a sound block bare hands can work (over there, no blaster in
+        /// hand, the block in the player's own body box) — the controls line names the mine key meanwhile. Frame-stamped, so
+        /// a rig that stops updating never leaves the hint up.</summary>
+        public int BareHandSoundFrame { get; set; } = -10;
+
+        /// <summary>#3914: whether the bare-hand hint applies this frame (<see cref="BareHandSoundFrame"/> is current).</summary>
+        public bool BareHandSoundAimed => OtherSide.Over && BareHandSoundFrame >= UnityEngine.Time.frameCount - 1;
+
         /// <summary>The other side's subscriptions; called from <see cref="WireKnowledge"/>.</summary>
         private void WireOtherSide()
         {

@@ -900,6 +900,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             Network?.Dispose();
+            RestoreMenuNavigation(); // #3921: play switched the menus' keyboard navigation off — the main menu gets it back
             _worldHold?.Forget(); // the world is gone — nothing left to hold or to tell (#2461)
             Cutscenes.Clear();    // #2461: a cinematic torn down with its world must not keep the next one's HUD hidden
 

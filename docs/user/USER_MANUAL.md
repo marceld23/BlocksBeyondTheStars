@@ -232,8 +232,8 @@ Last updated: 2026-10-04.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface** (at the surface you simply float); **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
-| **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. **In water it is a sprint swim** — faster, lying level in the water. Not while crouched, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface** (at the surface you simply float, head above the water); **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
+| **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. **In water it is a sprint swim** — faster, lying nearly level in the water. Not while crouched, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; **dive down in water**; descend in zero-g. **Sneaking is quiet:** a sleeping animal does not wake when you sneak up to it (see *Creatures*), and the sandworms do not hear your steps. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
@@ -293,7 +293,7 @@ buttons — retuning is tracked in issue #195):
 | **Left stick** | Move |
 | **Right stick** | Look |
 | **RB** | Mine / attack (hold to keep mining) |
-| **LB** | Place the selected hotbar block / use the held gadget (hold: reel in on the energy rope) |
+| **LB** | Place the selected hotbar block / use the held gadget (hold: reel in on the energy rope). With the **Resonance Blaster** in hand the melody bar is open and LB is also its "upper tones" button: a **short tap** of LB alone pushes, LB held together with the d-pad plays the tones 5–8 (the left trigger pushes too, if you switched the triggers on) |
 | **D-pad ◄ ►** | Cycle hotbar slot |
 | **D-pad ▲** | Open the chat (the on-screen keyboard, with the chat window above it) |
 | **D-pad ▼** | Turn the building block you are holding |
@@ -441,7 +441,8 @@ ready and name their control for the device in your hands — "BOOST  Shift", "R
 - **Boost** — hold **Left Shift** while you fly (pad: click the **left stick** while it is pushed; touch: tap **BOOST**
   — both switch it on until the charge is empty, you stop, or you press again). The ship flies about 1.7 times as
   fast while the **orange bar** lasts (about 3 seconds on the starter ship), then the bar refills by itself in a few
-  seconds. A boost needs at least a quarter of the bar to start, and the autopilot never boosts.
+  seconds. A boost needs at least a quarter of the bar to start, and the autopilot never boosts. While it burns, the
+  engine flame turns hot orange like the bar, the view widens and the stars streak past.
 
 **Lift-off, landing and docking play as one continuous scene** — no loading screen in between:
 
@@ -795,7 +796,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 - **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
 - **Shooting stars** cross the night sky now and then (often in a meteor shower); very rarely a distant ship blinks by.
 - **Underwater haze and light patterns**: under water the view closes in to a few metres in the water's colour,
-  sunlight dances on the sea floor, and bubbles rise past your visor.
+  sunlight dances on the sea floor, and bubbles rise past your visor. All of it — and the water's tint over the screen —
+  follows the camera: while it is above the water (floating with your head out, or the third-person camera behind you)
+  you see the world as it is; only once the camera itself is under water does the view turn blue.
 - **Light shafts** reach into cave mouths, pits and canopy gaps when you stand in the shade and the sun is up.
 - **Lava and crystals light caves**: lava, crystal blocks and the glowing flora cast a quiet light of their own — a
   lava lake glows at its shores, a crystal cavern in its colours. (The light index is built as chunks load, so
@@ -1327,12 +1330,18 @@ round.
   deliberate campfire is a real survival tool, not just a hazard.
 
 ### Swimming & diving
-- Water is not solid: under the surface you sink slowly with gentle buoyancy; hold **Space** (pad A) to swim up and
-  surface, and hold **Crouch** (Ctrl / C, pad B) to **dive** down. At the surface you **float** with your head above
-  the water — with or without Space, no bobbing. Swimming against a low bank lifts you out onto the land; at a higher
-  bank, press **Space** while you swim towards it. Hold **Run** (Left Shift, or the pad/touch run switch) to **sprint
-  swim**: faster, lying level in the water like a crawl stroke (it uses stamina like running). Water **breaks falls**.
-  Deep, swimmable water (lakes, ponds, seas) is common on wet worlds.
+- Water is not solid: under the surface you sink slowly with gentle buoyancy; hold **Space** (pad A, touch JUMP) to
+  swim up and surface, and hold **Crouch** (Ctrl / C, pad B, touch DOWN) to **dive** down. While you swim, the controls
+  line at the bottom right names both keys ("Space up · Ctrl/C dive"), and VEGA explains them the first time you swim.
+  At the surface you **float** with your head above the water — with or without Space, no bobbing — so floating does
+  not use up your suit's air.
+- Your body **lies in the water the way you swim**: treading water you stay upright, arms sculling and legs kicking
+  slowly; swimming slowly is a breast stroke; swimming forward you lie forward in a crawl just under the surface; diving
+  you go down head first; swimming backwards you lean back a little. Hold **Run** (Left Shift, or the pad/touch run
+  switch) to **sprint swim**: faster, lying nearly level (it uses stamina like running). Other players see you swim the
+  same way. Only your figure tilts — you still fit through the same gaps as standing.
+- Swimming against a low bank lifts you out onto the land; at a higher bank, press **Space** while you swim towards it.
+  Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds.
   With your head under water your suit runs on its tank — on **every** world, even one with breathable air. On a world
   with breathable air the tank fills up again as soon as your head is back in the air: at the surface, or in a trapped
   **air pocket** (a sunken ruin may have one, see *Lost civilizations*).
@@ -3372,7 +3381,10 @@ worlds created with a game version that has generation 43 have them; an older wo
 - **Flying away is fine**: if nobody is near for a while, it jumps away again.
 - A beaten cruiser stays as a **wreck you can board** — dock, or go in through a hole on a spacewalk. Only robots are
   aboard. Every pilot who fought finds a crate of their own near the way in, and on the bridge stands a console with a
-  red light: a hacking chip turns it blue.
+  red light: a hacking chip turns it blue. The fight left its marks inside: charred plating round the holes, dark
+  screens and a few loose hull plates on the decks.
+- **Scan the wreck** from your ship: it reads as an *Escort cruiser wreck*, and the first scan of each wreck is worth
+  knowledge.
 - With several ships in a fight, a ship that is shot down sends only its own crew home; the others fly on.
 - **Admins**: `/cruiser` calls the boss into your flight (`/cruiser echo` the one from VEGA's story).
 
@@ -4081,7 +4093,8 @@ Bridge Song, the last three to **the other side** (see below):
    field; a disc you lose before decoding it turns up again in the next cache. A disc that is not part of the story (the
    light or calm disc, a little song disc) only sings a tune — while the story waits for a disc, VEGA tells you which one.
 4. **Alien blueprints.** Two discs carry building plans that appear in your **research** list only after you decoded
-   them: the **Resonance Blaster** (right mouse button; it pushes and stuns hostile creatures and machines for a moment
+   them: the **Resonance Blaster** (right mouse button — gamepad: a short tap of **LB** alone, or the left trigger if
+   you switched the triggers on; it pushes and stuns hostile creatures and machines for a moment
    without hurting them, calms Soundraks, and — used on a monument's rune stone — opens a hidden **sound chamber** once;
    on Soaniri it also opens two sealed chambers of the ruin city Ornasa) and the **obsidian
    armour** (quiet steps; its chest piece has a **disc slot**: the *hearing disc* lets you hear the Echoes, the *calm
@@ -4147,7 +4160,9 @@ have one, and three rune stones you place yourself make one too.
   blocks in front of you. Walk on them, build stairs and bridges. The **last tone you played on the melody bar** (keys
   1–8) decides how brightly the next block glows. To **dissolve** a sound block, aim at it and press the left mouse
   button with the Resonance Blaster in your hand — only you and your allies can dissolve your blocks (a sound block
-  that touches your own body you can always dissolve, so nobody can wall you in). Sound blocks cannot be shaped right
+  that touches your own body you can always dissolve, so nobody can wall you in). **Without the Resonance Blaster** your
+  bare hands still work on a sound block right next to you: aim at it and **hold** the left mouse button (gamepad: RB)
+  for about two seconds — it cracks and gives way, whoever shaped it. Sound blocks cannot be shaped right
   next to another player who is not your ally, or against a rune stone. **Gamepad:** the left bumper alone shapes, the
   right bumper alone dissolves (tap for one, hold for more); a bumper together with the d-pad still plays the bar's
   upper tones. Sound blocks exist

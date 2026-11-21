@@ -47,6 +47,12 @@ namespace BlocksBeyondTheStars.Client
         // Lock-on HUD: the shared bracket frame (#2283) with the scanner's charge ring, on the targeting layer.
         private SpaceTargetFrame _scanFrame;
 
+        // #3922: this frame's lock, drawn in LateUpdate once the camera is placed (DrawPendingScanLock).
+        private ScanTarget _scanDrawTarget;
+        private FxLook _scanDrawLook;
+        private bool _scanDrawPing;
+        private int _scanDrawFrame = -1;
+
         /// <summary>Within this, the autopilot / waypoint arrives at a life pod, an anomaly or a wormhole.</summary>
         private const float EncounterArriveRange = 22f;
 
@@ -107,7 +113,7 @@ namespace BlocksBeyondTheStars.Client
                     ClientAudio.Instance?.Cue("ship_scan_charge", 0.6f);
                     if (target.Key != null)
                     {
-                        var center = _root.transform.TransformPoint(target.Local);
+                        var center = ScanDrawWorld(target); // #3922: on the drawn model
                         FxGadgets.HoloBox(look.Color, center, Vector3.one * target.Radius * 2f, Mathf.Max(0.3f, scanner.ScanTime));
                     }
                 }
@@ -133,7 +139,47 @@ namespace BlocksBeyondTheStars.Client
                 _scanCharging = false;
             }
 
-            DrawScanLock(target, look, canPing);
+            // #3922: the frame is drawn in LateUpdate, after the camera's shake and boost kick — drawn here, before
+            // PlaceCamera, the brackets lagged the shaken picture by a frame.
+            _scanDrawTarget = target;
+            _scanDrawLook = look;
+            _scanDrawPing = canPing;
+            _scanDrawFrame = Time.frameCount;
+        }
+
+        /// <summary>#3922: draws this frame's scan lock once the camera is placed — called from LateUpdate next to the
+        /// target lock's HUD. Nothing to draw when the scanner did not run this frame (the frame keeps its state, as
+        /// before).</summary>
+        private void DrawPendingScanLock()
+        {
+            if (_scanDrawFrame != Time.frameCount || _ship == null || _root == null || Game == null)
+            {
+                return;
+            }
+
+            DrawScanLock(_scanDrawTarget, _scanDrawLook, _scanDrawPing);
+        }
+
+        /// <summary>#3922: where the scanner draws a target — its frame, label and effects — in world space: on the drawn
+        /// model (it interpolates the server's poses), else on the voxel hull, else on the server's position
+        /// (<see cref="SpaceTargeting.ScanAnchorFor"/>, the same order as the target lock's frame). The range check and
+        /// the choice of target stay on the server's data in <see cref="ScanTarget.Local"/>.</summary>
+        private Vector3 ScanDrawWorld(ScanTarget target)
+        {
+            GameObject model = null;
+            VoxStruct hull = null;
+            bool entity = !target.IsBody && !string.IsNullOrEmpty(target.Id);
+            bool modelShown = entity && _entities.TryGetValue(target.Id, out model) && model != null && model.activeSelf;
+            bool hullShown = entity && _structs.TryGetValue(target.Id, out hull) && hull != null;
+            switch (SpaceTargeting.ScanAnchorFor(target.IsBody, modelShown, hullShown))
+            {
+                case ScanAnchor.Model:
+                    return model.transform.position;
+                case ScanAnchor.Hull:
+                    return _root.transform.TransformPoint(hull.Pos);
+                default:
+                    return _root.transform.TransformPoint(target.Local);
+            }
         }
 
         /// <summary>#2247: the trigger came up before the ring was full. The scan never reached the server, so nothing
@@ -169,6 +215,7 @@ namespace BlocksBeyondTheStars.Client
             _scanTargetKey = null;
             _scanProgress = 0f;
             _scanCharging = false;
+            _scanDrawFrame = -1; // #3922: no late draw brings it back this frame
             _scanFrame?.Hide();
         }
 
@@ -470,7 +517,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Vector3 center = _root.transform.TransformPoint(target.Local);
+            Vector3 center = ScanDrawWorld(target); // #3922: the fan and the motes reach the drawn model
             float r = target.Radius * _root.transform.lossyScale.x;
             if (_scanFxTimer <= 0f)
             {
@@ -515,7 +562,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Vector3 center = _root.transform.TransformPoint(target.Local);
+            Vector3 center = ScanDrawWorld(target); // #3922: the pulse and the wave land on the drawn model
             float r = target.Radius * _root.transform.lossyScale.x;
             _scannedThisFlight.Add(target.Key);
             if (target.IsBody)
@@ -593,7 +640,7 @@ namespace BlocksBeyondTheStars.Client
             float half = 60f;
             if (target.Key != null)
             {
-                Vector3 world = _root.transform.TransformPoint(target.Local);
+                Vector3 world = ScanDrawWorld(target); // #3922: the brackets sit on the drawn model, not the raw snapshot
                 Vector3 screen = Camera.WorldToScreenPoint(world);
                 if (screen.z <= 0f)
                 {

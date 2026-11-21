@@ -197,6 +197,7 @@ namespace BlocksBeyondTheStars.Client
                 // arrival) while the player may be typing a Funk line or a photo note. A field left focused under a
                 // disabled canvas throws in the next caret rebuild — hand focus back before the canvas goes.
                 UiKit.ReleaseTextFieldFocus(_canvas.transform);
+                UiKit.DropSelectionUnder(_canvas.transform); // #3921: no tab or "Pause menu" button stays selected under the hidden canvas
                 _canvas.enabled = false;
             }
 

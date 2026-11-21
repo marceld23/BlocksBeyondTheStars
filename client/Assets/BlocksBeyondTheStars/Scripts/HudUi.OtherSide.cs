@@ -238,5 +238,28 @@ namespace BlocksBeyondTheStars.Client
 
             return _otherSideHint;
         }
+
+        private string _bareHandHint;
+        private object _bareHandHintLoc;
+        private InputDeviceKind _bareHandHintDevice = (InputDeviceKind)(-1);
+        private (ClientSettings Settings, int Bindings, PadGlyphSet Glyphs, bool Triggers) _bareHandHintStamp;
+
+        /// <summary>#3914: the last part of the other side's short controls line while a sound block bare hands can work is
+        /// aimed at — "hold the mine key: it gives way" (the key token expanded for the device in hand, rebuilt like
+        /// <see cref="OtherSideBarHint"/>).</summary>
+        private string OtherSideBareHandHint(Localizer loc, InputDeviceKind device)
+        {
+            var stamp = GlyphStamp;
+            if (_bareHandHint == null || device != _bareHandHintDevice || !ReferenceEquals(loc, _bareHandHintLoc)
+                || !stamp.Equals(_bareHandHintStamp))
+            {
+                _bareHandHintDevice = device;
+                _bareHandHintLoc = loc;
+                _bareHandHintStamp = stamp;
+                _bareHandHint = ExpandKeyTokens(loc, loc.Get("ui.otherside.bare_hint"));
+            }
+
+            return _bareHandHint;
+        }
     }
 }

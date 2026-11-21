@@ -146,9 +146,10 @@ namespace BlocksBeyondTheStars.Client
             float dt = Time.deltaTime;
             float sfx = ClientAudio.EffectsVolume;
             bool cruise = _phase == Phase.Cruise && !_eva && !_shipDestroyed;
-            float throttle = cruise ? Mathf.Clamp01(Mathf.Abs(CaptureForward())) : 0f;
+            // #3920: the thrust the helm applied — W behind the F1 dialog or a menu moves nothing, so it roars nothing either.
+            float throttle = cruise ? Mathf.Clamp01(Mathf.Abs(HelmThrottle)) : 0f;
             float strafe = MeasureShipMotion(dt, cruise);
-            bool boost = _boostSurge.Step(dt, throttle) | (cruise && _boost.Active); // #3754: the afterburner layer burns with the boost
+            bool boost = _boostSurge.Step(dt, throttle) | (cruise && BoostBurning); // #3754: the afterburner layer burns with the boost
             var phase = _shipDestroyed ? FlightEnginePhase.Off
                 : _eva ? FlightEnginePhase.Eva
                 : _phase == Phase.Cruise ? FlightEnginePhase.Cruise

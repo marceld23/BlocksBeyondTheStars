@@ -659,6 +659,7 @@ namespace BlocksBeyondTheStars.Client
             // Weather overlay (screen wash + lightning, M27 polish).
             var weather = root.AddComponent<WeatherFx>();
             weather.Game = boot;
+            weather.Camera = cam; // #3923: the washes follow the camera's cell, not the body's head
 
             // In-world 3D rain + storm fog (P7 weather rest).
             var weather3d = root.AddComponent<WeatherFx3D>();

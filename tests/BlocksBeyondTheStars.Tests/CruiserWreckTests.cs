@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// The escort cruiser's wreck (#3902, canon C22): the template (loads, validates, never rolled), the FRESH ruin option (no
-/// soot, no scrap, red lamps left burning — and every other wreck exactly as before), the runtime registration when the boss
+/// soot, no scrap, red lamps left burning, the fight's own scars #3915 — and every other wreck exactly as before), the scan
+/// card of a ship's wreck (#3915), the runtime registration when the boss
 /// falls (one boardable wreck where it fell, one per system, back after a restart with the players' changes), life aboard
 /// (the guardian bay, the chests, a crate for every pilot who fought, the boarding event) and the bridge console — locked
 /// red without a hacking chip, blue with one, ECHO's goodbye on the story's cruiser and a ship's log on every other.
@@ -298,6 +299,160 @@ public sealed class CruiserWreckTests : IDisposable
         }
     }
 
+    /// <summary>#3915: the fight's own scars — charred plating round the breaches, dead screens, a few loose plates — and,
+    /// against the same fresh wreck built without them, nothing else moved: the chests, the sounds, the doors, the arrival,
+    /// the guardian bay, the console and its lamps, every block that is not a plate, every shape that is not one.</summary>
+    [Fact]
+    public void AFreshWreck_CarriesTheFightsScars_AndEverythingElseStaysWhereItWas()
+    {
+        foreach (long seed in new long[] { 1, 7, 20261121 })
+        {
+            var space = GiantShipGenerator.BuildSpace(Cruiser, seed, _content, fresh: true);
+            var scarred = DerelictGenerator.GenerateShip(space, seed, _content, alien: false, fresh: true);
+            var plain = DerelictGenerator.GenerateShip(space, seed, _content, alien: false, fresh: true, battleScars: false);
+
+            AssertSameSpots(plain, scarred);
+            Assert.NotEqual(plain.BaseHash, scarred.BaseHash);
+            var scars = ScarsBetween(plain.Layout, scarred.Layout, seed);
+            Assert.True(scars.Scorched.Count >= 10, $"seed {seed}: only {scars.Scorched.Count} scorched blocks");
+            Assert.True(scars.Screens > 0 && scars.DeadScreens * 2 >= scars.Screens,
+                $"seed {seed}: {scars.DeadScreens} of {scars.Screens} screens are dead");
+            Assert.InRange(scars.Plates.Count, 1, 2 * scarred.Layout.RoomCount);
+
+            // The scorch lies round the breaches: in no more patches than the wreck has torn rooms (one breach each).
+            Assert.InRange(Patches(scars.Scorched, 2 * DerelictGenerator.ScorchReach), 1, scarred.Layout.BreachedRoomCount);
+            AssertPlatesLieFree(scarred, scars.Plates, seed);
+        }
+    }
+
+    /// <summary>The spots of two builds of one fresh wreck agree (the scars move none of them).</summary>
+    private static void AssertSameSpots(GiantDerelictLayout plain, GiantDerelictLayout scarred)
+    {
+        Assert.Equal(plain.Chests.Select(c => c.LocalPos), scarred.Chests.Select(c => c.LocalPos));
+        Assert.Equal(plain.Sounds.Select(c => c.LocalPos), scarred.Sounds.Select(c => c.LocalPos));
+        Assert.Equal(plain.Console, scarred.Console);
+        Assert.Equal(plain.Lamps, scarred.Lamps);
+        Assert.Equal(plain.Layout.SpawnerSpot, scarred.Layout.SpawnerSpot);
+        Assert.Equal(plain.Layout.Arrival, scarred.Layout.Arrival);
+        Assert.Equal(plain.Layout.Doors.Select(d => (d.Cell, d.AxisX)), scarred.Layout.Doors.Select(d => (d.Cell, d.AxisX)));
+        Assert.Equal((plain.Layout.RoomCount, plain.Layout.SealedRoomCount, plain.Layout.BreachedRoomCount),
+            (scarred.Layout.RoomCount, scarred.Layout.SealedRoomCount, scarred.Layout.BreachedRoomCount));
+    }
+
+    /// <summary>Every difference between a fresh wreck without and with its scars, checked to be a scar: a plate (the hull
+    /// block in the panel form, scorched, where there was air), a scorched block (never glass, a lamp, a machine, a door or
+    /// a ladder) or a dead screen (only ever a <c>lab_panel</c>).</summary>
+    private (List<Vector3i> Scorched, List<Vector3i> Plates, int Screens, int DeadScreens) ScarsBetween(DerelictLayout plain,
+        DerelictLayout scarred, long seed)
+    {
+        ushort screen = _content.GetBlock("lab_panel")!.NumericId.Value, hull = _content.GetBlock("iron_wall")!.NumericId.Value;
+        var scorched = new List<Vector3i>();
+        var plates = new List<Vector3i>();
+        int screens = 0, dead = 0;
+        for (int x = 0; x < plain.Width; x++)
+            for (int y = 0; y < plain.Height; y++)
+                for (int z = 0; z < plain.Length; z++)
+                {
+                    var c = new Vector3i(x, y, z);
+                    ushort before = plain.Get(x, y, z), after = scarred.Get(x, y, z);
+                    var (tint, _) = scarred.GetModifier(x, y, z);
+                    screens += before == screen ? 1 : 0;
+                    if (before != after)
+                    {
+                        Assert.True(before == 0 && after == hull, $"seed {seed}: {c} changed from {before} to {after}");
+                        Assert.Equal(DerelictGenerator.LoosePlateShape, scarred.GetShape(x, y, z));
+                        Assert.Equal(DerelictGenerator.ScorchTint, tint);
+                        plates.Add(c);
+                        continue;
+                    }
+
+                    Assert.Equal(plain.GetShape(x, y, z), scarred.GetShape(x, y, z));
+                    if (plain.GetModifier(x, y, z) == scarred.GetModifier(x, y, z))
+                    {
+                        continue;
+                    }
+
+                    string key = _content.BlockById(new BlockId(after))!.Key;
+                    if (tint == DerelictGenerator.DeadScreenTint)
+                    {
+                        Assert.Equal("lab_panel", key);
+                        dead++;
+                        continue;
+                    }
+
+                    Assert.Equal(DerelictGenerator.ScorchTint, tint);
+                    Assert.False(key.StartsWith("glass", StringComparison.Ordinal) || key.StartsWith("light_", StringComparison.Ordinal)
+                        || key.StartsWith("door_", StringComparison.Ordinal) || key.Contains("ladder") || key is "sps_console" or "guardian_spawner",
+                        $"seed {seed}: the scorch darkened a {key} at {c}");
+                    scorched.Add(c);
+                }
+
+        return (scorched, plates, screens, dead);
+    }
+
+    /// <summary>The loose plates lie on a deck, never on or right before a door, the arrival, a chest, the bridge or the bay.</summary>
+    private static void AssertPlatesLieFree(GiantDerelictLayout wreck, List<Vector3i> plates, long seed)
+    {
+        var layout = wreck.Layout;
+        var bay = layout.SpawnerSpot!.Value;
+        var console = wreck.Console!.Value;
+        foreach (var p in plates)
+        {
+            Assert.NotEqual(0, layout.Get(p.X, p.Y - 1, p.Z)); // on the deck
+            Assert.Equal(0, layout.Get(p.X, p.Y + 1, p.Z));
+            int fromArrival = Math.Max(Math.Abs(p.X - layout.Arrival.X), Math.Max(Math.Abs(p.Y - layout.Arrival.Y), Math.Abs(p.Z - layout.Arrival.Z)));
+            Assert.True(fromArrival >= 3, $"seed {seed}: a plate at {p} lies in the way in");
+            Assert.False(Math.Abs(p.X - bay.X) <= 2 && Math.Abs(p.Z - bay.Z) <= 2 && Math.Abs(p.Y - bay.Y) <= 1, $"seed {seed}: a plate at {p} blocks the bay");
+            Assert.False(Math.Abs(p.X - console.X) + Math.Abs(p.Z - console.Z) == 0 && Math.Abs(p.Y - console.Y) <= 1, $"seed {seed}: a plate on the console");
+            Assert.DoesNotContain(p, wreck.Lamps);
+            foreach (var chest in wreck.Chests.Select(m => m.LocalPos))
+            {
+                Assert.False(p.X == chest.X && p.Z == chest.Z && Math.Abs(p.Y - chest.Y) <= 1, $"seed {seed}: a plate at {p} on a chest");
+            }
+
+            foreach (var door in layout.Doors)
+            {
+                Assert.True(Math.Abs(p.X - door.Cell.X) + Math.Abs(p.Z - door.Cell.Z) > 1 || p.Y < door.Cell.Y || p.Y > door.Cell.Y + 2,
+                    $"seed {seed}: a plate at {p} lies in or right before the door at {door.Cell}");
+            }
+        }
+    }
+
+    /// <summary>How many patches some cells form, two cells of one patch at most <paramref name="reach"/> apart (a chain).</summary>
+    private static int Patches(List<Vector3i> cells, int reach)
+    {
+        var patchOf = new int[cells.Count];
+        Array.Fill(patchOf, -1);
+        int patches = 0;
+        for (int i = 0; i < cells.Count; i++)
+        {
+            if (patchOf[i] >= 0)
+            {
+                continue;
+            }
+
+            var queue = new Queue<int>(new[] { i });
+            patchOf[i] = patches;
+            while (queue.Count > 0)
+            {
+                var a = cells[queue.Dequeue()];
+                for (int j = 0; j < cells.Count; j++)
+                {
+                    var b = cells[j];
+                    if (patchOf[j] < 0 && ((a.X - b.X) * (a.X - b.X)) + ((a.Y - b.Y) * (a.Y - b.Y)) + ((a.Z - b.Z) * (a.Z - b.Z)) <= reach * reach)
+                    {
+                        patchOf[j] = patches;
+                        queue.Enqueue(j);
+                    }
+                }
+            }
+
+            patches++;
+        }
+
+        return patches;
+    }
+
     // ---------------- the wreck in flight ----------------
 
     [Fact]
@@ -454,6 +609,45 @@ public sealed class CruiserWreckTests : IDisposable
         Assert.Equal("sps_console", KeyAt(s2, console));
         Assert.All(lamps, l => Assert.Equal("light_blue", KeyAt(s2, s2.DerelictCellToWorldForTest(id, l))));
         Assert.Equal("station:" + id, again.CurrentLocationId);
+    }
+
+    // ---------------- the scanner ----------------
+
+    /// <summary>#3915: the ship scanner reads the wreck as a ship's wreck — not "a derelict station" — measures to its hull
+    /// box like a giant wreck's, and pays its knowledge once per wreck.</summary>
+    [Fact]
+    public void TheScanner_ReadsTheWreckAsAShip_ToItsHull_AndPaysOncePerWreck()
+    {
+        var (server, _) = Start("cw_scan");
+        var alice = Fly(server, Alice, 0f);
+        string id = Defeat(server, carriesEcho: false, Alice);
+        var wreck = server.CruiserWreckForTest(id)!.Value;
+        float range = server.ShipScanner(alice.Ships[alice.ActiveShipId]).Range;
+        Assert.True(wreck.Half.Z > 30f, "a hull long enough that its end and its centre are told apart");
+
+        // Beyond the scanner's reach of the hull: out of range.
+        server.ShipMove(Alice, wreck.Position.X, wreck.Position.Y, wreck.Position.Z + wreck.Half.Z + range + 20f);
+        Assert.Equal("ui.scan.out_of_range", server.ScanSpaceEntity(Alice, id).InfoKey);
+
+        // Off the hull's end: farther than the scanner reaches from the centre, within its reach of the hull.
+        server.ShipMove(Alice, wreck.Position.X, wreck.Position.Y, wreck.Position.Z + wreck.Half.Z + range - 20f);
+        var read = server.ScanSpaceEntity(Alice, id);
+        Assert.Equal(("station", SvGameServer.CruiserWreckScanSubject, SvGameServer.CruiserWreckScanInfoKey), (read.Kind, read.SubjectKey, read.InfoKey));
+        Assert.Equal(SvGameServer.CruiserWreckScanSubject, read.Subject); // the client's title: ui.scan.subject.cruiser_wreck
+        Assert.Contains("ui.scan.trait.derelict_breached", read.TraitKeys);
+        Assert.Contains(GiantShipRules.NameKey(CruiserWreckRules.TemplateKey), read.TraitKeys);
+        Assert.Contains(SvGameServer.GiantWreckSizeTrait(wreck.Half), read.TraitKeys);
+        Assert.True(read.FirstTime);
+        Assert.True(read.KnowledgeGained > 0);
+        Assert.Contains(SvGameServer.CruiserWreckScanKey(id), alice.State.Scanned);
+        Assert.DoesNotContain("space:derelict", alice.State.Scanned); // never the derelict station's readout
+
+        // The same wreck again: the readout, no knowledge.
+        server.ResetShipScanCooldownForTest();
+        var again = server.ScanSpaceEntity(Alice, id);
+        Assert.Equal((SvGameServer.CruiserWreckScanSubject, SvGameServer.CruiserWreckScanInfoKey), (again.SubjectKey, again.InfoKey));
+        Assert.False(again.FirstTime);
+        Assert.Equal(0, again.KnowledgeGained);
     }
 
     // ---------------- aboard ----------------
@@ -638,6 +832,7 @@ public sealed class CruiserWreckTests : IDisposable
             CruiserWreckRules.NameKey, "srv.cruiser.console_locked", "srv.cruiser.console_blue", "srv.cruiser.console_done",
             "srv.cruiser.crate", "srv.cruiser.echo_core", "vega.cruiser.wreck_boarded", "chr.echo.name",
             "ui.lore.site." + CruiserWreckRules.LoreSite,
+            "ui.scan.subject." + SvGameServer.CruiserWreckScanSubject, SvGameServer.CruiserWreckScanInfoKey, // #3915: the scan card
         };
         keys.AddRange(SvGameServer.EchoLines);
         keys.AddRange(SvGameServer.EchoVegaLines);

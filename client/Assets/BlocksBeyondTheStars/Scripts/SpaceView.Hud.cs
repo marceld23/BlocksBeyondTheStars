@@ -565,6 +565,7 @@ namespace BlocksBeyondTheStars.Client
                 DrawEntityHealthBars();
             }
 
+            DrawPendingScanLock(); // #3922: the scanner's frame, after the camera's shake — like the target lock's
             DrawTargetHud(); // #2277/#2283: lock frame or edge arrow, threat ticks, waypoint arrow (free flight only)
         }
 
@@ -846,7 +847,7 @@ namespace BlocksBeyondTheStars.Client
             _instLastCamPos = Camera.transform.position;
             _instSpeed = Mathf.Lerp(_instSpeed, Mathf.Min(raw, 999f), 0.15f);
 
-            int thr = Mathf.RoundToInt(Mathf.Clamp01(InputMap.MoveY()) * 100f);
+            int thr = Mathf.RoundToInt(Mathf.Clamp01(HelmThrottle) * 100f); // #3920: what the helm applied, the autopilot's too
             int hdg = Mathf.RoundToInt(Mathf.Repeat(_yaw, 360f));
             int spd10 = Mathf.RoundToInt(_instSpeed * 10f);
             // #1881: height over the flight plane (y = 0 — where the system's planets, stations and wreck sit), in

@@ -55,23 +55,51 @@ public sealed partial class GameServer
         var parent = body.Kind == CelestialKind.Moon && body.ParentId.Length > 0 ? _galaxy!.FindBody(body.ParentId) : null;
         if (parent is null)
         {
-            centre = new Vector3f((body.SystemX - home.SystemX) * scale, 0f, (body.SystemZ - home.SystemZ) * scale);
+            centre = PlanetInScene(home, body, radius);
             return true;
         }
 
         // A moon: outside its planet's surface (the client's first orbit slot; further moons step outward from it).
         bool ofHome = parent.Id == home.Id;
-        var parentCentre = ofHome
-            ? homeCentre
-            : new Vector3f((parent.SystemX - home.SystemX) * scale, 0f, (parent.SystemZ - home.SystemZ) * scale);
         float parentRadius = ofHome ? homeRadius : SystemBodyLayout.OrbitDiameter(WorldCircumferenceOf(parent)) * 0.5f;
+        var parentCentre = ofHome ? homeCentre : PlanetInScene(home, parent, parentRadius);
         float rx = (body.SystemX - parent.SystemX) * scale, rz = (body.SystemZ - parent.SystemZ) * scale;
         float len = System.MathF.Sqrt((rx * rx) + (rz * rz));
         float orbit = System.MathF.Max(len, SystemBodyLayout.MinOrbitFor(parentRadius, radius));
+        if (IsHomeParent(home, parent))
+        {
+            // #3919: a sibling of the launch moon — the launch moon holds the planet's first slot, so it rings above it.
+            float homeSlot = System.MathF.Sqrt((parentCentre.X * parentCentre.X) + (parentCentre.Z * parentCentre.Z));
+            orbit = System.MathF.Max(orbit, SystemBodyLayout.NextMoonOrbit(parentRadius, radius, homeSlot, HomeTrueRadius(home)));
+        }
+
         (rx, rz) = len > 0.01f ? (rx / len, rz / len) : (1f, 0f);
         centre = new Vector3f(parentCentre.X + (rx * orbit), parentCentre.Y, parentCentre.Z + (rz * orbit));
         return true;
     }
+
+    /// <summary>A planet's (or a loose body's) spot in the flight scene of <paramref name="home"/>: its star-map offset,
+    /// scaled — except the planet a launch moon orbits (#3919), which keeps its true direction at a clear distance
+    /// (<see cref="SystemBodyLayout.HomeParentPosition"/>, the client's rule), not inside the climb's path.</summary>
+    private Vector3f PlanetInScene(CelestialBody home, CelestialBody planet, float planetRadius)
+    {
+        const float scale = SystemBodyLayout.FlightViewScale;
+        float x = (planet.SystemX - home.SystemX) * scale, z = (planet.SystemZ - home.SystemZ) * scale;
+        if (IsHomeParent(home, planet))
+        {
+            (x, z) = SystemBodyLayout.HomeParentPosition(x, z, planetRadius, HomeTrueRadius(home));
+        }
+
+        return new Vector3f(x, 0f, z);
+    }
+
+    /// <summary>Whether <paramref name="planet"/> is the planet the launch body <paramref name="home"/> orbits as its moon.</summary>
+    private static bool IsHomeParent(CelestialBody home, CelestialBody planet)
+        => home.Kind == CelestialKind.Moon && home.ParentId.Length > 0 && home.ParentId == planet.Id;
+
+    /// <summary>The launch body's true drawn radius — what it is drawn at in another body's flight, not the oversized
+    /// launch-body drawing (<see cref="SystemBodyLayout.HomeDiameterFactor"/>).</summary>
+    private float HomeTrueRadius(CelestialBody home) => SystemBodyLayout.OrbitDiameter(WorldCircumferenceOf(home)) * 0.5f;
 
     /// <summary>The point a trader coming from <paramref name="from"/> flies to before it lands on
     /// <paramref name="bodyId"/>: on the body's landing shell, on the side it comes from. False when the body is not in

@@ -348,6 +348,7 @@ namespace BlocksBeyondTheStars.Client
                 strafe = InputMap.MoveXRaw(); // raw: the ship's own spool-up shapes the motion (SpaceView.Feel.cs)
             }
 
+            ApplyHelmThrottle(fwd); // #3920: the flame, the engine sound and THR show this, never the raw stick (SpaceView.EngineFx.cs)
             UpdateManeuvers(fwd, strafe); // #3753/#3754: the barrel roll and the boost (SpaceView.Maneuvers.cs)
 
             // The ship has mass: the thrust builds up, a let-go stick coasts out, the hull leans into the turn. The

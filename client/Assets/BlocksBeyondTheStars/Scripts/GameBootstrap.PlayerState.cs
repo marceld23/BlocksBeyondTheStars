@@ -133,6 +133,14 @@ namespace BlocksBeyondTheStars.Client
         /// server-authoritative. Only while this is set does double-tapping jump toggle flight.</summary>
         public bool CanFly { get; private set; }
 
+        /// <summary>#3924: the frame the own figure last swam (the chest in water, the body on its controller) — the controls
+        /// line names the swim keys meanwhile. Frame-stamped like the bare-hand hint's frame (#3914), so a rig that stops
+        /// updating never leaves the hint up.</summary>
+        public int SwimmingFrame { get; set; } = -10;
+
+        /// <summary>#3924: whether the own figure swims this frame (<see cref="SwimmingFrame"/> is current).</summary>
+        public bool Swimming => SwimmingFrame >= Time.frameCount - 1;
+
         /// <summary>#2286: the <see cref="WorldTime"/> at which "Back to my ship" is ready again, from the server's last
         /// state update (the server sends the seconds left; the pause menu counts them down between updates). On the
         /// world clock, not <c>Time.time</c>: the server's cooldown runs on its uptime, which stands still while the
