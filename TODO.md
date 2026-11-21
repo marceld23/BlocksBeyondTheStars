@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🗼 The sky-lights (VEGA story) and the other side (Sounders story) — #3891 (epic), #3892–#3912; answers the ideas #3858, #3857, #3829, #3830 — ✅ 2026-11-21, PR pending (⚠ playtest open; server + client + data; **terrain generation 47, save version 18**, protocol stays 12; all 14 languages)
+### 🗼 The sky-lights (VEGA story) and the other side (Sounders story) — #3891 (epic), #3892–#3912; answers the ideas #3858, #3857, #3829, #3830 — ✅ 2026-11-21, PR #3913 `a9ba731e` (⚠ playtest open; server + client + data; **terrain generation 47, save version 18**, protocol stays 12; all 14 languages)
 
 Four player ideas became two story extensions. Maps: [docs/developer/SPS_TOWERS.md](docs/developer/SPS_TOWERS.md),
 [docs/developer/OTHER_SIDE.md](docs/developer/OTHER_SIDE.md), the escort-cruiser sections of
@@ -80,6 +80,10 @@ Leitmotif of the VEGA part: **red turns blue again** — one key item (the hacki
   crossing with the disc — the grey level by day, night and in caves, the gate pillars against a bright sky, the HUD
   chip, shaping and dissolving with keyboard AND gamepad, a crack's mend game, the bloom on the real side;
   `/sounders chapter 9…11`, the Choir Tower's gate and the choir; two players over there seeing each other.
+- **Open follow-ups:** #3914 (a player over there without a blaster can still be walled in by sound blocks — a
+  maintainer decision: the rule is "the way back is a gate"), #3915 (the cruiser wreck's own scan card and a decay pass),
+  #3916 (one name per thing in older uk/ko/tr/zh/de lines of the Sounders pack), #3917 (gamepad: the Resonance Blaster's
+  push cannot be fired on the real side — older than this package).
 
 ### 🧰 Player reports of 2026-11-21: small pets, calm boxed-in animals, land animals wade out of deep water — #3879–#3881 — ✅ 2026-11-21 (server + shared only; no protocol bump, no save change, no new texts)
 
