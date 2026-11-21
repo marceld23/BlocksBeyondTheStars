@@ -578,15 +578,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Self-drive from world movement so it works for the local player, remotes and NPCs alike (#3860: without the
-            // shift the level swim pose places the root by).
+            // shift the swim tilt places the root by).
             var pos = MotionPosition();
             float speed = 0f, vy = 0f;
+            var step = Vector3.zero; // #3924: this frame's level motion — the swim tilt reads its part along the facing
             if (_hasPrev)
             {
-                var d = pos - _lastPos;
+                step = pos - _lastPos;
                 vy = (pos.y - _prevY) / dt;
-                d.y = 0f;
-                speed = d.magnitude / dt;
+                step.y = 0f;
+                speed = step.magnitude / dt;
             }
 
             _lastPos = pos;
@@ -600,7 +601,7 @@ namespace BlocksBeyondTheStars.Client
             _vySmooth += (Mathf.Clamp(vy, -30f, 30f) - _vySmooth) * lowPass;
             speed = _speedSmooth;
             vy = _vySmooth;
-            EaseSwimLevel(dt, speed); // #3860: a fast swimmer lies level
+            EaseSwimTilt(dt, step, vy, lowPass); // #3860/#3924: a swimmer tilts with its swim
 
             float moving = Mathf.Clamp01(speed / 3.2f); // legs reach a full stride a bit sooner (slow NPC strolls read as walking)
             float run = Mathf.Clamp01((speed - 4.5f) / 4f); // extra emphasis once sprinting

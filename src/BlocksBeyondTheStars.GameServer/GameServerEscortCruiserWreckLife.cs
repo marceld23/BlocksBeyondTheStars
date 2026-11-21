@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
@@ -24,10 +25,25 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>The event</b> <see cref="GameEventKeys.CruiserBoarded"/> for every player who enters it — argument
 /// <see cref="CruiserWreckRules.BoardedEcho"/> for the wreck that carries ECHO, else <see cref="CruiserWreckRules.BoardedPlain"/>.</item>
 /// <item><b>ECHO's core for a late fighter</b>: a pilot who fought and comes aboard after ECHO was freed still gets theirs.</item>
+/// <item><b>The scanner</b> (#3915): subject <see cref="CruiserWreckScanSubject"/> — a ship's wreck, never "a derelict
+/// station": the ship's name and size as traits, knowledge once per wreck (ledger <see cref="CruiserWreckScanKey"/>), in
+/// range of the hull box like a giant wreck (<see cref="ScanDistanceSq"/>).</item>
 /// </list>
 /// </summary>
 public sealed partial class GameServer
 {
+    /// <summary>#3915: the space readout's subject (kind <c>station</c>) of an escort cruiser's wreck — and its title word: the
+    /// readout's display is this key, which the client localizes through <c>ui.scan.subject.cruiser_wreck</c> (the contact's
+    /// name on the server is the English one).</summary>
+    internal const string CruiserWreckScanSubject = "cruiser_wreck";
+
+    /// <summary>#3915: the space readout's info line of an escort cruiser's wreck.</summary>
+    internal const string CruiserWreckScanInfoKey = "ui.scan.cruiser_wreck";
+
+    /// <summary>#3915: the scan-ledger key of an escort cruiser's wreck — once per wreck (a wreck that replaces another never
+    /// reuses its id, so the next cruiser's wreck is worth its knowledge again).</summary>
+    internal static string CruiserWreckScanKey(string id) => "space:cruiserwreck:" + id;
+
     /// <summary>The fighters' crate: this many guardian plates at least, and up to this many more.</summary>
     private const int CruiserCratePlates = 6, CruiserCratePlateSpread = 5;
 
@@ -108,7 +124,7 @@ public sealed partial class GameServer
             SpillToGround(station.Spawn.ToBlock(), items.Select(i => new ItemAmount(i.Item, i.Count)).ToList());
         }
 
-        Send(session, new Networking.Messages.ServerMessage { Text = "@srv.cruiser.crate" });
+        Send(session, new ServerMessage { Text = "@srv.cruiser.crate" });
     }
 
     /// <summary>A fighter's share aboard: guardian plates (a roll per wreck and player) and, sometimes, a hacking chip.</summary>
@@ -147,6 +163,36 @@ public sealed partial class GameServer
                 }
 
         return best != long.MaxValue;
+    }
+
+    /// <summary>#3915: the scanner's readout of an escort cruiser's wreck (from <see cref="ScanNewSpaceObject"/>, before the
+    /// derelict station's): a ship's wreck — broken and airless, the ship's name and size as traits — worth a giant wreck's
+    /// knowledge once per wreck.</summary>
+    private ScanResult ScanCruiserWreck(PlayerSession session, CombatEntity target)
+    {
+        var traits = new List<string> { "ui.scan.trait.derelict_breached" };
+        _cruiserWrecks.TryGetValue(target.Id, out var site);
+        if (CruiserWreckTemplate(site?.Record.Template) is { } t)
+        {
+            traits.Add(string.IsNullOrEmpty(t.NameKey) ? GiantShipRules.NameKey(t.Key) : t.NameKey);
+        }
+
+        if (site is { Built: true })
+        {
+            traits.Add(GiantWreckSizeTrait(site.Half));
+        }
+
+        var readout = new ScanReadout
+        {
+            Kind = "station",
+            SubjectKey = CruiserWreckScanSubject,
+            Display = CruiserWreckScanSubject, // the client localizes it via ui.scan.subject.* (target.Name is the English name)
+            InfoKey = CruiserWreckScanInfoKey,
+            TraitKeys = traits.ToArray(),
+            LegacyInfo = "The wreck of a Guardian escort cruiser — beaten not long ago, it now drifts dark in space. "
+                + "Only robots are left inside. Dock to explore it: there is no air aboard.",
+        };
+        return Award(session, CruiserWreckScanKey(target.Id), readout, KnowledgeGiantWreck);
     }
 
     /// <summary>Test seam (#3902): the record of a cruiser wreck (null for an id that is none).</summary>

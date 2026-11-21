@@ -85,6 +85,16 @@ public sealed class SpaceTargetingTests
     public void TheLockFrame_FramesItsTarget_ButNeverFillsTheScreen(float projectedRadius, float expected)
         => Near(expected, SpaceTargeting.LockFrameHalf(projectedRadius));
 
+    // #3922: the scan frame round an attacking drone jumped with every 0.15 s server pose and ran ahead of the drawn model.
+    [Theory]
+    [InlineData(false, true, false, ScanAnchor.Model)]    // a drone with its model: the frame follows the picture
+    [InlineData(false, true, true, ScanAnchor.Model)]     // the model wins over a hull
+    [InlineData(false, false, true, ScanAnchor.Hull)]     // a station, wreck or rock drawn as its voxel hull
+    [InlineData(false, false, false, ScanAnchor.Snapshot)] // nothing drawn yet: the server's position is all there is
+    [InlineData(true, true, true, ScanAnchor.Snapshot)]   // a planet's spot in the scene is what is drawn
+    public void TheScanFrame_SitsOnTheDrawnTarget(bool isBody, bool modelShown, bool hullShown, ScanAnchor expected)
+        => Assert.Equal(expected, SpaceTargeting.ScanAnchorFor(isBody, modelShown, hullShown));
+
     private static bool GiantShipRulesIdsAreDerelicts()
         => BlocksBeyondTheStars.Shared.Definitions.GiantShipRules.IdPrefix.StartsWith(SpaceTargeting.DerelictIdPrefix, System.StringComparison.Ordinal);
 

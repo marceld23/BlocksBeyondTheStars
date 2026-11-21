@@ -2211,9 +2211,12 @@ public sealed partial class GameServer
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.
             bool submerged = !lifeSupport && !p.InEva && HeadUnderwater(p);
-            if (submerged)
+            // First swim: VEGA names the keys that swim up and dive, and the tank that counts down under water (#1455).
+            // #3924: from the moment the body swims (the chest in the water), not only once the head goes under — a
+            // swimmer floating with the head above the water never heard which key dives.
+            if (submerged || (!lifeSupport && !p.InEva && ChestInWater(p)))
             {
-                ShipAiHintOnce(session, "swim"); // first dive: Space rises, the O2 bar counts down (#1455)
+                ShipAiHintOnce(session, "swim");
             }
             // Above the atmosphere (built a tower up into space) the air runs out too, even on a breathable
             // world — the suit tank drains until the player descends back below the line. Life support wins
@@ -2460,8 +2463,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>True when the player's head is under water — diving spends the suit's oxygen tank. A plant, ladder or
-    /// building form the water surrounds counts as water too (#1902: a kelp stalk used to be a breathable air shaft).</summary>
-    private bool HeadUnderwater(Shared.State.PlayerState p)
+    /// building form the water surrounds counts as water too (#1902: a kelp stalk used to be a breathable air shaft).
+    /// #3923: the client's float keeps this point (+1.5) 0.2 m above the surface (<c>SwimRules.FloatDepth</c>).</summary>
+    private bool HeadUnderwater(Shared.State.PlayerState p) => WetAt(p, 1.5f);
+
+    /// <summary>#3924: true when the player's chest is in the water — where the client swims (it samples the same +1.1).</summary>
+    private bool ChestInWater(Shared.State.PlayerState p) => WetAt(p, 1.1f);
+
+    /// <summary>Whether the cell <paramref name="height"/> metres above the player's feet is water or another liquid, or a
+    /// plant, ladder or form the water surrounds (<see cref="WetCell"/>).</summary>
+    private bool WetAt(Shared.State.PlayerState p, float height)
     {
         if (_waterId == 0)
         {
@@ -2470,7 +2481,7 @@ public sealed partial class GameServer
 
         _wetBlockAt ??= (x, y, z) => _world.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, y, z)).Value;
         _wetNonFull ??= IsNonFullCell;
-        int hx = (int)System.Math.Floor(p.Position.X), hy = (int)System.Math.Floor(p.Position.Y + 1.5f), hz = (int)System.Math.Floor(p.Position.Z);
+        int hx = (int)System.Math.Floor(p.Position.X), hy = (int)System.Math.Floor(p.Position.Y + height), hz = (int)System.Math.Floor(p.Position.Z);
         if (IsLiquid(_world.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(hx, hy, hz))))
         {
             return true; // #2106: a head in oil breathes as little as a head in water
@@ -5069,6 +5080,12 @@ public sealed partial class GameServer
 
     private void HandleMine(PlayerSession session, MineBlockIntent mine)
     {
+        if (session.OtherSide)
+        {
+            BareHandsOnSound(session, mine); // #3914: over there the mine key only ever works a sound block, never the real world
+            return;
+        }
+
         // Longitude wraps: canonicalize X up front so reach, protection, mining progress and the broadcast
         // all agree, whatever lap the client's unbounded transform reported the block from. MUST use THIS
         // world's circumference: the no-arg default (6000) silently mapped every block intent beyond

@@ -293,7 +293,9 @@ full turn in `RollSeconds`, a slide of `RollSlideDistance` spread over it, the c
 (`ShipManeuverKinds.Boost`); the server's meter decides how fast the ship may be. A boost that ran dry needs a new
 press. Per ship: `boostPower`, `boostSeconds` in `data/ships.json` (0 = the defaults); module stats `boost_seconds`,
 `boost_recharge`. A self-built ship derives both from its engines-to-mass speed (`ShipManeuverRules.CustomBoost`).
-The four values travel to the client in `ShipCombatStatus` (an older server sends none → the defaults).
+The four values travel to the client in `ShipCombatStatus` (an older server sends none → the defaults). Its picture
+(#3925, client only) is `Client.Core/Feel/BoostLook` — the hot orange flame, speed lines and wider view; see
+[VFX.md](VFX.md) → *Engines and boost*.
 
 **Speed check (#3754).** `GameServer.ShipSpeedCheck` (the host sets it; a server embedded in a test leaves it off,
 because tests place ships by hand) makes `ShipMove` pull a pose that lies further from the last accepted one than

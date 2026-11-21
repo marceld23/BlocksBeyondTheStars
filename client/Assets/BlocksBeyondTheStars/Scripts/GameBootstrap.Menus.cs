@@ -164,6 +164,42 @@ namespace BlocksBeyondTheStars.Client
             bool free = CursorFreeWanted;
             Cursor.lockState = free ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = free;
+            KeepMenusOutOfPlay(free);
+        }
+
+        private bool _cursorWasFree = true; // so the first locked frame of a world drops what the menu left selected
+
+        /// <summary>
+        /// #3921: the menus' keyboard navigation stays out of play (<see cref="UiPlayGuard"/>). A screen that hides by
+        /// switching its canvas off keeps its controls alive, and uGUI's input module walked the control left selected
+        /// there with W/A/S/D and clicked it with Space — the hidden Tab menu's "Pause menu" button opened on a jump. The
+        /// frame the cursor locks, the selection is dropped; while it stays locked the module sends no move and no
+        /// submit events, except to a gamepad (its chat keyboard and HUD panels are walked with the cursor locked).
+        /// </summary>
+        private void KeepMenusOutOfPlay(bool cursorFree)
+        {
+            var events = UnityEngine.EventSystems.EventSystem.current;
+            if (events != null)
+            {
+                if (UiPlayGuard.ClearsSelection(_cursorWasFree, cursorFree))
+                {
+                    events.SetSelectedGameObject(null);
+                }
+
+                events.sendNavigationEvents = UiPlayGuard.NavigationWanted(cursorFree, InputMap.ActiveDevice == InputDeviceKind.Gamepad);
+            }
+
+            _cursorWasFree = cursorFree;
+        }
+
+        /// <summary>The world is gone: the main menu's own navigation is whole again (from <c>OnDestroy</c>).</summary>
+        private static void RestoreMenuNavigation()
+        {
+            var events = UnityEngine.EventSystems.EventSystem.current;
+            if (events != null)
+            {
+                events.sendNavigationEvents = true;
+            }
         }
     }
 }

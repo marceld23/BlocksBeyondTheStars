@@ -50,10 +50,11 @@ namespace BlocksBeyondTheStars.Client
         /// the <paramref name="centreDistance"/> every other contact uses.</summary>
         private float ScanRangeDistance(NetCombatEntity e, Vector3 shipPos, float centreDistance) => HullDistance(e, shipPos, centreDistance);
 
-        /// <summary>How far a contact is from a root-local point: to a giant wreck's hull box while the flight view holds its
-        /// hull, else <paramref name="centreDistance"/> (the radar's readout and the scanner's range read this).</summary>
+        /// <summary>How far a contact is from a root-local point: to a ship wreck's hull box (a giant wreck's or, #3915, an
+        /// escort cruiser's — the server measures both so) while the flight view holds its hull, else
+        /// <paramref name="centreDistance"/> (the radar's readout and the scanner's range read this).</summary>
         public float HullDistance(NetCombatEntity e, Vector3 from, float centreDistance)
-            => e != null && GiantWreckText.IsGiantWreck(e.Id) && TryHeldHullBox(e.Id, out var centre, out var half)
+            => e != null && GiantWreckText.IsShipWreck(e.Id) && TryHeldHullBox(e.Id, out var centre, out var half)
                 ? HullApproach.BoxDistance(ToNumerics(centre), ToNumerics(half), ToNumerics(from))
                 : centreDistance;
 

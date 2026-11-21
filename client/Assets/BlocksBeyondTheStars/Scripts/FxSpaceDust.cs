@@ -9,7 +9,8 @@ namespace BlocksBeyondTheStars.Client
     /// Space dust (#2157) — the speed cue of flight. Before this the starfield and the nebula were locked at infinity
     /// and nothing nearby moved past the ship, so cruising and drifting looked the same. One mesh of quads around the
     /// camera, wrapped and stretched along the ship's velocity entirely in the vertex shader (<c>FxSpaceDust</c>): idle
-    /// → faint motes, cruising → short streaks, a hyperjump (<see cref="WarpBoost"/>) → long star lines. One draw call,
+    /// → faint motes, cruising → short streaks, a boost (<see cref="FlightBoost"/>) → speed lines, a hyperjump
+    /// (<see cref="WarpBoost"/>) → long star lines. One draw call,
     /// no per-frame CPU work beyond two uniforms. The flight view owns it (<see cref="Show"/>/<see cref="Hide"/>).
     /// </summary>
     public sealed class FxSpaceDust : MonoBehaviour
@@ -21,6 +22,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>0..1 hyperjump boost (set by <see cref="HyperspaceWarp"/>): streaks grow into long star lines.</summary>
         public static float WarpBoost;
+
+        /// <summary>0..1 ship boost (#3925, set every frame by the flight view, at most
+        /// <see cref="BlocksBeyondTheStars.Client.Feel.BoostLook.DustShare"/>): short speed lines along the flight.
+        /// Combined with <see cref="WarpBoost"/> by the larger of the two.</summary>
+        public static float FlightBoost;
 
         private MeshRenderer _renderer;
         private Material _material;
@@ -63,6 +69,7 @@ namespace BlocksBeyondTheStars.Client
 
             Velocity = Vector3.zero;
             WarpBoost = 0f;
+            FlightBoost = 0f;
         }
 
         private void LateUpdate()
@@ -75,12 +82,14 @@ namespace BlocksBeyondTheStars.Client
 
             // The mesh's bounds are huge and centred on it, so keeping it on the camera keeps it from being culled.
             transform.position = _follow.position;
-            float boost = Mathf.Clamp01(WarpBoost);
+            float warp = Mathf.Clamp01(WarpBoost);
+            float boost = Mathf.Max(warp, Mathf.Clamp01(FlightBoost)); // #3925: whichever streaks more
             var vel = Velocity;
             if (boost > 0f)
             {
-                var fwd = _follow.forward;
-                vel = Vector3.Lerp(vel, fwd * 260f, boost);
+                // The hyperjump streams the stars past the camera's nose; a boost along the ship's own flight.
+                var dir = warp >= boost || Velocity.sqrMagnitude < 1f ? _follow.forward : Velocity.normalized;
+                vel = Vector3.Lerp(vel, dir * 260f, boost);
             }
 
             float streak = Mathf.Lerp(0.05f, 0.22f, boost);

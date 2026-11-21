@@ -531,7 +531,7 @@ namespace BlocksBeyondTheStars.Client
                 _avatarBaseYKnown = true;
             }
 
-            // #3860: a sprint swimmer lies level — the figure turns about its chest (SwimTilt + SwimTiltOffset).
+            // #3860/#3924: a swimmer tilts with its swim — the figure turns about its chest (SwimTilt + SwimTiltOffset).
             var swim = onWall ? Vector3.zero : Avatar.SwimTiltOffset;
             Avatar.transform.localPosition = new Vector3(swim.x, _avatarBaseY - (PlayerAvatar.CrouchDrop * Avatar.CrouchBlend) + swim.y, swim.z);
             Avatar.PlacedSwimOffset(swim);

@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.Client
     /// hand keys shape and dissolve sound blocks instead (<see cref="OtherSideOwnsHands"/>, paced by
     /// <see cref="SoundShaper"/>), the selection outline shows the cell that would be shaped
     /// (<see cref="OtherSideOutlineCell"/>), and walking onto a sound block sounds its tone (<see cref="OtherSideSteps"/>).
-    /// On our side nothing here does anything.
+    /// Without the blaster the mine key works a sound block that touches the player, slowly (<see cref="BareHandsOnSound"/>,
+    /// #3914), so nobody stays walled in. On our side nothing here does anything.
     /// </summary>
     public sealed partial class PlayerController
     {
@@ -50,13 +51,19 @@ namespace BlocksBeyondTheStars.Client
         /// The hand keys over there, from <see cref="HandleInteract"/>: true when the player is over there — the caller then
         /// does nothing else with the click (no mining, no placing, no item use). With the Resonance Blaster in hand the
         /// use key shapes a sound block at the aim and the mine key dissolves the sound block under the crosshair, each at
-        /// the server's pace while held.
+        /// the server's pace while held. Without it the mine key works a sound block that touches the player, slowly
+        /// (<see cref="BareHandsOnSound"/>, #3914).
         /// </summary>
         private bool OtherSideOwnsHands()
         {
             if (!OverThere)
             {
                 return false;
+            }
+
+            if (!HoldsResonanceBlaster())
+            {
+                BareHandsOnSound(); // #3914: no blaster in hand — the mine key works a sound block that touches the player
             }
 
             bool aimed = HoldsResonanceBlaster() && ResolveSoundAim(out _);
@@ -162,12 +169,70 @@ namespace BlocksBeyondTheStars.Client
         private bool OtherSideOutlineCell(out Vector3Int cell)
         {
             cell = default;
-            if (!HoldsResonanceBlaster() || !ResolveSoundAim(out var aim))
+            if (!HoldsResonanceBlaster())
+            {
+                return BareHandSoundTarget(out cell); // #3914: the sound block bare hands would work (its cracks show there)
+            }
+
+            if (!ResolveSoundAim(out var aim))
             {
                 return false;
             }
 
             cell = new Vector3Int(aim.CellX, aim.CellY, aim.CellZ);
+            return true;
+        }
+
+        /// <summary>Seconds between two bare-hand hits on a sound block — the pace of a hand mining (the server counts
+        /// the time itself: <see cref="OtherSideRules.BareHandDissolveSeconds"/> of hits, none more than
+        /// <see cref="OtherSideRules.BareHandHitGapSeconds"/> apart).</summary>
+        private const float BareHandHitSeconds = 0.25f;
+
+        private float _nextBareHandHit;
+
+        /// <summary>
+        /// #3914: bare hands over there (anything in hand but the Resonance Blaster). A stranger's sound blocks could wall a
+        /// player without a blaster in, and the way back is a rune gate, nothing else — so the mine key, held on a sound
+        /// block that touches the player's own body box, sends mine hits at a hand's pace. The server keeps the time and
+        /// answers with the mining progress (the crack overlay on the outlined block) until the block gives way. The
+        /// controls line names the key while such a block is aimed at (<see cref="GameBootstrap.BareHandSoundFrame"/>).
+        /// </summary>
+        private void BareHandsOnSound()
+        {
+            if (!BareHandSoundTarget(out var cell))
+            {
+                return;
+            }
+
+            Game.BareHandSoundFrame = Time.frameCount;
+            if (!InputMap.PrimaryHeld() || Time.time < _nextBareHandHit)
+            {
+                return;
+            }
+
+            _nextBareHandHit = Time.time + BareHandHitSeconds;
+            Game.Network.SendMine(cell.x, cell.y, cell.z);
+            TriggerSwing();
+        }
+
+        /// <summary>The sound block under the crosshair that bare hands can work: in the player's own body box
+        /// (<see cref="OtherSideRules.InBodyBox"/>, the rule the server applies) — whoever shaped it.</summary>
+        private bool BareHandSoundTarget(out Vector3Int cell)
+        {
+            cell = default;
+            if (!ResolveSoundAim(out var aim) || !aim.Surface || !IsSoundBlockCell(aim.HitX, aim.HitY, aim.HitZ))
+            {
+                return false;
+            }
+
+            var p = transform.position;
+            var feet = new Vector3i(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z));
+            if (!OtherSideRules.InBodyBox(feet, new Vector3i(aim.HitX, aim.HitY, aim.HitZ), OtherSideRules.BodyMargin, Game.Circumference))
+            {
+                return false;
+            }
+
+            cell = new Vector3Int(aim.HitX, aim.HitY, aim.HitZ);
             return true;
         }
 

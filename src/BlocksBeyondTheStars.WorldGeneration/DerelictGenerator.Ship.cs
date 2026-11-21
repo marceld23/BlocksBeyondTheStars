@@ -98,13 +98,24 @@ public static partial class DerelictGenerator
     /// <para>#3902: a warship's bridge — a <see cref="GiantShipRules.ConsoleMarker"/> and its
     /// <see cref="GiantShipRules.LampMarker"/> markers — is never torn, and after everything else the console block and its red
     /// lamps are set there (no shipped giant wreck carries one). <paramref name="fresh"/> (the escort cruiser's wreck, shot a
-    /// moment ago): no soot and no scrap, and the lights did not all die — the dead lamps of the bridge and
-    /// <see cref="FreshLampShare"/> of the others still burn red. False builds exactly the wreck this pass always built.</para>
+    /// moment ago): no soot of the centuries and no scrap, and the lights did not all die — the dead lamps of the bridge and
+    /// <see cref="FreshLampShare"/> of the others still burn red. Instead it carries the fight's own scars, laid last from a
+    /// random stream of their own (#3915, DerelictGenerator.ShipBattle.cs): charred plating right round its breaches
+    /// (<see cref="ScorchTint"/>), most of its screens dead (<see cref="DeadScreenTint"/>) and a few loose hull plates on the
+    /// decks — the chests, doors, arrival, guardian bay, bridge and lamps stay exactly where they are without them. False
+    /// builds exactly the wreck this pass always built.</para>
     /// </summary>
     public static GiantDerelictLayout GenerateShip(GiantSpaceLayout giant, long seed, GameContent content, bool alien, bool fresh = false)
+        => GenerateShip(giant, seed, content, alien, fresh, battleScars: fresh);
+
+    /// <summary>Test seam (#3915): <see cref="GenerateShip(GiantSpaceLayout, long, GameContent, bool, bool)"/> with the battle
+    /// scars of a fresh wreck switched on or off (<paramref name="battleScars"/> false: the fresh wreck as it came out before
+    /// #3915 — the same cells for everything but the scars).</summary>
+    internal static GiantDerelictLayout GenerateShip(GiantSpaceLayout giant, long seed, GameContent content, bool alien, bool fresh,
+        bool battleScars)
     {
         var pass = new ShipPass(new Grid(giant), new Ids(content), content, giant, alien,
-            new Random(StableHashing.Seed32("derelict-giant:" + giant.Key, seed)), fresh, seed);
+            new Random(StableHashing.Seed32("derelict-giant:" + giant.Key, seed)), fresh, seed, battleScars);
         pass.Run();
         return pass.Result(content);
     }
@@ -160,7 +171,7 @@ public static partial class DerelictGenerator
         private Vector3i? _spawner;
 
         public ShipPass(Grid grid, Ids ids, GameContent content, GiantSpaceLayout source, bool alien, Random rng, bool fresh = false,
-            long seed = 0)
+            long seed = 0, bool battleScars = false)
         {
             _g = grid;
             _ids = ids;
@@ -169,7 +180,12 @@ public static partial class DerelictGenerator
             _rng = rng;
             _fresh = fresh;
             _seed = seed;
+            _battleScars = battleScars;
             ReadContent(content);
+            if (fresh && battleScars)
+            {
+                ReadBattleContent(content);
+            }
         }
 
         public void Run()
@@ -202,6 +218,7 @@ public static partial class DerelictGenerator
             PlaceGuardianBay();
             PlaceFreshBay();
             PlaceBridge();
+            BattleScars(); // #3915: a fresh wreck's scars — last, from a stream of their own, so nothing above moves
         }
 
         public GiantDerelictLayout Result(GameContent content)

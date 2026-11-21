@@ -345,6 +345,7 @@ need no client work.
 | **A gate's stones stay free.** Not in a cell that touches a `rune_stone` (its six neighbours, the cell above it among them) | `SoundCellAtRuneStone` |
 | `OtherSideRules.SoundBlockCap` (2000) per player and location; one more is refused with `srv.otherside.sound_cap` | `SoundShapeRefusal` |
 | Only the builder, their allies (`AreAllied`: alliance or crew) and admins dissolve one — `srv.otherside.not_yours`. **The exception:** anybody dissolves a sound block that stands in or within one cell of their own body (the same 3×4×3 box), whoever built it — so a player who walked into a build, or was caged in spite of the rule above, sings their way out | `TryDissolveSound` |
+| **Bare hands (#3914).** A player over there WITHOUT the blaster in hand would still be caged by a ring one cell further out (they cannot dissolve with the blaster and cannot mine). So the mine key works on sound: a `MineBlockIntent` passes the gate over there only on a sound block (`OtherSideAllowsMore`), and `HandleMine` hands every mine intent of a player over there to the sound layer — the real world is never mined over there. Only a block in the player's own 3×4×3 box (`OtherSideRules.InBodyBox`, shared with the client) gives way, after `OtherSideRules.BareHandDissolveSeconds` (2 s) of hits on the same block no more than `BareHandHitGapSeconds` (0.75 s) apart — the server keeps the time and answers each hit with a `MiningProgress` (the client's crack overlay); a block farther out stays without a word. The way back remains a rune gate | `BareHandsOnSound` (GameServerSoundLayer.BareHands.cs) |
 | **The real side wins**: a real block a **player** writes into the cell (a write that names an owner) dissolves the sound block for good — layer, save, the `sound_dissolve` cue | `OnPlayerBlockSetOverSound` (`ServerWorld.PlayerBlockSet`) |
 | Any other real block in the cell — snow, flowing water, falling sand, a regrown plant, fire, a worldgen stamp — only **hides** the sound block | `OnRealBlockSetOverSound` (`ServerWorld.BlockSet`) |
 
@@ -635,6 +636,16 @@ the blaster) shapes, at most every 0.22 s while held; the mine key dissolves whe
 and does nothing otherwise. Both send `UseGadgetIntent` (`Alt` false / true) through
 `NetworkClient.SendUseGadget(key, target, alt)`. After an `ActionRejected` for the gadget the trigger rests a second,
 like the server.
+
+**Bare hands (#3914).** With anything else in hand, the mine key held on a sound block in the player's own body box
+(`OtherSideRules.InBodyBox`) sends `MineBlockIntent` hits every 0.25 s (`PlayerController.BareHandsOnSound`); the
+selection outline sits on that block, so the server's `MiningProgress` draws the crack overlay there, and the short
+controls line ends with `ui.otherside.bare_hint` while such a block is aimed at (`GameBootstrap.BareHandSoundFrame`).
+
+**The real side's push on a pad (#3917).** On our side the open melody bar (the blaster in hand) holds the pad's
+shoulders, so `InputMap` drops its place control; `BlasterPadPush` (Client.Core) reads the pad there — a short tap of
+LB alone (released within the chord grace, no d-pad) or a pull of LT is one push into the ordinary gadget path. A
+longer hold or a chord never pushes; RB stays the bar's modifier.
 
 The aim point is the **middle of the face** the crosshair rests on (or the point at reach in the open air):
 `SoundAim` mirrors the server's reading of a pulse — the cells 0.05 behind and in front of the point along the ray from

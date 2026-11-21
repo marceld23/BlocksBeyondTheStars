@@ -65,7 +65,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>After the keep-out, hull and rock rules moved the wanted position: what they blocked is no longer
-        /// part of the velocity, so the ship slides along a wall instead of pressing into it for a second.</summary>
+        /// part of the velocity, so the ship slides along a wall instead of pressing into it for a second. A push out of
+        /// a body only ever takes speed away (#3919): it used to become the velocity, so a climb that ended inside a
+        /// planet's shell threw the ship off at hundreds of units a second.</summary>
         private void SettleFlightVelocity(Vector3 from, Vector3 to)
         {
             float dt = Time.deltaTime;
@@ -73,6 +75,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _flightVel = (to - from) / dt;
                 SettleRollSlide(dt);
+                _flightVel *= FlightFeel.SettledSpeedScale(_flightVel.magnitude, _thrustVel.magnitude);
             }
         }
 

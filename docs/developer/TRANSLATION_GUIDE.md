@@ -143,6 +143,33 @@ Notes: nl "helm" is the helmet (`item.helmet.name`), so the ship's helm is "roer
 and it keep the English "AI Core" in all four names on purpose. "The Service" (the old SPS) is translated in it
 ("il Servizio"), while the full name "Scout and Pioneer Service" stays English everywhere.
 
+### The Sounders' terms per language (#3916)
+
+The Sounders story pack (`data/stories/sounders/locales/`) and the base table name the same few things again and
+again. One word per thing in each language — the base table's item and role names decide (`npc.role.sounder_echo`,
+`item.obsidian_chest.name`, `item.resonance_blaster.name`, `ui.equip.slot.disc`; the Eldest is the pack's
+`story.sounders.spk.eldest`). The chest piece's disc holder is the item's *socket* in the text and the Suit page's
+"Disc" slot in the UI.
+
+| Lang | The Echo(es) | The Eldest | The Lights (the Qualis) | Obsidian chest piece | Resonance Blaster | Disc slot |
+|---|---|---|---|---|---|---|
+| de | Echo / Echos | Die Älteste | die Lichter | Obsidian-Brustplatte (its socket: die Fassung) | Musik-Dröhner | Scheibe |
+| es | Eco / Ecos | La Anciana | las Luces | Placa de pechera de obsidiana | Bláster de resonancia | Disco |
+| fr | Écho / Échos | l'Aînée | les Lumières | Plastron en Obsidienne | Blaster de Résonance | Disque |
+| it | Eco / Echi | L'Anziana | le Luci | Piastra Toracica d'Ossidiana | Spara-Resonanza | Disco |
+| ja | エコー | 長老 | 光たち | 黒曜石の胸当て | レゾナンスブラスター | ディスク |
+| ko | 에코 / 에코들 (never 메아리) | 장로 | 빛들 | 흑요석 흉갑 | 공명 블래스터 | 디스크 |
+| nl | Echo / Echo's | De Oudste | de Lichten | Obsidiaan borstplaat | Resonantieblaster | Schijf |
+| pl | Echo / Echa | Najstarsza | Światła | Obsydianowy napierśnik | Blaster rezonansowy | Dysk |
+| pt | Eco / Ecos | A Anciã | as Luzes | Peça Peitoral de Obsidiana | Blaster de Ressonância | Disco |
+| ru | Эхо | Старейшая | Огни | Обсидиановая нагрудная пластина | Резонансный бластер | Диск |
+| tr | Yankı / Yankılar (never "Eko") | En Yaşlı | Işıklar | Obsidyen Göğüs Zırhı | Rezonans Patlatıcı | Disk |
+| uk | Ехо (indeclinable; not «Відлуння») | Найстарша | Вогні | Нагрудник з Обсидіану / обсидіановий нагрудник | Резонансний бластер | Диск |
+| zh | 回声 | 长者 | 光灵 (never the English "Lights") | 黑曜石胸甲 | 共鸣爆破器 | 唱片 |
+
+The Eldest is a woman: languages that mark it take feminine forms for her. Do not "fix" an adjective that only looks
+like her name — uk «Найстаріший храм» is "the oldest shrine" (masculine because «храм» is), not the Eldest.
+
 ## Step 2 — Story packs
 
 Same flat-JSON drill for `data/stories/<id>/locales/<code>.json` (copy the key list from the

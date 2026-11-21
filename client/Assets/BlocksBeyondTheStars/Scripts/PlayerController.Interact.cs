@@ -430,8 +430,34 @@ namespace BlocksBeyondTheStars.Client
             Game.ShowMessage(Game.Localizer?.Get("hud.ping.sent") ?? "Ping!");
         }
 
+        private readonly BlasterPadPush _blasterPadPush = new BlasterPadPush();
+        private int _blasterPadPushFrame = -10;
+
+        /// <summary>
+        /// #3917: the pad's push of the Resonance Blaster on our side. The blaster in hand opens the melody bar, and the open
+        /// bar holds the shoulders — <see cref="InputMap.SecondaryDown"/> drops the pad's place control then, so it is read
+        /// here through <see cref="BlasterPadPush"/>: a short tap of the left shoulder alone, or the left trigger where the
+        /// triggers are switched on, is one push. Read every frame of the on-foot update, before anything can return; a frame
+        /// skipped (a menu, a carry, the ship) starts it over, so a press made meanwhile never fires later.
+        /// </summary>
+        private bool BlasterPadPushThisFrame()
+        {
+            bool continuous = _blasterPadPushFrame == Time.frameCount - 1;
+            _blasterPadPushFrame = Time.frameCount;
+            if (!continuous || OverThere || !InputMap.MelodyBarCapture || !HoldsResonanceBlaster())
+            {
+                _blasterPadPush.Reset(); // over there the blaster's pad hands are PalettePadHands' (OtherSideOwnsHands)
+                return false;
+            }
+
+            bool dpad = MelodyBarInput.DirectionOf(InputMap.PadDpadX(), InputMap.PadDpadY()) != PadDirection.None;
+            _blasterPadPush.Update(Time.deltaTime, InputMap.PadHeld(PadButton.Lb), InputMap.PadTriggerPlaceHeld(), dpad);
+            return _blasterPadPush.Pushed;
+        }
+
         private void HandleInteract()
         {
+            bool padPush = BlasterPadPushThisFrame(); // #3917: every frame, so its tap and its trigger edge stay true
             if (Game?.Network == null || Camera == null || CarryHoldsHands) // #3766: both hands hold the block
             {
                 return;
@@ -443,7 +469,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool mine = InputMap.PrimaryDown();
-            bool place = InputMap.SecondaryDown();
+            bool place = InputMap.SecondaryDown() || padPush; // #3917: the push of a pad under the open melody bar
             if (!mine && !place)
             {
                 return;

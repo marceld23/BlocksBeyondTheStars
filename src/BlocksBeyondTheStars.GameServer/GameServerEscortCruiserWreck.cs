@@ -21,7 +21,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// holds by its id (boardable by anyone, no air, no shield, nobody home, falling out is a spacewalk, the guardian bay). Its
 /// hull is the pin-only giant ship <see cref="CruiserWreckRules.TemplateKey"/> through the giant wrecks' build —
 /// <see cref="GiantShipGenerator.BuildSpace"/> and <see cref="DerelictGenerator.GenerateShip"/>, both with the FRESH option
-/// (holes and broken glass, no soot, no scrap, a share of red lamps still burning) — as a DERIVED station
+/// (holes and broken glass, no soot of the centuries, no scrap, a share of red lamps still burning — and the fight's own
+/// scars, #3915: charred plating round the breaches, dead screens, a few loose hull plates on the decks) — as a DERIVED station
 /// (<see cref="RegisterDerivedStation"/>): the save keeps only the players' changes.</item>
 /// <item><b>Where</b>: where the boss fell, raised clear of the planet spheres and pushed clear of the launch point and of
 /// every station hull the server knows there (<see cref="CruiserWreckFlightPosition"/>); a contact of every orbit of that

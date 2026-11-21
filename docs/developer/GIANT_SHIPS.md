@@ -515,6 +515,36 @@ this touches another wreck**: `fresh` defaults to false, a ship without the mark
 `DerelictGenerator.ShipDecayRevision` stays 1 — measured against the build before the change (all six shipped ships, three
 seeds each: the same `BaseHash`), five of those hashes are pinned in `CruiserWreckTests`.
 
+**The battle scars** (#3915, `DerelictGenerator.ShipBattle.cs`). Instead of the centuries' soot and scrap, a fresh wreck
+carries the fight's own marks — the very last step of the pass (after the bridge), drawn from a random stream of their own
+(`derelict-giant-battle:<ship>` mixed with the seed), so the main stream is untouched and the chests, the doors, the
+arrival, the guardian bay, the console and its lamps come out exactly where they come out without them (`CruiserWreckTests`
+builds the wreck both ways through the internal `GenerateShip(…, battleScars)` seam and compares). A human hull only:
+
+- **Scorch round the breaches**: within 3 blocks of each breach's first cell (`ScorchReach`, a sphere), 55 % of the plating
+  (`ScorchShare`) takes `DerelictGenerator.ScorchTint` (`0x2A2420`, darker than the soot's `0x3A3734`; its glow kept) —
+  tighter and darker than the soot ring. Never glass, a lamp (on or off), a machine (the bridge console, the guardian bay), a
+  door, a ladder, a plant or a reserved cell.
+- **Dead screens**: 75 % of the `lab_panel` cells (`DeadScreenShare`) take `DerelictGenerator.DeadScreenTint` (`0x1C2024`,
+  no glow). A tint, not a block: there is no "off" screen block, and a new block would shift every block id. `engine_panel`
+  is only scorched where a breach is near; `sps_console` is never touched (ECHO needs it).
+- **Loose plates**: in each walkable room one or two (torn room) or none or one (closed room) hull plates lie on the deck —
+  `iron_wall` in the `Panel` form (the square quarter-height plate, so no yaw), scorched — on a free deck cell at least 3
+  from the arrival, never on a reserved cell (a doorway or right in front of one, a chest, a sound, the bridge), never on top
+  of one, never within 2 of the guardian bay (its release ring stays free); each plate is reserved.
+
+The wreck's `BaseHash` covers the scars like every other cell, so a wreck stored before #3915 rebuilds as any wreck whose
+base changed (adopted when nothing is stored, kept away while changes are); the giant wrecks never take this step.
+
+**The scan card** (#3915). The ship scanner reads a cruiser's wreck with its own readout (`ScanCruiserWreck`, before the
+derelict station's): kind `station`, subject `cruiser_wreck` — the readout's display is that key too, so the client titles
+it "Escort cruiser wreck" in its own language (`ui.scan.subject.cruiser_wreck`; the contact's name on the server is the
+English one) — info `ui.scan.cruiser_wreck`, traits *breached*, the ship's name (`giantship.escort_cruiser.name`) and its size
+(`ui.scan.trait.giant_size_*`), worth a giant wreck's 5 knowledge once per wreck (ledger `space:cruiserwreck:<id>`; a new wreck
+never reuses an old one's id). Like a giant wreck's, the server measures its range to the hull box (`ScanDistanceSq`); the
+client's range gate (`SpaceView.GiantWrecks.cs` `HullDistance`) still measures a cruiser's wreck to its centre, so in play
+the scan reaches as far as from the centre until that gate learns the cruiser's wreck too.
+
 **Registered at runtime** (`GameServerEscortCruiserWreck.cs`). The boss fight calls `OnEscortCruiserDefeated(instance, boss,
 fighterIds, carriesEcho)` inside the kill. The hook writes a `CruiserWreckRecord`, builds the hull inline (about 20 000
 blocks — a few dozen milliseconds, so no background build), registers it as a **derived station** (§6: the save keeps only
@@ -579,7 +609,9 @@ and the record is marked (a second chip is never taken: `srv.cruiser.console_don
 
 **Tests** (`CruiserWreckTests`): the template loads, validates and is never rolled; the bridge markers stay out of the
 editor's palette; the pinned hashes of the wrecks without the option; a fresh wreck (holes, no soot, no scrap, red lamps,
-console, lamps, bay); one boardable wreck where the boss fell, clear of every hull; the flight spot's rules; a second wreck
+console, lamps, bay); its battle scars (scorch in at most one patch per torn room, dead screens only on `lab_panel`, plates
+only on free deck cells — and every other cell and spot as without them); the scan card (subject, info, traits, the hull-box
+range, knowledge once); one boardable wreck where the boss fell, clear of every hull; the flight spot's rules; a second wreck
 replaces the first and its data is gone; a restart puts the wreck back with the players' changes; chests, the bay's robots
 and the fighters' crates; the console without and with a chip, once; ECHO's cores, event, lines and Journal text; every
 text in English and German.

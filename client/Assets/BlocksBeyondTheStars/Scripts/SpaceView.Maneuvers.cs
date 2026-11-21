@@ -15,7 +15,8 @@ namespace BlocksBeyondTheStars.Client
     /// <item>the <b>barrel roll</b> — the picture (<see cref="ShipRollState"/>: a full turn about the nose with a sideways
     /// slide), the client's own cooldown clock and the intent to the server, which decides whether it evades;</item>
     /// <item>the <b>boost</b> — the same <see cref="ShipBoostMeter"/> the server runs, so the ship is exactly as fast as
-    /// the server allows; the keyboard holds it, the pad and the tablet switch it on;</item>
+    /// the server allows; the keyboard holds it, the pad and the tablet switch it on (its hot look, #3925, is in
+    /// <c>SpaceView.EngineFx.cs</c>);</item>
     /// <item>their <b>gauge</b> above the flight instruments;</item>
     /// <item>a hostile's <b>heavy shot</b>: the charge the server announces (the warning to roll) and the beam that
     /// hits or misses.</item>
@@ -64,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
             _boostLatched = _boostSpent = _boostWant = _boostSent = false;
             _slideShare = 0f;
             _slideStep = Vector3.zero;
+            _boostLook.Reset(); // #3925: a new flight starts with a cold flame
             BoostLit = false;
         }
 
@@ -142,16 +144,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network?.SendShipBoost(_boostSent);
                 if (_boostSent)
                 {
-                    FxCamera.FovPunch(5f);
-                    FxCamera.Kick(0.7f);
                     ClientAudio.Instance?.Cue(ClientAudio.Instance.Has("ship_boost") ? "ship_boost" : "engine_ignite", 1f);
+                    BoostIgnition(); // #3925: the view widens with a jolt, the nozzles flare (SpaceView.EngineFx.cs)
                 }
             }
 
-            if (_boost.Active)
-            {
-                FxCamera.FovPunch(4f); // holds the wider view while the boost burns (a punch only ever grows to its value)
-            }
+            TickBoostLook(BoostBurning); // #3925: the hot flame, the speed lines and the wider view while it burns
 
             BoostLit = _boost.Active;
             UpdateManeuverHud();
@@ -340,7 +338,8 @@ namespace BlocksBeyondTheStars.Client
             _boostFill.fillAmount = _maneuver.BoostSeconds > 0f ? Mathf.Clamp01(_boost.Charge / _maneuver.BoostSeconds) : 0f;
             // Below the share a boost needs to start the bar dims: pressing the key now does nothing yet.
             bool canStart = _boost.Active || _boost.Charge >= _maneuver.BoostSeconds * ShipManeuverRules.BoostStartShare;
-            _boostFill.color = canStart ? BoostCol : new Color(BoostCol.r, BoostCol.g, BoostCol.b, 0.4f);
+            _boostFill.color = !canStart ? new Color(BoostCol.r, BoostCol.g, BoostCol.b, 0.4f)
+                : _boost.Active ? BoostGaugeColour(BoostCol) : BoostCol; // #3925: it pulses gently while the boost burns
             float ready = _roll.Readiness(_maneuver.RollCooldown);
             _rollFill.fillAmount = ready;
             _rollFill.color = ready >= 1f ? RollCol : new Color(RollCol.r, RollCol.g, RollCol.b, 0.45f);

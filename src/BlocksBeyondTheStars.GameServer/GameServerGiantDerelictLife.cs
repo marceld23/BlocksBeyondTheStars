@@ -170,10 +170,11 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>A scan target's squared distance from the pilot (#2238): to its centre — for a giant wreck to its hull box.</summary>
+    /// <summary>A scan target's squared distance from the pilot (#2238): to its centre — for a ship's wreck (a giant wreck, an
+    /// escort cruiser's wreck #3915) to its hull box.</summary>
     private float ScanDistanceSq(CombatEntity target, Vector3f pilot)
     {
-        if (target.Kind == CombatEntityKind.SpaceStation && GiantShipRules.IsGiantWreckId(target.Id)
+        if (target.Kind == CombatEntityKind.SpaceStation && IsShipWreckId(target.Id)
             && _playerStationCells.TryGetValue(target.Id, out var build) && build.Cells.Count > 0)
         {
             float d = HullBoxDistance(build, pilot);

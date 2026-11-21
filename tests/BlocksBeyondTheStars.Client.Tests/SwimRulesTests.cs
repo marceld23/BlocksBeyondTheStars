@@ -7,13 +7,19 @@ namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
 /// #3860: swimming no longer bounces. The climb-out hop fires only where a bank stands in front, the body floats at the
-/// surface whether Jump is held or not, the Descend key dives, and a sprint swim lies level — at a speed between the plain
-/// swim and the sprint swim.
+/// surface whether Jump is held or not and the Descend key dives. #3923: the float settles with the head point the server
+/// breathes at (+1.5) above the water and the chest (+1.1) in it. #3924: the body tilts with the swim — upright treading
+/// water, forward in a crawl, nearly level in a sprint, head first in a dive — and the short controls line names the swim
+/// keys.
 /// </summary>
 public sealed class SwimRulesTests
 {
     private const float Up = 4f;
     private const float Sink = 1.5f;
+    private const float SwimAccel = 12f;
+
+    /// <summary>The water's surface in the simulated pool: every cell below it is water.</summary>
+    private const float Surface = 62f;
 
     [Fact]
     public void OpenWater_NeverHops_WithJumpAndForwardHeld()
@@ -34,9 +40,10 @@ public sealed class SwimRulesTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AtTheSurface_TheBodyFloats_JumpOrNot(bool jump)
+    public void AtTheFloatDepth_TheBodyHolds_JumpOrNot(bool jump)
     {
         Assert.Equal(0f, SwimRules.VerticalTarget(atSurface: true, jumpHeld: jump, diveHeld: false, Up, Sink));
+        Assert.Equal(0f, SwimRules.VerticalTarget(atSurface: true, jumpHeld: jump, diveHeld: false, Up, Sink, SwimRules.FloatDepth));
     }
 
     [Fact]
@@ -52,7 +59,7 @@ public sealed class SwimRulesTests
     [InlineData(true, true)]
     public void Descend_Dives_EvenAtTheSurfaceAndOverJump(bool atSurface, bool jump)
     {
-        Assert.Equal(-SwimRules.DiveSpeed, SwimRules.VerticalTarget(atSurface, jump, diveHeld: true, Up, Sink));
+        Assert.Equal(-SwimRules.DiveSpeed, SwimRules.VerticalTarget(atSurface, jump, diveHeld: true, Up, Sink, feetDepth: 1.8f));
     }
 
     [Fact]
@@ -68,11 +75,168 @@ public sealed class SwimRulesTests
     }
 
     [Fact]
-    public void ASprintSwim_LiesLevel_APlainSwimDoesNot()
+    public void TheFloatDepth_KeepsTheBreathPointDry_AndTheChestWet()
+    {
+        // #3923: the server breathes at the feet + 1.5 (GameServer.HeadUnderwater), the client swims while the feet + 1.1
+        // are in the water and the first-person eye sits at + 1.6.
+        float feet = Surface - SwimRules.FloatDepth;
+        Assert.True(feet + 1.5f >= Surface + 0.15f, $"the breath point is only {feet + 1.5f - Surface} m above the water");
+        Assert.True(feet + 1.6f > Surface, "the first-person eye floats under the water");
+        Assert.True(feet + 1.1f <= Surface - 0.15f, $"the chest is only {Surface - (feet + 1.1f)} m under the water — a bob leaves it");
+
+        // The old resting point the report measured (feet 1.58 under the surface) had the breath point 8 cm under water; the
+        // float now lifts the body from there.
+        Assert.True(Surface - 1.58f + 1.5f < Surface);
+        Assert.True(SwimRules.FloatTarget(1.58f) > 0f);
+        Assert.True(SwimRules.FloatTarget(1.15f) < 0f); // riding too high: back down, before the chest leaves the water
+        Assert.Equal(SwimRules.FloatMaxSpeed, SwimRules.FloatTarget(5f));
+    }
+
+    [Theory]
+    [InlineData(4f, true)]     // swimming up from below with Jump held
+    [InlineData(1.85f, false)] // resting where the old float stopped (the top of the head just out)
+    [InlineData(1.58f, false)] // the reported resting point (the breath point 8 cm under water)
+    [InlineData(1.15f, false)] // riding high, the chest nearly out: back down to the float
+    public void ARiseFromBelow_SettlesAtTheFloat_HeadDryChestWet_NoPopOut(float startDepth, bool jump)
+    {
+        var run = Simulate(Surface - startDepth, jump, dive: false, seconds: 5f);
+
+        Assert.False(run.LeftTheWater, "the chest left the water on the way up — the body would bounce");
+        Assert.True(run.Feet + 1.5f > Surface + 0.1f, $"the head point settled {run.Feet + 1.5f - Surface:0.00} m off the water");
+        Assert.True(run.Feet + 1.1f < Surface - 0.1f, $"the chest settled {Surface - (run.Feet + 1.1f):0.00} m under the water");
+        Assert.InRange(Surface - run.Feet, SwimRules.FloatDepth - 0.05f, SwimRules.FloatDepth + 0.05f);
+        Assert.InRange(run.Speed, -0.05f, 0.05f);
+    }
+
+    [Fact]
+    public void Diving_FromTheFloat_StillSinks()
+    {
+        var run = Simulate(Surface - SwimRules.FloatDepth, jump: false, dive: true, seconds: 1.5f);
+        Assert.True(Surface - run.Feet > 4f, $"a dive of 1.5 s only reached {Surface - run.Feet:0.00} m");
+    }
+
+    [Fact]
+    public void TreadingWater_StaysUpright()
+    {
+        Assert.InRange(SwimRules.BodyTilt(0f, 0f), 0f, 10f);
+        Assert.InRange(SwimRules.BodyTilt(0.4f, 0f), 0f, 10f);
+        Assert.InRange(SwimRules.BodyTilt(0f, -Sink), 0f, 15f); // the idle sink is no dive
+        Assert.Equal(1f, SwimRules.TreadBlend(SwimRules.BodyTilt(0f, 0f)));
+        Assert.Equal(0f, SwimRules.CrawlBlend(SwimRules.BodyTilt(0f, 0f)));
+    }
+
+    [Fact]
+    public void ThePlainSwim_LiesForward_InACrawl()
     {
         const float walk = 6f, swimMul = 0.62f;
-        Assert.False(SwimRules.LiesLevel(swimming: true, speed: walk * swimMul));
-        Assert.True(SwimRules.LiesLevel(swimming: true, speed: walk * swimMul * SprintState.SpeedFactor));
-        Assert.False(SwimRules.LiesLevel(swimming: false, speed: 9f)); // a sprint on land stays upright
+        float tilt = SwimRules.BodyTilt(walk * swimMul, 0f);
+        Assert.InRange(tilt, 58f, 66f);
+        Assert.True(SwimRules.CrawlBlend(tilt) > 0.95f, "the plain swim is a crawl");
+        Assert.Equal(0f, SwimRules.TreadBlend(tilt));
     }
+
+    [Fact]
+    public void ASlowSwim_IsABreastStroke()
+    {
+        float tilt = SwimRules.BodyTilt(1.6f, 0f);
+        Assert.InRange(tilt, 15f, 45f);
+        Assert.True(SwimRules.CrawlBlend(tilt) < 0.5f && SwimRules.TreadBlend(tilt) < 0.5f, $"a slow swim at {tilt}° is no breast stroke");
+    }
+
+    [Fact]
+    public void TheSprintSwim_LiesNearlyLevel()
+    {
+        float tilt = SwimRules.BodyTilt(6f * 0.62f * SprintState.SpeedFactor, 0f);
+        Assert.InRange(tilt, 72.5f, 80f);
+        Assert.InRange(SwimRules.BodyTilt(12f, 0f), 72.5f, 80f); // a faster figure (a measured spike) lies no further
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(3.7f)]
+    [InlineData(5.6f)]
+    public void ADive_GoesHeadFirst(float forward)
+    {
+        Assert.True(SwimRules.BodyTilt(forward, -SwimRules.DiveSpeed) > 90f);
+    }
+
+    [Fact]
+    public void SwimmingBackwards_LeansBackALittle_AndARiseBringsTheHeadUp()
+    {
+        float back = SwimRules.BodyTilt(-3.7f, 0f);
+        Assert.InRange(back, -15f, 0f);
+        Assert.True(SwimRules.BodyTilt(3.7f, Up) <= SwimRules.RiseTilt);
+    }
+
+    [Fact]
+    public void TheTilt_GrowsSmoothlyWithTheSpeed()
+    {
+        float previous = SwimRules.BodyTilt(0f, 0f);
+        for (float speed = 0.1f; speed <= 7f; speed += 0.1f)
+        {
+            float tilt = SwimRules.BodyTilt(speed, 0f);
+            Assert.True(tilt >= previous - 0.001f, $"the tilt falls at {speed} m/s");
+            Assert.True(tilt - previous < 3.5f, $"the tilt jumps {tilt - previous}° at {speed} m/s");
+            previous = tilt;
+        }
+    }
+
+    [Fact]
+    public void TheShortLine_TradesItsMiddleForTheSwimKeys()
+    {
+        const string keys = "Space up · Ctrl dive";
+        Assert.Equal("WASD move · Space up · Ctrl dive · Tab menu", SwimRules.SwimControlsLine("WASD move · Space jump · E use · Tab menu", keys));
+        Assert.Equal("A · Space up · Ctrl dive · B", SwimRules.SwimControlsLine("A · B", keys));
+        Assert.Equal("WASD move · Space up · Ctrl dive", SwimRules.SwimControlsLine("WASD move", keys));
+        Assert.Equal("WASD move · E use", SwimRules.SwimControlsLine("WASD move · E use", null));
+        Assert.Equal(string.Empty, SwimRules.SwimControlsLine(string.Empty, keys));
+    }
+
+    [Theory]
+    [InlineData("en", "ui.hud.hint_short")]
+    [InlineData("en", "ui.hud.hint_short_pad")]
+    [InlineData("de", "ui.hud.hint_short")]
+    [InlineData("de", "ui.hud.hint_short_pad")]
+    public void TheSwimmingShortLine_StillNamesFourKeys(string code, string shortKey)
+    {
+        var table = VegaLineBudgetTests.Core(code);
+        string line = SwimRules.SwimControlsLine(table[shortKey], table["ui.hud.hint_swim"]);
+        Assert.Equal(4, line.Split(" · ").Length);
+        Assert.Contains("{key:Jump}", line);
+        Assert.Contains("{key:Crouch}", line);
+    }
+
+    private readonly record struct Run(float Feet, float Speed, bool LeftTheWater);
+
+    /// <summary>The controller's water branch (PlayerController.Movement), cell for cell: the chest's cell (+1.1) in water
+    /// swims, an open cell over the head (+1.9) is the surface, and out of the water gravity pulls.</summary>
+    private static Run Simulate(float feet, bool jump, bool dive, float seconds)
+    {
+        const float dt = 1f / 60f, gravity = 20f;
+        float v = 0f;
+        bool reachedSurface = false, left = false;
+        for (int i = 0; i < (int)(seconds / dt); i++)
+        {
+            bool swimming = System.MathF.Floor(feet + 1.1f) < Surface;
+            if (swimming)
+            {
+                bool atSurface = System.MathF.Floor(feet + 1.9f) >= Surface;
+                reachedSurface |= atSurface;
+                float target = SwimRules.VerticalTarget(atSurface, jump, dive, Up, Sink, Surface - feet);
+                v = MoveTowards(v, target, SwimRules.VerticalAccel(atSurface, dive, SwimAccel) * dt);
+            }
+            else
+            {
+                left |= reachedSurface;
+                v -= gravity * dt;
+            }
+
+            feet += v * dt;
+        }
+
+        return new Run(feet, v, left);
+    }
+
+    private static float MoveTowards(float current, float target, float maxDelta)
+        => System.MathF.Abs(target - current) <= maxDelta ? target : current + (System.MathF.Sign(target - current) * maxDelta);
 }

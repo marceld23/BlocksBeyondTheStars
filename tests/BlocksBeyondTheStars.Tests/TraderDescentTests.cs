@@ -111,6 +111,54 @@ public sealed class TraderDescentTests : IDisposable
     }
 
     [Fact]
+    public void LaunchedFromAMoon_ItsPlanetHangsClearOfTheClimb_AsTheClientDrawsIt()
+    {
+        // #3919: the flight scene of a first moon drew its planet at the star map's moon orbit, right over the launch
+        // column — the climb ended inside the planet's keep-out shell. The server sends its landing traders to the same
+        // spot the client draws, so it must apply the client's rule (SystemBodyLayout.HomeParentPosition).
+        var server = NewServer("moon", new RecordingTransport());
+        var pilot = server.AddLocalPlayer("Pilot");
+        var moon = server.Galaxy.Systems.SelectMany(s => s.Bodies).First(b => b.Kind == CelestialKind.Moon
+            && b.Id.EndsWith("-m0", StringComparison.Ordinal)
+            && server.Galaxy.FindBody(b.ParentId)!.SystemId == b.SystemId
+            && server.Galaxy.Systems.First(s => s.Id == b.SystemId).Bodies.Count(o => o.ParentId == b.ParentId) >= 2);
+        pilot.CurrentLocationId = moon.Id;
+        server.EnterSpace("Pilot");
+        Assert.True(server.InSpace("Pilot"));
+
+        var homeSpot = server.TraderBodyInSceneForTest("Pilot", moon.Id)!.Value;
+        float moonRadius = homeSpot.Radius / SystemBodyLayout.HomeDiameterFactor;
+        var planet = server.Galaxy.FindBody(moon.ParentId)!;
+        var spot = server.TraderBodyInSceneForTest("Pilot", planet.Id)!.Value;
+        float fromColumn = (float)System.Math.Sqrt((spot.Centre.X * spot.Centre.X) + (spot.Centre.Z * spot.Centre.Z));
+
+        Assert.Equal(0f, spot.Centre.Y); // in the flight plane, like every other planet
+        Assert.True(
+            fromColumn >= spot.Radius + SystemBodyLayout.KeepOutMargin + SystemBodyLayout.LaunchColumnClearance,
+            $"the planet sits {fromColumn:0.0} from the launch column, its shell reaches {spot.Radius + SystemBodyLayout.KeepOutMargin:0.0}");
+        const float scale = SystemBodyLayout.FlightViewScale;
+        var (x, z) = SystemBodyLayout.HomeParentPosition(
+            (planet.SystemX - moon.SystemX) * scale, (planet.SystemZ - moon.SystemZ) * scale, spot.Radius, moonRadius);
+        Assert.Equal(x, spot.Centre.X, 3); // the client's rule: its true direction, at the clear distance
+        Assert.Equal(z, spot.Centre.Z, 3);
+
+        // The launch moon holds the planet's first orbit slot: its siblings ring above it, clear of the climb too.
+        foreach (var sibling in server.Galaxy.Systems.First(s => s.Id == moon.SystemId).Bodies
+                     .Where(b => b.ParentId == planet.Id && b.Id != moon.Id))
+        {
+            var s = server.TraderBodyInSceneForTest("Pilot", sibling.Id)!.Value;
+            Assert.True(Distance(s.Centre, spot.Centre) >= SystemBodyLayout.NextMoonOrbit(spot.Radius, s.Radius, fromColumn, moonRadius) - 0.01f);
+            float sibFromColumn = (float)System.Math.Sqrt((s.Centre.X * s.Centre.X) + (s.Centre.Z * s.Centre.Z));
+            Assert.True(sibFromColumn >= s.Radius + SystemBodyLayout.KeepOutMargin, $"{sibling.Id}'s shell holds the launch column");
+        }
+
+        // A trader bound for the planet still stops where a ship may land on it.
+        Assert.True(server.SpawnLandingTraderForTest("Pilot", planet.Id));
+        var route = Assert.Single(server.TraderRoutesForTest("Pilot"), r => r.DestBodyId == planet.Id);
+        Assert.Equal(SystemBodyLayout.LandApproachDistance(spot.Radius), Distance(route.Target, spot.Centre), 2);
+    }
+
+    [Fact]
     public void ALandingTrader_HeadsForItsBody_AndStopsWhereAShipMayLand()
     {
         var server = NewServer("aim", new RecordingTransport());

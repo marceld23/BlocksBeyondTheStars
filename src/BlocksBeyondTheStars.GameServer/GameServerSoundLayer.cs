@@ -441,8 +441,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>How far around another player's body no stranger's sound block may stand, and how far around their own body
-    /// a player may dissolve anybody's (cells): the body's two cells grown by this are a 3×4×3 box.</summary>
-    internal const int SoundBodyMargin = 1;
+    /// a player may dissolve anybody's (cells): the body's two cells grown by this are a 3×4×3 box — the shared
+    /// <see cref="OtherSideRules.BodyMargin"/>, which the client's bare-hand aim reads too (#3914).</summary>
+    internal const int SoundBodyMargin = OtherSideRules.BodyMargin;
 
     /// <summary>A sound block is solid for the players over there, so nobody may be walled in with them: none goes into
     /// the head cell of a player, nor into the feet cell of anybody but the builder (who may lift themselves on it, as
@@ -477,13 +478,7 @@ public sealed partial class GameServer
     /// <summary>Whether a cell lies in a player's body box — the feet cell and the head cell — grown by
     /// <paramref name="margin"/> cells on every side (the short way round the seam).</summary>
     private bool InSoundBodyBox(PlayerSession s, Vector3i cell, int margin)
-    {
-        var feet = s.State.Position.ToBlock();
-        int dx = WorldConstants.WrapDeltaX(cell.X - feet.X, _world.Circumference);
-        int dy = cell.Y - feet.Y;
-        int dz = cell.Z - feet.Z;
-        return dx >= -margin && dx <= margin && dz >= -margin && dz <= margin && dy >= -margin && dy <= 1 + margin;
-    }
+        => OtherSideRules.InBodyBox(s.State.Position.ToBlock(), cell, margin, _world.Circumference);
 
     /// <summary>A gate's stones stay free: no sound block in a cell that touches a rune stone (its six neighbours — the
     /// cell above a stone is one of them), so nobody walls the way home in.</summary>

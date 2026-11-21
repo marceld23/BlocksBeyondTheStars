@@ -26,6 +26,91 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧒 Justus's reports of 2026-11-21 (evening): the moon launch, the pause menu on Space, the blue swim, swimming like an arrow, a cooler boost — #3919–#3925 — ✅ 2026-11-21 (client + shared + one server layout rule; no protocol bump, no save change)
+
+Six reports and one Test Pilot note from one evening's play (v2026.11.26), all found in the code and fixed.
+
+- **Launching from a moon threw the ship far away (#3919).** A moon's flight scene drew its parent planet at the raw
+  star-map offset — 21.6 units from the launch column, inside the planet's own keep-out shell — so the first cruise
+  frame pushed the ship out in one step and the push became a velocity of hundreds of units a second. The parent planet
+  now stands in its real direction at the distance of a moon's first orbit (`SystemBodyLayout.HomeParentPosition`; the
+  server's trader layout uses the same rule), no flight-plane body may reach the launch column (`ClearLaunchColumn`,
+  planets' launches included), and a keep-out, hull or rock push can only take speed away
+  (`FlightFeel.SettledSpeedScale`). Tests: `SystemBodyLayoutTests` (every moon and planet of 60 galaxies as the launch
+  body), `MovementFeelTests`, `TraderDescentTests`, `MoonLaunchWiringTests`.
+- **W in the F1 dialog fired the engine (#3920).** The ship held still, but the flame, trail, engine light, thrust
+  sound and the THR readout read the raw forward axis. They follow the throttle the cruise step actually flew with now
+  (`HelmThrottle`, 0 in every frame a menu, a dialog, the pad chooser or a visit holds the helm; the autopilot shows its
+  real thrust); the afterburner sound no longer roars behind a pause that holds the world. Tests: `FlightEngineWiringTests`.
+- **Space opened the pause menu (#3921).** The Tab menu hides by switching its canvas off; a tab or its "Pause menu"
+  button stayed selected, W walked the invisible selection up to that button and Space (uGUI's Submit) clicked it. The
+  frame the cursor locks the selection is dropped, in play the input module sends no move or submit events to a keyboard
+  (a gamepad keeps them: its chat keyboard works with the cursor locked), and the Tab menu lets its selection go when it
+  hides (`UiPlayGuard`, `GameBootstrap.KeepMenusOutOfPlay`, `UiKit.DropSelectionUnder`). Tests: `UiPlayGuardTests`.
+- **The scan frame stuttered around an attacking drone (#3922).** The scanner's frame, label, fan and hologram sat on
+  the raw server position (every 0.15 s) while the model is drawn interpolated, and they were projected before the
+  camera's hit shake. They sit on the drawn model now (`SpaceTargeting.ScanAnchorFor`) and are drawn in `LateUpdate`;
+  range and target choice stay on the server data. Tests: `SpaceTargetingTests`, `ScanLockWiringTests`.
+- **Everything blue while swimming (#3923).** The full-screen underwater tint asked whether the BODY's head point was
+  in water, and floating left that point 8 cm under the surface — so a third-person camera above the lake showed sky
+  and land washed blue, and the oxygen drained while floating. The tint follows the cell of the camera that renders
+  now (`WeatherFx.Camera`, like the haze and the bubbles), and the float settles the feet 1.3 m under the surface
+  (`SwimRules.FloatDepth`): the head is above water, the chest in it, the tank stays full. Under water the look is
+  unchanged. Tests: `SwimRulesTests`, `SwimSurfaceTests` (against the real server: the tank refills at the new height).
+- **Swim like an arrow (#3924).** Only the swim sprint lay flat; everyone else swam upright. The body now tilts with the
+  way it swims (`SwimRules.BodyTilt`, measured from the figure's own motion, so other players show it too and nothing
+  goes over the network): treading water upright when still, about 62° at a plain swim, 78° at a sprint, head first in
+  a dive, a small lean back when swimming backwards. The keys stay (Jump rises, Crouch dives) and are named now: the
+  controls line shows them while swimming (`ui.hud.hint_swim`), and VEGA's swim hint names them and comes the first
+  time the chest is in water, not only when the head goes under. Two texts in all 14 languages.
+- **A cooler boost (#3925, from the Test Pilot report "Barrel roll and boost").** The engine did not react to the boost
+  at all. `BoostLook` (0..1, in over 0.15 s, out over 0.4 s) now drives a hot orange flame (more, faster, larger
+  particles), an orange engine light and trail, an ignition burst with a glow at the nozzles, star streaks along the
+  flight direction, a stronger FOV punch (+8°, held at +6°) with a small shake, and a pulsing boost bar. Potato keeps
+  colour, streaks, FOV and sound without the extra particles; "camera motion off", "reduce flashes" and "reduced
+  effects" each take their part away. No new shader, sound or network field. Tests: `BoostLookTests`.
+- ⚠ **Playtest:** lift off a first moon (the planet hangs clear, no throw); F1 at the helm, hold W (no flame, THR 0 %);
+  Tab → click a tab → Tab → walk and jump (no pause menu) — and the pad's chat keyboard still works; the scanner on a
+  drone that circles after a hit; float at a lake's surface at night in third person (no blue, oxygen stays), dive
+  (blue as before); swim forward, stand still, dive; boost in first and third person on High and Potato.
+
+### 🎛️ Sky-lights follow-ups: bare hands on sound, the cruiser wreck's scan card and battle scars, one name per thing, the pad's blaster push — #3914–#3917 — ✅ 2026-11-21 (server + shared + client + data; no protocol bump, no save change; 3 new texts in all 14 languages)
+
+Follow-ups of the package below (not released yet, so nothing of it reaches a save that already exists).
+
+- **Walled in without a blaster (#3914, the maintainer chose "bare hands").** Over there the mine key now works a sound
+  block that touches the player's own body box (`OtherSideRules.InBodyBox`, the 3×4×3 box the shaping rule already
+  keeps free of strangers) with anything in hand but the Resonance Blaster: hold it for two seconds of hits and the block
+  gives way, whoever shaped it. The server keeps the time (`GameServerSoundLayer.BareHands.cs`: hits no more than
+  0.75 s apart on the same block, `MiningProgress` per hit, so the client's crack overlay shows it); a block farther out
+  stays quietly. The gate lets a `MineBlockIntent` through over there only on a sound block, and `HandleMine` sends every
+  mine intent of a player over there to the sound layer — never to the real world. The way back stays a rune gate. The
+  short controls line names the key while such a block is aimed at (`ui.otherside.bare_hint`). Tests: `BareHandSoundTests`
+  (through `Dispatch`), `OtherSideWiringTests`.
+- **The cruiser wreck (#3915).** Its scan card is its own now (`ScanCruiserWreck`): "Escort cruiser wreck", a line that
+  says what it is (a Guardian escort cruiser, beaten not long ago, only robots inside, no air aboard), the ship's name
+  and size as traits, knowledge once per wreck (`space:cruiserwreck:<id>`); server and client measure the scan range to
+  its hull box, like a giant wreck's. Inside it carries the fight (`DerelictGenerator.ShipBattle.cs`, the fresh option
+  only, a stream of its own, so chests, bay, doors and bridge stay where they were): scorched plating around the hull
+  breaches, three in four screens (`lab_panel`) dark, and one or two scorched hull plates lying on the decks of a torn
+  room. No new block, no save change; the giant wrecks are byte-identical (their pinned hashes pass). Tests:
+  `CruiserWreckTests`.
+- **One name per thing (#3916).** ko: the Echoes are 에코 everywhere (the chapter title and the hearing disc said 메아리);
+  tr: Yankı (the role name) instead of "Eko"; zh: 光灵 instead of the English "Lights"; de: "Obsidian-Brustplatte" and
+  its "Fassung" (the item's own words) instead of "Brustpanzer", "Brustteil", "Fach", "Scheibenfach" — in the story pack
+  and the Codex article; uk: the Echo is «Ехо» (the role name) instead of «Відлуння», the chest piece «нагрудник». The
+  issue's uk point itself was a false positive: «Найстаріший храм» is "the oldest shrine", not the Eldest. A table of the
+  Sounders' terms per language is in docs/developer/TRANSLATION_GUIDE.md.
+- **The pad's blaster push on our side (#3917).** With the blaster in hand the open melody bar holds the shoulders, and
+  `InputMap` dropped the pad's place control — no push at all. `BlasterPadPush` (Client.Core) reads the pad there: a
+  short tap of LB alone (let go within 0.25 s, no d-pad) or a pull of LT (triggers on) is one push; a longer hold or a
+  chord with the d-pad never pushes (no sound chamber opened by accident while playing the upper tones); RB stays the
+  bar's (no mining with the blaster on a pad, #3346). Tests: `BlasterPadPushTests`.
+- ⚠ **Playtest:** over there without a blaster, let a second player ring you in two cells out, then hold the mine key on
+  the ring (keyboard and pad) — cracks, then it gives way; the hint line. On our side with a pad: tap LB with the blaster
+  at a creature (push), hold LB + d-pad at a monument stone (only tones, no chamber). Board a cruiser wreck: the scan
+  card, the scorch marks, dark consoles, loose plates.
+
 ### 🗼 The sky-lights (VEGA story) and the other side (Sounders story) — #3891 (epic), #3892–#3912; answers the ideas #3858, #3857, #3829, #3830 — ✅ 2026-11-21, PR #3913 `a9ba731e` (⚠ playtest open; server + client + data; **terrain generation 47, save version 18**, protocol stays 12; all 14 languages)
 
 Four player ideas became two story extensions. Maps: [docs/developer/SPS_TOWERS.md](docs/developer/SPS_TOWERS.md),
@@ -80,10 +165,8 @@ Leitmotif of the VEGA part: **red turns blue again** — one key item (the hacki
   crossing with the disc — the grey level by day, night and in caves, the gate pillars against a bright sky, the HUD
   chip, shaping and dissolving with keyboard AND gamepad, a crack's mend game, the bloom on the real side;
   `/sounders chapter 9…11`, the Choir Tower's gate and the choir; two players over there seeing each other.
-- **Open follow-ups:** #3914 (a player over there without a blaster can still be walled in by sound blocks — a
-  maintainer decision: the rule is "the way back is a gate"), #3915 (the cruiser wreck's own scan card and a decay pass),
-  #3916 (one name per thing in older uk/ko/tr/zh/de lines of the Sounders pack), #3917 (gamepad: the Resonance Blaster's
-  push cannot be fired on the real side — older than this package).
+- **Follow-ups #3914–#3917:** ✅ 2026-11-21 — see the entry above (bare hands on sound, the cruiser wreck's scan card
+  and battle scars, one name per thing in the Sounders pack, the pad's blaster push on our side).
 
 ### 🧰 Player reports of 2026-11-21: small pets, calm boxed-in animals, land animals wade out of deep water — #3879–#3881 — ✅ 2026-11-21 (server + shared only; no protocol bump, no save change, no new texts)
 

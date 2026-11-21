@@ -110,6 +110,20 @@ namespace BlocksBeyondTheStars.Client
             es.SetSelectedGameObject(null);
         }
 
+        /// <summary>#3921: lets go of whatever is selected under <paramref name="root"/> before a screen hides itself with
+        /// <c>canvas.enabled = false</c>. That way of hiding leaves the screen's buttons alive, and uGUI's input module
+        /// still walks a control left selected there with W/A/S/D and clicks it with Space (Submit) — the hidden Tab
+        /// menu's "Pause menu" button opened while the player was playing. Another screen's selection is never touched.</summary>
+        public static void DropSelectionUnder(Transform root)
+        {
+            var es = EventSystem.current;
+            var selected = es != null ? es.currentSelectedGameObject : null;
+            if (selected != null && root != null && selected.transform.IsChildOf(root))
+            {
+                es.SetSelectedGameObject(null);
+            }
+        }
+
         private static Font _font;
         private static Sprite _panelSprite;
         private static Sprite _dialogSprite;

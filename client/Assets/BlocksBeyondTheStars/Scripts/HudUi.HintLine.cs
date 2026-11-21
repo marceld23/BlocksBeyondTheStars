@@ -44,7 +44,8 @@ namespace BlocksBeyondTheStars.Client
         /// exists over there. It gives way to the other side's own line: with the Resonance Blaster in hand the
         /// palette's keys (<see cref="OtherSideBarHint"/> — shape, dissolve, a tone picks the next sound), else the short
         /// line (move, jump, use, menu — the use key works a rune stone and talks to the Echoes). The short line names
-        /// nothing that is refused over there, so it stays as it is.</para>
+        /// nothing that is refused over there, so it stays as it is — but while bare hands aim at a sound block they can
+        /// work (#3914, <see cref="OtherSideBareHandHint"/>) its last part names the mine key.</para>
         /// </summary>
         private string ControlsLine(BlocksBeyondTheStars.Shared.Localization.Localizer loc, int hintMode, bool shortHint)
         {
@@ -65,6 +66,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 // #2461 (N9) / #2502: the pad's glyph set and bindings, the keyboard's bound keys ({key:Action} tokens).
                 string line = pad ? PadLine(loc, "ui.hud.hint_short_pad") : ExpandKeyTokens(loc, loc.Get("ui.hud.hint_short"));
+                if (overThere && Game.BareHandSoundAimed)
+                {
+                    return WithContextSlot(line, OtherSideBareHandHint(loc, device)); // #3914: bare hands on a sound block
+                }
+
                 return shortHint ? WithContextHints(loc, line, shortHint: true) : line;
             }
 
@@ -75,6 +81,7 @@ namespace BlocksBeyondTheStars.Client
         /// Adds the hints that only apply in the moment to the controls line: the full line appends all of them, the short
         /// one lets the first that applies take its last slot (the menu key, which the pause menu's Esc needs no line for)
         /// — so the short line stays at four keys and still names the control the player cannot find otherwise (#3668).
+        /// While swimming the swim keys come first: appended to the full line, the middle of the short one (#3924).
         /// </summary>
         private string WithContextHints(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string hint, bool shortHint)
         {
@@ -86,7 +93,11 @@ namespace BlocksBeyondTheStars.Client
             // Creative/Sandbox worlds only: the one control the hint can't afford to omit, because flight has
             // no other tell. Appended rather than baked into ui.hud.hint so Explorer worlds stay uncluttered.
             // #2502: "{key:Jump}×2" — the pad line used to append the keyboard's "Space×2".
-            string fly = Game.CanFly ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_fly")) : null;
+            // #3924: while swimming the line names the keys that swim up and dive instead — nothing else says that Crouch
+            // dives; a double jump flies only out of the water.
+            bool swimming = Game.Swimming;
+            string swim = swimming ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_swim")) : null;
+            string fly = Game.CanFly && !swimming ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_fly")) : null;
 
             // Holding a rotatable block (a crafted shape or furniture): surface the rotate control (#863) —
             // nothing else in the game ever said the key exists. Appended only while it applies, like the
@@ -109,10 +120,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (shortHint)
             {
-                return WithContextSlot(hint, fly ?? FirstHintPart(rotate) ?? slot);
+                // #3924: swimming, the short line trades its middle (jump, use) for the swim keys — still four of them.
+                return WithContextSlot(SwimRules.SwimControlsLine(hint, swim), fly ?? FirstHintPart(rotate) ?? slot);
             }
 
-            foreach (string extra in new[] { fly, rotate, slot })
+            foreach (string extra in new[] { swim, fly, rotate, slot })
             {
                 if (extra != null)
                 {

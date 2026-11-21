@@ -361,8 +361,11 @@ namespace BlocksBeyondTheStars.Client
                     // slow climb, and every stroke is heavy.
                     bool dense = BlockKeyAt(transform.position + Vector3.up * 1.1f) == "gas_dense";
                     bool dive = InputMap.DescendHeld();
+                    // #3923: at the surface the float settles the feet at SwimRules.FloatDepth under it — the head clear of
+                    // the water (the server's breath point), the chest in it.
+                    float feetDepth = atSurface ? LiquidSurfaceAbove(transform.position) - transform.position.y : SwimRules.FloatDepth;
                     float target = SwimRules.VerticalTarget(atSurface, InputMap.JumpHeld(), dive,
-                        dense ? DenseGasRiseSpeed : SwimUpSpeed, dense ? DenseGasSinkSpeed : SwimSinkSpeed);
+                        dense ? DenseGasRiseSpeed : SwimUpSpeed, dense ? DenseGasSinkSpeed : SwimSinkSpeed, feetDepth);
                     _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target,
                         SwimRules.VerticalAccel(atSurface, dive, SwimAccel) * Time.deltaTime);
                     move *= dense ? DenseGasSpeedMul : SwimSpeedMul;
@@ -595,6 +598,23 @@ namespace BlocksBeyondTheStars.Client
         /// height, so wading through shallow water still walks; only deep water swims). A submerged kelp stalk, ladder
         /// or form counts as water (#1902), so a diver swims through a kelp forest instead of dropping to the seabed.</summary>
         private bool IsSubmerged() => Game != null && Game.IsWaterAt(transform.position + Vector3.up * 1.1f);
+
+        /// <summary>#3923: the world Y of the water's surface over a swimmer whose feet stand at <paramref name="feet"/>: walk up
+        /// from the chest's cell through the water cells (as <c>Sky.WaterSurfaceAbove</c> does for the camera). Only asked at
+        /// the surface, where the cell over the head is open — so a few cells are always enough.</summary>
+        private float LiquidSurfaceAbove(Vector3 feet)
+        {
+            int x = Mathf.FloorToInt(feet.x), z = Mathf.FloorToInt(feet.z), y = Mathf.FloorToInt(feet.y + 1.1f);
+            for (int i = 0; i < 3; i++)
+            {
+                if (Game == null || !Game.IsWaterAt(new Vector3(x + 0.5f, y + i + 0.5f, z + 0.5f)))
+                {
+                    return y + i;
+                }
+            }
+
+            return y + 3;
+        }
 
         /// <summary>True when the player's feet touch water on landing — sampled low so even a single block of
         /// water counts. Used to cushion the fall (no splash damage) the way any depth of water does in Minecraft;

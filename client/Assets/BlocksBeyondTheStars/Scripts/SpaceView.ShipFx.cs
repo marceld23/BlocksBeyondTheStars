@@ -50,23 +50,24 @@ namespace BlocksBeyondTheStars.Client
 
             _prevThrottle = throttle;
 
-            // Engine trail: weightless glow motes left behind at each nozzle while thrusting.
+            // Engine trail: weightless glow motes left behind at each nozzle while thrusting — denser and orange while
+            // the boost burns (#3925, SpaceView.EngineFx.cs).
             if (cruising && throttle > 0.05f)
             {
-                _trailAcc += Time.deltaTime * (12f + 40f * throttle) * FxKit.Density;
+                _trailAcc += Time.deltaTime * (12f + 40f * throttle) * FxKit.Density * TrailBoost;
                 while (_trailAcc >= 1f)
                 {
                     _trailAcc -= 1f;
                     var local = _nozzles.Count > 0 ? _nozzles[Random.Range(0, _nozzles.Count)] : (_exhaust != null ? _exhaust.localPosition : Vector3.zero);
                     var at = _ship.transform.TransformPoint(local);
                     FxKit.Emit(FxKit.Kind.Motes, at, -_ship.transform.forward * (2f + 6f * throttle) + Random.insideUnitSphere * 0.5f,
-                        Random.Range(0.12f, 0.24f), Random.Range(0.5f, 0.9f), Color.Lerp(new Color(0.5f, 0.75f, 1f), Color.white, Random.value * 0.4f));
+                        Random.Range(0.12f, 0.24f), Random.Range(0.5f, 0.9f), TrailColour(Color.Lerp(new Color(0.5f, 0.75f, 1f), Color.white, Random.value * 0.4f)));
                 }
             }
 
             if (_engineLight != 0 && _phase != Phase.Landing)
             {
-                FxLights.Set(_engineLight, new Color(0.55f, 0.8f, 1f), cruising ? 0.6f + 1.6f * throttle : 0.25f);
+                FxLights.Set(_engineLight, EngineLightColour, cruising ? (0.6f + 1.6f * throttle) * EngineLightBoost : 0.25f); // orange + brighter on a boost
             }
 
             // Below half hull the ship smokes and sparks from somewhere on its skin.
