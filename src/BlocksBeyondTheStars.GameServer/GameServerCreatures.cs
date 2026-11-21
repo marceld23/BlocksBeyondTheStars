@@ -1474,7 +1474,8 @@ public sealed partial class GameServer
                 // skirting an obstacle. Only when every probe is blocked too does it fall back to the re-roll,
                 // which preserves the "nothing can ever get stuck" property.
                 c.Vert.ClimbTargetY = 0f; // whatever it was hauling toward is off the table
-                if (TrySteerAround(c, sp, motion, stepped, terrainGates, out var detour, out float detourHeading))
+                if (TrySteerAround(c, sp, motion, stepped, terrainGates, out var detour, out float detourHeading)
+                    && !DetourLeadsNowhere(c, sp, motion, detour, terrainGates)) // #3880: not round and round its own column
                 {
                     // #2668: the body takes the free detour step, but the heading TURNS toward it (twice the turn rate)
                     // instead of snapping 35-110° in one tick. A roamer makes the detour its new roam heading; a hunter or
@@ -1497,9 +1498,9 @@ public sealed partial class GameServer
                 }
                 else
                 {
-                    c.Loco.ModeTimer = 0f; // boxed in — re-roll a fresh heading next tick
-                    // #2668: and it slows down, so the way out starts with an ease-in instead of at full cruise.
-                    c.Loco.Speed = System.Math.Max(0f, c.Loco.Speed - (2f * prof.Accel * (float)dt));
+                    // #3880: no detour ahead — turn toward a free neighbouring column, or stand calmly when there is none
+                    // (GameServerCreatureBoxedIn). It slows down either way (#2668), so the way out starts with an ease-in.
+                    OnNoDetourAhead(c, sp, motion, stepped, intent, prof, dt, terrainGates);
                 }
             }
             else if (needsRise)

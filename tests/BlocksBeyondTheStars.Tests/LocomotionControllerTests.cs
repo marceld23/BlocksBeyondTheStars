@@ -351,6 +351,75 @@ public sealed class LocomotionControllerTests
         Assert.True(gaveUp, "the roamer is still turning toward an unreachable heading");
     }
 
+    [Fact]
+    public void ABoxedInFleer_StandsAndHoldsItsHeading_NoJinkOnTheSpot()
+    {
+        // #3880: a fleer whose every way is shut used to keep its flight's zig-zag — ±34° on the spot ("it keeps turning back
+        // and forth hectically"). Boxed in, it stands still and holds its heading until the hold runs out.
+        var p = Roamer(cruise: 3f, turn: 6f);
+        p.WeaveAmp = 0.3f;
+        p.WeaveFreq = 1.4f;
+        var threat = new Vector3f(-30, 0, 0);
+        var s = default(LocomotionState);
+        var pos = new Vector3f(0, 0, 0);
+        for (int i = 0; i < 30; i++) // flee for a while: it is jinking at full speed when the way shuts
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Flee, threat, 0.05, 9u);
+            s = r.State; pos = r.Position;
+        }
+
+        s.BoxedTimer = 2f;
+        float heading = s.Heading;
+        for (int i = 0; i < 30; i++) // 1.5 s of the 2 s hold
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Flee, threat, 0.05, 9u);
+            Assert.Equal(heading, r.Facing);
+            Assert.Equal(pos, r.Position);
+            Assert.False(r.Moving);
+            Assert.Equal(MoveMode.Flee, r.State.Mode); // the intent reads unchanged
+            s = r.State;
+        }
+
+        Assert.InRange(s.BoxedTimer, 0.45f, 0.55f); // it counts down
+
+        var before = pos;
+        for (int i = 0; i < 40; i++) // the hold runs out: it flees (and jinks) again
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Flee, threat, 0.05, 9u);
+            s = r.State; pos = r.Position;
+        }
+
+        Assert.Equal(0f, s.BoxedTimer);
+        Assert.True(pos.X - before.X > 0.5f, $"after the hold the fleer runs again (from {before} to {pos})");
+    }
+
+    [Fact]
+    public void ABoxedInRoamer_Pauses_InsteadOfPickingANewHeadingWhenTheHoldEnds()
+    {
+        // #3880: a boxed-in roamer pivoted from one random heading to the next. Boxed in, its segment becomes a pause that
+        // lasts at least as long as the hold — standing, heading held, no turn in progress.
+        var p = Roamer();
+        var s = default(LocomotionState);
+        var pos = new Vector3f(0, 0, 0);
+        for (int i = 0; i < 20; i++)
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, 0.05, 31u);
+            s = r.State; pos = r.Position;
+        }
+
+        s.BoxedTimer = 2f;
+        s.Turning = true;
+        s.TurnTo = s.Heading + 2f; // a turn it was about to make is dropped
+        float heading = s.Heading;
+        var held = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, 0.05, 31u);
+        Assert.Equal(MoveMode.Pause, held.State.Mode);
+        Assert.True(held.State.ModeTimer >= held.State.BoxedTimer);
+        Assert.False(held.State.Turning);
+        Assert.Equal(heading, held.Facing);
+        Assert.Equal(pos, held.Position);
+        Assert.Equal(0f, held.State.Speed);
+    }
+
     private static float WrapPi(float a)
     {
         while (a > System.Math.PI) a -= 6.2831853f;

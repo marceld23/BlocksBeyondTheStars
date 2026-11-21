@@ -170,6 +170,13 @@ tamer's pet for people without that profession (owner `npc:<id>`, so it follows 
 creature rule spares it). Who keeps one comes from the people's own keys; the animal exists only while a player on foot
 is within 72 blocks of its person and is gone beyond 128.
 
+**Small for real** (#3879): a person's pet — a household's or the tamer's — is never a giant, and its drawn body is never
+wider than `PetMaxRadius` (0.8 blocks of `CreatureFootprint.Radius`), so it fits the rooms and doorways it follows its person
+through. `PetScaleFor` keeps the usual size factor (× 0.6 household, × 0.8 tamer) for a species that fits and scales a big
+one down — it comes as a young one. Before, "small" was only relative: a 3.35-block arachnid walked into the shop behind
+its person 4.4 blocks long and stood half through the walls (the server tracks a creature as one point). A pet from before
+shrinks on the next pass, a giant one is replaced. Tests: `PersonPetSizeTests`.
+
 ## 7. Sound and sight
 
 - **Emitters with hours.** A sound marker may carry `when=day|evening|night|waking`; `SoundEmitterMix.TimeGate` eases an

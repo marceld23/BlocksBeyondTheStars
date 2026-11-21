@@ -141,6 +141,24 @@ public sealed partial class CombatEntity
     /// -1 while it is not in one (<c>GameServerCreatureTownRules</c>). Server-only, never persisted.</summary>
     public double InTownSince { get; set; } = -1;
 
+    /// <summary>#3881: server uptime at which the intruder sweep first found this land animal standing in water deeper than it
+    /// can wade; -1 while it is not (<c>GameServerLandInDeepWater</c>). Server-only, never persisted.</summary>
+    public double InDeepWaterSince { get; set; } = -1;
+
+    /// <summary>#3880: the feet cell whose eight neighbouring columns were last probed for a way out
+    /// (<c>GameServerCreatureBoxedIn</c>), the creature-clock time the answer holds until, whether one was open and the heading
+    /// toward it. Server-only, never persisted.</summary>
+    public Vector3i WayOutCell { get; set; }
+
+    /// <inheritdoc cref="WayOutCell"/>
+    public double WayOutUntil { get; set; } = -1;
+
+    /// <inheritdoc cref="WayOutCell"/>
+    public bool WayOutOpen { get; set; }
+
+    /// <inheritdoc cref="WayOutCell"/>
+    public float WayOutHeading { get; set; }
+
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
 
