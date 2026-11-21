@@ -629,6 +629,15 @@ TEXTURES = [
     # #3645 the Labyrinth Builders: their near-black basalt-like wall stone, plain and engraved with a meander.
     ("maze_stone", "dark near-black grey basalt-like dressed wall stone filling the whole image edge to edge, a smooth cut surface of fine-grained charcoal grey rock with tiny pale mineral specks and faint chisel marks, evenly lit, dark but not pure black, matte, no border, no joints, seamless"),
     ("maze_stone_carved", "dark near-black grey basalt-like dressed wall stone filling the whole image edge to edge, deeply engraved with one continuous square meander maze pattern, a greek-key labyrinth of straight grooves running off all four edges, the grooves a little lighter grey with stone dust, evenly lit, dark but not pure black, matte, seamless"),
+    # #3912 the sky-lights and the other side (2026-11-21): the front of the Service's relay console (its sides wear the
+    # shared face_tech casing), one sealed cell of a guard post's capsule tank (two cells stack to a tank; top and bottom
+    # wear face_heal_tank_top / metal_panel — its opened twin capsule_tank_open is NOT generated: open_capsule_tank.py
+    # takes the window out of this tile, so both show the same frame) and the other side's sound block — near-white and
+    # plain on purpose: the server stamps a glow colour on every voxel, and everything else over there is greyscale
+    # (POST_PROCESS drops the model's cream cast).
+    ("sps_console", "the front of an old sci-fi relay console, a dark blue-grey machine panel filling the whole tile edge to edge with no background and no legs, a small dim blue screen with a few faint signal lines in its upper half, below it a row of small square buttons and one round dial, a darker border frame and small corner bolts, worn and old, flat front view"),
+    ("capsule_tank", "one wall segment of a sealed sci-fi stasis capsule tank, a thick dark metal frame with bolts that touches all four edges of the image and fills it completely, no white margin, no outline and no background around the frame, in its middle one large window of frosted milky pale blue-white glass that nothing can be seen through, one small red warning light glowing in the top frame bar, flat front view"),
+    ("sound_block", "a plain block of soft white light filling the whole image edge to edge, an almost uniform near-white softly luminous surface with one very faint pale grey ripple of thin concentric rings spreading from the centre like a sound wave in still water, extremely subtle, very bright, no colour, no border, no frame, seamless"),
 ]
 
 if TYPE_CHECKING:
@@ -652,10 +661,23 @@ def guardian_plating(img: Image.Image) -> Image.Image:
     return lifted
 
 
+def neutral_grey(img: Image.Image) -> Image.Image:
+    """The sound block's post-process (#3912): every pixel becomes its own luminance, alpha untouched.
+
+    The model answers "near-white, no colour" with a cream white. The block's colour is the glow the server stamps on
+    each voxel and the other side is greyscale, so the tile itself must carry no hue at all.
+    """
+    rgba = img.convert("RGBA")
+    grey = rgba.convert("L").convert("RGB")
+    grey.putalpha(rgba.getchannel("A"))
+    return grey
+
+
 # Per-tile post-processing applied to the generated 64 px tile before it is saved (key -> function).
 # Anything not listed here is written as generated.
 POST_PROCESS: dict[str, Callable[[Image.Image], Image.Image]] = {
     "enemy_robot": guardian_plating,
+    "sound_block": neutral_grey,
 }
 
 

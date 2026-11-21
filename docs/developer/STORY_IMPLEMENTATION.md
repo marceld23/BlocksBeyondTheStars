@@ -407,7 +407,7 @@ Code: `src/BlocksBeyondTheStars.GameServer/GameServerStoryMissions.cs` (+ small 
 `GameServerStoryLeads.cs`); model: `StoryMission` in `Shared/Story/StoryPackManifest.cs`.
 
 **Shape (the choice).** The missions live in the world story's manifest (`chapters[].missions[]`, each
-`{ id, titleKey, summaryKey?, feasibleIf[], alternative?, skippable?, steps[] }`), and the server compiles them once into a
+`{ id, titleKey, summaryKey?, feasibleIf[], alternative?, skippable?, keep?, steps[] }`), and the server compiles them once into a
 **per-player sub-track of the world story** — a `CompiledPack` with the story's own id (`IsStoryMissions`) whose optional
 chapters are the missions — run by the player-pack step runtime of #2466 (activation, the event bus, the mission bridge,
 `feasibleIf` / `alternative` / `alreadyDoneIf`, escalation, completion). A separate companion pack was the other option; it
@@ -437,9 +437,34 @@ mission whose `feasibleIf` does not hold is closed as skipped silently and its `
 that runs only standing in) starts instead; a step that cannot be done here gives way to its step `alternative` — at
 activation, and for the running step also later when its world fact goes away (the last fragment found by someone else).
 **Letting go:** when the player's chapter moves on, a running mission of an earlier chapter is closed — done when its steps
-are through, otherwise skipped with no further line. A mission none of whose steps was done (each impossible here) closes
+are through, otherwise skipped with no further line (unless it is marked `keep`, see below). A mission none of whose steps was done (each impossible here) closes
 as skipped. Never handed out at the join itself; never to an older client (no `packs1`: no lines, no state — it keeps its
 `story.obj.*` chip).
+
+**Staying open — `keep`** (#3892, `StoryMission.Keep` → `CompiledMission.Keep`; the alternative of a kept mission is kept
+with it). The chapter is derived from the *world's* beats, the same for every player, and some chapters last a single
+beat — so a mission bound to a rare place would be let go before most players reach it. A kept mission is exempt from the
+letting go, and the hand-out has a second group:
+
+- *Walking:* `AdvanceStoryMissions` lets go only `StoryChapterIndex < current && !Keep`; a kept mission of an earlier
+  chapter that runs keeps walking (its steps listen, speak and complete as ever).
+- *Handing out* (`StartNextMission` → `HandOutFirst`): first the current chapter's own missions, exactly as above. When
+  none of them runs and none is left to hand out, the kept missions of **earlier** chapters that are not through get their
+  turn — arc order, then data order, the same `feasibleIf` / `alternative` handling, the same waiting for the basic
+  training and the cutscene queue. **A kept mission never starts beside a running mission** (a kept mission of the current
+  chapter also waits while an earlier kept one runs — it cannot be lost — and the chapter's next mission goes first). A
+  mission without `keep` starts exactly as before, so it may start beside a kept one that still runs from an earlier
+  chapter: at most one kept mission and one of the current chapter run at a time.
+- *Chip:* `MissionChipStep` is the current chapter's running mission first, else the running kept one; the help
+  escalation, the evidence check and the lead marker follow the chip step. The finale rule below is unchanged — the open
+  finale keeps its chip and a kept mission goes on behind it.
+- *Journal:* `JournalMissions` lists the current chapter's missions (running or done) and after them the kept missions of
+  earlier chapters that still run (`NetStoryMission.ChapterId` is then that earlier chapter — no new wire field). One that
+  is through leaves the list, like every mission of an earlier chapter.
+- *Bonus:* a kept mission finished late pays under **its own** chapter's key (`PayLeadBonus(mission.StoryChapterId)`), with
+  the limits below.
+- A mission in the last chapter is never let go anyway; `keep` changes nothing there (validator warning). In a player pack
+  it is an error; on a mission that only stands in for one that is not kept, a warning.
 
 **Chip** (`StoryObjectiveFor` → `MissionObjectiveFor`): the running mission's step **takes the chapter lead's place** (rank 5
 "VEGA lead", source `story`, the story's id as the pack — "VEGA: …"); leads keep counting in the background and come back
@@ -455,8 +480,8 @@ is finished by playing — once by its once-key, after its `minBeat`, kept in th
 
 **Journal / wire / actions.** `NetStoryPack.Missions` (additive, the world story's entry): `NetStoryMission{Id, ChapterId,
 TitleKey, SummaryKey, State active|done, Skippable, Steps: NetStoryMissionStep{Id, Key, Arg, State done|active|upcoming,
-Progress, Target, OnChip}}` — the current chapter's running and done missions; skipped steps and unused stand-ins are left
-out; the running step carries the chip's text. The VEGA page shows them under "Missions in this chapter" above the leads
+Progress, Target, OnChip}}` — the current chapter's running and done missions, then the kept ones of earlier chapters that
+still run (#3892); skipped steps and unused stand-ins are left out; the running step carries the chip's text. The VEGA page shows them under "Missions in this chapter" above the leads
 (`JournalPackPage.MissionsOf` / `MissionTitle` / `MissionStepLine` / `MissionActions`), a new running mission lights the
 Journal badge, and "Skip mission" sends `StoryPackIntent{PackId = <world story>, Action = skipChapter, ChapterId =
 <mission>}` (`skipStep` works too) — handled by `ApplyStoryMissionIntent` (already pause-whitelisted). `/story` shows
@@ -469,27 +494,74 @@ Journal badge, and "Skip mission" sends `StoryPackIntent{PackId = <world story>,
 | 1 signature | *Follow the Signal* | find a net fragment (lead `fragment`, `world:fragments_left`) — stand-in: help a settlement (lead `settlement_help`, `world:settlements`) |
 | 2 service | *The Sealed Observatory* (`world:observatory_reachable`) | visit it (lead `unique_site:observatory`) → read the post's last log (`lore:read` observatory; `alreadyDoneIf lore:observatory_log`; marker `unique_site:observatory` after 5 s) |
 | 2 service | *The Deep Archive* — stands in (`world:vaults`) | read the notes in a buried vault (`lore:read` vault; `alreadyDoneIf lore:vault_plaque`) |
+| 2 service | *The Sky-Light* (`world:sps_towers`; **kept**; #3899, after the observatory or its stand-in) | reach a guide tower (`sps_tower:found`; `alreadyDoneIf world:sps_tower_near`; marker `nearest_sps_tower` after 5 s; a text variant while `not:world:sps_tower_known`) → read its relay console (`lore:read` sps_tower; `alreadyDoneIf` `lore:tower_ships` or `lore:tower_echo_1`). No stand-in: without towers it is skipped silently |
 | 3 guardian | *What the Stones Remember* | read a monument's runes (lead `monument`) → help a settlement (lead `settlement_help`, `world:settlements`) |
 | 4 verdict | *The Long Quiet* (`world:derelict_reachable`) | board the derelict (lead `unique_site:derelict`) → find its cargo manifest (`lore:read` derelict; `alreadyDoneIf lore:derelict_manifest`) |
 | 4 verdict | *Ships That Remember* — stands in (`world:free_flight`, `world:space_wrecks`) | scan a wreck drifting in space (`scan:any` wreck) |
 | 4 verdict | *The Fallen Giant* (`world:guardian_giants`; #3685, handed out after the derelict's mission) | find a lying guardian giant (`guardian_giant:found`; `alreadyDoneIf world:guardian_giant_near`) → scan it (`scan:performed` guardian_giant; `onComplete` the beat card `giant.remembers` — the scan speaks the insight `guardian_giant`) |
 | 4 verdict | *Echo of the Builders* — stands in (a world below terrain generation 44 without a giant) | scan an old wreck (`scan:performed` wreck\|giant_wreck; `world:free_flight`, `world:space_wrecks`) — stand-in: stop a Guardian machine (lead `machines`, `world:enemies`); the card `giant.remembers` and the insight `mission:m_giant_echo` (the same line) |
 | 5 what_you_are | *Eyes on Far Stars* | research the radar array → build it into the ship (leads `research:` / `module:radar_array`) |
+| 5 what_you_are | *The Sleeper* (`world:sps_towers`; **kept**; #3899, after the radar) | build a hacking chip (`craft:any` hacking_chip; `alreadyDoneIf world:hacking_chip_carried` or `world:sps_guard_awake`) → turn a guide tower's lamps blue (`sps_tower:lit`; `alreadyDoneIf world:sps_tower_lit_near` or `world:sps_tower_lit_by_player`; marker `nearest_sps_tower`) → open a guard post's capsule tank (`capsule:opened`; `alreadyDoneIf world:sps_guard_awake`; marker `nearest_sps_guard`; a text variant while `not:world:sps_guard_post_known`) → talk to the guard (`dialog:done` sps_guard; `alreadyDoneIf milestone:dialog:sps_guard:done`). The scenes `tower.message` and `tank.opens` are the towers' own (played by their code) |
 | 6 sleeps | *The Jump Generator* | research the jump generator → build it into the ship |
+| 6 sleeps | *ECHO's Call* (`world:space_bosses`; **kept**; #3899, after the jump generator) | fly out (`space:enter`; a text variant when `lore:tower_echo_1…3` are all read) → beat the escort cruiser (`cruiser:defeated`) → board its wreck (`cruiser:boarded` echo) → free ECHO at the bridge console (`echo:freed`); every step `alreadyDoneIf world:echo_freed`. The cruiser is brought by the story (below); the mission ends on the insight `mission:m_echo_call` |
 | 7 core | — | the finale is the chapter's mission (its lead, never muted, and its set pieces) |
 | 8 resolution | *Survey Orders* (epilogue) | do the first survey order from a station board (mission bridge `relay_survey_1`, `world:space_stations`) — stand-in: link the stars with relays (lead `relay`) |
 
 Test seams: `TickStoryMissionsForTest`, `StoryMissionIdsForTest`, `MissionChipStepForTest`, `RunningMissionsForTest`,
-`JournalMissionsForTest`, `MissionLeadResolutionsForTest`, `StoryMissionStatusForTest`. Tests: `VegaStoryMissionsTests`;
-Client.Tests `JournalViewTests` (mission rows).
+`JournalMissionsForTest`, `MissionLeadResolutionsForTest`, `StoryMissionStatusForTest`, `LeadBonusPaidForTest`. Tests:
+`VegaStoryMissionsTests`, `KeptStoryMissionsTests` (#3892, a mission list built in the test); Client.Tests
+`JournalViewTests` (mission rows).
+
+### The sky-lights' missions: evidence while a step runs, and ECHO's cruiser (#3899)
+
+The three kept missions are pack data; two small server parts make them hold in every world
+(`GameServerSkyLightMissions.cs`, `GameServerEchoCallStory.cs`, one line in the 1 Hz story pass after
+`TickStoryMissions`). Neither names a mission or step id — the rules read the steps' events.
+
+**Evidence while a step runs** (`TickSkyLightMissions` → `MissionStepEvidence`). `alreadyDoneIf` is asked once, when a
+step activates, and an event counts only from then on. A mission step is therefore also followed by what holds *now* —
+like a lead bridge by its lead's evidence — and completes as if its event had come (its done line when it is the chip
+step):
+
+| Step's event | Evidence |
+|---|---|
+| `craft:any` with a recipe | the player carries that recipe's first output (backpack, or the hold of the active ship) — a hacking chip a Hunter dropped counts |
+| `capsule:opened` (no argument) | a capsule tank of the save was opened (somebody else did it, out of the event's 24 blocks) |
+| `space:enter` (no argument) | the player is in flight already |
+| `cruiser:defeated` — in a mission that ends on `echo:freed` | a wreck that carries ECHO drifts somewhere (another pilot's fight), or ECHO is free |
+| `cruiser:boarded` / `echo:freed` — in such a mission | ECHO was freed in this save |
+
+**ECHO's cruiser** (`TickEchoCallFlight`, for a pilot with an open step of such a mission). After
+`EchoCallFlightSeconds` (25) of the flight the story calls `SummonEscortCruiser(instance, carriesEcho: true)` — VEGA's
+warning, the cruiser `EscortCruiserRules.WarnSeconds` later — **once per flight instance** (`SpaceInstance.EchoCallSummoned`,
+also set when the summon is refused), never in the Guardian's finale system, and only while ECHO is still held: not once
+she was freed in this save, not while her cruiser's wreck waits to be boarded (a wreck lost to a later one before she
+was freed lets the cruiser come again). A pilot who flees or loses the ship keeps the step; a later flight (a new
+instance: another launch, another system) brings the cruiser again. An escort cruiser that is already in the flight or on
+its way (the rare ambush) **becomes hers** instead of a second one coming (canon C22: the first one a player meets).
+When her cruiser is in the pilot's flight the pack's card `cruiser.arrives` goes out with VEGA's line
+`story.vega.cruiser.arrives`, once per player (`story:echo_call:arrival`).
+
+**"Freed in this save"** (`EchoFreedInSave`, the predicate `world:echo_freed`) is the once-key `echo:freed` in the story's
+state (`StoryState.MilestoneKeys` — a key there is no score), written the first time a player with `story:echo_freed` is
+seen, or a wreck's record that still says so: the record itself goes when a later wreck takes its system. New predicates:
+`world:space_bosses` (`SpaceBossesAllowed`), `world:echo_freed`, `world:hacking_chip_carried`,
+`world:sps_tower_lit_by_player` (one of the towers' per-player `story:sps_tower:lit:<site>` keys).
+
+**Multiplayer.** Every pilot who hurt the cruiser gets `cruiser:defeated`; everybody aboard when the bridge turns blue gets
+`echo:freed`. A player whose steps run while another pilot wins the fight or frees ECHO is passed on by the evidence above,
+and one who gets the mission afterwards has every step closed at once by `alreadyDoneIf world:echo_freed` — the insight
+`mission:m_echo_call` is then VEGA's one line. Tests: `SkyLightsMissionsTests`; seams `TickSkyLightMissionsForTest`,
+`EchoCallFlightForTest`, `EchoFreedKeyWrittenForTest`.
 
 ## The 1 Hz story pass (#2477)
 
 Once a second per joined, non-observing player, `TickStoryPass` (`GameServerShipAi.cs`) runs the story's bookkeeping in
 this order: the player packs (`TickStoryPacksFor`: start, advance, offers, help escalation on active play time), the world
 story's start rule (`TryStartStoryTrack`), the chapter leads (`TickStoryLeads`: evidence, the heal tank, the marker), VEGA's
-story missions (`TickStoryMissions`: hand-out, letting go, evidence, re-checks, escalation), the objective chip
-(`RefreshVegaObjective`) and the story help markers (`SyncStoryMarkers`, #2570: a closed step's marker leaves the client's
+story missions (`TickStoryMissions`: hand-out, letting go, evidence, re-checks, escalation), the sky-lights' missions
+(`TickSkyLightMissions`, #3899: mission steps followed by what holds now, ECHO's cruiser for a pilot who follows her call), the
+objective chip (`RefreshVegaObjective`) and the story help markers (`SyncStoryMarkers`, #2570: a closed step's marker leaves the client's
 map and compass). Queued cutscenes are not part of it — `TickCutscenes` flushes them every server tick (#2468).
 
 Two callers, one per player and second:

@@ -90,7 +90,7 @@ public sealed partial class GameServer
             _wildCounts.Clear();
             foreach (var c in _creatures)
             {
-                if (c.IsCompanion || c.IsGiant) // #1998: giants are outside the cap
+                if (c.IsCompanion || c.IsGiant || c.OtherSideOnly) // #1998: giants are outside the cap; #3905: so is the other side
                 {
                     continue;
                 }
@@ -435,7 +435,7 @@ public sealed partial class GameServer
             if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
             {
                 _creatureTargets.Add(s);
-                if (!s.Watching && !RidesTrain(s))
+                if (!s.Watching && !RidesTrain(s) && !s.OtherSide) // #3905: no animal reacts to a player who is over there
                 {
                     _creatureReactors.Add(s);
                 }
@@ -3718,11 +3718,10 @@ public sealed partial class GameServer
 
     private void BroadcastCreatures() => _worlds.Active.CreatureListDirty = true; // #1530: flushed once per tick
 
-    private void SendCreatureList()
-        => BroadcastToWorld(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray(), ServerTime = SnapshotTime });
+    private void SendCreatureList() => SendCreatureListBySide(); // #3905: the animals of the other side only for who is over there
 
     private void SendCreatures(PlayerSession session)
-        => Send(session, new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray(), ServerTime = SnapshotTime });
+        => Send(session, new CreatureList { Creatures = CreaturesFor(session), ServerTime = SnapshotTime }); // #3905
 
     private NetCreature ToNetCreature(CombatEntity e) => WithRobotGear(WithGiantWire(ToNetCreatureCore(e), e), e); // #1998; #3398/#3399
 

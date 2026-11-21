@@ -15,8 +15,11 @@
     "voice": [ "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" ], "lineStart": "ai_blip"
   },
   // #2478: the pack's other voice — the Guardian core in the duel dialogue (red, the anomaly's hum when it speaks).
+  // #3899: ECHO, VEGA's sister core of the escort wing — the voice of the scene echo.speaks (blue, like the lamps she is
+  // freed under; the engine's name key chr.echo.name, which the bridge code uses for her panel lines too).
   "speakers": [
-    { "id": "core", "nameKey": "ui.finale.duel_title", "color": "#FF5A4A", "lineStart": "anomaly_hum" }
+    { "id": "core", "nameKey": "ui.finale.duel_title", "color": "#FF5A4A", "lineStart": "anomaly_hum" },
+    { "id": "echo", "nameKey": "chr.echo.name", "color": "#6FA8FF", "lineStart": "ai_blip" }
   ],
   "introCutscene": "prologue",
   // #2478: the finale set pieces (cutscenes.json), each played once per player whose story track started: the arrival card
@@ -74,7 +77,27 @@
           { "id": "m_archive.1", "tier": "core", "objective": { "event": "lore:read", "arg": "vault" },
             "alreadyDoneIf": [ "lore:vault_plaque" ],
             "explain": { "startKey": "story.vega.m.archive.1.start", "chipKey": "story.vega.m.archive.1.obj",
-                         "hintKey": "story.vega.m.archive.1.hint", "doneKey": "story.vega.m.archive.1.done" } } ] } ] },
+                         "hintKey": "story.vega.m.archive.1.hint", "doneKey": "story.vega.m.archive.1.done" } } ] },
+        // #3899: the sky-lights (canon C19) — after the observatory (or its stand-in): reach a guide tower, read its relay
+        // console. It stays open after the chapter ("keep": a tower may be worlds away) and is skipped silently in a save
+        // that can have no towers (terrain generation below 47, or switched off) — no stand-in, like nothing was there.
+        // While no tower is known yet VEGA says where the first one will be (the variant); the marker names a visited world
+        // with a tower from afar. A tower found or read before the mission counts. Chapter 2 knows the Service and nothing
+        // of the Guardian: the texts say nothing of why the lamps are red (VEGA's own tower lines follow the player's story).
+        { "id": "m_sky_light", "titleKey": "story.vega.m.sky_light.title", "keep": true,
+          "feasibleIf": [ "world:sps_towers" ], "steps": [
+          { "id": "m_sky_light.1", "tier": "core", "objective": { "event": "sps_tower:found" },
+            "alreadyDoneIf": [ "world:sps_tower_near" ],
+            "onStart": { "reveal": "nearest_sps_tower" }, "escalate": { "markerAfter": 5 },
+            "variants": [ { "when": "not:world:sps_tower_known", "startKey": "story.vega.m.sky_light.1.start_unknown",
+                            "hintKey": "story.vega.m.sky_light.1.hint_unknown" } ],
+            "explain": { "startKey": "story.vega.m.sky_light.1.start", "chipKey": "story.vega.m.sky_light.1.obj",
+                         "hintKey": "story.vega.m.sky_light.1.hint", "doneKey": "story.vega.m.sky_light.1.done" } },
+          { "id": "m_sky_light.2", "tier": "core", "objective": { "event": "lore:read", "arg": "sps_tower" },
+            "alreadyDoneIf": [ "any:[lore:tower_ships,lore:tower_echo_1]" ],
+            "onStart": { "reveal": "nearest_sps_tower" }, "escalate": { "markerAfter": 5 },
+            "explain": { "startKey": "story.vega.m.sky_light.2.start", "chipKey": "story.vega.m.sky_light.2.obj",
+                         "hintKey": "story.vega.m.sky_light.2.hint", "doneKey": "story.vega.m.sky_light.2.done" } } ] } ] },
     { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5, "openCutscene": "ch3.open",
       "leads": [ { "type": "monument" }, { "type": "settlement_help" } ],
       "missions": [
@@ -137,7 +160,39 @@
                          "hintKey": "story.vega.m.hint.research" } },
           { "id": "m_radar.2", "tier": "core", "objective": { "type": "Lead", "target": "module:radar_array" },
             "explain": { "startKey": "story.vega.m.radar.2.start", "chipKey": "story.vega.m.radar.2.obj",
-                         "hintKey": "story.vega.m.hint.module", "doneKey": "story.vega.m.radar.2.done" } } ] } ] },
+                         "hintKey": "story.vega.m.hint.module", "doneKey": "story.vega.m.radar.2.done" } } ] },
+        // #3899: the sleeper (canon C20, C21) — after the radar: build a hacking chip, light a guide tower, open the capsule
+        // tank of a guard post, talk to the guard. Kept; skipped silently without towers. Each step counts what was done
+        // before (a chip carried, a tower lit by this player or lit nearby, a tank opened in this save, the dialog talked
+        // through) — and the story glue (GameServerSkyLightMissions.cs) books the same evidence when it turns true while
+        // the step runs (a chip dropped by a Hunter, a tank somebody else opened). Step 3 has ONE objective whatever the
+        // world knows; its variant only changes the words while no guard post is known (about four towers in ten have one,
+        // the save's first tower always) — a stand-in step could never hand back, and a wait would leave the chip empty.
+        // The chapter starts with B9, so VEGA may speak of the heal tank as the player's cradle; "He is like you" is the
+        // insight sps_guard, said near the guard after the talk.
+        { "id": "m_sleeper", "titleKey": "story.vega.m.sleeper.title", "keep": true,
+          "feasibleIf": [ "world:sps_towers" ], "steps": [
+          { "id": "m_sleeper.1", "tier": "core", "objective": { "event": "craft:any", "arg": "hacking_chip" },
+            "alreadyDoneIf": [ "any:[world:hacking_chip_carried,world:sps_guard_awake]" ],
+            "explain": { "startKey": "story.vega.m.sleeper.1.start", "chipKey": "story.vega.m.sleeper.1.obj",
+                         "hintKey": "story.vega.m.sleeper.1.hint", "doneKey": "story.vega.m.sleeper.1.done" } },
+          { "id": "m_sleeper.2", "tier": "core", "objective": { "event": "sps_tower:lit" },
+            "alreadyDoneIf": [ "any:[world:sps_tower_lit_near,world:sps_tower_lit_by_player]" ],
+            "onStart": { "reveal": "nearest_sps_tower" }, "escalate": { "markerAfter": 5 },
+            "explain": { "startKey": "story.vega.m.sleeper.2.start", "chipKey": "story.vega.m.sleeper.2.obj",
+                         "hintKey": "story.vega.m.sleeper.2.hint", "doneKey": "story.vega.m.sleeper.2.done" } },
+          { "id": "m_sleeper.3", "tier": "core", "objective": { "event": "capsule:opened" },
+            "alreadyDoneIf": [ "world:sps_guard_awake" ],
+            "onStart": { "reveal": "nearest_sps_guard" }, "escalate": { "markerAfter": 5 },
+            "variants": [ { "when": "not:world:sps_guard_post_known", "startKey": "story.vega.m.sleeper.3.start_unknown",
+                            "chipKey": "story.vega.m.sleeper.3.obj_unknown", "hintKey": "story.vega.m.sleeper.3.hint_unknown" } ],
+            "explain": { "startKey": "story.vega.m.sleeper.3.start", "chipKey": "story.vega.m.sleeper.3.obj",
+                         "hintKey": "story.vega.m.sleeper.3.hint" } },
+          { "id": "m_sleeper.4", "tier": "core", "objective": { "event": "dialog:done", "arg": "sps_guard" },
+            "alreadyDoneIf": [ "milestone:dialog:sps_guard:done" ],
+            "onStart": { "reveal": "nearest_sps_guard" }, "escalate": { "markerAfter": 5 },
+            "explain": { "startKey": "story.vega.m.sleeper.4.start", "chipKey": "story.vega.m.sleeper.4.obj",
+                         "hintKey": "story.vega.m.sleeper.4.hint", "doneKey": "story.vega.m.sleeper.4.done" } } ] } ] },
     { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11, "openCutscene": "ch6.open",
       "leads": [ { "type": "research:jump_generator" }, { "type": "module:jump_generator" } ],
       "missions": [
@@ -147,7 +202,36 @@
                          "hintKey": "story.vega.m.hint.research" } },
           { "id": "m_jump.2", "tier": "core", "objective": { "type": "Lead", "target": "module:jump_generator" },
             "explain": { "startKey": "story.vega.m.jump.2.start", "chipKey": "story.vega.m.jump.2.obj",
-                         "hintKey": "story.vega.m.hint.module", "doneKey": "story.vega.m.jump.2.done" } } ] } ] },
+                         "hintKey": "story.vega.m.hint.module", "doneKey": "story.vega.m.jump.2.done" } } ] },
+        // #3899: ECHO's call (canon C22) — after the jump generator: fly out, beat the escort cruiser that carries VEGA's
+        // sister core, board its wreck, free ECHO at the bridge console (a hacking chip). Kept; skipped silently where the
+        // rules allow no space boss. The briefing has two forms: the three pieces of her call read at the towers fit
+        // together, or VEGA picks the call up herself (a save without towers, or pieces still missing). The cruiser is
+        // brought by the story glue (GameServerEchoCallStory.cs) while the fight step runs — a flight a pilot flees from
+        // or loses simply ends, and a later flight brings it again. In multiplayer every pilot of the fight gets the
+        // defeat; a player whose steps run while the wreck already drifts, or ECHO is already free, is passed on by the same
+        // glue, and one who gets the mission after ECHO was freed has it done at once (alreadyDoneIf). The mission's last
+        // word is the insight mission:m_echo_call — for the pilot who freed her and for the one who came too late.
+        { "id": "m_echo_call", "titleKey": "story.vega.m.echo_call.title", "keep": true,
+          "feasibleIf": [ "world:space_bosses" ], "steps": [
+          { "id": "m_echo_call.1", "tier": "core", "objective": { "event": "space:enter" },
+            "alreadyDoneIf": [ "world:echo_freed" ],
+            "variants": [ { "when": "all:[lore:tower_echo_1,lore:tower_echo_2,lore:tower_echo_3]",
+                            "startKey": "story.vega.m.echo_call.1.start_pieces" } ],
+            "explain": { "startKey": "story.vega.m.echo_call.1.start", "chipKey": "story.vega.m.echo_call.1.obj",
+                         "hintKey": "story.vega.m.echo_call.1.hint" } },
+          { "id": "m_echo_call.2", "tier": "core", "objective": { "event": "cruiser:defeated" },
+            "alreadyDoneIf": [ "world:echo_freed" ],
+            "explain": { "startKey": "story.vega.m.echo_call.2.start", "chipKey": "story.vega.m.echo_call.2.obj",
+                         "hintKey": "story.vega.m.echo_call.2.hint" } },
+          { "id": "m_echo_call.3", "tier": "core", "objective": { "event": "cruiser:boarded", "arg": "echo" },
+            "alreadyDoneIf": [ "world:echo_freed" ],
+            "explain": { "startKey": "story.vega.m.echo_call.3.start", "chipKey": "story.vega.m.echo_call.3.obj",
+                         "hintKey": "story.vega.m.echo_call.3.hint" } },
+          { "id": "m_echo_call.4", "tier": "core", "objective": { "event": "echo:freed" },
+            "alreadyDoneIf": [ "world:echo_freed" ],
+            "explain": { "startKey": "story.vega.m.echo_call.4.start", "chipKey": "story.vega.m.echo_call.4.obj",
+                         "hintKey": "story.vega.m.echo_call.4.hint" } } ] } ] },
     { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12, "openCutscene": "ch7.open",
       "leads": [ { "type": "finale" } ] },
     { "id": "resolution",   "titleKey": "story.vega.ch.resolution",   "fromEvent": "guardian_defeated",
@@ -174,7 +258,14 @@
     // #3685: VEGA remembers the guardian giants — at a scanned giant, or when the giant mission's stand-in is done
     // (mission:<id> = a story mission finished by playing); one line, one once-key.
     { "event": "guardian_giant", "minBeat": 5, "textKey": "story.vega.insight.guardian_giant", "onceKey": "story:insight:guardian-giant" },
-    { "event": "mission:m_giant_echo", "minBeat": 5, "textKey": "story.vega.insight.guardian_giant", "onceKey": "story:insight:guardian-giant" }
+    { "event": "mission:m_giant_echo", "minBeat": 5, "textKey": "story.vega.insight.guardian_giant", "onceKey": "story:insight:guardian-giant" },
+    // #3895: VEGA remembers the sky-lights — at a guide tower's console (read or lit), once the Service is known (B2).
+    { "event": "sps_tower", "minBeat": 2, "textKey": "story.vega.insight.sps_tower", "onceKey": "story:insight:sps-tower" },
+    // #3897: "He is like you" — near the sleeper after his dialog, once the player's story knows what they are (B9).
+    { "event": "sps_guard", "minBeat": 9, "textKey": "story.vega.insight.sps_guard", "onceKey": "story:insight:sps-guard" },
+    // #3899: the last word of "ECHO's Call" — VEGA keeps her sister's goodbye (the mission finished: by freeing ECHO, or
+    // because somebody else already had).
+    { "event": "mission:m_echo_call", "minBeat": 11, "textKey": "story.vega.insight.echo", "onceKey": "story:insight:echo" }
   ],
   "fragmentWeight": 3,
   "killWeight": 1,
@@ -254,7 +345,13 @@
     { "key": "fl_redlights",      "textKey": "flavour.fl_redlights",      "minKnowledge": 1, "weight": 2 },
     { "key": "fl_machines_stir",  "textKey": "flavour.fl_machines_stir",  "minKnowledge": 2, "weight": 2 },
     { "key": "fl_guardian_rumor", "textKey": "flavour.fl_guardian_rumor", "minKnowledge": 3, "weight": 1 },
-    { "key": "fl_peace",          "textKey": "flavour.fl_peace",          "minKnowledge": 4, "weight": 1 }
+    { "key": "fl_peace",          "textKey": "flavour.fl_peace",          "minKnowledge": 4, "weight": 1 },
+    // #3895: the guide tower of the settlers' own world (world tags set by the server: a tower of this world still shows
+    // red / one of them is lit blue).
+    { "key": "fl_tower_red",      "textKey": "flavour.fl_tower_red",      "minKnowledge": 0, "weight": 2, "worldTags": [ "sps_tower_red" ] },
+    { "key": "fl_tower_legend",   "textKey": "flavour.fl_tower_legend",   "minKnowledge": 1, "weight": 2, "worldTags": [ "sps_tower_red" ] },
+    { "key": "fl_tower_children", "textKey": "flavour.fl_tower_children", "minKnowledge": 0, "weight": 1, "worldTags": [ "sps_tower_red" ] },
+    { "key": "fl_tower_blue",     "textKey": "flavour.fl_tower_blue",     "minKnowledge": 0, "weight": 3, "worldTags": [ "sps_tower_blue" ] }
   ],
   "missionThreads": [
     { "missionIdContains": "settlement", "fragmentKey": "frag_settler_legend" }
@@ -302,6 +399,67 @@
           "choices": [
             { "textKey": "chr.sel.n0.c_help", "responseKey": "chr.sel.n0.r_help", "consequence": "radio:chr.sel.call" },
             { "textKey": "chr.sel.n0.c_decline", "responseKey": "chr.sel.n0.r_decline", "consequence": "standing:1" }
+          ]
+        }
+      ]
+    },
+    // #3897: the sleeper — the guard of the escort wing who steps out of a guard post's capsule tank (a code-spawned NPC
+    // bound by "character", GameServerSleeper.cs; canon C20–C22). Every player gets their own conversation; either last
+    // reply hands over the rusted Guardian plasma, once (the dialog is done then). He says nothing of what he is.
+    {
+      "key": "sps_guard",
+      "character": "sps_guard",
+      "minStage": "",
+      "oncePerPlayer": true,
+      "nodes": [
+        {
+          "promptKey": "chr.sps_guard.n0",
+          "choices": [
+            { "textKey": "chr.sps_guard.n0.c_easy", "responseKey": "chr.sps_guard.n0.r_easy", "next": 1 },
+            { "textKey": "chr.sps_guard.n0.c_who", "responseKey": "chr.sps_guard.n0.r_who", "next": 1 }
+          ]
+        },
+        {
+          "promptKey": "chr.sps_guard.n1",
+          "choices": [
+            { "textKey": "chr.sps_guard.n1.c_years", "responseKey": "chr.sps_guard.n1.r_years", "next": 2 },
+            { "textKey": "chr.sps_guard.n1.c_tower", "responseKey": "chr.sps_guard.n1.r_tower", "next": 2 }
+          ]
+        },
+        {
+          "promptKey": "chr.sps_guard.n2",
+          "choices": [
+            { "textKey": "chr.sps_guard.n2.c_then", "responseKey": "chr.sps_guard.n2.r_then", "next": 3 },
+            { "textKey": "chr.sps_guard.n2.c_armour", "responseKey": "chr.sps_guard.n2.r_armour", "next": 3 }
+          ]
+        },
+        {
+          "promptKey": "chr.sps_guard.n3",
+          "choices": [
+            { "textKey": "chr.sps_guard.n3.c_echo", "responseKey": "chr.sps_guard.n3.r_echo", "next": 4 },
+            { "textKey": "chr.sps_guard.n3.c_vega", "responseKey": "chr.sps_guard.n3.r_vega", "next": 4 }
+          ]
+        },
+        {
+          "promptKey": "chr.sps_guard.n4",
+          "choices": [
+            { "textKey": "chr.sps_guard.n4.c_thanks", "responseKey": "chr.sps_guard.n4.r_thanks", "consequence": "gift:guardian_plasma_rusted:1" },
+            { "textKey": "chr.sps_guard.n4.c_now", "responseKey": "chr.sps_guard.n4.r_now", "consequence": "gift:guardian_plasma_rusted:1" }
+          ]
+        }
+      ]
+    },
+    // His talk afterwards (repeatable): how he is, and where the old sidearm can be rebuilt.
+    {
+      "key": "sps_guard_again",
+      "character": "sps_guard",
+      "minStage": "",
+      "nodes": [
+        {
+          "promptKey": "chr.sps_guard.again.n0",
+          "choices": [
+            { "textKey": "chr.sps_guard.again.c_how", "responseKey": "chr.sps_guard.again.r_how" },
+            { "textKey": "chr.sps_guard.again.c_gun", "responseKey": "chr.sps_guard.again.r_gun" }
           ]
         }
       ]

@@ -152,6 +152,10 @@ public sealed class MemoryWorldSnapshot
     /// <summary>The structure overlays (terrain generation 39): a landmark's cells, one blob per placed landmark. Additive:
     /// a snapshot written before them reads back as an empty list.</summary>
     public List<StoredStructureOverlay> StructureOverlays { get; set; } = new();
+
+    /// <summary>The sound blocks of the other side (#3907). Additive: a snapshot written before them reads back as an
+    /// empty list.</summary>
+    public List<StoredSoundCell> SoundCells { get; set; } = new();
 }
 
 /// <summary>
@@ -317,6 +321,7 @@ public sealed partial class MemoryWorldRepository : IWorldRepository
                 Generation = kv.Value.Generation,
             }).ToList(),
             StructureOverlays = SnapshotStructureOverlaysLocked(),
+            SoundCells = SnapshotSoundCellsLocked(),
         };
 
         foreach (var kv in _blockEdits)
@@ -415,6 +420,7 @@ public sealed partial class MemoryWorldRepository : IWorldRepository
         _fluidCells.Clear();
         _fireCells.Clear();
         RestoreStructureOverlaysLocked(snapshot.StructureOverlays);
+        RestoreSoundCellsLocked(snapshot.SoundCells);
 
         foreach (var kv in snapshot.BlockPalette)
         {

@@ -125,5 +125,31 @@ public static partial class NetCodec
         // #3870: a sample handed to a research station's archive. An older server drops it (the client offers the button
         // only aboard a research station, which an older server never makes). The next message after this takes 361.
         Register(360, typeof(GiveSampleToStationIntent));    // Client -> Server
+
+        RegisterSkyLightsMessages();
+    }
+
+    /// <summary>The package "sky-lights &amp; other side" (epic #3891, ids 361 and up): its messages in the order they were
+    /// taken. A method of its own so that <see cref="RegisterAdminViewMessages"/> stays under the code-health limit.</summary>
+    private static void RegisterSkyLightsMessages()
+    {
+        // #3901 the generic boss bar: a boss fight's name, health, shield and phase (the escort cruiser, #3900). No protocol
+        // bump — an older client drops it (no bar; the fight itself is ordinary space state). The next message after
+        // this takes 362.
+        Register(361, typeof(BossStatus));                  // Server -> Client
+
+        // #3904 the other side: where the player stands (over there or not), the entry gate's marker and the sound-block
+        // meter. No protocol bump — an older client drops it, and it can never cross (capability word otherside1). The
+        // next message after this takes 363.
+        Register(362, typeof(OtherSideState));              // Server -> Client
+
+        // #3898 the held beam of a weapon (the Guardian laser): one tick per message while the fire control is held. No
+        // protocol bump — an older server drops it (the weapon then only fires its tap shot). What the others see rides
+        // on ActionFx (two new kinds an older client ignores). The next message after this takes 364.
+        Register(363, typeof(BeamWeaponIntent));            // Client -> Server
+
+        // #3906 the rune gates around a player who is over there, for the tall lights the client stands over them. No
+        // protocol bump — an older client drops it (and can never cross). The next message after this takes 365.
+        Register(364, typeof(OtherSideGates));              // Server -> Client
     }
 }

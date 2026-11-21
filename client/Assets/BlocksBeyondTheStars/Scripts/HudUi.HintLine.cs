@@ -37,6 +37,41 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>
+        /// The controls line's text for this refresh: nothing in the space view (it prints its own line in the same spot,
+        /// #2247), with the line switched off and on touch (the on-screen buttons label themselves); else the short or
+        /// the full line of the device in hand, with the hints of the moment (<see cref="WithContextHints"/>).
+        /// <para>#3906: on the other side the FULL line would name mining, placing, attacking and looting — none of which
+        /// exists over there. It gives way to the other side's own line: with the Resonance Blaster in hand the
+        /// palette's keys (<see cref="OtherSideBarHint"/> — shape, dissolve, a tone picks the next sound), else the short
+        /// line (move, jump, use, menu — the use key works a rune stone and talks to the Echoes). The short line names
+        /// nothing that is refused over there, so it stays as it is.</para>
+        /// </summary>
+        private string ControlsLine(BlocksBeyondTheStars.Shared.Localization.Localizer loc, int hintMode, bool shortHint)
+        {
+            var device = InputMap.ActiveDevice;
+            if (Game.SpaceViewActive || hintMode == ClientSettings.ControlsHintOff || device == InputDeviceKind.Touch)
+            {
+                return string.Empty;
+            }
+
+            bool pad = device == InputDeviceKind.Gamepad;
+            bool overThere = Game.OtherSide.Over;
+            if (overThere && !shortHint && HoldsSoundBlaster())
+            {
+                return OtherSideBarHint(loc, device);
+            }
+
+            if (shortHint || overThere)
+            {
+                // #2461 (N9) / #2502: the pad's glyph set and bindings, the keyboard's bound keys ({key:Action} tokens).
+                string line = pad ? PadLine(loc, "ui.hud.hint_short_pad") : ExpandKeyTokens(loc, loc.Get("ui.hud.hint_short"));
+                return shortHint ? WithContextHints(loc, line, shortHint: true) : line;
+            }
+
+            return WithContextHints(loc, pad ? PadHint(loc) : KeyboardHint(loc, MelodyBarShown), shortHint: false); // #3431: no hotbar under the bar
+        }
+
+        /// <summary>
         /// Adds the hints that only apply in the moment to the controls line: the full line appends all of them, the short
         /// one lets the first that applies take its last slot (the menu key, which the pause menu's Esc needs no line for)
         /// — so the short line stays at four keys and still names the control the player cannot find otherwise (#3668).

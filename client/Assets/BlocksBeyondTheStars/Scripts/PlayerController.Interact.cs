@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A lootable container is within loot reach (LootContainer applies) — #2726: not a cache that belongs to a
         /// village's people (the HUD says whose it is, the server refuses the take), so the Actions list does not offer it;
         /// #3294: nor someone else's owner-locked crate (the owner's own one is offered).</summary>
-        public bool NearContainer => Game != null
+        public bool NearContainer => Game != null && !OverThere // #3906: no container prompt over there
             && InteractReach.NearestContainer(Game.Containers, transform.position.x, transform.position.y, transform.position.z,
                 Game.Circumference, crateOnly: false) is { } nearest
             && string.IsNullOrEmpty(nearest.OwnedBy)
@@ -53,7 +53,7 @@ namespace BlocksBeyondTheStars.Client
 
         private bool ComputeCanFeedCreature()
         {
-            if (Game?.Content == null || Game.Creatures == null)
+            if (Game?.Content == null || Game.Creatures == null || OverThere) // #3906: nothing is fed over there
             {
                 return false;
             }
@@ -94,7 +94,7 @@ namespace BlocksBeyondTheStars.Client
             => Game != null && (Game.Aboard || Game.LoadingPlanetType == "ship_interior") && !NearCrate && !Game.Visiting;
 
         /// <summary>A wreck is registered for repair (RepairWreck applies — the aim check happens on press).</summary>
-        public bool NearWreck => Game != null && Game.Wreck != null;
+        public bool NearWreck => Game != null && Game.Wreck != null && !OverThere; // #3906: no repair over there
 
         /// <summary>At the own ship's cockpit or console while the repair panel is up: RepairWreck repairs the SHIP here
         /// (#1561). Also what puts "Repair" into the Actions list for pads and touch, which have no R.</summary>
@@ -105,7 +105,7 @@ namespace BlocksBeyondTheStars.Client
         /// names the same one (#2613: <see cref="InteractReach.NearestContainer"/> is the one picker for both).</summary>
         private string NearestContainerId(bool crateOnly)
         {
-            if (Game == null)
+            if (Game == null || OverThere) // #3906: no loot and no deposit over there (the server refuses both)
             {
                 return null;
             }
@@ -162,6 +162,11 @@ namespace BlocksBeyondTheStars.Client
             if (Camera == null || !InputMap.PrimaryHeld() || CarryHoldsHands) // #3766: no digging with a block held up
             {
                 return;
+            }
+
+            if (OverThere)
+            {
+                return; // #3906: nothing is mined on the other side — no swing, no sparks, no intent
             }
 
             bool drill = HoldingDrill();
@@ -430,6 +435,11 @@ namespace BlocksBeyondTheStars.Client
             if (Game?.Network == null || Camera == null || CarryHoldsHands) // #3766: both hands hold the block
             {
                 return;
+            }
+
+            if (OtherSideOwnsHands())
+            {
+                return; // #3906/#3908: over there the hands only shape sound with the Resonance Blaster
             }
 
             bool mine = InputMap.PrimaryDown();

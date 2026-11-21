@@ -78,6 +78,8 @@ Without a `type` the objective is a game event (`objective.event`, below).
 | `nearest_ore` | `nearest_ore:<block key>` — the nearest block of that kind around the player (a bounded probe). |
 | `nearest_rune_shrine` | `nearest_rune_shrine` — the altar of the nearest complete rune shrine on the player's world (#3416: a ring of rune stones around an ancient brick, which answers the Sounders like a singing shrine). Nothing on a world without one in reach (an older world, a planet type without shrines) — and no line from afar. |
 | `nearest_settlement` | `nearest_settlement` — the nearest settlement on the player's body. |
+| `nearest_sps_guard` | `nearest_sps_guard` — the sleeper of the nearest guard post on the player's world (#3897): the guard where he stands once his capsule tank was opened (his post, or the settlement he went to), else the sealed tank. From a world without a guard post the narrator names a visited world that has one, like `nearest_sps_tower`. Nothing while no guard post is known (`world:sps_guard_post_known`). |
+| `nearest_sps_tower` | `nearest_sps_tower` — the relay console of the nearest guide tower on the player's world (#3895). On a world without one, when a tower stands on another body somebody visited, the narrator names that world and its system (inside its system the world becomes the space waypoint) — the spot is marked on arrival. Nothing while no tower is known anywhere (`world:sps_tower_known`). |
 | `nearest_station` | `nearest_station` — the nearest space station of the player's system (#2471, the dock lesson): in flight the station of the player's orbit nearest to their ship, landed the first station of the system. Not a ping on the ground but the client's space waypoint (`ShipAiLine.SpaceWaypointId`), so the radar and the edge arrow lead to it. |
 | `pack_site` | `pack_site:<id>` — a site the gameplay code registered for a pack (#3349, `GameServer.RegisterPackSite`: the Sounders' Choir Tower), while the player is on its world. Nothing elsewhere. |
 | `story_system` | `story_system:<id>` — a pack's star system (#3357, the manifest's `systems[]`): the system is put on the player's star map when they may see it, and the help line names it. Nothing while it is hidden for them. |
@@ -93,7 +95,7 @@ Without a `type` the objective is a game event (`objective.event`, below).
 
 ## Game events (`objective.event`)
 
-125 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
+135 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
 names a key (or a `prefix*` pattern) and, optionally, the arguments it accepts (`"arg": "a|b"`); the amount
 adds up towards `required`. Nothing is raised for an observer, before the join is complete, or for a non-positive
 amount.
@@ -109,17 +111,21 @@ amount.
 | `biolab:used` | A bio-lab action worked. Arg: `analyse`, `mix`, `change`, `wash` or `seedling`. |
 | `build:any` | A block was placed. Arg: the block key (a blueprint paste: `blueprint_paste`, amount = blocks). |
 | `build:rotated` | A form or prop block was placed with an explicit turn of the rotate key. Arg: the block key. |
+| `capsule:opened` | A guard post's capsule tank was opened with a hacking chip (the sleeper wakes) — raised for the player who opened it and for every player within 24 blocks. Arg: the tower's id. A player who comes later talks to the sleeper instead (`dialog:done` with `sps_guard`; `world:sps_guard_awake`). |
 | `cargo:stowed` | The player stowed items into the ship's cargo hold. Arg: the item key, or `all` for "stow all". |
 | `carry:lifted` | The player lifted the selected block over the head. Arg: the block key. |
 | `chamber:opened` | A sound chamber under a monument was opened with the Resonance Blaster (once per monument). No arg. |
 | `chat:sent` | A chat line of the player's went out on the radio (not a command, not a line the filter dropped). |
 | `companion:cared` | The player looked after a companion: named it (`named`) or fed it (`fed`). |
+| `crack:mended` | The player mended a crack at a rune gate on the other side (its melody puzzle was solved) — once per gate and world. Arg: the crack's id. |
 | `craft:any` | A recipe was crafted (stations, markets, the ship console). Arg: the recipe key; amount: the batch count. |
 | `craft:paint` | A building material was painted with a design. Arg: the base item key. |
 | `craft:shape` | A building material was re-formed (built-in or player-designed form). Arg: the base item key. |
 | `craft:station` | A recipe crafted, by the station it needs (raised next to `craft:any`, also for a free Creative craft). Arg: the station — `CraftingStation`'s name in lower case (`hand`, `workshop`, `refinery`, `factory`, `campfire`, `market`, `algaetank` …); amount = the batch count. A factory terminal's craft is `factory`. |
 | `craft:tint` | A building material was dyed or made to glow. Arg: the base item key. |
 | `creature:fed` | The Feed action threw a piece of food to a begging animal. Arg: the food's item key. |
+| `cruiser:boarded` | The player boarded the wreck of a defeated escort cruiser (every boarding). Arg: `echo` for the story's cruiser that carries ECHO, else `plain`. |
+| `cruiser:defeated` | An escort cruiser was defeated — raised once for every pilot who fought it. Arg: the system id. |
 | `crystal:chime` | Crystal Net (raised for the circuit's owner): A chime of the player's rang. |
 | `crystal:chime_by_plate` | Crystal Net (raised for the circuit's owner): Someone stepped on a step plate and a chime rang. |
 | `crystal:craft` | Crystal Net (raised for the circuit's owner): A fabricator of the player's crafted something by itself ("Assembly line"). |
@@ -140,6 +146,7 @@ amount.
 | `disc:inserted` | A Song Disc was put into the disc socket of the obsidian armour. Arg: the disc's item key. |
 | `door:opened` | A hand-operated door (wood, hinge) was opened by the player. Arg: the door kind. |
 | `eat:any` | Real food was eaten (an item with hunger value). Arg: the item key. |
+| `echo:freed` | ECHO, VEGA's sister core, was freed at the bridge console of an escort cruiser's wreck — once per player. No arg. |
 | `echo:questioned` | An Echo (a vanished Sounder) was questioned to the end of its dialog, once per Echo and player. Arg: the Echo id (`elora`, `kamo`, `feya`, `tini`). |
 | `emote:played` | The player played an emote from the wheel (not inside its cooldown; the body states the server sets by itself — hurt, down, up — are none). Arg: the emote — `wave`, `nod`, `cheer`, `point`, `head_shake`, `dance`, `clap`, `sit` or `bow`. |
 | `eva:started` | A spacewalk began. Arg: `hatch` (out through the hatch of the floating ship) or `flight` (from the flight view). |
@@ -178,6 +185,8 @@ amount.
 | `npc:answered` | The player picked an answer in a conversation. Arg: the NPC's role. |
 | `npc:people` | The "People you know" list was opened (the client asks for it while the list is shown). |
 | `npc:talked` | The player talked to someone (a greeting or a conversation — not to a sleeper). Arg: the NPC's role. |
+| `otherside:crossed` | The player crossed to the other side at a rune gate (the crossing disc in the obsidian chest's socket). Arg: the body id. |
+| `otherside:returned` | The player came back from the other side at a rune gate. Arg: the body id. |
 | `paint:block` | The paint tool painted a design onto a placed block (or wiped one off). Arg: the block key. |
 | `planet:scanned` | A world's overview card was read — the ship scanner held on a planet, or the Map's planet scan. Arg: the body id. |
 | `plant:any` | Something was planted: a flora block (a sapling, a seed, a bred seedling) placed into the ground. Arg: the block key. |
@@ -204,8 +213,11 @@ amount.
 | `ship:returned` | The player got back to their landed ship. Arg: `menu` ("Back to my ship"), `teleport` (the suit teleporter) or `walk` (walked back aboard or close to it after having been far away). |
 | `ship:rolled` | The pilot's barrel roll was granted (a roll inside its cooldown raises nothing). |
 | `ship:switched` | The player switched their active ship in the fleet. Arg: the ship id switched to. |
+| `sound:shaped` | The player shaped a sound block on the other side with the Resonance Blaster. Arg: the tone (0–7); amount: the blocks shaped. |
 | `space:enter` | The player entered space flight. Arg: `launch`, `hyperjump`, `wormhole` or `resume`. |
 | `spawn:set` | A bed, a heal tank or a crew bunk became the player's spawn point. Arg: `bed`, `heal_tank` or `crew_bunk`. |
+| `sps_tower:found` | The player came close to an SPS guide tower on their body — once per approach, measured only while a step listens. Arg: the tower's id (`<body>#<index>`). |
+| `sps_tower:lit` | A guide tower's light was lit blue again with a hacking chip at its relay console — raised for the player who used the chip, and once for every later player the first time they use the console of that lit tower (their own step counts; no chip is taken). Arg: the tower's id. |
 | `station:boarded` | A space station was boarded. Arg: the station id. |
 | `station:commissioned` | A player station was commissioned — raised for its owner. Arg: the station id. |
 | `station:core_deployed` | A station core was deployed on a spacewalk — the start of a player station. Arg: the station structure id. |
@@ -276,7 +288,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-92 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+104 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -300,6 +312,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:debris_fields` | The world generates debris fields in space (the world option is not off). |
 | `world:derelict_reachable` | The derelict The Long Quiet exists and the player can get to it — the lead's rule. |
 | `world:docked` | The player is aboard a space station. |
+| `world:echo_freed` | ECHO, VEGA's sister core, was freed in this save — by anybody, at the bridge console of her cruiser's wreck. It stays true when that wreck is gone. |
 | `world:enemies` | Planet enemies (Guardian machines) are switched on. |
 | `world:factory_here` | A spawned factory stands on the player's world. |
 | `world:factory_near` | VEGA's tip check found a factory's terminal close to the player in its last pass (the moment the "Factory and automation" course is offered at — the tips' own once-a-second sweep, no extra probe). |
@@ -322,11 +335,13 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:free_flight` | Free space flight is allowed (launch, dock, land). |
 | `world:guardian_giant_near` | A guardian giant (lying, awake or fallen) is within its found range of the player on their body. |
 | `world:guardian_giants` | This world can hold guardian giants — a giant lies on a body already, or the world is of the giants' terrain generation (`WorldDescription.GuardianGiantsGeneration`) and the structure is not switched off. Without them VEGA's mission "The Fallen Giant" gives way to its stand-in. |
+| `world:hacking_chip_carried` | The player carries a hacking chip (the backpack, or the hold of their active ship) — forged in a workshop, dropped by a Hunter or found in a crate. |
 | `world:hazards` | Environmental hazards are on. |
 | `world:herd_begging` | An animal of a begging herd came to beg the player within the last minute (the moment VEGA explains the Feed action). |
 | `world:hostile_near` | Something hostile — a machine, a hostile animal, a robber — is close to the player on their world. |
 | `world:hull_damaged` | The player's active ship has lost hull points (it never heals by itself). |
 | `world:hunger` | Hunger drains (food matters). |
+| `world:in_ornemis` | The player is in Ornemis, the Sounders' home system — on Soaniri or anywhere else in it. The Sounders' chapter "The Threshold" sends a player who is there to the Eldest in Mirun; anywhere else VEGA translates a rune stone instead. |
 | `world:instant_travel` | The Instant Travel rule is on (the map reaches unvisited worlds). |
 | `world:job_active` | The player has a job from a mission board (or a settlement's job chain) in progress. |
 | `world:jump_ready` | The player's active ship has a jump generator fitted. |
@@ -357,9 +372,18 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:ship_built` | The player has commissioned a self-built ship. |
 | `world:shrine` | The Singing Shrine (the one-of-a-kind alien shrine) exists in this galaxy — a world stamped before the unique sites has none. |
 | `world:shrine_reachable` | The Singing Shrine exists in this save and the player can get there (same system, a jump generator, a landing there before, instant travel) — the lead's rule, as `observatory_reachable`. The Sounders' shrine steps hand over to the ring of rune stones without it. |
+| `world:soaniri_reachable` | Soaniri, the Sounders' home world, is in this galaxy for the player (they learned the Song of Return) and they can get there (same system, a jump generator, a landing there before, instant travel). The Sounders' last chapter hands over to any rune gate without it. |
+| `world:space_bosses` | The world's rules allow a space boss (the escort cruiser) — free space flight, PvE space combat, the hostile machines in space not Off, and ship weapons that may hit them. Without them VEGA's mission "ECHO's Call" is skipped. |
 | `world:space_enemies` | Hostile machines in space are switched on (space combat PvE with drones or UFOs). |
 | `world:space_stations` | The world generates space stations. |
 | `world:space_wrecks` | The world generates wrecks drifting in space (the world option is not off). |
+| `world:sps_guard_awake` | A capsule tank of this save was opened — the sleeper is awake (at his post or in a settlement of that world), whoever opened it. |
+| `world:sps_guard_post_known` | A guide tower with a guard post (a capsule tank) stands on a body somebody visited — about four towers in ten have one. |
+| `world:sps_tower_known` | A guide tower is known in this save — one stands on a body somebody visited (the guide marker `nearest_sps_tower` can lead there). False while none was found yet: a step's text variant can then say where the first one will be. |
+| `world:sps_tower_lit_by_player` | The player lit a guide tower before — with a hacking chip, or by their first use of the console of a tower somebody else had lit (their own `sps_tower:lit` was raised) — on any world. A step "light a tower" names it in `alreadyDoneIf` beside `sps_tower_lit_near`, so a tower lit chapters ago still counts. |
+| `world:sps_tower_lit_near` | A guide tower whose lamps were turned blue is within its found range of the player on their body — the same for every player, whoever lit it. A step "light a tower" can name it in `alreadyDoneIf`. |
+| `world:sps_tower_near` | The ruin of a guide tower is within its found range of the player on their body. |
+| `world:sps_towers` | This save can have SPS guide towers — the world is of the sky-lights' terrain generation (`WorldDescription.SkyLightsGeneration`) and the towers are switched on (the host's `PlaceSpsTowers`, the world option, the structure kind), or a tower stands in it already. Without them the missions around the towers give way to their stand-ins. |
 | `world:starter_teleporter` | Players get the starter teleporter. |
 | `world:station_core_ready` | The player carries a station core, or has the materials to craft one. |
 | `world:station_in_system` | A boardable space station orbits in the player's system (the dock lesson's feasibility, #1924). |

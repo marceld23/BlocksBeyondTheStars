@@ -320,6 +320,14 @@ ITEMS = [
     ("song_spindle", "a small alien music artifact: a round black obsidian pedestal with thin glowing teal spiral grooves and a tall slender glowing pale teal and violet crystal spindle standing upright in its middle, soft glow"),
     # #3685: the memory core a defeated guardian giant leaves in each fighter's crate — the old builder's last order inside.
     ("guardian_giant_core", "a heavy fist-sized sci-fi machine memory core, a chunky hexagonal housing of grey riveted metal panels with a few rust spots, one round dim red glass lens glowing softly on its front, thin faint red circuit lines on its sides and two short cut cable stubs at the back, kid-friendly"),
+    # #3912 the sky-lights and the other side (2026-11-21): the Service's hacking chip (blue-grey, blue contacts — "a USB
+    # stick" in the player's idea), the sleeper's rusted sidearm and what a workshop rebuilds it into (dark robot metal,
+    # red lines, a long barrel) and ECHO's memory core — the guardian giant core's sister with a soft blue light. The
+    # crossing disc (item_song_disc_crossing) is a colour variant of song_disc, made by recolour_song_discs.py.
+    ("hacking_chip", "a small chunky sci-fi data stick hacking chip seen at a slight angle, a brushed blue-grey metal body with fine engraved circuit lines and one tiny glowing blue status light, a short plug at its end with a row of bright glowing blue contact pins, kid-friendly"),
+    ("guardian_plasma_rusted", "an old broken chunky sci-fi blaster sidearm with a long straight barrel and a rounded body in side view, toy-like stylised shape, rusted through, dull orange-brown corroded metal with flaking rust and a ragged hole eaten through the casing, a cracked dark dead emitter lens at the muzzle, no glow and no light anywhere, clearly broken and unusable, the whole object small and fully inside the image with a wide empty margin on every side, kid-friendly"),
+    ("guardian_laser", "a chunky sci-fi laser blaster sidearm with a long straight slender barrel and a rounded body in side view, toy-like stylised shape, dark gunmetal-grey robot armour plates with bevelled edges and rivets, thin brightly glowing pure red light lines running along the barrel and the body and a small glowing red emitter lens at the muzzle, a dark grip, kid-friendly"),
+    ("echo_memory_core", "a heavy fist-sized sci-fi machine memory core, a chunky hexagonal housing of clean grey riveted metal panels, one round glass lens glowing soft calm blue on its front, thin faint blue circuit lines on its sides and two short cut cable stubs at the back, kid-friendly"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

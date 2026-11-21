@@ -95,6 +95,7 @@ namespace BlocksBeyondTheStars.Client
             EnemyCatalog.SpaceDrone => SpaceView.BuildDroneModel(parent),
             EnemyCatalog.Ufo => SpaceView.BuildUfoModel(parent),
             EnemyCatalog.Cruiser => SpaceView.BuildCruiserModel(parent),
+            EnemyCatalog.EscortCruiser => SpaceView.BuildEscortCruiserModel(parent), // #3900: the boss — the windows, the long barrel
             EnemyCatalog.BanditShip => SpaceView.BuildBanditShipModel(parent), // the hand-built raider (its voxel hull is the server's)
             EnemyCatalog.HunterShuttle => SpaceView.BuildHunterShuttleModel(parent), // #3097: the hand-built lander
             GuardianGiantRules.EnemyKey => GuardianGiantModel.BuildPortrait(parent), // #3676: the block-limb boss, standing and lit

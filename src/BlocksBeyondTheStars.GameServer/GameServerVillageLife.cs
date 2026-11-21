@@ -248,7 +248,7 @@ public sealed partial class GameServer
         into.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.Spectating && OnFootHere(s))
+            if (!s.Spectating && !s.OtherSide && OnFootHere(s)) // #3905: the village does not notice a player over there
             {
                 into.Add(s);
             }
@@ -1136,7 +1136,7 @@ public sealed partial class GameServer
         foreach (var s in JoinedInActiveWorld())
         {
             double d = WrapDistSq(s.State.Position, at);
-            if (!s.Spectating && OnFootHere(s) && d <= best)
+            if (!s.Spectating && !s.OtherSide && OnFootHere(s) && d <= best)
             {
                 best = d;
                 nearest = s;

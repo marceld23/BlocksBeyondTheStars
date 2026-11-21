@@ -771,7 +771,7 @@
         },
         {
           "id": "c7.3", "kind": "do", "tier": "core",
-          "objective": { "event": "base:built", "arg": "torch|lantern|campfire|light_white|light_red|light_green|strip_light_cyan|strip_light_warm", "required": 2 },
+          "objective": { "event": "base:built", "arg": "torch|lantern|campfire|light_white|light_red|light_green|light_blue|strip_light_cyan|strip_light_warm", "required": 2 },
           "explain": { "startKey": "story.tutorial.c7.light.start", "chipKey": "story.tutorial.c7.light.chip", "hintKey": "story.tutorial.c7.light.hint", "moreGuide": "colours" }
         },
         {

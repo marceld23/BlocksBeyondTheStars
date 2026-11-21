@@ -88,7 +88,17 @@ public sealed class EnemyCodexTests : IDisposable
                 Assert.Equal(tier.HeavyShotDamage, got.HeavyShotDamage); // #3756: the cruiser's and the raider's heavy shot
                 Assert.Equal(tier.HeavyShotInterval, got.HeavyShotInterval);
                 Assert.Equal(tier.Shield, got.Shield); // #3758: a space hostile's shield
+                Assert.Equal(tier.HeavyShotCharge, got.HeavyShotCharge); // #3900: the mega laser and the boss values
+                Assert.Equal(tier.HeavyShotRange, got.HeavyShotRange);
+                Assert.Equal(tier.HeavyShotMaxHullShare, got.HeavyShotMaxHullShare);
+                Assert.Equal(tier.HeavyShotStyle, got.HeavyShotStyle);
+                Assert.Equal(tier.Boss, got.Boss);
+                Assert.Equal(tier.EnrageAtHull, got.EnrageAtHull);
+                Assert.Equal(tier.EnrageSpeed, got.EnrageSpeed);
+                Assert.Equal(tier.EnrageHeavyShotInterval, got.EnrageHeavyShotInterval);
+                Assert.Equal(tier.Reinforcements, got.Reinforcements);
                 Assert.Equal(tier.Loot.Select(l => (l.Item, l.Count)), got.Loot.Select(l => (l.Item, l.Count)));
+                Assert.Equal(tier.RareLoot.Select(r => (r.Item, r.Count, r.Chance)), got.RareLoot.Select(r => (r.Item, r.Count, r.Chance))); // #3894: the hunter's hacking chip
             }
         }
     }

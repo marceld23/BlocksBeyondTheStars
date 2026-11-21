@@ -44,7 +44,7 @@ namespace BlocksBeyondTheStars.Client.Playtests
         public static readonly IReadOnlyList<string> AllowedOptions = new[]
         {
             "Creatures", "PlanetEnemies", "SpaceNpcs", "Ufos", "Bandits", "Flora", "Ore", "Settlements", "Wrecks", "Vaults",
-            "Stations", "Wormholes", "DebrisFields", "Derelicts", "GiantWrecks", "Exotic", "Oxygen", "Hunger", "Hazards",
+            "Stations", "Wormholes", "DebrisFields", "Derelicts", "GiantWrecks", "SpsTowers", "Exotic", "Oxygen", "Hunger", "Hazards",
             "DeathPenalty", "UniverseSize",
         };
 

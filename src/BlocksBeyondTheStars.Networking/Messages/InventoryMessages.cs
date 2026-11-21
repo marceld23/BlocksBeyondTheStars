@@ -63,6 +63,12 @@ public sealed class UseGadgetIntent
     public float X { get; set; } // aim/target point (block-blast centre, stasis centre); ignored by the medkit
     public float Y { get; set; }
     public float Z { get; set; }
+
+    /// <summary>#3908 (additive — an older client never sets it, an older server drops it): the gadget's ALTERNATIVE
+    /// action, for a gadget that has one. Only the Resonance Blaster on the other side reads it: false (the use key)
+    /// shapes a sound block at the aim point, true (the mine/primary key on a sound block) dissolves the sound block
+    /// the aim point lies on. Every other gadget, and the blaster on the real side, ignore it.</summary>
+    public bool Alt { get; set; }
 }
 
 /// <summary>

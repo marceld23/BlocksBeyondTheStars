@@ -49,7 +49,32 @@ public sealed class SoundersItemsDataTests
     {
         Assert.Equal(new[] { SoundersIds.DiscBuilders, SoundersIds.DiscHearing, SoundersIds.DiscHunger }, SongDiscs.LootOrder);
         Assert.Equal(new[] { SoundersIds.DiscGreatSong, SoundersIds.DiscVoices }, SongDiscs.ChamberOrder);
-        Assert.Equal(new[] { SoundersIds.DiscHearing, SoundersIds.DiscCalm, SoundersIds.DiscLight }, SongDiscs.SocketDiscs);
+        Assert.Equal(new[] { SoundersIds.DiscHearing, SoundersIds.DiscCalm, SoundersIds.DiscLight, SoundersIds.DiscCrossing }, SongDiscs.SocketDiscs);
+    }
+
+    [Fact]
+    public void TheCrossingDisc_IsASocketDisc_CraftedFromItsHiddenBlueprint_AfterTheBridgeSong()
+    {
+        // #3894: the fourth socket disc. No story disc (nothing to decode), no loot: the workshop makes it from the Sounders'
+        // stones once its blueprint shows — #3910: when the player heard that the stones are thin (chapter 9's first step).
+        var c = Content.Value;
+        Assert.True(SongDiscs.IsSocketDisc(SoundersIds.DiscCrossing));
+        Assert.False(SongDiscs.IsStoryDisc(SoundersIds.DiscCrossing));
+        Assert.Equal(EquipSlots.Disc, c.GetItem(SoundersIds.DiscCrossing)!.EquipSlot);
+        Assert.Equal(c.GetItem(SoundersIds.DiscHearing)!.Category, c.GetItem(SoundersIds.DiscCrossing)!.Category);
+
+        var bp = c.GetBlueprint(SoundersIds.BlueprintCrossing)!;
+        Assert.Equal("milestone:" + SoundersIds.MilestoneThreshold, bp.HiddenUntil);
+        Assert.True(StoryConditionParser.TryParse(bp.HiddenUntil, out _, out string error), error);
+        Assert.Equal(new[] { ("crystal", 2), ("obsidian", 2), ("rune_stone", 1) }, bp.UnlockCost.Select(i => (i.Item, i.Count)).OrderBy(i => i.Item));
+        var recipe = Assert.Single(c.Recipes.Values, r => r.RequiredBlueprint == SoundersIds.BlueprintCrossing);
+        Assert.Equal(CraftingStation.Workshop, recipe.Station);
+        Assert.Equal(SoundersIds.DiscCrossing, Assert.Single(recipe.Outputs).Item);
+        Assert.Equal(c.Recipes[SoundersIds.DiscCalm].Inputs.Select(i => (i.Item, i.Count)), recipe.Inputs.Select(i => (i.Item, i.Count)));
+
+        int worn = GearLook.Mask(Wearing(SoundersIds.ObsidianChest, SoundersIds.DiscCrossing));
+        Assert.True(GearLook.Has(worn, GearLook.SocketDisc)); // the existing bit — the presence gains no field
+        Assert.Equal(GearLook.StyleObsidian, GearLook.ChestStyle(worn));
     }
 
     [Fact]

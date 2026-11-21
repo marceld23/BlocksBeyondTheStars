@@ -38,7 +38,7 @@ public sealed class PlaytestSeedBoundTasksTests : IDisposable
     /// a landing pad or something the player built is not.</summary>
     private static readonly string[] GeneratedKinds =
     {
-        "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "giant", "wreck", "factory",
+        "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "giant", "tower", "wreck", "factory",
         "camp", "lodge", "outpost", "monument", "treasure",
     };
 

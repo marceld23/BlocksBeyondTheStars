@@ -542,6 +542,48 @@ public static class GameEventKeys
     /// <summary>#3349: an NPC dialog was talked through to its end node. Arg: the dialog key.</summary>
     public const string DialogDone = "dialog:done";
 
+    // ---- #3891: the sky-lights (the Service's guide towers, the escort cruiser) and the other side ----
+
+    /// <summary>#3893: the player came close to an SPS guide tower on their body — once per approach, measured only while a
+    /// step listens. Arg: the tower's id (<c>&lt;body&gt;#&lt;index&gt;</c>).</summary>
+    public const string SpsTowerFound = "sps_tower:found";
+
+    /// <summary>#3896: a guide tower's light was lit blue again with a hacking chip at its relay console — raised for the
+    /// player who used the chip, and once for every later player the first time they use the console of that lit tower
+    /// (their own step counts; no chip is taken). Arg: the tower's id.</summary>
+    public const string SpsTowerLit = "sps_tower:lit";
+
+    /// <summary>#3897: a guard post's capsule tank was opened with a hacking chip (the sleeper wakes) — raised for the player
+    /// who opened it and for every player within 24 blocks. Arg: the tower's id. A player who comes later talks to the
+    /// sleeper instead (<c>dialog:done</c> with <c>sps_guard</c>; <c>world:sps_guard_awake</c>).</summary>
+    public const string CapsuleOpened = "capsule:opened";
+
+    /// <summary>#3900: an escort cruiser was defeated — raised once for every pilot who fought it. Arg: the system id.</summary>
+    public const string CruiserDefeated = "cruiser:defeated";
+
+    /// <summary>#3902: the player boarded the wreck of a defeated escort cruiser (every boarding). Arg: <c>echo</c> for the
+    /// story's cruiser that carries ECHO, else <c>plain</c>.</summary>
+    public const string CruiserBoarded = "cruiser:boarded";
+
+    /// <summary>#3902: ECHO, VEGA's sister core, was freed at the bridge console of an escort cruiser's wreck — once per
+    /// player. No arg.</summary>
+    public const string EchoFreed = "echo:freed";
+
+    /// <summary>#3904: the player crossed to the other side at a rune gate (the crossing disc in the obsidian chest's socket).
+    /// Arg: the body id.</summary>
+    public const string OtherSideCrossed = "otherside:crossed";
+
+    /// <summary>#3904: the player came back from the other side at a rune gate. Arg: the body id.</summary>
+    public const string OtherSideReturned = "otherside:returned";
+
+    /// <summary>#3908: the player shaped a sound block on the other side with the Resonance Blaster. Arg: the tone (0–7);
+    /// amount: the blocks shaped.</summary>
+    public const string SoundShaped = "sound:shaped";
+
+    /// <summary>#3909: the player mended a crack at a rune gate on the other side (its melody puzzle was solved) — once per
+    /// gate and world. Arg: the crack's id.</summary>
+    public const string CrackMended = "crack:mended";
+
     /// <summary>Prefix of a client teaching flag (<c>ui:menu_open</c>, synthesis §3.6). Allowed only in a player pack's
     /// step objective — never in a condition — and never persisted. Raised by the server when the client reports a UI
     /// moment (<c>UiTutorialEvent</c>, #2469; the ids are <see cref="UiEvents"/>).</summary>
@@ -644,6 +686,8 @@ public static class GameEventKeys
             MoveAirborne, VehicleBoarded, ChatSent, AllyJoined, PaintBlock, PoiReached,
             ShipRolled, ShipBoosted, ShipEvaded, CarryLifted, ThrowAny, ThrowHit, EmotePlayed, PlayerFallen, PlayerRevived,
             RunePlayed, MelodySolved, DiscDecoded, DiscInserted, ChamberOpened, EchoQuestioned, DialogDone,
+            SpsTowerFound, SpsTowerLit, CapsuleOpened, CruiserDefeated, CruiserBoarded, EchoFreed,
+            OtherSideCrossed, OtherSideReturned, SoundShaped, CrackMended,
         };
         foreach (string circuitEvent in new[]
                  {

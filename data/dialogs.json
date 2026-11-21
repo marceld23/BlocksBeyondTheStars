@@ -1,5 +1,22 @@
 [
   {
+    "key": "snd_over_folk",
+    "character": "snd_over_folk",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.snd_over_folk.prompt",
+        "choices": [
+          { "textKey": "dlg.snd_over_folk.c_who", "responseKey": "dlg.snd_over_folk.r_who" },
+          { "textKey": "dlg.snd_over_folk.c_lights", "responseKey": "dlg.snd_over_folk.r_lights" },
+          { "textKey": "dlg.snd_over_folk.c_soft", "responseKey": "dlg.snd_over_folk.r_soft" },
+          { "textKey": "dlg.snd_over_folk.c_crack", "responseKey": "dlg.snd_over_folk.r_crack", "visibleIf": "milestone:snd:great_crack" }
+        ]
+      }
+    ]
+  },
+  {
     "key": "gds_guardian",
     "role": "guardian",
     "minStage": "",

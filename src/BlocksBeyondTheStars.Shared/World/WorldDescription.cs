@@ -179,6 +179,14 @@ public sealed class WorldDescription
     /// terrain generation 42 (<see cref="GiantWrecksGeneration"/>) and only to bodies stamped for the first time.</summary>
     public Frequency GiantWrecks { get; set; } = Frequency.Normal;
 
+    /// <summary>How often an inhabited world carries the ruin of a Scout and Pioneer Service guide tower (#3893,
+    /// <c>SpsTowerRules</c>, docs/developer/SPS_TOWERS.md): the frequency scales the <c>sps_tower</c> chance of
+    /// <c>data/structure_types.json</c> (Normal = as written). Off places none at all — not even the one a save otherwise
+    /// guarantees on the first inhabited world it stamps. The towers come with terrain generation 47
+    /// (<see cref="SkyLightsGeneration"/>) and only to bodies stamped for the first time; a save from before the option reads
+    /// the default (Normal) and gains nothing.</summary>
+    public Frequency SpsTowers { get; set; } = Frequency.Normal;
+
     /// <summary>Planet-type key → frequency. Empty means "use all known planet types at Normal".</summary>
     public Dictionary<string, Frequency> PlanetTypeFrequencies { get; set; } = new();
 
@@ -255,8 +263,16 @@ public sealed class WorldDescription
     /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes,
     /// #3680 the fallen guardian giants, the abandoned beds: a ruin's and a wreck's beds look like today's bed and
     /// work as none, the lively places: a settlement's own colour and shells, street furniture, lamps that shine, a
-    /// landmark, stations with a purpose and a colour).</summary>
-    public const int CurrentTerrainGeneration = LivelyPlacesGeneration;
+    /// landmark, stations with a purpose and a colour, #3893 the sky-lights: the ruins of the Scout and Pioneer Service's
+    /// guide towers on inhabited worlds).</summary>
+    public const int CurrentTerrainGeneration = SkyLightsGeneration;
+
+    /// <summary>The generation of the sky-lights (#3893, docs/developer/SPS_TOWERS.md): a body stamped for the first time in
+    /// a world of this generation or later may carry the ruin of a Scout and Pioneer Service guide tower (<c>sps_tower</c> in
+    /// <c>data/structure_types.json</c>) when it has an inhabited settlement — stored as a structure overlay, with its
+    /// <c>WorldMetadata.SpsTowers</c> record — and the first such body a save stamps carries one for sure. A server-side
+    /// stamp: every chunk of every older generation stays bit-identical, and nothing else of a world reads this generation.</summary>
+    public const int SkyLightsGeneration = 47;
 
     /// <summary>The generation of the lively places (docs/developer/LIVELY_PLACES.md): a body stamped for the first time in a
     /// world of this generation or later plans its settlements with plan revision 2 (<c>SettlementPlan.CurrentRevision</c>:

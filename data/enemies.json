@@ -2,7 +2,8 @@
 // these tiers, and the Codex's "Enemies" chapter shows the same numbers. Order = the Codex's order.
 // hull: health; hullMax: the most a scaling tier reaches (a bigger raider hull), 0 = always hull;
 // damagePerSecond: while in reach and attacking; burstDamage (#3096): one burst's damage at its centre (the tank
-// spider; less toward the edge), 0 = it does not burst; loot: what it drops when defeated.
+// spider; less toward the edge), 0 = it does not burst; loot: what it drops when defeated; rareLoot (#3894): what it
+// carries only now and then — each entry is rolled once per enemy with its chance (0..1).
 // Tiers: "normal" (every enemy), "elite" (the Guardian gauntlet), "camp" (a bandit camp's guard).
 [
   { "key": "space_drone", "nameKey": "enemy.space_drone.name", "descriptionKey": "enemy.space_drone.desc", "tipKey": "enemy.space_drone.tip", "where": "space",
@@ -18,6 +19,19 @@
   { "key": "cruiser", "nameKey": "enemy.cruiser.name", "descriptionKey": "enemy.cruiser.desc", "tipKey": "enemy.cruiser.tip", "where": "space",
     "tiers": {
       "normal": { "hull": 260, "shield": 60, "damagePerSecond": 7, "heavyShotDamage": 24, "heavyShotInterval": 8, "loot": [ { "item": "data_fragment", "count": 8 } ] }
+    } },
+  // #3900: the escort cruiser — the cruiser as a boss. heavyShot* is its mega laser: heavyShotCharge seconds of warning
+  // (0 = the classic 1.6), heavyShotRange how close the pilot must be for it to charge (0 = the engage range, 70),
+  // heavyShotMaxHullShare the most of the target's full hull one hit may take (and never the last hull point of a ship
+  // above a quarter of its hull), heavyShotStyle what the client draws. boss: boss bar, second phase, loot for every
+  // pilot who fought. enrageAtHull: the hull share it enrages at; then enrageSpeed times its speed, a heavy shot every
+  // enrageHeavyShotInterval seconds, and `reinforcements` space drones called once.
+  { "key": "escort_cruiser", "nameKey": "enemy.escort_cruiser.name", "descriptionKey": "enemy.escort_cruiser.desc", "tipKey": "enemy.escort_cruiser.tip", "where": "space",
+    "tiers": {
+      "normal": { "hull": 700, "shield": 150, "damagePerSecond": 7,
+        "heavyShotDamage": 60, "heavyShotInterval": 14, "heavyShotCharge": 2.8, "heavyShotRange": 110, "heavyShotMaxHullShare": 0.4, "heavyShotStyle": "mega_laser",
+        "boss": true, "enrageAtHull": 0.5, "enrageSpeed": 1.5, "enrageHeavyShotInterval": 9, "reinforcements": 2,
+        "loot": [ { "item": "data_fragment", "count": 16 }, { "item": "guardian_plate", "count": 10 } ] }
     } },
   { "key": "bandit_ship", "nameKey": "enemy.bandit_ship.name", "descriptionKey": "enemy.bandit_ship.desc", "tipKey": "enemy.bandit_ship.tip", "where": "space",
     "tiers": {
@@ -37,7 +51,8 @@
     } },
   { "key": "hunter", "nameKey": "enemy.hunter.name", "descriptionKey": "enemy.hunter.desc", "tipKey": "enemy.hunter.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 60, "damagePerSecond": 6, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 2 } ] }
+      "normal": { "hull": 60, "damagePerSecond": 6, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 2 } ],
+        "rareLoot": [ { "item": "hacking_chip", "count": 1, "chance": 0.08 } ] }
     } },
   { "key": "tank_spider", "nameKey": "enemy.tank_spider.name", "descriptionKey": "enemy.tank_spider.desc", "tipKey": "enemy.tank_spider.tip", "where": "planet",
     "tiers": {

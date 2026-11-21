@@ -1007,8 +1007,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3766: throw the carried block along the view direction; the server flies it and books the hit.</summary>
         public void SendThrowBlock(float dirX, float dirY, float dirZ) => Send(new ThrowBlockIntent { DirX = dirX, DirY = dirY, DirZ = dirZ });
 
-        public void SendUseGadget(string gadgetKey, Vector3f target)
-            => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
+        /// <summary>Uses the held gadget at the aim point. <paramref name="alt"/> (#3908) is the gadget's alternative
+        /// action — only the Resonance Blaster on the other side reads it: false shapes a sound block, true dissolves the
+        /// sound block aimed at.</summary>
+        public void SendUseGadget(string gadgetKey, Vector3f target, bool alt = false)
+            => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z, Alt = alt });
 
         public void SendRequestKnownNpcs() => Send(new RequestKnownNpcsIntent());
 

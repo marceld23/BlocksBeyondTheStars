@@ -4,6 +4,8 @@
   // player plays them, answers the Singing Shrine, decodes Song Discs with the note alphabet, builds the Sounders' alien
   // blueprints, questions the Echoes (the vanished Sounders, on "the other side"), plays the Song of Return (ORNEMIS) to
   // find the detuned home system, lands on Soaniri and sings the Bridge Song with the Young Voices — then wins a Soundi.
+  // #3910: the story goes on to the other side (chapters 9–11) — the crossing disc, a step through a rune gate, sound
+  // blocks, the cracks the old songs left, and the Song from Over There with the choir of the Sounders who crossed over.
   // Lore, creature designs and names: the maintainer, Justus and the school club "Building Games with AI" (2026-11-07).
   // VEGA narrates; the Echoes, the Eldest and Roll speak in the scenes (speakers). Docs: docs/developer/STORY_SOUNDERS.md.
   //
@@ -30,6 +32,8 @@
   ],
   "start": { "after": [ "any:[chapter:tutorial:b1, not:pack:tutorial:enabled]", "milestone:snd:first_rune" ], "earlyOptIn": true },
   "introCutscene": "snd.stones_sing",
+  // #3910: finishing the last chapter by play counts for the achievement "sounders_song" (data/achievements.json).
+  "graduation": { "counter": "story:sounders" },
   // The pack's own per-player milestones (dialog consequences may set snd:… only), the Song Archive (texts below) and
   // Ornemis: appended to the galaxy the first time a player learns the Song of Return, shown only to players who did.
   "milestonePrefix": "snd",
@@ -195,6 +199,78 @@
           "explain": { "startKey": "story.sounders.s8.soundi.start", "chipKey": "story.sounders.s8.soundi.chip",
                        "hintKey": "story.sounders.s8.soundi.hint", "doneKey": "story.sounders.s8.soundi.done" } }
       ]
+    },
+    {
+      // Chapter 9 — the threshold (#3910; how the other side works: docs/developer/OTHER_SIDE.md). The Eldest says the stones
+      // are thin (a player outside Ornemis hears it from any rune stone VEGA translates — s9.1a); that shows the crossing
+      // disc's blueprint (milestone snd:threshold). Research it, build the disc, put it into the obsidian chest's socket,
+      // step through a rune gate — and on the other side Elora stands at the gate (the server places her while s9.6 runs).
+      "id": "s9", "titleKey": "story.sounders.ch.s9", "summaryKey": "story.sounders.ch.s9.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s9.1", "objective": { "event": "dialog:done", "arg": "snd_eldest_threshold" },
+          "onStart": { "reveal": "pack_site:mirun" }, "feasibleIf": [ "world:in_ornemis" ], "alternative": "s9.1a",
+          "explain": { "startKey": "story.sounders.s9.thin.start", "chipKey": "story.sounders.s9.thin.chip",
+                       "hintKey": "story.sounders.s9.thin.hint", "doneKey": "story.sounders.s9.thin.done" } },
+        { "id": "s9.1a", "objective": { "event": "rune:played" }, "onStart": { "reveal": "nearest_rune_shrine" },
+          "explain": { "startKey": "story.sounders.s9.thin.start_away", "chipKey": "story.sounders.s9.thin.chip_away",
+                       "hintKey": "story.sounders.s9.thin.hint_away", "doneKey": "story.sounders.s9.thin.done_away" } },
+        { "id": "s9.2", "objective": { "event": "research:any", "arg": "sounder_crossing" },
+          "explain": { "startKey": "story.sounders.s9.research.start", "chipKey": "story.sounders.s9.research.chip",
+                       "hintKey": "story.sounders.s9.research.hint", "doneKey": "story.sounders.s9.research.done" } },
+        { "id": "s9.3", "objective": { "event": "craft:any", "arg": "song_disc_crossing" },
+          "explain": { "startKey": "story.sounders.s9.disc.start", "chipKey": "story.sounders.s9.disc.chip",
+                       "hintKey": "story.sounders.s9.disc.hint", "doneKey": "story.sounders.s9.disc.done" } },
+        { "id": "s9.4", "objective": { "event": "disc:inserted", "arg": "song_disc_crossing" },
+          "explain": { "startKey": "story.sounders.s9.socket.start", "chipKey": "story.sounders.s9.socket.chip",
+                       "hintKey": "story.sounders.s9.socket.hint", "doneKey": "story.sounders.s9.socket.done" } },
+        { "id": "s9.5", "objective": { "event": "otherside:crossed" },
+          "onStart": { "reveal": "nearest_monument" }, "onComplete": { "cutscene": "snd.threshold" },
+          "explain": { "startKey": "story.sounders.s9.cross.start", "chipKey": "story.sounders.s9.cross.chip",
+                       "hintKey": "story.sounders.s9.cross.hint", "doneKey": "story.sounders.s9.cross.done" } },
+        { "id": "s9.6", "objective": { "event": "dialog:done", "arg": "snd_elora_over" },
+          "explain": { "startKey": "story.sounders.s9.elora.start", "chipKey": "story.sounders.s9.elora.chip",
+                       "hintKey": "story.sounders.s9.elora.hint", "doneKey": "story.sounders.s9.elora.done" } }
+      ]
+    },
+    {
+      // Chapter 10 — singing softly: Kamo (placed by the server at a gate over there while s10.1 runs) explains the sound
+      // blocks; the player shapes a first bridge and mends the crack of three gates (crack:mended comes once per gate, so
+      // three are three different gates — on any world, and three placed rune stones make a gate too).
+      "id": "s10", "titleKey": "story.sounders.ch.s10", "summaryKey": "story.sounders.ch.s10.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s10.1", "objective": { "event": "dialog:done", "arg": "snd_kamo_over" },
+          "explain": { "startKey": "story.sounders.s10.kamo.start", "chipKey": "story.sounders.s10.kamo.chip",
+                       "hintKey": "story.sounders.s10.kamo.hint", "doneKey": "story.sounders.s10.kamo.done" } },
+        { "id": "s10.2", "objective": { "event": "sound:shaped", "required": 12 },
+          "explain": { "startKey": "story.sounders.s10.shape.start", "chipKey": "story.sounders.s10.shape.chip",
+                       "hintKey": "story.sounders.s10.shape.hint", "doneKey": "story.sounders.s10.shape.done" } },
+        { "id": "s10.3", "objective": { "event": "crack:mended", "required": 3 },
+          "onStart": { "reveal": "nearest_monument" },
+          "explain": { "startKey": "story.sounders.s10.mend.start", "chipKey": "story.sounders.s10.mend.chip",
+                       "hintKey": "story.sounders.s10.mend.hint", "doneKey": "story.sounders.s10.mend.done" } }
+      ]
+    },
+    {
+      // Chapter 11 — the song from over there: cross on Soaniri (the Choir Tower gets three rune stones at its foot while
+      // the chapter runs; s11.1a — any gate — stands in while Soaniri is out of reach; a player who is over there already
+      // is through at once), then sing SOANIRI with the choir of the Sounders who crossed over (a tone on the melody bar
+      // starts it). Solved: the great crack closes (snd:great_crack) and the Lights gather.
+      "id": "s11", "titleKey": "story.sounders.ch.s11", "summaryKey": "story.sounders.ch.s11.sum", "openCutscene": "snd.part",
+      "closeCutscene": "snd.epilogue2",
+      "steps": [
+        { "id": "s11.1", "objective": { "event": "otherside:crossed", "arg": "ornemis-world" },
+          "onStart": { "reveal": "pack_site:choir_tower" }, "feasibleIf": [ "world:soaniri_reachable" ], "alternative": "s11.1a",
+          "explain": { "startKey": "story.sounders.s11.tower.start", "chipKey": "story.sounders.s11.tower.chip",
+                       "hintKey": "story.sounders.s11.tower.hint", "doneKey": "story.sounders.s11.tower.done" } },
+        { "id": "s11.1a", "objective": { "event": "otherside:crossed" }, "onStart": { "reveal": "nearest_rune_shrine" },
+          "explain": { "startKey": "story.sounders.s11.tower.start_away", "chipKey": "story.sounders.s11.tower.chip_away",
+                       "hintKey": "story.sounders.s11.tower.hint_away", "doneKey": "story.sounders.s11.tower.done" } },
+        { "id": "s11.2", "objective": { "event": "melody:solved", "arg": "song_from_over_there" },
+          "onStart": { "reveal": "pack_site:choir_tower" }, "onComplete": { "cutscene": "snd.other_song" },
+          "explain": { "startKey": "story.sounders.s11.song.start", "chipKey": "story.sounders.s11.song.chip",
+                       "hintKey": "story.sounders.s11.song.hint", "doneKey": "story.sounders.s11.song.done" } },
+        { "id": "s11.3", "kind": "read", "explain": { "startKey": "story.sounders.s11.after.start" } }
+      ]
     }
   ],
   // The Song Archive (the pack's Journal page): the note table, every rune word heard, the decoded discs and what each
@@ -226,7 +302,12 @@
     { "id": "echo_elora", "titleKey": "story.sounders.echo.elora.title", "textKey": "story.sounders.echo.elora.text", "unlockedBy": "milestone:snd:echo:elora" },
     { "id": "echo_kamo",  "titleKey": "story.sounders.echo.kamo.title",  "textKey": "story.sounders.echo.kamo.text",  "unlockedBy": "milestone:snd:echo:kamo" },
     { "id": "echo_feya",  "titleKey": "story.sounders.echo.feya.title",  "textKey": "story.sounders.echo.feya.text",  "unlockedBy": "milestone:snd:echo:feya" },
-    { "id": "echo_tini",  "titleKey": "story.sounders.echo.tini.title",  "textKey": "story.sounders.echo.tini.text",  "unlockedBy": "milestone:snd:echo:tini" }
+    { "id": "echo_tini",  "titleKey": "story.sounders.echo.tini.title",  "textKey": "story.sounders.echo.tini.text",  "unlockedBy": "milestone:snd:echo:tini" },
+    // #3910 — what chapters 9 to 11 taught: the rune gates, sound blocks, the cracks, and the name of the Sounders' world.
+    { "id": "over_gate",   "titleKey": "story.sounders.over.gate.title",   "textKey": "story.sounders.over.gate.text",   "unlockedBy": "milestone:snd:crossed" },
+    { "id": "over_sound",  "titleKey": "story.sounders.over.sound.title",  "textKey": "story.sounders.over.sound.text",  "unlockedBy": "step:sounders:s10.1" },
+    { "id": "over_cracks", "titleKey": "story.sounders.over.cracks.title", "textKey": "story.sounders.over.cracks.text", "unlockedBy": "step:sounders:s10.2" },
+    { "id": "over_name",   "titleKey": "story.sounders.over.name.title",   "textKey": "story.sounders.over.name.text",   "unlockedBy": "milestone:snd:great_crack" }
   ],
   // The dialogs: the four Echoes (questions are sung — "melody" — and each Echo's last answer writes its milestone; the
   // story code turns the end of an Echo dialog into echo:questioned), the Eldest in Mirun and Roll at the Choir Tower.
@@ -253,9 +334,27 @@
       { "promptKey": "story.sounders.dlg.tini.n1", "choices": [ { "textKey": "story.sounders.q.letters", "melody": "ORN", "responseKey": "story.sounders.dlg.tini.n1.r", "next": 2 } ] },
       { "promptKey": "story.sounders.dlg.tini.n2", "choices": [ { "textKey": "story.sounders.q.promise", "responseKey": "story.sounders.dlg.tini.n2.r", "consequence": "milestone:snd:echo:tini" } ] }
     ] },
-    { "key": "snd_eldest", "character": "eldest", "minStage": "", "oncePerPlayer": true, "nodes": [
+    // The Eldest has one talk per part of the story (#3910, a dialog's own visibleIf): her plea before the Bridge Song —
+    // and once chapter 8 is through (sung or skipped), the thin stones. Its last answer shows the crossing disc's blueprint.
+    { "key": "snd_eldest", "character": "eldest", "minStage": "", "oncePerPlayer": true, "visibleIf": "not:chapter:sounders:s8", "nodes": [
       { "promptKey": "story.sounders.dlg.eldest.n0", "choices": [ { "textKey": "story.sounders.dlg.eldest.c0", "responseKey": "story.sounders.dlg.eldest.r0", "next": 1 } ] },
       { "promptKey": "story.sounders.dlg.eldest.n1", "choices": [ { "textKey": "story.sounders.dlg.eldest.c1", "responseKey": "story.sounders.dlg.eldest.r1" } ] }
+    ] },
+    { "key": "snd_eldest_threshold", "character": "eldest", "minStage": "", "oncePerPlayer": true, "visibleIf": "chapter:sounders:s8", "nodes": [
+      { "promptKey": "story.sounders.dlg.eldest_thin.n0", "choices": [ { "textKey": "story.sounders.dlg.eldest_thin.c0", "responseKey": "story.sounders.dlg.eldest_thin.r0", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.eldest_thin.n1", "choices": [ { "textKey": "story.sounders.dlg.eldest_thin.c1", "responseKey": "story.sounders.dlg.eldest_thin.r1", "consequence": "milestone:snd:threshold" } ] }
+    ] },
+    // On the other side (#3910): Elora at the gate the player first steps through (s9.6) and Kamo at any gate (s10.1) —
+    // figures only players over there see, placed by the server with the character ids elora_over / kamo_over (the ids elora
+    // and kamo are the Echoes' talks of chapter 5). Not once per player: a child may hear Kamo's how-to again.
+    { "key": "snd_elora_over", "character": "elora_over", "minStage": "", "oncePerPlayer": false, "nodes": [
+      { "promptKey": "story.sounders.dlg.elora_over.n0", "choices": [ { "textKey": "story.sounders.dlg.elora_over.c0", "responseKey": "story.sounders.dlg.elora_over.r0", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.elora_over.n1", "choices": [ { "textKey": "story.sounders.dlg.elora_over.c1", "melody": "SOA", "responseKey": "story.sounders.dlg.elora_over.r1" } ] }
+    ] },
+    { "key": "snd_kamo_over", "character": "kamo_over", "minStage": "", "oncePerPlayer": false, "nodes": [
+      { "promptKey": "story.sounders.dlg.kamo_over.n0", "choices": [ { "textKey": "story.sounders.dlg.kamo_over.c0", "responseKey": "story.sounders.dlg.kamo_over.r0", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.kamo_over.n1", "choices": [ { "textKey": "story.sounders.dlg.kamo_over.c1", "responseKey": "story.sounders.dlg.kamo_over.r1", "next": 2 } ] },
+      { "promptKey": "story.sounders.dlg.kamo_over.n2", "choices": [ { "textKey": "story.sounders.dlg.kamo_over.c2", "responseKey": "story.sounders.dlg.kamo_over.r2" } ] }
     ] },
     { "key": "snd_roll", "character": "roll", "minStage": "", "oncePerPlayer": true, "nodes": [
       { "promptKey": "story.sounders.dlg.roll.n0", "choices": [

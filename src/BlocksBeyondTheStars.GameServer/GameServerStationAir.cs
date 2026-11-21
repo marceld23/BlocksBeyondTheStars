@@ -104,7 +104,7 @@ public sealed partial class GameServer
                 {
                     Send(derelictSession, new Networking.Messages.ServerMessage
                     {
-                        Text = Shared.Definitions.GiantShipRules.IsGiantWreckId(stationId) ? "@srv.giantwreck.no_air" : "@srv.derelict.no_air", // #3614: a ship, not a station
+                        Text = IsShipWreckId(stationId) ? "@srv.giantwreck.no_air" : "@srv.derelict.no_air", // #3614, #3902: a ship, not a station
                     });
                 }
             }

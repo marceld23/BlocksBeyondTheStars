@@ -26,6 +26,7 @@ public sealed class WalkThroughColliderTests
     {
         ("phase_block_open", "phase_block"), ("force_field_off", "force_field"), ("trapdoor_open", "trapdoor"),
         ("lift_gate_open", "lift_gate"),
+        ("capsule_tank_open", "capsule_tank"), // #3894: the opened capsule tank cell is walked into
     };
 
     [Fact]

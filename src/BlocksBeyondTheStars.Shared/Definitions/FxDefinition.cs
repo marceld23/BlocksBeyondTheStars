@@ -129,6 +129,14 @@ public static class FxActionKinds
     /// minus the start's X is the direction: +1 right, -1 left).</summary>
     public const byte Roll = 7;
 
-    /// <summary>True for one of the kinds a client may send (the roll is the server's to announce).</summary>
+    /// <summary>#3898: one tick of a held-beam weapon (the Guardian laser) — sent by the server along the line it
+    /// validated, to the others near the shooter, so they see the beam while it is held.</summary>
+    public const byte WeaponBeam = 8;
+
+    /// <summary>#3898: a held beam ended (released, stopped at the suit's reserve, the item left the hand …) — sent by
+    /// the server to the others near and to the shooter.</summary>
+    public const byte WeaponBeamEnd = 9;
+
+    /// <summary>True for one of the kinds a client may send (the roll and the weapon beam are the server's to announce).</summary>
     public static bool IsValid(byte kind) => kind is >= Shot and <= Place;
 }

@@ -460,6 +460,7 @@ namespace BlocksBeyondTheStars.Client
             SyncEntities();
             SyncRemotePlayers();
             DrainWarpFx();
+            UpdateEscortCruisers(); // #3900: the boss turns its barrel to its quarry; the mega laser's countdown
             UpdateBeams(Time.deltaTime);
             if (_phase == Phase.Cruise)
             {
@@ -736,6 +737,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _entities.Clear();
+            ResetEscortCruisers(); // #3900: the boss models lived under _root too; a charging mega laser ends with the scene
             _dropIds.Clear();
             _beams.Clear(); // their GameObjects were children of _root (already destroyed)
             _asteroidMat = null; // material lived under the destroyed view; rebuild next launch

@@ -27,8 +27,9 @@ public sealed class LivelyPlacesFoundationTests
     public void NewWorlds_AreCreatedAtGeneration46_AndPlanWithRevision2()
     {
         Assert.Equal(46, WorldDescription.LivelyPlacesGeneration);
-        Assert.Equal(WorldDescription.LivelyPlacesGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.CurrentTerrainGeneration >= WorldDescription.LivelyPlacesGeneration); // 47: the sky-lights (#3893)
         Assert.Equal(WorldDescription.CurrentTerrainGeneration, new ServerConfig().World.TerrainGeneration);
+        Assert.Equal(SettlementPlan.LivelyRevision, SettlementPlan.RevisionFor(WorldDescription.CurrentTerrainGeneration));
         Assert.Equal(SettlementPlan.LivelyRevision, SettlementPlan.CurrentRevision);
         Assert.Equal(SettlementPlan.LivelyRevision, SettlementPlan.RevisionFor(WorldDescription.LivelyPlacesGeneration));
         Assert.Equal(SettlementPlan.ClassicRevision, SettlementPlan.RevisionFor(WorldDescription.AbandonedBedsGeneration));

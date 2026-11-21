@@ -55,9 +55,11 @@ public sealed partial class EditorTextFitTests
         Label("Settings: soft distance label (390 px at 20, #3462)", 390f, 20, "ui.settings.distance_softness"),
         // #3615: the giant wrecks — the travel screen's paragraph (CraftingTechShipUI.Map.cs, 600 × 150 at 18: seven lines) and
         // the planet map's legend slot (WorldMap.cs, 140 px slot − 36 for the icon, at 15).
-        Wrap("Travel screen: giant wreck detail (600 × 150 at 18)", 600f, 7, 18, "ui.map.giantwreck_detail"),
+        // #3902: an escort cruiser's wreck shows its ship text in the same box (GiantWreckText.DerelictDetail).
+        Wrap("Travel screen: giant wreck detail (600 × 150 at 18)", 600f, 7, 18, "ui.map.giantwreck_detail", "giantship.escort_cruiser.desc"),
         Label("Planet map legend: giant wreck (104 px at 15)", 104f, 15, "ui.map.kind_giant_wreck"),
         Label("Planet map legend: lost civilization (104 px at 15, #3642)", 104f, 15, "ui.map.kind_civilization"),
         Label("Planet map legend: guardian giant (104 px at 15, #3676)", 104f, 15, "ui.map.kind_guardian_giant"),
+        Label("Planet map legend: guide tower (104 px at 15, #3893)", 104f, 15, "ui.map.kind_sps_tower"),
     };
 }

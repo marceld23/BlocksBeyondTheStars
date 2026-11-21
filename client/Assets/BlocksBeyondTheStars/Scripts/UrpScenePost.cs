@@ -252,6 +252,7 @@ namespace BlocksBeyondTheStars.Client
         {
             float dt = Time.deltaTime;
             _damagePulse = Mathf.MoveTowards(_damagePulse, 0f, dt * 2.2f);
+            _sidePulse = Mathf.MoveTowards(_sidePulse, 0f, dt * 1.1f);
             if (_burstTimer > 0f)
             {
                 _burstTimer = Mathf.Max(0f, _burstTimer - dt);
@@ -265,8 +266,9 @@ namespace BlocksBeyondTheStars.Client
                     ? (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * (3f + alarm * 4f))) * 0.12f * alarm
                     : 0f;
                 float dmg = ReducedEffects ? 0f : _damagePulse * 0.16f;
+                float veil = ReducedEffects ? 0f : _sidePulse; // #3906: the step through a rune gate
                 // #2823: resting in bed — the frame closes in a little, like heavy eyelids.
-                _vignette.intensity.Override(BaseVignette + pulse + dmg + _rest * 0.14f);
+                _vignette.intensity.Override(BaseVignette + pulse + dmg + _rest * 0.14f + veil * 0.3f);
 
                 Color c = Color.black;
                 if (dmg > 0.001f)
@@ -279,7 +281,7 @@ namespace BlocksBeyondTheStars.Client
                     c = Color.Lerp(c, new Color(0.05f, 0.15f, 0.45f), Mathf.Clamp01(alarm * 0.8f));
                 }
 
-                _vignette.color.Override(c);
+                _vignette.color.Override(veil > 0.001f ? Color.Lerp(c, new Color(0.93f, 0.95f, 0.98f), veil) : c);
             }
 
             float k = !ReducedEffects && _burstTimer > 0f && _burstDuration > 0f ? _burstTimer / _burstDuration : 0f;
@@ -346,6 +348,37 @@ namespace BlocksBeyondTheStars.Client
             ApplyGradeNow();
         }
 
+        private float _otherSide; // 0..1 the other side's level (#3906): greyscale, no biome filter, no warmth, no mood LUT
+        private float _sidePulse; // decaying 0..1 → a soft white veil from the frame's edge at a crossing or a return
+
+        /// <summary>The other side's look (#3906): 0 = our side, 1 = white, grey and black — the Lights too. One more level
+        /// of the grade the memory flashback uses (<see cref="SetFlashback"/>): saturation ends at full greyscale, the
+        /// biome's colour filter, the cabin's warmth and the mood LUT's colour split fade out, contrast rises a little.
+        /// Everything is baked into URP's grading LUT, so it costs nothing per pixel and runs in the browser and on the
+        /// lowest preset; no second world render. It composes with the flashback, the rest look and the cosiness slider
+        /// (they shape the frame before the saturation takes the colour out) and re-applies the stored grade at once, so
+        /// it also works where Sky is not driving. The caller eases the level (<c>OtherSideView.Look</c>).</summary>
+        public void SetOtherSide(float level01)
+        {
+            level01 = Mathf.Clamp01(level01);
+            if (Mathf.Approximately(level01, _otherSide))
+            {
+                return;
+            }
+
+            _otherSide = level01;
+            ApplyGradeNow();
+        }
+
+        /// <summary>A soft white veil closing in from the frame's edge for a moment (#3906: the step through a rune gate) —
+        /// the vignette, tinted white, decaying over about a second. Nothing with reduced effects.</summary>
+        public void PulseOtherSide(float strength)
+            => _sidePulse = Mathf.Max(_sidePulse, Mathf.Clamp01(strength));
+
+        /// <summary>How strongly the biome's mood LUT blends in: less at home (#2813), not at all on the other side (#3906 —
+        /// it is applied after the grade and would tint the grey frame teal and orange).</summary>
+        private float MoodLutContribution() => MoodContribution * (1f - 0.75f * HomeAmount) * (1f - _otherSide);
+
         /// <summary>The neutral world's ColorAdjustments contrast. #2803: the per-frame grade used to add +6 on top of the
         /// biome contrast, so the 6 → 3 softening of #1457 only ever reached the menu (in the world: 9 … 20).</summary>
         private const float ContrastOffset = 3f;
@@ -386,15 +419,16 @@ namespace BlocksBeyondTheStars.Client
 
             float sat = Mathf.Lerp(baseSat, 0.25f, _flashback);
             Color tint = Color.Lerp(baseTint, new Color(0.78f, 0.86f, 0.98f), _flashback * 0.6f);
-            _grade.colorFilter.Override(Color.Lerp(Color.white, tint, 0.7f));
+            _grade.colorFilter.Override(Color.Lerp(Color.white, tint, 0.7f * (1f - _otherSide))); // #3906: no biome filter over there
             // A little extra saturation at home keeps the cabin's colours rich under the warmer white balance (without
-            // it, a blue hatch washed to grey in the first capture).
-            _grade.saturation.Override(Mathf.Clamp((sat - 1f) * 100f + 6f + 8f * h - 10f * _rest, -100f, 100f));
-            _grade.contrast.Override(Mathf.Clamp((baseContrast - 1f) * 100f + ContrastOffset - 6f * soft - 3f * h, -100f, 100f));
+            // it, a blue hatch washed to grey in the first capture). #3906: the other side ends in greyscale, whatever
+            // the biome, the flashback or the cabin asked for — and reads a little harder (OtherSideLook).
+            _grade.saturation.Override(OtherSideLook.Saturation(Mathf.Clamp((sat - 1f) * 100f + 6f + 8f * h - 10f * _rest, -100f, 100f), _otherSide));
+            _grade.contrast.Override(OtherSideLook.Contrast(Mathf.Clamp((baseContrast - 1f) * 100f + ContrastOffset - 6f * soft - 3f * h, -100f, 100f), _otherSide));
 
             if (_whiteBalance != null)
             {
-                _whiteBalance.temperature.Override(Mathf.Clamp(10f * warm + 5f * h + 12f * evening + 14f * _rest, -100f, 100f));
+                _whiteBalance.temperature.Override(Mathf.Clamp(10f * warm + 5f * h + 12f * evening + 14f * _rest, -100f, 100f) * (1f - _otherSide));
                 _whiteBalance.tint.Override(0f);
             }
 
@@ -407,19 +441,19 @@ namespace BlocksBeyondTheStars.Client
             if (_smh != null)
             {
                 Vector4 shadows = Vector4.Lerp(CoolShadows, NeutralTone, Mathf.Max(Smooth01((k - 0.2f) / 0.5f), h));
-                _smh.shadows.Override(Vector4.Lerp(shadows, HomeShadows, h * 0.6f));
+                _smh.shadows.Override(Vector4.Lerp(Vector4.Lerp(shadows, HomeShadows, h * 0.6f), NeutralTone, _otherSide));
             }
 
             if (_bloom != null && !ShellMode)
             {
                 _bloom.threshold.Override(Mathf.Lerp(PlayBloomThreshold, 0.8f, glow));
                 _bloom.intensity.Override(Mathf.Lerp(PlayBloomIntensity, 0.62f, glow));
-                _bloom.tint.Override(Color.Lerp(Color.white, new Color(1f, 0.93f, 0.82f), glow));
+                _bloom.tint.Override(Color.Lerp(Color.white, new Color(1f, 0.93f, 0.82f), glow * (1f - _otherSide)));
             }
 
             if (_lut != null && _lut.active)
             {
-                _lut.contribution.Override(MoodContribution * (1f - 0.75f * h)); // the cool shadow split stays outside
+                _lut.contribution.Override(MoodLutContribution()); // the cool shadow split stays outside
             }
 
             // Lamps a touch stronger at the warm end of the slider (BlockAtlas multiplies the baked block light by it).
@@ -532,7 +566,7 @@ namespace BlocksBeyondTheStars.Client
                 _lut.texture.Override(tex);
             }
 
-            _lut.contribution.Override(MoodContribution * (1f - 0.75f * HomeAmount)); // #2813: the cool split stays outside
+            _lut.contribution.Override(MoodLutContribution()); // #2813: the cool split stays outside
             if (!_lut.active) { _lut.active = true; }
         }
 

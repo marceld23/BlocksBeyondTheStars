@@ -43,6 +43,7 @@ public sealed partial class GameServer
         new("trades", static (g, s, _) => g.CancelTradesFor(s.State.PlayerId)),
         new("npc conversation", static (g, s, _) => g.EndNpcConversation(s, tellClient: false)), // #2616: back to its day
         new("fallen", static (g, s, _) => g.FallenOnLeave(s)), // #3765: a watching player is saved at the ship
+        new("other side", static (g, s, _) => g.OtherSideOnLeave(s)), // #3904: a player over there is saved at their entry gate, on our side
         new("fleet save", static (g, s, _) => g.SaveLeaverFleet(s)),
         new("player save", static (g, s, _) => g.SaveLeaver(s)),
     };
@@ -141,6 +142,7 @@ public sealed partial class GameServer
     {
         var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
         UndoFallenInSave(state); // #3765: a save written while its player was watching (a crash)
+        OtherSideOnLoad(state);  // #3904: a save written while its player was over there — back at the entry gate
         ClampInventory(state.Inventory, $"player '{name}' inventory");
         EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
         state.InTrain = string.Empty;      // #2113: a train bond never survives a join — the player stands where they were
@@ -149,6 +151,16 @@ public sealed partial class GameServer
         ClampInventory(state.RationStore, $"player '{name}' ration store");
         ClampInventory(state.SampleCase, $"player '{name}' sample case");
         return state;
+    }
+
+    /// <summary>What the client of a local player (<see cref="AddLocalPlayer"/>) understands: it runs in this build, so it
+    /// knows story packs (<c>packs1</c>, #2466), takes the dialogue panel's close (<c>dialogclose1</c>, #2616) and can show
+    /// the other side (<c>otherside1</c>, #3904). A network client says so itself in its join request.</summary>
+    private static void AddLocalClientFeatures(PlayerSession session)
+    {
+        session.ClientFeatures.Add(ClientFeatures.Packs1);
+        session.ClientFeatures.Add(ClientFeatures.DialogClose1);
+        session.ClientFeatures.Add(ClientFeatures.OtherSide1);
     }
 
     /// <summary>The network join's <see cref="LoadJoiningPlayer"/>: false after a corrupted record, which is kept untouched for

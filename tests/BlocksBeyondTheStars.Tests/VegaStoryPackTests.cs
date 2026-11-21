@@ -164,7 +164,8 @@ public sealed class VegaStoryPackTests : IDisposable
         Assert.Equal(new[] { 0, 1, 2, 5, 6, 9, 11, 12, -1 }, vega.Chapters.Select(c => c.FromBeat));
         Assert.Equal(StoryChapterEvents.GuardianDefeated, vega.Chapters[^1].FromEvent);
         Assert.All(vega.Chapters, c => Assert.Equal("story.vega.ch." + c.Id, c.TitleKey));
-        Assert.Equal(new[] { "companion_ward", "shape_noncube", "guardian_giant", "mission:m_giant_echo" }, vega.Insights.Select(i => i.Event)); // #3685
+        Assert.Equal(new[] { "companion_ward", "shape_noncube", "guardian_giant", "mission:m_giant_echo", "sps_tower", "sps_guard", "mission:m_echo_call" },
+            vega.Insights.Select(i => i.Event)); // #3685, #3895, #3897, #3899
 
         var en = _content.CreateLocalizer(GameLocale.English);
         var de = _content.CreateLocalizer(GameLocale.German);

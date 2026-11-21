@@ -552,6 +552,15 @@
     "features": [ "blueprint.feature.sounder_voice" ],
     "hiddenUntil": "milestone:snd:disc:song_disc_voices"
   },
+  // #3894: the fifth hidden Sounders blueprint — the crossing disc. #3910: it shows once the player heard that the stones
+  // are thin — chapter 9's first step, from the Eldest in Mirun or from a rune stone VEGA translates (the per-player
+  // milestone snd:threshold, written by the Eldest's dialog and by GameServerSoundersStory.OtherSide.cs; a skip writes it too).
+  {
+    "key": "sounder_crossing", "nameKey": "blueprint.sounder_crossing.name", "descriptionKey": "blueprint.sounder_crossing.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "obsidian", "count": 2 }, { "item": "crystal", "count": 2 }, { "item": "rune_stone", "count": 1 } ],
+    "hiddenUntil": "milestone:snd:threshold"
+  },
   // #1202: three research nodes that gate the station packs of #1203 (campfire meals, bio-refining, archaeology).
   {
     "key": "field_kitchen", "nameKey": "blueprint.field_kitchen.name", "descriptionKey": "blueprint.field_kitchen.desc",

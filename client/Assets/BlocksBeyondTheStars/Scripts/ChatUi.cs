@@ -525,6 +525,10 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("summon_giant", stringArg: p[1]);
                     return true;
 
+                case "/cruiser": // #3900: the escort cruiser comes out of hyperspace in your flight ("/cruiser echo": the story's)
+                    net.SendAdminCommand("summon_cruiser", stringArg: p.Length > 1 ? p[1] : string.Empty);
+                    return true;
+
                 case "/arachnid": // #2009: summon this world's arachnid near you (testing)
                     net.SendAdminCommand("summon_arachnid");
                     return true;
@@ -645,9 +649,16 @@ namespace BlocksBeyondTheStars.Client
                 // planet wreck (a fresh seed each time; the server answers with its usage line for anything else).
                 case "/giantwreck": net.SendAdminCommand("giantwreck", stringArg: t.Substring(p[0].Length).Trim()); return true;
 
+                // #3893: "/spstower list" names the guide tower ruins, "/spstower <key> [post|nopost]" stands one in front of
+                // the admin (a fresh seed each time).
+                case "/spstower": net.SendAdminCommand("spstower", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
                 // #3368: the Sounders' Song QA — "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi"
                 // (the server answers with its usage line for anything else).
                 case "/sounders": net.SendAdminCommand("sounders", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
+                // #3904: "/otherside" crosses to the other side or comes back, without disc and gate ("/otherside on|off").
+                case "/otherside": net.SendAdminCommand("otherside", stringArg: t.Substring(p[0].Length).Trim()); return true;
 
                 // Cutscene preview (#2468): "/cutscene <pack> <id>" plays a story scene for this admin only (the server
                 // checks the role and answers with the usage line when the words are missing).
@@ -798,7 +809,9 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_ressaw")); // #3421: /ressaw into a buried G.D.S. ruin on any planet
             LocalLine(L("ui.admin.help_landmark")); // #3496: /landmark list, /landmark key, /tp landmark
             LocalLine(L("ui.admin.help_giantwreck")); // #3611: /giantwreck list, /giantwreck key, /tp giantwreck
+            LocalLine(L("ui.admin.help_spstower")); // #3893: /spstower list, /spstower key, /tp tower
             LocalLine(L("ui.admin.help_guardian_giant")); // #3676: /giant guardian, /tp giant
+            LocalLine(L("ui.admin.help_cruiser")); // #3900: /cruiser, /cruiser echo
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
             LocalLine(L("ui.admin.help_rail")); // #3447: /railtrip and /guest
             LocalLine(L("ui.admin.help_creatures")); // #3390: /arachnid, /biped, /hound, /creatures
@@ -806,6 +819,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
             LocalLine(L("ui.admin.help_sounders")); // #3368: the Sounders story's QA verb
+            LocalLine(L("ui.admin.help_otherside")); // #3904: /otherside, /otherside on, /otherside off
             LocalLine(L("ui.admin.help_tutorial"));
             LocalLine(L("ui.admin.help_cutscene"));
             LocalLine(L("ui.admin.help_festival")); // #3389/#3390: festivals and the Advent calendar

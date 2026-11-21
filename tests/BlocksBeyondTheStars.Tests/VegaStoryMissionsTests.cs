@@ -76,6 +76,10 @@ public sealed class VegaStoryMissionsTests : IDisposable
             ViewDistanceChunks = 1,
             MaxPlayers = 6,
             PlaceStarterShip = false,
+            // #3899: these worlds can have no guide towers (and their default rules allow no space boss), so the three kept
+            // sky-light missions are skipped silently here — each test sees its chapter's own missions and nothing else.
+            // They are played in SkyLightsMissionsTests.
+            PlaceSpsTowers = false,
         };
         configure?.Invoke(config);
         var server = new SvGameServer(config, content ?? _content, transport, Repo(world));
@@ -159,11 +163,11 @@ public sealed class VegaStoryMissionsTests : IDisposable
         {
             ["awakening"] = Array.Empty<string>(),
             ["signature"] = new[] { "m_signal" },
-            ["service"] = new[] { "m_observatory", "m_archive" },
+            ["service"] = new[] { "m_observatory", "m_archive", "m_sky_light" }, // #3899: the sky-light after the observatory
             ["guardian"] = new[] { "m_runes" },
             ["verdict"] = new[] { "m_long_quiet", "m_wrecks", "m_fallen_giant", "m_giant_echo" }, // #3685: the giant after the derelict
-            ["what_you_are"] = new[] { "m_radar" },
-            ["sleeps"] = new[] { "m_jump" },
+            ["what_you_are"] = new[] { "m_radar", "m_sleeper" }, // #3899: the sleeper after the radar
+            ["sleeps"] = new[] { "m_jump", "m_echo_call" }, // #3899: ECHO's call after the jump generator
             ["core"] = Array.Empty<string>(), // the finale is chapter 7's mission (never muted, its own set pieces)
             ["resolution"] = new[] { "m_survey" },
         };
@@ -213,8 +217,20 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.All(StoryRegistry.Default.Chapters, c => Assert.Empty(c.Missions));
 
         var (server, _) = World("m_data", TutorialOff);
-        Assert.Equal(new[] { "m_signal", "m_observatory", "m_archive", "m_runes", "m_long_quiet", "m_wrecks", "m_fallen_giant", "m_giant_echo", "m_radar", "m_jump", "m_survey" },
+        Assert.Equal(
+            new[]
+            {
+                "m_signal", "m_observatory", "m_archive", "m_sky_light", "m_runes", "m_long_quiet", "m_wrecks", "m_fallen_giant", "m_giant_echo",
+                "m_radar", "m_sleeper", "m_jump", "m_echo_call", "m_survey",
+            },
             server.StoryMissionIdsForTest);
+
+        // #3899: only the three sky-light missions stay open after their chapter; here (no towers, no space boss) the world
+        // offers none of them — each is closed as skipped the moment its turn comes, without a word.
+        Assert.Equal(new[] { "m_sky_light", "m_sleeper", "m_echo_call" }, missions.Where(m => m.Keep).Select(m => m.Id));
+        var pilot = Join(server, 1, "Pilot");
+        Assert.False(server.EvaluateStoryConditionForTest("world:sps_towers", pilot));
+        Assert.False(server.EvaluateStoryConditionForTest("world:space_bosses", pilot));
     }
 
     // ---------------- Handing out ----------------

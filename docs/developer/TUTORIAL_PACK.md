@@ -480,7 +480,7 @@ room and the wall ring all accept own or allied bases — `AreAllied` answers bo
 | c6.8 | the fleet: switch ships in the Ship tab | `ship:switched` | do | — |
 | c7.1 | a base core (6 stone, 2 iron plates, no blueprint) claims a home | `base:founded` | do | `alreadyDoneIf world:base_here` (an ally's base counts, E32); `onComplete` **tut.first_base** |
 | c7.2 | the base zone: build freely, the air stays good, animals keep away | `base:built` × 10 | do | absorbs `base_walls`, `base_airless` — VEGA's two founding hints fire right after the founding, when this step is already active, so its line (with the base card) is the first word on walls and air (G12) |
-| c7.3 | lights: torches, lanterns, lamps, a campfire | `base:built` `torch\|lantern\|campfire\|light_white\|light_red\|light_green\|strip_light_cyan\|strip_light_warm` × 2 | do | — |
+| c7.3 | lights: torches, lanterns, lamps, a campfire | `base:built` `torch\|lantern\|campfire\|light_white\|light_red\|light_green\|light_blue\|strip_light_cyan\|strip_light_warm` × 2 | do | — |
 | c7.4 | a wooden door, opened with `{key:Interact}` | `door:opened` | do | — |
 | c7.5 | a sealed room holds air (stone, metal, glass; only an energy door keeps it in) | `base:sealed` | do | `feasibleIf world:airless, world:oxygen`, else **c7.5a** (read, `feasibleIf world:oxygen`); with no oxygen rule neither runs; absorbs `base_airless` |
 | c7.6 | a closed wall ring, 2 high, keeps animals out further | `base:walled` | do | absorbs `base_walls` |

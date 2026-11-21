@@ -26,6 +26,61 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗼 The sky-lights (VEGA story) and the other side (Sounders story) — #3891 (epic), #3892–#3912; answers the ideas #3858, #3857, #3829, #3830 — ✅ 2026-11-21, PR pending (⚠ playtest open; server + client + data; **terrain generation 47, save version 18**, protocol stays 12; all 14 languages)
+
+Four player ideas became two story extensions. Maps: [docs/developer/SPS_TOWERS.md](docs/developer/SPS_TOWERS.md),
+[docs/developer/OTHER_SIDE.md](docs/developer/OTHER_SIDE.md), the escort-cruiser sections of
+[SPACE_COMBAT_CONCEPT.md](docs/developer/SPACE_COMBAT_CONCEPT.md) and [GIANT_SHIPS.md](docs/developer/GIANT_SHIPS.md) §14,
+[STORY_SOUNDERS.md](docs/developer/STORY_SOUNDERS.md); canon C19–C22 in [LORE_STRUCTURE.md](docs/developer/LORE_STRUCTURE.md).
+Leitmotif of the VEGA part: **red turns blue again** — one key item (the hacking chip) for a tower, a tank and a bridge.
+
+- **Story missions that stay open (#3892).** `"keep": true` on a world-story mission: it is not let go when the world's
+  chapter moves on and is still handed out later (one kept mission at a time, beside the current chapter's own).
+- **SPS guide towers (#3893).** A new structure kind `sps_tower` on the landmark stack (terrain generation 47, new worlds
+  only): three tower ruins (40–95 blocks), only on worlds with inhabited settlements, protected, about every fifth to
+  sixth such world — and the first eligible world of a save always gets one, with a guard post. World option + `--sps-towers`.
+- **The relay console and the hacking chip (#3895, #3896).** Without a chip the console shows its records one by one
+  (and a piece of ECHO's last call per tower); with a chip (a rare Hunter drop or 10 titanium + 20 guardian plates) the
+  tower's lamps turn blue bottom to top, it plays its message and reveals the world's landmarks, wrecks, civilization
+  sites and other towers on the map. VEGA speaks by what the player's story knows; settlers have lines for red and blue.
+- **The guard post and the sleeper (#3897).** A chip opens the capsule tank: a guard of the escort wing steps out — a
+  clone grown now from the imprint that lay in the tank (C21) —, tells the red night from the inside and gives the
+  rusted Guardian plasma (once per player), then lives in the nearest settlement. Each post holds a guard of its own name.
+- **Guardian laser (#3898).** The rebuilt sidearm: a tap fires a shot, holding the fire control fires a beam that drains
+  suit energy and stops at a 15 % reserve (`BeamWeaponIntent`; every tick runs the shot's own rules).
+- **Escort cruiser boss (#3900, #3901, #3903).** `escort_cruiser`: a bigger Guardian cruiser with a long barrel, two
+  phases and a telegraphed mega laser (aiming line, 2.8 s; a barrel roll, distance or an asteroid saves the ship); it
+  comes out of hyperspace once from the story and later rarely by itself, also after the finale. A generic `BossStatus`
+  feeds the boss bar and the boss music in space. In a fight with several ships a downed ship sends only its own crew
+  home; boss loot goes to every pilot who fought.
+- **The cruiser's wreck and ECHO (#3902).** A beaten cruiser stays as a boardable wreck where it fell (one per system,
+  saved): robots, chests, a crate per fighter, and a bridge console the chip turns blue. On the story's cruiser VEGA's
+  sister core ECHO speaks once and says goodbye; her memory core is a keepsake.
+- **VEGA missions (#3899).** "The Sky-Light" (chapter 2), "The Sleeper" (chapter 5), "ECHO's Call" (chapter 6), all
+  kept; four scenes (`tower.message`, `tank.opens`, `cruiser.arrives`, `echo.speaks`). A world without towers skips the
+  first two silently and still offers the third.
+- **The other side (#3904–#3906).** A player state in the same world, everywhere: everything grey, nobody on the real
+  side sees the player (withheld by the server), enemies ignore them, no hunger, oxygen or damage. The way over and back
+  is a rune gate — at least three rune stones close together — with the Crossing disc in the obsidian chest's socket;
+  over there only rune stones, the Sounders who crossed over, the Resonance Blaster and the melody bar can be used.
+  Gates glow as tall pillars of light over there. Leaving the game over there puts the player back at their gate.
+- **Sound blocks (#3907, #3908).** A second layer of the world (`sound_edit`, a second cached chunk variant) that only
+  players over there receive. The blaster shapes them (use key) and dissolves them (mine key); the tone played last on
+  the melody bar picks the block's tone; walking over them sounds it. Cap 2000 per player and world; only the builder
+  and allies dissolve; weather only hides a sound block, a player's real block dissolves it.
+- **Cracks and chapters s9–s11 (#3909, #3910).** Every gate carries a crack over there; a short counter-voice game on
+  the melody bar mends it, and at a gate the world itself carries the real side blooms (singing plants, a refilled relic
+  cache, a small gift). "The Threshold", "Singing Softly" and "The Song from Over There" continue the Sounders story;
+  a player who finished chapter 8 gets chapter 9 by itself.
+- **Assets and texts (#3911, #3912).** 13 sounds (ElevenLabs, `eleven_text_to_sound_v3`; chosen by the maintainer on a
+  listening page), 5 icons, 4 tiles, 6 new blocks; 346 new texts in all 14 languages.
+- ⚠ **Playtest (a NEW world — generation 47):** `/tp tower`, the console with and without a chip, the lamps turning
+  blue, the tank and the guard (`/spstower <key> post`), the Guardian laser tap and hold; `/cruiser echo` — the mega
+  laser's line and warning, the boss bar and music, boarding the wreck, the bridge, ECHO; `/otherside` and a real
+  crossing with the disc — the grey level by day, night and in caves, the gate pillars against a bright sky, the HUD
+  chip, shaping and dissolving with keyboard AND gamepad, a crack's mend game, the bloom on the real side;
+  `/sounders chapter 9…11`, the Choir Tower's gate and the choir; two players over there seeing each other.
+
 ### 🧰 Player reports of 2026-11-21: small pets, calm boxed-in animals, land animals wade out of deep water — #3879–#3881 — ✅ 2026-11-21 (server + shared only; no protocol bump, no save change, no new texts)
 
 - **A villager's pet stood half through the shop's walls (#3879).** The household pets of the lively places (and the

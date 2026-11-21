@@ -43,7 +43,7 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "giant", "wreck", "factory", "camp", "lodge",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "giant", "tower", "wreck", "factory", "camp", "lodge",
         "outpost", "monument", "treasure", "base", "beacon", "beam", "station",
     };
 
@@ -72,6 +72,9 @@ public sealed partial class GameServer
         // #3676: the guardian giants of this body (lying, awake or defeated)
         "giants" or "guardiangiant" or "guardiangiants" or "guardian_giant" or "gigant" or "giganten" or "wächtergigant"
             or "waechtergigant" or "wächtergiganten" or "waechtergiganten" => "giant",
+        // #3893: the ruins of the SPS guide towers of this body
+        "towers" or "spstower" or "spstowers" or "sps_tower" or "guidetower" or "guidetowers" or "leitturm" or "leittürme"
+            or "leittuerme" or "turm" or "türme" or "tuerme" => "tower",
         "wrecks" => "wreck",
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
@@ -155,6 +158,7 @@ public sealed partial class GameServer
         AppendCivilizationTargets(list, session); // #3654 (GameServerAdminTeleportSites.cs)
         AppendGiantWreckTargets(list, session); // #3610, #3655: on this body, then in space of this system
         AppendGuardianGiantTargets(list, session); // #3676 (GameServerGuardianGiantsAdmin.cs)
+        AppendSpsTowerTargets(list, session); // #3893 (GameServerSpsTowersAdmin.cs)
         if (_wreckStamped && !_wreckClaimed)
         {
             // No reveal check here, unlike the map POI: an admin looking for the wreck is doing support, not
@@ -415,6 +419,7 @@ public sealed partial class GameServer
     /// position is discarded by the client and then reverted by its own move stream (#414 M7/N17).</summary>
     private void SnapPlayerTo(PlayerSession session, Vector3f target, string reason)
     {
+        OtherSideBeforeMove(session); // #3904: a teleport brings a player back from over there first
         session.State.Position = target;
         Send(session, new RespawnNotice { X = target.X, Y = target.Y, Z = target.Z, Reason = reason });
         SendPlayerState(session);

@@ -287,7 +287,8 @@ internal sealed class FarTerrainSystem
         {
             if ((world.Landmarks.Count > 0 && world.Landmarks.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference)))
                 || (world.GiantWrecks.Count > 0 && world.GiantWrecks.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference)))
-                || world.CivilizationSites.Exists(lm => lm.WaterTop is null && lm.StandsAt(top.X, top.Y, top.Z, circumference))) // #3642
+                || world.CivilizationSites.Exists(lm => lm.WaterTop is null && lm.StandsAt(top.X, top.Y, top.Z, circumference)) // #3642
+                || (world.SpsTowers.Count > 0 && world.SpsTowers.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference)))) // #3893
             {
                 continue; // #3497: a landmark (#3610: a giant wreck) is drawn by its far silhouette — a height blob on top would hide it
             }

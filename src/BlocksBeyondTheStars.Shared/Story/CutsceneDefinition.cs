@@ -434,12 +434,27 @@ public static class StoryCutsceneIds
     /// <summary>VEGA's ending.</summary>
     public const string Resolution = "resolution";
 
+    /// <summary>#3899: a guide tower's message — for the player who lit it with a hacking chip (anchored at its console).</summary>
+    public const string TowerMessage = "tower.message";
+
+    /// <summary>#3899: a guard post's capsule tank opens — for everybody near it (anchored at the tank).</summary>
+    public const string TankOpens = "tank.opens";
+
+    /// <summary>#3899: ECHO's cruiser came out of hyperspace — for the pilots who follow her call.</summary>
+    public const string CruiserArrives = "cruiser.arrives";
+
+    /// <summary>#3899: ECHO speaks once and says goodbye — for everybody aboard her cruiser's wreck.</summary>
+    public const string EchoSpeaks = "echo.speaks";
+
     /// <summary>The ids the <c>vega_protocol</c> pack may define.</summary>
     public static readonly IReadOnlyList<string> Vega = new[]
     {
         Prologue, "ch1.open", "ch2.open", "ch3.open", "ch4.open", "ch5.open", "ch6.open", "ch7.open",
         "b01", "b03", "b04", "b07", "b08", "b10",
         "giant.remembers", // #3685: VEGA remembers the guardian giants (the end of chapter 4's giant mission)
+        // #3899: the sky-lights' scenes, played by the game's code at their place — a guide tower lit, a capsule tank
+        // opened, ECHO's cruiser out of hyperspace, ECHO's goodbye on its bridge.
+        TowerMessage, TankOpens, CruiserArrives, EchoSpeaks,
         "fin.arrival", "fin.descent", "fin.breach", "fin.duel", "fin.standdown", Resolution,
     };
 

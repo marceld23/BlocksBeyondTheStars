@@ -48,6 +48,18 @@
   { "key": "anomaly_echo",     "site": "anomaly",       "textKey": "lore.site.anomaly_echo",     "minKnowledge": 0, "weight": 2 },
   { "key": "anomaly_choir",    "site": "anomaly",       "textKey": "lore.site.anomaly_choir",    "minKnowledge": 2, "weight": 1 },
   { "key": "giant_core_order", "site": "guardian_giant_core", "textKey": "lore.site.giant_core_order", "minKnowledge": 0, "weight": 1 },
+  { "key": "cruiser_echo_core",   "site": "cruiser_bridge", "textKey": "lore.site.cruiser_echo_core",   "minKnowledge": 0, "weight": 1 },
+  { "key": "cruiser_log_patrol",  "site": "cruiser_bridge", "textKey": "lore.site.cruiser_log_patrol",  "minKnowledge": 0, "weight": 1 },
+  { "key": "cruiser_log_last",    "site": "cruiser_bridge", "textKey": "lore.site.cruiser_log_last",    "minKnowledge": 0, "weight": 1 },
+  { "key": "cruiser_log_machine", "site": "cruiser_bridge", "textKey": "lore.site.cruiser_log_machine", "minKnowledge": 0, "weight": 1 },
+
+  { "key": "tower_ships",      "site": "sps_tower",     "textKey": "lore.site.tower_ships",      "minKnowledge": 0, "weight": 1 },
+  { "key": "tower_recall",     "site": "sps_tower",     "textKey": "lore.site.tower_recall",     "minKnowledge": 0, "weight": 1 },
+  { "key": "tower_red_night",  "site": "sps_tower",     "textKey": "lore.site.tower_red_night",  "minKnowledge": 0, "weight": 1 },
+  { "key": "tower_guard_log",  "site": "sps_tower",     "textKey": "lore.site.tower_guard_log",  "minKnowledge": 0, "weight": 1 },
+  { "key": "tower_echo_1",     "site": "sps_tower",     "textKey": "lore.site.tower_echo_1",     "minKnowledge": 0, "weight": 1 },
+  { "key": "tower_echo_2",     "site": "sps_tower",     "textKey": "lore.site.tower_echo_2",     "minKnowledge": 0, "weight": 1 },
+  { "key": "tower_echo_3",     "site": "sps_tower",     "textKey": "lore.site.tower_echo_3",     "minKnowledge": 0, "weight": 1 },
 
   { "key": "debris_freighter_log", "site": "debris_freighter", "textKey": "lore.site.debris_freighter_log", "minKnowledge": 0, "weight": 1 },
   { "key": "debris_shipyard_tag",  "site": "debris_shipyard",  "textKey": "lore.site.debris_shipyard_tag",  "minKnowledge": 0, "weight": 1 },

@@ -253,7 +253,7 @@ internal sealed class JournalSystem
             Startable = !started && ((_host.Story.Start?.EarlyOptIn ?? false) || _host.StoryTrackStartReason(s) is not null),
             Badge = won,
             Leads = _host.JournalLeads(s), // #2475: the current chapter's leads as the VEGA page's tasks
-            Missions = _host.JournalMissions(s), // #2476: the current chapter's story missions
+            Missions = _host.JournalMissions(s), // #2476: the current chapter's story missions (#3892: and the kept ones still running)
         };
     }
 
@@ -265,7 +265,13 @@ internal sealed class JournalSystem
         bool started = GameServer.PackStarted(s, pack);
         bool runs = _host.PackRunsFor(s, pack);
         var mandatory = pack.Chapters.Where(c => !c.Optional).ToList();
-        bool done = GameServer.PackDone(s, pack);
+
+        // #3910: "done" is what the chapters say, not the stamp alone. A pack that grew after a player finished it (the
+        // Sounders' chapters 9–11) keeps its stamp — conditions (pack:<id>:done) and the pack's lore and dialogs read it —
+        // but the engine walks the new chapters, so the Journal would read "done" and "running" at once. While a
+        // non-optional chapter is neither done nor skipped the pack shows as running, without the done mark; once the last
+        // one is through it is done again. (A replay of a finished chapter does not take the mark away, as before.)
+        bool done = GameServer.PackDone(s, pack) && mandatory.All(c => GameServer.ChapterDoneOrSkipped(s, c));
         bool badge = done && (mandatory.Count > 0
             ? mandatory.All(c => m.Contains(StoryPackKeys.ChapterDone(pack.Id, c.Id)))
             : pack.Chapters.All(c => m.Contains(StoryPackKeys.ChapterDone(pack.Id, c.Id))));

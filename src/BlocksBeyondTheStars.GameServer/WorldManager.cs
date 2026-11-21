@@ -111,6 +111,11 @@ internal sealed class MonumentInstance
     /// <summary>Which silhouette this is — one of <see cref="MonumentGenerator.Archetypes"/>. Also the
     /// scan ledger's subject, so a player is rewarded once per archetype per body.</summary>
     public string Archetype { get; set; } = string.Empty;
+
+    /// <summary>#3906: the middle of the relic's rune group as it was generated — three or more rune stones close together,
+    /// a rune gate of the other side — or null when its inscriptions stand alone. For the gate list
+    /// (<c>GameServerOtherSide.GateList.cs</c>), which must know a far gate without loading its chunks.</summary>
+    public Vector3f? RuneGate { get; set; }
 }
 
 /// <summary>
@@ -282,6 +287,10 @@ internal sealed class LoadedWorld
     /// in-process loopback (no encoding at all). Read-only once cached — the client never writes into it.</summary>
     public Dictionary<ChunkCoord, (long Version, BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage Message)> ChunkMessages { get; } = new();
 
+    /// <summary>#3907: the sound blocks of the other side on this world — a sparse second layer beside the block grid, and
+    /// the cache of the chunk variant that carries them (<c>GameServerSoundLayer*.cs</c>).</summary>
+    public GameServer.SoundLayerState SoundLayer { get; } = new();
+
     /// <summary>#1530: the per-world fauna jitter of <c>WorldCreatureCap</c> (a pure function of seed + location,
     /// documented "stable per world") — hashed once instead of an interpolated string 15× per second.</summary>
     public double? FaunaJitter { get; set; }
@@ -425,6 +434,12 @@ internal sealed class LoadedWorld
     // #3680 (generation 44): whether this load ran the guardian giants' stamp (GameServerGuardianGiantStamp.cs) — their bodies
     // are ordinary block edits written once; their state lives in WorldMetadata.GuardianGiants.
     public bool GuardianGiantsStamped { get; set; }
+
+    // #3893 (generation 47): the SPS guide tower ruins of this body — 0 or 1 rolled (plus an admin's hand stamps), stamped
+    // with the landmark machinery and re-derived every load from their placement records (GameServerSpsTowerStamp.cs); what
+    // the later systems need of a tower lives in WorldMetadata.SpsTowers.
+    public bool SpsTowersStamped { get; set; }
+    public List<GameServer.LandmarkInstance> SpsTowers { get; } = new();
 
     // Fallen-city ruin stamp state — ruins are mineable, so they are stamped ONCE (guarded by this flag)
     // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect

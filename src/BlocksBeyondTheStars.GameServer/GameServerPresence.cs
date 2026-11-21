@@ -188,7 +188,7 @@ public sealed partial class GameServer
         foreach (var viewer in _sessions.Values)
         {
             if (viewer.Joined && viewer.ConnectionId != subject.ConnectionId
-                && viewer.CurrentLocationId == subject.CurrentLocationId)
+                && viewer.CurrentLocationId == subject.CurrentLocationId && !HiddenFrom(viewer, subject)) // #3905
             {
                 Send(viewer, msg);
             }
@@ -259,7 +259,7 @@ public sealed partial class GameServer
         foreach (var viewer in _sessions.Values)
         {
             if (viewer.Joined && viewer.ConnectionId != subject.ConnectionId
-                && viewer.CurrentLocationId == subject.CurrentLocationId)
+                && viewer.CurrentLocationId == subject.CurrentLocationId && !HiddenFrom(viewer, subject)) // #3905
             {
                 Send(viewer, msg);
             }
@@ -289,7 +289,7 @@ public sealed partial class GameServer
         foreach (var viewer in _sessions.Values)
         {
             if (viewer.Joined && viewer.ConnectionId != subject.ConnectionId
-                && viewer.CurrentLocationId == subject.CurrentLocationId)
+                && viewer.CurrentLocationId == subject.CurrentLocationId && !HiddenFrom(viewer, subject)) // #3905
             {
                 Send(viewer, msg);
             }
@@ -340,7 +340,7 @@ public sealed partial class GameServer
         foreach (var other in _sessions.Values)
         {
             if (other.Joined && !other.Spectating && other.ConnectionId != newcomer.ConnectionId
-                && other.CurrentLocationId == newcomer.CurrentLocationId)
+                && other.CurrentLocationId == newcomer.CurrentLocationId && !HiddenFrom(newcomer, other)) // #3905
             {
                 if (!string.IsNullOrEmpty(other.State.FacePixels))
                 {
@@ -482,7 +482,7 @@ public sealed partial class GameServer
         foreach (var other in _sessions.Values)
         {
             if (other.Joined && !other.Spectating && other.ConnectionId != newcomer.ConnectionId
-                && other.CurrentLocationId == newcomer.CurrentLocationId)
+                && other.CurrentLocationId == newcomer.CurrentLocationId && !HiddenFrom(newcomer, other)) // #3905
             {
                 Send(newcomer, PresenceOf(other));
             }
@@ -520,7 +520,7 @@ public sealed partial class GameServer
         long signature = 17;
         foreach (var s in joined)
         {
-            signature = unchecked(signature * 31 + s.ConnectionId * 2 + (s.Spectating ? 1 : 0));
+            signature = unchecked(signature * 31 + s.ConnectionId * 4 + (s.Spectating ? 1 : 0) + (s.OtherSide ? 2 : 0)); // #3905: a crossing too
         }
 
         var world = _worlds.Active;
@@ -551,7 +551,7 @@ public sealed partial class GameServer
             for (int v = 0; v < joined.Count; v++)
             {
                 var viewer = joined[v];
-                if (viewer.ConnectionId == subject.ConnectionId)
+                if (viewer.ConnectionId == subject.ConnectionId || HiddenFrom(viewer, subject)) // #3905: over there, unseen from here
                 {
                     continue;
                 }

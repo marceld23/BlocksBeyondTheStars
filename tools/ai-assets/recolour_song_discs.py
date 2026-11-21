@@ -3,17 +3,19 @@
 # This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Recolour the one generated Song Disc icon into the story and socket discs of the Sounders pack (#3363).
 
-The pack has eight named discs (SoundersIds.StoryDiscs plus the calm and light socket discs) and the collectible
-`song_disc`. Only the collectible's icon is generated (gen_item_icons.py, key song_disc); every named disc is the same
-obsidian disc with its glow in a colour of its own, so a child tells them apart in the inventory at a glance.
+The pack has nine named discs (SoundersIds.StoryDiscs plus the calm, light and — since #3912 — crossing socket discs) and
+the collectible `song_disc`. Only the collectible's icon is generated (gen_item_icons.py, key song_disc); every named disc
+is the same obsidian disc with its glow in a colour of its own, so a child tells them apart in the inventory at a glance.
 
 Deterministic, no model and no randomness. Only the glow changes: a pixel's weight is how saturated it is (the black
 obsidian has almost no colour and stays as it is) times how close its hue lies to the base glow's hue; within that
 weight the hue turns to the disc's colour and the saturation/value are scaled. Alpha is untouched.
 
-    uv run --no-project --with "pillow>=13" python tools/ai-assets/recolour_song_discs.py [--preview sheet.png]
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/recolour_song_discs.py [--only NAME ...] [--preview sheet.png]
 
-Reads client/Assets/Resources/icons/item_song_disc.png and writes item_song_disc_<name>.png next to it.
+Reads client/Assets/Resources/icons/item_song_disc.png and writes item_song_disc_<name>.png next to it. A NEW disc is
+added with `--only <name>`, which leaves the committed files of the other discs alone (a new disc also needs its
+`.png.meta`: a neighbour's with a fresh guid).
 """
 from __future__ import annotations
 
@@ -41,6 +43,7 @@ DISCS: dict[str, tuple[float, float, float]] = {
     "voices": (122.0, 0.95, 1.0),      # green — the Sounder instruments
     "calm": (222.0, 0.9, 1.0),         # deep sky blue — Soundraks stay calm
     "light": (50.0, 0.35, 1.2),        # warm white-gold — a soft glow
+    "crossing": (215.0, 0.1, 1.25),    # pale silver-white, a breath of cool grey — the threshold to the other side (#3912)
 }
 
 
@@ -78,15 +81,19 @@ def recolour(base: Image.Image, hue: float, sat_k: float, val_k: float) -> Image
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--preview", help="also write all discs side by side on a grey ground to this PNG")
+    ap.add_argument("--only", nargs="+", metavar="NAME", choices=sorted(DISCS),
+                    help="write only these discs (a new disc: the committed files of the others stay untouched)")
     args = ap.parse_args()
 
     base = Image.open(BASE).convert("RGBA")
     made = []
     for name, (hue, sat_k, val_k) in DISCS.items():
         img = recolour(base, hue, sat_k, val_k)
+        made.append(img)
+        if args.only and name not in args.only:
+            continue
         path = ICONS / f"item_song_disc_{name}.png"
         img.save(path)
-        made.append(img)
         print(f"item_song_disc_{name}.png")
 
     if args.preview:

@@ -73,6 +73,7 @@ namespace BlocksBeyondTheStars.Client
             UpdateTaming(show); // per frame: the cursor ownership + the [1]–[4] / Esc keys must not wait for the throttled Refresh
             UpdateMelodyBar(show); // #3346 per frame: the tone keys, the prompt's lights
             UpdateBossBar(show); // #3676 per frame: a guardian giant's hull and rage pulse (HudUi.BossBar.cs)
+            UpdateOtherSideChip(show); // #3906 the mark "on the other side" (HudUi.OtherSide.cs)
 
             if (!show && _gearCanvas != null && _gearCanvas.enabled)
             {
@@ -226,6 +227,7 @@ namespace BlocksBeyondTheStars.Client
             BuildTaming(root);
             BuildMelodyBar(root); // #3346
             BuildBossBar(root); // #3676
+            BuildOtherSideChip(root); // #3906
 
             // Typography: headline labels glow like the hologram, the rest keep the readable underlay.
             foreach (var glow in new TMP_Text[] { _locTitle, _inSpace, _prompt, _scanSubject, _tameName, _speederTitle, _shipRepairTitle, _observer })
@@ -331,15 +333,7 @@ namespace BlocksBeyondTheStars.Client
             int hintMode = Settings != null ? Settings.ControlsHintMode : ClientSettings.ControlsHintShort;
             bool shortHint = hintMode == ClientSettings.ControlsHintShort;
             PlaceHintLine(shortHint);
-            string hint = Game.SpaceViewActive || hintMode == ClientSettings.ControlsHintOff ? string.Empty : InputMap.ActiveDevice switch
-            {
-                // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
-                InputDeviceKind.Touch => string.Empty,
-                InputDeviceKind.Gamepad => shortHint ? PadLine(loc, "ui.hud.hint_short_pad") : PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
-                _ => shortHint ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_short")) : KeyboardHint(loc, MelodyBarShown), // #2502: the bound keys ({key:Action} tokens); #3431: no hotbar under the bar
-            };
-
-            _hint.text = WithContextHints(loc, hint, shortHint);
+            _hint.text = ControlsLine(loc, hintMode, shortHint); // HudUi.HintLine.cs — over there the other side's own line
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on

@@ -117,7 +117,7 @@ public sealed partial class GameServer
         near.Clear();
         foreach (var session in JoinedInActiveWorld())
         {
-            if (!session.Watching && !session.State.InEva && session.State.Health > 0f)
+            if (!session.Watching && !session.OtherSide && !session.State.InEva && session.State.Health > 0f) // #3905
             {
                 CollectRessawBlocksNear(session, near);
             }

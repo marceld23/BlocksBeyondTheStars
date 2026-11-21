@@ -19,6 +19,10 @@ public sealed class AudioMixRulesTests
     [InlineData("ship_destroyed", AudioRange.Huge)]
     [InlineData("ship_landing", AudioRange.Huge)]
     [InlineData("engine_thrust", AudioRange.Huge)]
+    [InlineData("mega_laser_charge", AudioRange.Huge)] // #3900: the escort cruiser's barrel, heard across its stand-off
+    [InlineData("mega_laser_fire", AudioRange.Huge)]
+    [InlineData("cruiser_warp_in", AudioRange.Huge)]
+    [InlineData("heavy_shot_charge", AudioRange.Medium)] // the classic heavy shot keeps its curve
     [InlineData(null, AudioRange.Medium)]
     public void Range_IsPickedByCueId(string? id, AudioRange expected) => Assert.Equal(expected, AudioMixRules.RangeFor(id));
 

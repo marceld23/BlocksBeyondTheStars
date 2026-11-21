@@ -66,6 +66,13 @@ public sealed class DialogDefinition
     /// consequences always stay authored.</summary>
     public bool AiPrompt { get; set; }
 
+    /// <summary>#3910: conditions (the story grammar; a string or a list = all of them) under which the talking player is
+    /// offered this dialogue at all — while one fails the dialogue is passed over and the next match is asked. For a
+    /// character with one talk per part of a story (the Sounders' Eldest: the plea before the Bridge Song,
+    /// <c>not:chapter:sounders:s8</c>, the thin stones after it, <c>chapter:sounders:s8</c>). Empty = always.</summary>
+    [System.Text.Json.Serialization.JsonConverter(typeof(Story.StoryConditionListConverter))]
+    public List<string> VisibleIf { get; set; } = new();
+
     /// <summary>Whether <paramref name="home"/> is one of the known <see cref="Home"/> values.</summary>
     public static bool IsValidHome(string? home)
         => string.IsNullOrEmpty(home) || home == HomeOwnBase || home == HomeAway || home == HomeLodge || home == HomeWander;

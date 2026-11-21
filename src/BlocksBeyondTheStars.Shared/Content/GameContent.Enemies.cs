@@ -103,6 +103,14 @@ public sealed partial class GameContent
                         problems.Add($"Enemy '{e.Key}' tier '{name}' drops unknown item '{loot.Item}' (or a count below 1).");
                     }
                 }
+
+                foreach (var rare in tier.RareLoot) // #3894
+                {
+                    if (!_items.ContainsKey(rare.Item) || rare.Count <= 0 || rare.Chance <= 0f || rare.Chance > 1f)
+                    {
+                        problems.Add($"Enemy '{e.Key}' tier '{name}' has a rare drop of unknown item '{rare.Item}' (or a count below 1, or a chance outside 0..1).");
+                    }
+                }
             }
         }
     }

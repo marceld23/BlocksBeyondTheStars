@@ -51,6 +51,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3756: a hostile's heavy shot starts charging, or fires (hit or miss).</summary>
         public event Action<SpaceHeavyShot>? SpaceHeavyShotReceived;
 
+        /// <summary>#3901: a boss fight's bar — name, health, shield, phase; the last one of a fight has <c>Active</c> false.</summary>
+        public event Action<BossStatus>? BossStatusReceived;
+
+        /// <summary>#3904: where this player stands — on the other side or not (<c>Over</c>), why it changed (<c>Reason</c>,
+        /// <c>OtherSideReasons</c>), the entry gate's marker and the sound-block meter. Sent at the join and on every change.</summary>
+        public event Action<OtherSideState>? OtherSideStateReceived;
+
+        /// <summary>#3906: the rune gates around this player while over there (each with its centre, whether a crack runs
+        /// through it and whether it is the entry gate); an empty list at the return.</summary>
+        public event Action<OtherSideGates>? OtherSideGatesReceived;
+
         /// <summary>#3753: the pilot rolls (to the right, or to the left) — the server opens the evade window if its
         /// cooldown allows, and shows the roll to the other pilots.</summary>
         public void SendShipRoll(bool right = true) => Send(new ShipManeuverIntent { Kind = ShipManeuverKinds.Roll, On = right });
@@ -231,6 +242,9 @@ namespace BlocksBeyondTheStars.Client
             On<PlaytestWatchAck>(map, (c, m) => c.PlaytestWatchAckReceived?.Invoke(m)); // the Test Pilot page
             On<PlaytestEvent>(map, (c, m) => c.PlaytestEventReceived?.Invoke(m));
             On<SpaceHeavyShot>(map, (c, m) => c.SpaceHeavyShotReceived?.Invoke(m)); // #3756
+            On<BossStatus>(map, (c, m) => c.BossStatusReceived?.Invoke(m)); // #3901: the generic boss bar
+            On<OtherSideState>(map, (c, m) => c.OtherSideStateReceived?.Invoke(m)); // #3904: over there or not
+            On<OtherSideGates>(map, (c, m) => c.OtherSideGatesReceived?.Invoke(m)); // #3906: the gates' lights
             On<PvpTargets>(map, (c, m) => c.PvpTargetsReceived?.Invoke(m));
             On<DuelNotice>(map, (c, m) => c.DuelNoticeReceived?.Invoke(m));
             On<AchievementList>(map, (c, m) => c.AchievementsReceived?.Invoke(m));

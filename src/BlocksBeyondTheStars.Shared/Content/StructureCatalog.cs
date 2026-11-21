@@ -189,6 +189,7 @@ public sealed partial class StructureCatalog
         foreach (var k in StructureKits) packs.Add(k.PackOrDefault);
         foreach (var t in Landmarks) packs.Add(t.PackOrDefault);
         foreach (var t in GiantShips) packs.Add(t.PackOrDefault); // #3607: a giant ship's pack is switched like any other
+        foreach (var t in SpsTowers) packs.Add(t.PackOrDefault); // #3893: so is a guide tower's
         StructurePacks = packs.ToList();
     }
 
@@ -225,6 +226,13 @@ public sealed partial class StructureCatalog
             {
                 // #3607: a giant ship saved to the landmark folder stays out of the landmark pool (and never becomes one).
                 warn?.Invoke($"Skipping landmark '{t.Key}': it is a giant ship — it belongs in data/{GiantShipRules.DataFolder}.");
+                continue;
+            }
+
+            if (t.SpsTower)
+            {
+                // #3893: a guide tower saved to the landmark folder stays out of the landmark pool (and never becomes one).
+                warn?.Invoke($"Skipping landmark '{t.Key}': it is a guide tower — it belongs in data/{SpsTowerRules.DataFolder}.");
                 continue;
             }
 

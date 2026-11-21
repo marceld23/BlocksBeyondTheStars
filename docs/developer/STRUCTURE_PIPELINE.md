@@ -1,11 +1,11 @@
 # The structure pipeline — how built structures get into a world
 
 Epic #3510 (#3511–#3524, terrain generation 38). Every built structure — a village, a station, a monument, a wreck, a
-vault, a landmark, a giant ship wreck, a lost civilization's site, a fallen guardian giant — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
+vault, a landmark, a giant ship wreck, a lost civilization's site, a fallen guardian giant, the ruin of an SPS guide tower — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
 writes it, and on later loads it is **replayed** from its record. The editor runs the same sources, so it can show and start
 from every kind. This is the *how it fits together* reference; the kinds themselves are documented where they live
 ([WORLD_GENERATION.md](WORLD_GENERATION.md), [LANDMARKS.md](LANDMARKS.md), [GIANT_SHIPS.md](GIANT_SHIPS.md),
-[CIVILIZATIONS.md](CIVILIZATIONS.md),
+[CIVILIZATIONS.md](CIVILIZATIONS.md), [SPS_TOWERS.md](SPS_TOWERS.md),
 [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md), [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md),
 [DERELICT_STATIONS.md](DERELICT_STATIONS.md), [SHIP_TYPE_EDITOR.md](SHIP_TYPE_EDITOR.md)).
 
@@ -154,13 +154,21 @@ The prop markers stay in the layout.
   landmarks, giant wrecks and civilization sites, 48 from another giant); site flat, grade radius 6 (cut and fill 6). Only a
   `flat` seat counts. Switched by `ServerConfig.PlaceGuardianGiants`; stamped by `StampGuardianGiants` right after the giant
   wrecks ([WORLD_GENERATION.md](WORLD_GENERATION.md) §59).
+- **The guide tower rule** (`sps_tower`, generation 47, #3893): `chance` 0.18 × the structures frequency × the world option
+  `SpsTowers` (`ServerConfig.SpsTowerChance` overrides it), one per body; conditions `atmosphere`, `notVoid`, `notGas`,
+  `notAsteroid`, whitelist key `sps_towers`; only on a body with an inhabited settlement, never the finale body or a
+  civilization's home; keep-clear 6 (60 from settlements, 24 from pads, bandit camps, huts, outposts and giants, 16 from the
+  wreck, ruins, factories, the landmark and a giant wreck, 10 from the crash site); the landmark's site and grade; a seat
+  only where the top stays 8 rows under the atmosphere line. **The first eligible body of a save gets one whatever the roll
+  says** (`WorldMetadata.SpsTowerGuaranteeSpent`). Switched by `ServerConfig.PlaceSpsTowers` and the world option; stamped
+  by `StampSpsTowers` right after the guardian giants ([SPS_TOWERS.md](SPS_TOWERS.md)).
 - **The civilization kind** (`civilization`, generation 43, #3639): no roll — `chance` and `density` are 0, because where and
   how many sites stand come from the civilization files (homes pinned in `WorldMetadata.CivilizationHomes`, a count per site
   pool; [CIVILIZATIONS.md](CIVILIZATIONS.md) §3–§4). The rule supplies the footprint registry kind, keep-clear 6 (24 from the
   pads, 10 from the crash site) and the landmark's site and grade (a land site reserves its ground; a sunken one, seated by
   the `seabed` search, does not). `enabled: false` (or a raised `minGeneration`) stops fresh sites — a home body then decides
   nothing and asks again once the kind is on; standing sites replay from their records whatever the switch says. Its place in the structures boot stage: text tablets → Sounder world →
-  **civilizations** → settlements (+ intercity line) → ruins → … → landmarks → giant wrecks → guardian giants → buried ruins → …, so every
+  **civilizations** → settlements (+ intercity line) → ruins → … → landmarks → giant wrecks → guardian giants → guide towers → buried ruins → …, so every
   later stamper keeps clear of the sites (`OverlapsLandmark` includes them). On a home body the kinds its
   `homeBody.suppress` names (`landmark`, `giant_wreck`) record a skip instead of rolling.
 - **Counts and verdicts are pinned** (#3513): `WorldMetadata.StructureCounts["<location>|<kind>"]`, the record fields
@@ -205,7 +213,12 @@ The prop markers stay in the layout.
   `facing`, `seed`, `wake` and its anchor `ax` / `ay` / `az`; beside it lives its `GuardianGiantRecord`
   (`WorldMetadata.GuardianGiants`, `<location>#<index>`), whose state the boss logic keeps. Its body is ordinary block edits,
   written once (feature `guardian_giant:<index>`); a replay registers the footprint and writes nothing, and never touches
-  the record's state (a record that went missing comes back dormant from the pin).
+  the record's state (a record that went missing comes back dormant from the pin). A guide tower (kind `sps_tower`, index 0;
+  a hand stamp takes the next, generation 47) pins `turns`, `rev`, `seed`, `air`, `post` (its guard post, 0/1), `fp` and
+  `storage=overlay`; its cells are one structure overlay `sps_tower:<index>` under a protected footprint, and beside it
+  lives its `SpsTowerRecord` (`WorldMetadata.SpsTowers`: the console's cell, the lamp cells, the tank), written once and
+  never rewritten — the tower's life keeps its state there. A changed or missing template keeps the blocks and the tower
+  record and re-derives nothing else.
 
 ## 5. User content
 
@@ -264,5 +277,6 @@ design is stamped; quarter-turn and ruin previews run the server's own code. See
 | Ships and wrecks | `Shared/Definitions/UserShip.cs`, `GameContent.UserShips.cs`, `GameServerUserShips.cs`, `ShipCellBlocks.cs`, `WreckGenerator.Layout*.cs`, `WreckLayoutHull.cs`, `GameServerWrecks.Layout.cs` |
 | Giant ship wrecks | `Shared/Definitions/GiantShipRules.cs`, `GameContent.GiantShips.cs`, `WorldGeneration/GiantShipGenerator*.cs`, `StructureRuiner.Giant*.cs`, `GiantWreckPlacer.cs`, `GameServerGiantWrecks*.cs`, `GameServerGiantDerelict*.cs` — see [GIANT_SHIPS.md](GIANT_SHIPS.md) §12 |
 | Lost civilizations | `Shared/Definitions/CivilizationDefinition.cs`, `CivilizationRules.cs`, `GameContent.Civilizations.cs`, `WorldGeneration/CivilizationHomes.cs`, `CivilizationLayouts.cs` (materials, ruin options, `CivilizationPropDress`), `UniverseGenerator.Civilizations.cs`, `MazeRuinPlan.cs`, `MazeRuinGenerator.cs`, `Sources/MazeRuinSource.cs`, `GameServerCivilizations.cs` (stage, record), `GameServerCivilizationStamp.cs` (seats, water write mode), `GameServerCivilizationsWorld.cs` — see [CIVILIZATIONS.md](CIVILIZATIONS.md) |
+| SPS guide towers | `Shared/Definitions/SpsTowerRules.cs`, `GameContent.SpsTowers.cs`, `StructureCatalog.SpsTowers.cs`, `Shared/State/SpsTowerRecord.cs`, `WorldGeneration/SpsTowerGenerator.cs`, `GameServerSpsTowers.cs`, `GameServerSpsTowerStamp.cs`, `GameServerSpsTowersWorld.cs`, `GameServerSpsTowersAdmin.cs` — see [SPS_TOWERS.md](SPS_TOWERS.md) |
 | Fallen guardian giants | `Shared/Definitions/GuardianGiantBody.cs`, `GuardianGiantRules.cs`, `Shared/State/GuardianGiantRecord.cs`, `WorldGeneration/GuardianGiantBuilder.cs` (`GuardianGiantBuilder`, `GuardianGiantSites`), `Sources/BuilderSources.cs` (`GuardianGiantSource`), `GameServerGuardianGiantStamp.cs` — see [WORLD_GENERATION.md](WORLD_GENERATION.md) §59 |
-| Tests | `GuardianGiantStampTests`, `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |
+| Tests | `SpsTowerTemplateTests`, `SpsTowerStampTests`, `GuardianGiantStampTests`, `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |

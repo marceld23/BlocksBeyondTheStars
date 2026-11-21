@@ -681,8 +681,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (!CarryTick() && InputMap.Down(InputAction.PrimaryFire) && WeaponSwingReady()) // #3766: a carried block is thrown instead
             {
-                TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
-                AttackNearestEnemy();
+                if (!OverThere) // #3906: no swing over there — the server refuses the hit
+                {
+                    TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
+                    AttackNearestEnemy();
+                }
             }
 
             if (InputMap.Down(InputAction.LootContainer))
@@ -746,6 +749,7 @@ namespace BlocksBeyondTheStars.Client
             HandleInteract();
             UpdatePlacementGhost();
             HandleDrillAudio();
+            HandleBeamWeapon(); // #3898: the fire control held with a beam weapon (PlayerController.BeamWeapon.cs)
             UpdateGearPeriodically();
             SendMovement();
             UpdateEnemyAim();
@@ -797,6 +801,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             LateAudio(); // #3240: the ears, the bubble bed and the breath/heartbeat layer (PlayerController.Audio.cs)
+            LateBeamWeapon(); // #3898: a held beam ends when the on-foot update did not run
         }
 
         private void OnDestroy()
@@ -805,6 +810,7 @@ namespace BlocksBeyondTheStars.Client
             _placementGhost = null;
             _basePadPreview?.Destroy();
             _basePadPreview = null;
+            DropOwnBeam(); // #3898
             if (_restLevel > 0f)
             {
                 ApplyRestLook(0f); // #2823: leaving the world mid-rest must not keep the music quiet or the next world dimmed

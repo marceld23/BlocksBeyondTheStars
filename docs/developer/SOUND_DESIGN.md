@@ -1036,6 +1036,34 @@ cues `oneshot`s (mono). The structure editor's marker panel offers the seven roo
 | `station_gong` | oneshot | 2 s | an announcement aboard a station | "soft futuristic two-tone announcement chime, space station public address signal, gentle and clear" |
 | `npc_broom_sweep` | oneshot | 0.8 s | a villager's broom stroke — played at `NpcWorkTools.SweepVolume` (0.18, well below the chop: the maintainer found the first level too loud), within the swing-effect radius, two sweepers never stacked | "one stroke of a straw broom sweeping a stone floor, short, dry, close" |
 
+## 42. The sky-lights and the other side (#3912, 2026-11-21) — *ElevenLabs clips*
+
+The thirteen cues of the guide towers ([SPS_TOWERS.md](SPS_TOWERS.md)), the Guardian laser
+([HELD_ITEMS.md](HELD_ITEMS.md)), the escort cruiser ([SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md),
+[GIANT_SHIPS.md](GIANT_SHIPS.md)) and the other side ([OTHER_SIDE.md](OTHER_SIDE.md)). Made with
+`tools/ai-assets/gen_sound.py`: twelve with the model `eleven_text_to_sound_v3` (the tool's default since this package),
+the loop with `eleven_text_to_sound_v2` — the only model that loops, so `--loop` switches to it. Two takes of every cue
+with two different prompts (six of each warp, in two rounds), auditioned by the maintainer, who chose one; the table
+holds the prompt of the chosen take. Levelled by `tools/audio/level_clips.py` (§27): the held beam is a `machine` loop,
+the twelve others are `oneshot`s. Every cue is optional for the code that plays it — a missing file is silence or an
+older cue, never an error.
+
+| clip | class | length | where | prompt |
+|---|---|---|---|---|
+| `lights_to_blue` | oneshot | 1.8 s | the red lights turn blue: at a guide tower's relay console when the hacking chip lights the tower (`GameServerSpsTowerLife`), and on the cruiser wreck's bridge when its console is freed (`CruiserWreckRules.LightsToBlueSound`) | "Old machine powering up: a gentle ascending electronic chime sweep, soft relay clicks, ending on a bright calm tone." |
+| `tank_opens` | oneshot | 3 s | a guard post's capsule tank opens (`GameServerSleeper`) | "An old stasis tank opening: a soft pressure hiss, bubbling liquid draining away, a gentle servo whir, a final soft clunk." |
+| `guardian_beam_loop` | machine | 2 s loop | the Guardian laser's beam while the trigger is held — 2D for the own beam, positional for another player's (`BeamWeaponRules.LoopCue`) | "Continuous sci-fi energy laser beam, steady bright electric hum with a fine crackle, constant intensity." |
+| `guardian_beam_end` | oneshot | 0.6 s | the beam is let go or runs dry (`BeamWeaponRules.EndCue`) | "An energy beam powering down with a short falling whine and a tiny click." |
+| `mega_laser_charge` | oneshot | 2.8 s | the escort cruiser charges its mega laser — the warning; the pilot it aims at hears it at full level whatever the distance (`SpaceView.MegaLaser.cs`; falls back to `heavy_shot_charge`) | "A huge energy weapon charging up: a deep hum rising steadily in pitch and intensity with electric crackling, ending tense right before release. A clear warning, not frightening." |
+| `mega_laser_fire` | oneshot | 1.3 s | the mega laser fires, at the cruiser's barrel (falls back to `heavy_shot_fire`) | "A very heavy laser beam firing: a deep thoom with a bright searing zap, then a short sizzling tail." |
+| `cruiser_warp_in` | oneshot | 2.4 s | the escort cruiser arrives (`SpaceView.EscortCruiser.cs`, 2D, softer with the distance; falls back to `raider_warp_in`) | "A huge spaceship suddenly appears: a short suction whoosh pulling inward, a big muffled thunderclap, then a low engine hum settling." |
+| `cruiser_warp_out` | oneshot | 1.8 s | the escort cruiser leaves | "A huge spaceship vanishes into hyperspace: a low hum bends upward quickly, a bright zip shoots away, a soft echo remains." |
+| `otherside_cross` | oneshot | 2.2 s | the player crosses to the other side at a rune gate (`OtherSideFx`, 2D) | "A gentle magical transition: a soft choir-like breath that dips into a calm muffled underwater-like quiet." |
+| `otherside_return` | oneshot | 2 s | the player comes back (`OtherSideFx`, 2D) | "A gentle magical return: a hushed muffled tone that brightens and opens with a light airy whoosh and a soft sparkle." |
+| `sound_shape` | oneshot | 0.6 s | a sound block appears, at its cell, for the players over there (`GameServerSoundLayer.SoundShapeFx`) | "A single soft glassy marimba note at middle C. Short, clean, gentle attack, almost no reverb." |
+| `sound_dissolve` | oneshot | 0.7 s | a sound block dissolves (`SoundDissolveFx`) | "A tiny crystalline sparkle fading out with a small breath of air." |
+| `crack_mend` | oneshot | 2.2 s | a cracked rune gate is mended, at the gate, for the players over there (`GameServerOtherSideCracks.CrackMendSound`) | "A crack in glass slowly closing: a gentle reversed crackle, then a warm harmonic chord swelling softly and resolving." |
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

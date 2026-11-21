@@ -4043,3 +4043,37 @@ its night watch now — a job given after every draw).
 
 **Tests.** `LivelyPlacesFoundationTests`, `LivelySettlementBakeTests`, `LivelyModuleContentTests`, `StationPurposeTests`,
 `ChildVillagerTests`, `VillagePersonMemoryTests`.
+
+## 62. Generation 47 — the sky-lights: the SPS guide towers (#3893, 2026-11-21)
+
+**Why.** The Scout and Pioneer Service raised a guide tower on every prepared settlement world; none stands whole. The
+ruins are the stage of VEGA's missions around the towers, so a save must hold at least one. The whole picture — template,
+build, record, how to find one — is in [SPS_TOWERS.md](SPS_TOWERS.md).
+
+**The gate.** `WorldDescription.SkyLightsGeneration` = 47 = `CurrentTerrainGeneration`. Only the guide towers hang on it:
+the terrain, every other structure kind, the settlements and the stations of a generation-47 world are those of
+generation 46. The save version rises to 18 in the same package for another reason (new blocks shift the block ids).
+
+**What a new world generates differently.** One line of the structures boot stage, `StampSpsTowers`, right after the
+guardian giants and before the buried ruins:
+
+- **Where.** A body untouched at load that carries an inhabited settlement; with air; never void, gas, an asteroid, the
+  finale body or a framework civilization's home; a type with a structure whitelist only when it names `sps_towers`. The
+  host's `ServerConfig.PlaceSpsTowers` and the world option `WorldDescription.SpsTowers` (CLI `--sps-towers`) switch it.
+- **How often.** `sps_tower` in `data/structure_types.json`: chance 0.18 × the structures frequency × the world option
+  (about every fifth to sixth inhabited world), one per body at most — **and the first eligible body a save stamps carries
+  one whatever the roll says** (`WorldMetadata.SpsTowerGuaranteeSpent`).
+- **The seat.** The guaranteed search with the footprint registry: 60 blocks from a settlement's footprint, 24 from the
+  pads, clear of the landmark, the wrecks and the giants, the landmark's site and grade — and only where the tower's top
+  stays 8 rows below the atmosphere line. `PlanetType.AtmosphereHeight` is an absolute world row (100–280, most worlds
+  190–240) that terrain may rise above, so the check is the seat's, per spot; the tallest ruin stands 95 rows above its
+  seat, the lowest 40, and a ruin that fits nowhere under a low sky gives way to a lower one.
+- **Stored** like a giant wreck: a placement record (`sps_tower`), one structure overlay (`sps_tower:<index>`), a protected
+  footprint — plus a `SpsTowerRecord` in `WorldMetadata.SpsTowers` with the cells of the relay console, the emergency
+  lamps and the guard post's capsule tank.
+
+**What moves in an older world: nothing.** A world below generation 47 never asks; a body of a generation-47 world that
+was visited before the feature records a skip. Because the tower is stamped before the buried ruins, the vaults, the cubes
+and the chests, those keep clear of its footprint on a new world, exactly as they keep clear of a landmark.
+
+**Tests.** `SpsTowerTemplateTests`, `SpsTowerStampTests`.

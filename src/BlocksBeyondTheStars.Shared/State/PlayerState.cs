@@ -292,6 +292,19 @@ public sealed class PlayerState
     /// order of synthesis §5.3). Persisted additively like <see cref="StepProgress"/>.</summary>
     public string TrackedStoryId { get; set; } = string.Empty;
 
+    /// <summary>#3904: the world (location id) of the rune gate this player crossed to the other side through; empty = no
+    /// entry gate remembered (the player is on our side). Set at the crossing, cleared at the return. Persisted
+    /// additively, so a save written while its player was over there puts them back at the gate on our side at the next
+    /// join; an older build drops it on re-save — the player then simply stands where they were, on our side.</summary>
+    public string OtherSideGateLocation { get; set; } = string.Empty;
+
+    /// <summary>#3904: the centre of that gate (the middle of its rune stones) — the marker on compass and map.</summary>
+    public Vector3f OtherSideGate { get; set; } = Vector3f.Zero;
+
+    /// <summary>#3904: where the player stood when they crossed — the spot a forced return and the next join put them
+    /// back on (the gate's centre lies between the stones, no place to stand).</summary>
+    public Vector3f OtherSideEntry { get; set; } = Vector3f.Zero;
+
     /// <summary>The <c>custom</c> anchors of the cutscenes committed to this player but not confirmed yet (#2459): key
     /// <c>&lt;pack&gt;/&lt;id&gt;</c> (the ledger's id, an instance id for a template). A scene re-offered at the next join
     /// frames the same place again; the entry goes when the scene is confirmed. Persisted additively like

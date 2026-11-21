@@ -261,6 +261,15 @@ public sealed class PlayerSession
     /// robot says one line in VEGA's panel as before.</summary>
     public bool SupportsRobotTalk => ClientFeatures.Contains(Networking.Messages.ClientFeatures.RobotTalk1);
 
+    /// <summary>#3904: the client can show the other side (<c>otherside1</c>); without it the player can never cross — an
+    /// older build would draw the other side as the real one.</summary>
+    public bool SupportsOtherSide => ClientFeatures.Contains(Networking.Messages.ClientFeatures.OtherSide1);
+
+    /// <summary>#3904: true while the player is on the other side — the same world, in a player state. Session state, false
+    /// by default. The other-side core (<c>GameServerOtherSide*.cs</c>) owns it and is the only writer; everybody else only
+    /// reads it (what a player may do over there, who sees whom, which chunk variant they get).</summary>
+    public bool OtherSide { get; set; }
+
     /// <summary>Tutorial step counters and the moments its courses are offered at (#2469, #2480, #2482).</summary>
     public PlayerSessionTutorial Tutorial { get; } = new();
 

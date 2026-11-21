@@ -47,8 +47,13 @@ public sealed class CraftingConsistencyTests
             foreach (var tier in e.Tiers.Values)
             {
                 foreach (var l in tier.Loot) set.Add(l.Item);
+                foreach (var rare in tier.RareLoot) set.Add(rare.Item); // #3894: the hunter's hacking chip
             }
         }
+
+        // #3894: code-granted — the sleeper of a guard post hands over his rusted Guardian plasma, the one ingredient of the
+        // Guardian laser that no recipe or drop makes.
+        set.Add("guardian_plasma_rusted");
 
         // #3294: code-granted — the finale's reward crate holds the robot core (GameServerGuardianReward), the hunter robot's
         // one ingredient that no recipe or drop makes.
@@ -218,6 +223,8 @@ public sealed class CraftingConsistencyTests
             // chambers, the alien flight recorder) and the relic caches' rare finds — handed out in code, not by a recipe.
             "song_disc", "song_disc_beginning", "song_disc_builders", "song_disc_hearing", "song_disc_hunger",
             "song_disc_great_song", "song_disc_voices",
+            // #3894: ECHO's memory core is taken from the bridge of an escort cruiser's wreck — by the story, in code.
+            "echo_memory_core",
         };
 
         var obtainable = Obtainable();

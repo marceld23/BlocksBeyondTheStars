@@ -179,6 +179,17 @@ public sealed class PlayerSnapshot
     public int LandingPadIndex { get; set; } = -1;
     public string LandingBasePad { get; set; } = string.Empty;
 
+    /// <summary>The rune gate a player who is on the other side crossed through (#3904): its world, its centre (the
+    /// marker) and where the player stood (the spot the next join puts them back on). Absent in older saves, and empty
+    /// for everybody on our side ⇒ no entry gate.</summary>
+    public string OtherSideGateLocation { get; set; } = string.Empty;
+    public float OtherSideGateX { get; set; }
+    public float OtherSideGateY { get; set; }
+    public float OtherSideGateZ { get; set; }
+    public float OtherSideEntryX { get; set; }
+    public float OtherSideEntryY { get; set; }
+    public float OtherSideEntryZ { get; set; }
+
     /// <summary>The fleet index (#848): the ids of every owned ship, each stored under its own
     /// <c>ship_&lt;playerId&gt;#&lt;shipId&gt;</c> row, plus which one was active. Empty in pre-#848 saves,
     /// which migrate through the legacy single-ship key.</summary>
@@ -319,6 +330,13 @@ public static class StateMapper
         Notes = p.Notes.Select(CloneNote).ToList(),
         LandingPadIndex = p.LandingPadIndex,
         LandingBasePad = p.LandingBasePad ?? string.Empty,
+        OtherSideGateLocation = p.OtherSideGateLocation ?? string.Empty, // #3904
+        OtherSideGateX = p.OtherSideGate.X,
+        OtherSideGateY = p.OtherSideGate.Y,
+        OtherSideGateZ = p.OtherSideGate.Z,
+        OtherSideEntryX = p.OtherSideEntry.X,
+        OtherSideEntryY = p.OtherSideEntry.Y,
+        OtherSideEntryZ = p.OtherSideEntry.Z,
         FleetShipIds = new List<string>(p.FleetShipIds),
         ActiveShipId = p.ActiveShipId,
         FacePixels = p.FacePixels,
@@ -645,6 +663,9 @@ public static class StateMapper
         Notes = (s.Notes ?? new List<PlayerNote>()).Select(CloneNote).ToList(),
         LandingPadIndex = s.LandingPadIndex,
         LandingBasePad = s.LandingBasePad ?? string.Empty,
+        OtherSideGateLocation = s.OtherSideGateLocation ?? string.Empty, // #3904
+        OtherSideGate = new Vector3f(s.OtherSideGateX, s.OtherSideGateY, s.OtherSideGateZ),
+        OtherSideEntry = new Vector3f(s.OtherSideEntryX, s.OtherSideEntryY, s.OtherSideEntryZ),
         FleetShipIds = new List<string>(s.FleetShipIds ?? new List<string>()),
         ActiveShipId = s.ActiveShipId ?? string.Empty,
         FacePixels = s.FacePixels ?? string.Empty,

@@ -48,6 +48,19 @@ public sealed class ToolProperties
     /// down for good. 0 = no daze.</summary>
     public float StaggerSeconds { get; set; }
 
+    /// <summary>The held beam (#3898, <see cref="BeamWeaponRules"/>): damage per second while the fire control is HELD.
+    /// 0 = this weapon has no beam (it only fires per press). The four <c>beam*</c> values belong together.</summary>
+    public float BeamDamagePerSecond { get; set; }
+
+    /// <summary>Suit energy the held beam drains per second, whether or not it meets anything.</summary>
+    public float BeamEnergyPerSecond { get; set; }
+
+    /// <summary>The held beam's reach in blocks — its own, usually shorter than the shot's <see cref="Range"/>.</summary>
+    public float BeamRange { get; set; }
+
+    /// <summary>Seconds between two resolved hits of the held beam (0 = <see cref="BeamWeaponRules.DefaultTick"/>).</summary>
+    public float BeamTick { get; set; }
+
     /// <summary>The look of this tool's action effect (#2152): the shot, the swing, the drill sparks, the scanner or
     /// gadget pulse — the <c>"fx"</c> object in <c>data/items.json</c>. Cosmetic only; null = the client's heuristics
     /// by item key and tool kind.</summary>

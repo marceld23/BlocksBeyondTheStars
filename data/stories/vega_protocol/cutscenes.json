@@ -172,6 +172,34 @@
       "options": { "skippable": true }
     },
     {
+      // #3899 — the sky-lights' scenes (canon C19–C22, "red turns blue again"): tower.message, tank.opens, cruiser.arrives
+      // and echo.speaks. They are no beat cards: no beat and no step binds them — the game's code plays each at its place
+      // and moment, once per player, and falls back to plain lines for a client without cutscenes. They stand where the
+      // arc reaches them (the missions "The Sky-Light", "The Sleeper", "ECHO's Call"), but a tower can be lit and a tank
+      // opened in any chapter, so those two carry no chapter and say nothing a chapter has to earn.
+      //
+      // tower.message — for the player who lights a guide tower with a hacking chip (GameServerSpsTowerLife.cs sends the
+      // relay console as the custom anchor): the camera circles the tower's foot, its lamps blue again, while the console
+      // speaks. Its words are a machine's status lines (subtitles, no speaker box): records, never narration — it calls
+      // ships that no longer answer and names nobody. playInPlace: the moment is at the tower, not at the ship.
+      "id": "tower.message",
+      "tier": 3,
+      "shots": [
+        {
+          "camera": { "type": "orbit", "anchor": "custom" },
+          "duration": 16,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.vega.cut.tower.kicker", "key": "story.vega.cut.tower.title", "at": 0.6, "hold": 3.4 },
+            { "style": "subtitle", "key": "story.vega.cut.tower.1", "at": 4.4, "hold": 3.4 },
+            { "style": "subtitle", "key": "story.vega.cut.tower.2", "at": 8.2, "hold": 3.6 },
+            { "style": "subtitle", "key": "story.vega.cut.tower.3", "at": 12.2 }
+          ],
+          "sfx": [ { "cue": "chapter_sting", "at": 0.4 } ]
+        }
+      ],
+      "options": { "skippable": true, "playInPlace": true }
+    },
+    {
       // Chapter 3 "The Guardian" (B5, the middle of the arc) — staged: out of black onto the chapter title, then the
       // sleeping-core diorama (#2477): the camera rises along the red column in its iron shell, the glow breathing slowly,
       // with the anomaly's hum while VEGA speaks of the Guardian core. No grade — the red must read. Without the diorama
@@ -334,6 +362,28 @@
       "options": { "skippable": true }
     },
     {
+      // #3899: tank.opens — for everybody near a guard post's capsule tank when a hacking chip opens it
+      // (GameServerSleeper.cs sends the tank as the custom anchor): a still framing of the tank, its two lamps blue, the
+      // guard of the escort wing standing beside it in his armour with the blue lights. Captions only — a title and VEGA's
+      // one line (the same line a client without cutscenes hears); the guard's own words are his dialog afterwards. It says
+      // nothing of what he is: that is VEGA's to say, later, to a player whose story knows it (the insight sps_guard).
+      "id": "tank.opens",
+      "tier": 3,
+      "replaceLineKeys": [ "story.vega.tank.opens" ],
+      "shots": [
+        {
+          "camera": { "type": "static", "anchor": "custom" },
+          "duration": 12,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.vega.cut.tank.kicker", "key": "story.vega.cut.tank.title", "at": 0.6, "hold": 3.4 },
+            { "style": "speaker", "key": "story.vega.tank.opens", "at": 4.4 }
+          ],
+          "sfx": [ { "cue": "clone_tank_bubble", "at": 0.5 } ]
+        }
+      ],
+      "options": { "skippable": true, "playInPlace": true }
+    },
+    {
       // Chapter 6 "It Still Sleeps" (B11) — no marker, no place — the core only sleeps (#2477: staged): out of black onto the
       // chapter title, then VEGA's memory of the star chart drifting from the player's system out to its rim, where
       // something faint and red pulses beyond the last star — never named, never marked.
@@ -357,6 +407,88 @@
         }
       ],
       "options": { "skippable": true }
+    },
+    {
+      // #3899: cruiser.arrives — ECHO's cruiser has come out of hyperspace in the pilot's flight (the story glue,
+      // GameServerEchoCallStory.cs, plays it for the pilots who follow her call). A card like fin.arrival: the live flight
+      // view is the picture — the warp flash and the hull are right there — so no camera is taken and the controls stay
+      // free; "now or never": with shots already flying it is dropped, its title shows as a banner and VEGA's line goes to
+      // her panel. The line is sent with the card and kept out of the panel while it shows.
+      "id": "cruiser.arrives",
+      "tier": 2,
+      "chapter": "sleeps",
+      "replaceLineKeys": [ "story.vega.cruiser.arrives" ],
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 9,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.vega.cut.cruiser.kicker", "key": "story.vega.cut.cruiser.title", "at": 0.3, "hold": 3.2 },
+            { "style": "speaker", "key": "story.vega.cruiser.arrives", "at": 3.8 }
+          ],
+          "sfx": [ { "cue": "chapter_sting_reveal", "at": 0.2 } ]
+        }
+      ],
+      "options": { "skippable": true, "cooldownExempt": true }
+    },
+    {
+      // #3899: echo.speaks — a hacking chip turned the bridge of ECHO's cruiser blue (GameServerEscortCruiserBridge.cs, for
+      // everyone aboard). VEGA's sister core speaks once and says goodbye: her five lines in her own speaker box (the pack
+      // speaker "echo"), VEGA's two answers in hers — the keys and the order the bridge code speaks them in for a client
+      // without cutscenes (story.vega.echo.1, .2, VEGA .1, .3, .4, .5, VEGA .2). A card on the live view: the blue bridge
+      // is the picture, the wreck's robots do not stop for a scene, and inside a hull no camera move is safe. One line per
+      // shot, so every line gets its own box; "Story text: wait for me" pages them.
+      "id": "echo.speaks",
+      "tier": 2,
+      "chapter": "sleeps",
+      "replaceLineKeys": [
+        "story.vega.echo.1", "story.vega.echo.2", "story.vega.echo.vega.1", "story.vega.echo.3", "story.vega.echo.4",
+        "story.vega.echo.5", "story.vega.echo.vega.2"
+      ],
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.vega.cut.echo.kicker", "key": "story.vega.cut.echo.title", "at": 0.4 } ],
+          "sfx": [ { "cue": "chapter_sting_reveal", "at": 0.2 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 6,
+          "captions": [ { "style": "speaker", "speaker": "echo", "key": "story.vega.echo.1", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 9,
+          "captions": [ { "style": "speaker", "speaker": "echo", "key": "story.vega.echo.2", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 5,
+          "captions": [ { "style": "speaker", "key": "story.vega.echo.vega.1", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 6,
+          "captions": [ { "style": "speaker", "speaker": "echo", "key": "story.vega.echo.3", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 10,
+          "captions": [ { "style": "speaker", "speaker": "echo", "key": "story.vega.echo.4", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 9,
+          "captions": [ { "style": "speaker", "speaker": "echo", "key": "story.vega.echo.5", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 6,
+          "captions": [ { "style": "speaker", "key": "story.vega.echo.vega.2", "at": 0.3 } ]
+        }
+      ],
+      "options": { "skippable": true, "minDisplay": 2 }
     },
     {
       // Chapter 7 "The Guardian Core" (B12 + the Guardian system revealed, one server call) — the set piece: the sky while

@@ -543,6 +543,12 @@
    "peak": -3.5,
    "sha256": "93139ca4963797eb9cc0de1538d4c98bdfcb0cc118ecfe3f739206a2b235a437"
   },
+  "crack_mend": {
+   "class": "oneshot",
+   "level": -13.4,
+   "peak": -0.5,
+   "sha256": "268354ec172650839dc2af911424d9873fff19e650a0f3780982197569fbcf20"
+  },
   "creature_call_bark": {
    "class": "creature",
    "level": -11.4,
@@ -1251,6 +1257,18 @@
    "peak": 0.5,
    "sha256": "4421b742f186fed82b4a2ca67c4a6a845c36e6d32f8674f84f02c0935c67726c"
   },
+  "cruiser_warp_in": {
+   "class": "oneshot",
+   "level": -12.6,
+   "peak": -2.5,
+   "sha256": "a7bf50c18d15f80faaa2afbe229f337e498b3ac5eae370224254688a963192d8"
+  },
+  "cruiser_warp_out": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -1.4,
+   "sha256": "49f90372573251a373d4e85f75ff86638ea06628d082bc1b84661b42ca59040d"
+  },
   "crystal_button": {
    "class": "oneshot",
    "level": -13.4,
@@ -1743,6 +1761,18 @@
    "peak": -3.9,
    "sha256": "1be409d52d108472b22c70b1df3d22e64c336d9b2af143e156530a8ae4fa1e92"
   },
+  "guardian_beam_end": {
+   "class": "oneshot",
+   "level": -12.9,
+   "peak": 1.3,
+   "sha256": "10fc95f68d1e1c0ba210ec478e187f223709021a382a9604f2d95d147a5c21e7"
+  },
+  "guardian_beam_loop": {
+   "class": "machine",
+   "level": -18.5,
+   "peak": -8.4,
+   "sha256": "f6e75f6df6084b463e3e7f911845710194c2cb6d89366eea8542c1e7ae4d0391"
+  },
   "gun_reload": {
    "class": "oneshot",
    "level": -13.5,
@@ -1965,6 +1995,12 @@
    "peak": -3.6,
    "sha256": "e7aa199c942eb69beb80accea7e666fff24c6e31b184ef0a7a26a688fd4c0f04"
   },
+  "lights_to_blue": {
+   "class": "oneshot",
+   "level": -13.2,
+   "peak": -6.3,
+   "sha256": "7345f6a3ef9768d858e91c1a39d3020d78659ac6b78e246f0c75c22c3fae2dfb"
+  },
   "loot": {
    "class": "oneshot",
    "level": -12.4,
@@ -1982,6 +2018,18 @@
    "level": -12.5,
    "peak": -5.3,
    "sha256": "d73e0703c77ad3a5500653462031f72449c6407ceb1ac7bc2386dbfff314e25a"
+  },
+  "mega_laser_charge": {
+   "class": "oneshot",
+   "level": -11.6,
+   "peak": -1.3,
+   "sha256": "90f3b73b37b5c4a5cd317ce589871e45adf90facd398e1e3a63c51be8870a9f1"
+  },
+  "mega_laser_fire": {
+   "class": "oneshot",
+   "level": -12.8,
+   "peak": 1.6,
+   "sha256": "3b4a217645e19c2136bdf3051f03deb6c4a3cef7180f03cb13d81051e28ffce7"
   },
   "melee_hit": {
    "class": "oneshot",
@@ -2300,6 +2348,18 @@
    "level": -9.7,
    "peak": -2.1,
    "sha256": "53a40fe64efc0b11771088e330b59a4d896d900d532f70638affb515ba371442"
+  },
+  "otherside_cross": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -2.1,
+   "sha256": "008ba7be8ef4d172ec3911176e1626c788fadd190916d5f2eb0d55836f114473"
+  },
+  "otherside_return": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -0.7,
+   "sha256": "6a8d742e1ba2818b8e49ddb52e4fafe5601ac93a909e27899e07e51fd60d0fc7"
   },
   "phase_shimmer": {
    "class": "oneshot",
@@ -2763,6 +2823,18 @@
    "peak": -5.8,
    "sha256": "f885711d48a4f98ccf6f42c5ed0393f2578fe08770c7925c85e7751857e40e62"
   },
+  "sound_dissolve": {
+   "class": "oneshot",
+   "level": -12.8,
+   "peak": -0.2,
+   "sha256": "c4f51e0e916952fad5883491a85c39a6bbe25ea8d789a46144306021fc897319"
+  },
+  "sound_shape": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -1.3,
+   "sha256": "9056131322e6fedb96a5e92b4ad2975bba5b13de7ae755756303b42ad174768e"
+  },
   "soundeling_coo_1": {
    "class": "creature",
    "level": -10.1,
@@ -3188,6 +3260,12 @@
    "level": -20.8,
    "peak": -0.4,
    "sha256": "677572895e5557e78845c08c1986941ed8b5cb37e9ebe88afe22af0d3b592916"
+  },
+  "tank_opens": {
+   "class": "oneshot",
+   "level": -13.2,
+   "peak": -1.1,
+   "sha256": "1fb9bcfd1f7de8e1e9ab71f309fd77ad7530164191c3a843b902b8b71a77a273"
   },
   "tank_spider_burst": {
    "class": "oneshot",

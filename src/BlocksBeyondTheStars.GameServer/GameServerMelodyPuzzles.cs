@@ -196,10 +196,16 @@ public sealed partial class GameServer
             return;
         }
 
+        RememberSoundTone(session, intent.Tone); // #3908: the melody bar is the palette of the player's next sound block
         if (run is not null)
         {
             FeedMelodyRun(session, run, intent.Tone, pillar: null);
             return;
+        }
+
+        if (TryStartFreePlayPuzzle(session, intent.Tone))
+        {
+            return; // #3909: the tone called a puzzle of the place the player stands in (a crack at a rune gate)
         }
 
         int instrument = Math.Max(0, Math.Min(MaxNoteInstrument, intent.Instrument));
@@ -267,7 +273,7 @@ public sealed partial class GameServer
         if (prompt.Length > 0)
         {
             SendNotesAround(run.LocationId, run.Circumference, PromptPosition(run), prompt, spec.Instrument, spec.NoteSeconds,
-                spec.PromptWithFifth, spec.Id, except: null);
+                spec.PromptWithFifth, spec.Id, except: null, from: session);
         }
 
         SendMelodyState(session, run, result, open: true, prompt, -1);
@@ -282,7 +288,7 @@ public sealed partial class GameServer
         if (spec.ChorusOnSolve)
         {
             SendNotesAround(run.LocationId, run.Circumference, PromptPosition(run), ChorusOf(spec), SoundersIds.InstrumentChoir,
-                MelodyChorusNoteSeconds, true, spec.Id, except: null);
+                MelodyChorusNoteSeconds, true, spec.Id, except: null, from: session);
         }
 
         var together = new List<(PlayerSession Session, MelodyRun Run)> { (session, run) };
@@ -390,11 +396,13 @@ public sealed partial class GameServer
     /// <summary>
     /// Sends one <see cref="NoteSequence"/> to every joined player on the ground of <paramref name="locationId"/> within
     /// <see cref="NoteSequenceRange"/> of <paramref name="at"/> (but <paramref name="except"/>). Location-explicit, so the
-    /// melody tick can call it whatever world the active cursor points at.
+    /// melody tick can call it whatever world the active cursor points at. <paramref name="from"/> (#3909): the player whose
+    /// puzzle sounds — a prompt or a chorus of a puzzle played on the other side is heard only over there, like the tones.
     /// </summary>
     private void SendNotesAround(string locationId, int circumference, Vector3f at, int[] notes, int instrument, float noteSeconds,
-                                 bool withFifth, string source, PlayerSession? except)
+                                 bool withFifth, string source, PlayerSession? except, PlayerSession? from = null)
     {
+        from ??= except;
         if (notes.Length == 0)
         {
             return;
@@ -414,6 +422,7 @@ public sealed partial class GameServer
         foreach (var s in _sessions.Values)
         {
             if (s.Joined && !ReferenceEquals(s, except) && s.CurrentLocationId == locationId && !InSpace(s.State.PlayerId)
+                && (from is null || !HiddenFrom(s, from)) // #3905: a tone played over there is heard only over there
                 && DistSqOn(circumference, s.State.Position, at) <= (double)NoteSequenceRange * NoteSequenceRange)
             {
                 Send(s, message);

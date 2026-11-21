@@ -69,7 +69,8 @@ RULES: list[tuple[str, str]] = [
             r"plant_[a-z_]+_loop$)"),  # #3363: the singing plants' loops
     ("machine", r"^(engine_idle|engine_boost|drill_loop|auto_drill_loop|vehicle_engine_loop|"
                 r"boat_engine_loop|rope_reel|lift_motor|factory_hum|data_cube_hum|anomaly_hum|wormhole_hum|"
-                r"pod_beacon|beam_idle|clone_tank_bubble|reactor_hum|ship_exterior_idle|alarm_siren_\d)$"),
+                r"pod_beacon|beam_idle|clone_tank_bubble|reactor_hum|ship_exterior_idle|alarm_siren_\d|"
+                r"guardian_beam_loop)$"),  # #3898: the Guardian laser's held beam
 ]
 SLACK = 1.5       # dB — closer than this counts as levelled; the guard test allows TOLERANCE
 TOLERANCE = 3.0   # dB — the guard's allowance (re-encoding moves a level by a fraction of a dB)

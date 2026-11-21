@@ -22,14 +22,16 @@ public sealed partial class GameServer
     private int LandmarkLiftRadius(PlayerSession session) => NoLandmarkStands ? 0 : SentSetPruneRadius(session) - 1;
 
     /// <summary>Whether the active world holds neither a landmark nor (#3610) a giant wreck — the lift then costs nothing.</summary>
-    private bool NoLandmarkStands => _landmarks.Count == 0 && _giantWrecks.Count == 0 && _civSites.Count == 0; // #3639: or a civilization site
+    private bool NoLandmarkStands => _landmarks.Count == 0 && _giantWrecks.Count == 0 && _civSites.Count == 0 // #3639: or a civilization site
+                                     && _spsTowers.Count == 0; // #3893: or a guide tower
 
     /// <summary>The highest chunk Y a landmark (#3610: or a giant wreck) reaches in chunk column (<paramref name="chunkX"/>,
     /// <paramref name="chunkZ"/>), or <see cref="int.MinValue"/> when none stands in it.</summary>
     private int LandmarkTopChunk(int chunkX, int chunkZ)
         => NoLandmarkStands
             ? int.MinValue
-            : System.Math.Max(System.Math.Max(LandmarkTopChunk(_landmarks, chunkX, chunkZ), LandmarkTopChunk(_giantWrecks, chunkX, chunkZ)), LandmarkTopChunk(_civSites, chunkX, chunkZ));
+            : System.Math.Max(System.Math.Max(System.Math.Max(LandmarkTopChunk(_landmarks, chunkX, chunkZ), LandmarkTopChunk(_giantWrecks, chunkX, chunkZ)), LandmarkTopChunk(_civSites, chunkX, chunkZ)),
+                LandmarkTopChunk(_spsTowers, chunkX, chunkZ)); // #3893
 
     private int LandmarkTopChunk(List<LandmarkInstance> landmarks, int chunkX, int chunkZ)
     {

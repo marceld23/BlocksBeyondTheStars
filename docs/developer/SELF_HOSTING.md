@@ -191,7 +191,11 @@ every wreck in SPACE out of the world, an existing one too: no body on the star 
 planet, terrain generation 42+) overrides the planet chance; it never had a written-out default, so any value you store
 counts. Both are `server.json` keys only. How often the galaxy holds them is a world option like the derelicts: CLI
 `--giant-wrecks off|veryrare|rare|normal|frequent` for a fresh world (the save keeps it; one wreck always drifts in the start
-system unless it is `off`, which also keeps the planets free of them). They are built from `data/giant_ships/*.json` plus the
+system unless it is `off`, which also keeps the planets free of them). The ruins of the SPS guide towers (#3893, terrain
+generation 47) have the same three handles: `placeSpsTowers` (default on), `spsTowerChance` (unset = the `sps_tower` chance
+of `data/structure_types.json`, 0.18) and the world option `--sps-towers off|veryrare|rare|normal|frequent`; unless they are
+off, the first world with an inhabited settlement that a save visits carries one for sure
+([SPS_TOWERS.md](SPS_TOWERS.md)). The giant wrecks are built from `data/giant_ships/*.json` plus the
 user content folder's `giant_ship_templates/`; a broken file is dropped with a warning in the log. Building a wreck in space
 takes about a second for a big ship on a desktop (several on a Raspberry Pi) and allocates 43–59 MB while it runs (about
 7–15 MB stay); with `chunkGenWorkers` above 0 it runs ahead on one background thread for the systems where players fly or

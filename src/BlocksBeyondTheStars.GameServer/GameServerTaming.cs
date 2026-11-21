@@ -616,7 +616,7 @@ public sealed partial class GameServer
         present.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.Spectating && !InSpace(s.State.PlayerId))
+            if (!s.Spectating && !s.OtherSide && !InSpace(s.State.PlayerId)) // #3905: a pet with no owner in sight would give the place away
             {
                 present.Add(s);
             }

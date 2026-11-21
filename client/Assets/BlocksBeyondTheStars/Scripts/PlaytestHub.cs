@@ -636,6 +636,7 @@ namespace BlocksBeyondTheStars.Client
                 case "DebrisFields": o.DebrisFields = value; break;
                 case "Derelicts": o.Derelicts = value; break;
                 case "GiantWrecks": o.GiantWrecks = value; break;
+                case "SpsTowers": o.SpsTowers = value; break;
                 case "Exotic": o.Exotic = value; break;
                 case "Oxygen": o.Oxygen = value; break;
                 case "Hunger": o.Hunger = value; break;

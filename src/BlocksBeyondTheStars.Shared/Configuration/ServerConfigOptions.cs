@@ -304,6 +304,7 @@ public static class ServerConfigOptions
         Switch("debris-fields", Choice<Frequency>((c, v) => c.World.DebrisFields = v), "How many systems hold a debris field (#2353)."),
         Switch("derelicts", Choice<Frequency>((c, v) => c.World.Derelicts = v), "How often a system holds broken old stations (#2632; Off removes them all)."),
         Switch("giant-wrecks", Choice<Frequency>((c, v) => c.World.GiantWrecks = v), "How often a system holds a giant ship wreck (#3614; Off removes them all)."),
+        Switch("sps-towers", Choice<Frequency>((c, v) => c.World.SpsTowers = v), "How often an inhabited world carries a guide tower ruin (#3893; Off removes them all, the guaranteed one too)."),
         Switch("exotic", Choice<Frequency>((c, v) => c.World.ExoticWorlds = v), "Exotic world frequency (world option)."),
         Switch("station-templates", Choice<Frequency>((c, v) => c.World.StationTemplateUse = v), "How often stations use hand-designed templates (world option)."),
         Switch("settlement-templates", Choice<Frequency>((c, v) => c.World.SettlementTemplateUse = v), "How often settlements use hand-designed templates (world option)."),

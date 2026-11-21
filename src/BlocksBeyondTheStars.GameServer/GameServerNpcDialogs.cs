@@ -166,7 +166,8 @@ public sealed partial class GameServer
                 || d.Nodes.Count == 0
                 || (d.PlanetTypes.Count > 0 && !d.PlanetTypes.Contains(_worlds.Active.PlanetType, StringComparer.OrdinalIgnoreCase)) // #1793
                 || StageRank(d.MinStage) > stage
-                || (d.OncePerPlayer && p.Milestones.Contains(DialogDoneMilestonePrefix + d.Key + ":done")))
+                || (d.OncePerPlayer && p.Milestones.Contains(DialogDoneMilestonePrefix + d.Key + ":done"))
+                || (d.VisibleIf.Count > 0 && !ConditionTextsHold(d.VisibleIf, session))) // #3910: a talk for one part of a story
             {
                 continue;
             }
@@ -225,7 +226,7 @@ public sealed partial class GameServer
         // #3089: never a silent E — nobody there any more (a villager away visiting a base is hidden at home, the guest is
         // the one to talk to), or just out of reach (the client's reach plus a step of slack for the position heard last).
         var npc = _npcs.FirstOrDefault(n => n.Id == intent.NpcId);
-        if (npc is null || npc.VisitingAway)
+        if (npc is null || npc.VisitingAway || (npc.OtherSideOnly && !session.OtherSide)) // #3905: nobody there on our side
         {
             Send(session, new ServerMessage { Text = "@srv.npc.talk_gone" });
             return;

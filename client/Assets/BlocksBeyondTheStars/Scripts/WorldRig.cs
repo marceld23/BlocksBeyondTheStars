@@ -794,6 +794,10 @@ namespace BlocksBeyondTheStars.Client
             remoteFx.Game = boot;
             remoteFx.Remotes = remotes;
             remoteFx.Player = pc;
+            var weaponBeams = root.AddComponent<BeamWeaponView>(); // #3898: other players' held beams, and the server's stop of the own one
+            weaponBeams.Game = boot;
+            weaponBeams.Remotes = remotes;
+            weaponBeams.Player = pc;
             root.AddComponent<FxDecals>().Game = boot; // #3058: High (desktop) — scorch marks and craters on the block faces
             root.GetComponent<LiftView>().Player = pc; // #2266: a player on a platform rides along
 

@@ -15,16 +15,19 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// Story QA for the Sounders' Song (#3368), like VEGA's <c>/advance</c>, <c>/revealfinale</c> and <c>/gotocore</c>: the
 /// cheat-gated admin verb <c>sounders</c> (chat <c>/sounders &lt;what&gt;</c>) jumps around the story for the asking admin.
-/// <c>status</c> reports the pack's state; <c>start</c> starts it now; <c>chapter &lt;1-8&gt;</c> makes a chapter run
+/// <c>status</c> reports the pack's state; <c>start</c> starts it now; <c>chapter &lt;1-11&gt;</c> makes a chapter run
 /// (the ones before it are skipped); <c>items</c> hands over every Sounder item and the four hidden blueprints;
 /// <c>echo</c> calls the next Echo right here; <c>song</c> learns the Song of Return (Ornemis shows on the star map);
 /// <c>soaniri</c> lands straight on Soaniri; <c>tower</c> drops the admin onto the Choir Tower's platform; <c>soundi</c>
-/// grants the story Soundi. Every use is in the cheat log.
+/// grants the story Soundi. For chapters 9–11 (#3910): <c>cross</c> hands over what a crossing needs (the blueprint, the
+/// chest piece, the crossing disc in its socket) and takes the admin to the other side where they stand; <c>crack</c> mends
+/// the crack of the gate the admin stands in; <c>choir</c> lets chapter 11's song run with its choir right here. Every use
+/// is in the cheat log.
 /// </summary>
 public sealed partial class GameServer
 {
     private const string SoundersAdminUsage =
-        "Usage: /sounders status | start | chapter <1-8> | items | echo | song | soaniri | tower | soundi";
+        "Usage: /sounders status | start | chapter <1-11> | items | echo | song | soaniri | tower | soundi | cross | crack | choir";
 
     private void AdminSounders(PlayerSession session, string? args)
         => Send(session, new ServerMessage { Text = SoundersAdminReply(session, args) });
@@ -44,6 +47,9 @@ public sealed partial class GameServer
             "soaniri" => AdminSoundersSoaniri(session),
             "tower" => AdminSoundersTower(session),
             "soundi" => AdminSoundersSoundi(session),
+            "cross" => AdminSoundersCross(session),
+            "crack" => AdminSoundersCrack(session),
+            "choir" => AdminSoundersChoir(session),
             _ => SoundersAdminUsage,
         };
         if (!string.Equals(verb, "status", StringComparison.Ordinal) && !ReferenceEquals(result, SoundersAdminUsage))
@@ -199,6 +205,71 @@ public sealed partial class GameServer
         return GrantStoryCompanion(s, TamedCreature.SoundiKind, SoundersIds.Soundi, "Muffin") is not null
             ? "A Soundi travels with you now."
             : "You already have a Soundi.";
+    }
+
+    /// <summary>What a crossing needs, then across where the admin stands (as <c>/otherside on</c>: no gate needed).</summary>
+    private string AdminSoundersCross(PlayerSession s)
+    {
+        var p = s.State;
+        p.Milestones.Add(SoundersIds.MilestoneThreshold);
+        p.UnlockedBlueprints.Add(SoundersIds.BlueprintObsidian);
+        p.UnlockedBlueprints.Add(SoundersIds.BlueprintCrossing);
+        if (!p.Equipment.Slots.Any(i => i is not null && string.Equals(i.Item, SoundersIds.ObsidianChest, StringComparison.Ordinal)))
+        {
+            p.Equipment.SetSlot((int)EquipSlot.Chest, new ItemStack(SoundersIds.ObsidianChest, 1));
+        }
+
+        p.Equipment.SetSlot((int)EquipSlot.Disc, new ItemStack(SoundersIds.DiscCrossing, 1));
+        MarkJournalDirty(s);
+        _repo.SavePlayer(p);
+        SendPlayerState(s);
+        if (!s.OtherSide)
+        {
+            AdminOtherSide(s, "on");
+        }
+
+        return s.OtherSide
+            ? "The crossing disc sits in your obsidian chest and you are over there. A rune gate (or /otherside off) takes you back."
+            : "The crossing disc sits in your obsidian chest — use a stone of a rune gate to cross.";
+    }
+
+    /// <summary>Mends the crack of the gate the admin stands in — the real side answers as after the mend game.</summary>
+    private string AdminSoundersCrack(PlayerSession s)
+    {
+        if (s.CurrentLocationId != _world.LocationId || !IsGate(s.State.Position, out var gate))
+        {
+            return "No rune gate here (three rune stones close together).";
+        }
+
+        return MendCrack(gate, CrackGateReach, s.OtherSide ? s : null)
+            ? "The crack of this gate is mended."
+            : "This gate carries no crack any more.";
+    }
+
+    /// <summary>Chapter 11's song, here and now: the chapter runs with its song step, and the choir gathers within a second
+    /// around the song's site — over there. Then a tone on the melody bar starts the song.</summary>
+    private string AdminSoundersChoir(PlayerSession s)
+    {
+        if (SoundersPack is not { } pack || !pack.StepsById.TryGetValue(SoundersChoirStep, out var song))
+        {
+            return "The Sounders pack is not installed.";
+        }
+
+        AdminSoundersChapter(s, "11");
+        s.State.Milestones.Remove(SoundersIds.MilestoneGreatCrack);
+        foreach (var step in song.Chapter.Steps.TakeWhile(st => st != song))
+        {
+            if (!StepComplete(s, step))
+            {
+                MarkStepSkipped(s, step);
+            }
+        }
+
+        AdvancePlayer(s);
+        SendVegaObjective(s);
+        return SoundersStepRuns(s, SoundersChoirStep)
+            ? "Chapter 11's song runs. Be over there (/sounders cross) at the Choir Tower's foot — or at the gate you crossed at — and play a tone on the melody bar."
+            : "Chapter 11's song could not be started.";
     }
 
     /// <summary>Test seam: runs <c>/sounders &lt;args&gt;</c> for <paramref name="s"/> without the admin gates and returns the reply.</summary>

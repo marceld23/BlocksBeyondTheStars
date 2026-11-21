@@ -191,6 +191,10 @@ public static class ToolMods
             EnergyPerUse = tool.EnergyPerUse * energy,
             CooldownSeconds = tool.CooldownSeconds * cooldown,
             Range = tool.Range * range,
+            BeamDamagePerSecond = tool.BeamDamagePerSecond * power, // #3898: the held beam follows the same three levers
+            BeamEnergyPerSecond = tool.BeamEnergyPerSecond * energy,
+            BeamRange = tool.BeamRange * range,
+            BeamTick = tool.BeamTick,
         };
     }
 }

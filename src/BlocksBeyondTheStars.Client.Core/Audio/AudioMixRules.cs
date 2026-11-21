@@ -62,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
         {
             "ship_destroyed", "ship_launch", "ship_touchdown", "ship_landing", "engine_thrust", "engine_ignite", "sonic_boom",
             "sky_giant_call", "reentry_roar",
+            "mega_laser_", "cruiser_warp_", // #3900: the escort cruiser fights from 50–130 units away — its barrel is heard that far
         };
 
         private static readonly string[] FoleyPrefixes = { "wing_flap", "slither", "creature_step", "creature_splash" };

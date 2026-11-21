@@ -34,6 +34,8 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <c>intercity</c>, <c>landmark</c>, <c>giant_wreck</c>, <c>underground</c>: <c>chance</c>;</item>
 /// <item><c>guardian_giant</c>: <c>chance</c> = the chance of a first giant (scaled by the structures frequency),
 /// <c>thresholds</c> = the chance of each further one on a body that has the one before (the second: 0.3), <c>cap</c>;</item>
+/// <item><c>sps_tower</c>: <c>chance</c> (scaled by the structures frequency and the world option; the first eligible body of
+/// a save carries one whatever the roll says);</item>
 /// <item><c>wreck</c>, <c>unique_site</c>, <c>text_tablet</c>, <c>sounder_site</c>, <c>net_fragment</c>: nothing more.</item>
 /// </list>
 /// <para>Draw order and the number of draws never depend on these numbers, so the defaults reproduce the worlds stamped before
@@ -65,6 +67,9 @@ public sealed partial class StructureTypeRules
 
     /// <summary>#3680: a fallen guardian giant lying on a planet (<see cref="GuardianGiantBody"/>, <see cref="GuardianGiantRules"/>).</summary>
     public const string GuardianGiant = GuardianGiantRules.StructureKind;
+
+    /// <summary>#3893: the ruin of an SPS guide tower on an inhabited world (<see cref="SpsTowerRules"/>).</summary>
+    public const string SpsTower = SpsTowerRules.RecordKind;
     public const string Underground = "underground";
     public const string Vault = "vault";
     public const string DataCube = "datacube";
@@ -291,6 +296,12 @@ public sealed partial class StructureTypeRules
                 keepClearFrom: Margins((Pad, 40), (WreckSite, 30), (Wreck, 30), (Settlement, 60), (BanditCamp, 60), (Lodge, 60),
                     (Outpost, 60), (Ruin, 24), (Factory, 24), (Landmark, 24), (GiantWreck, 24), (Civilization, 24), (GuardianGiant, 48)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas, ConditionNotAsteroid, ConditionNotCityWorld }),
+            Def(SpsTower, minGeneration: WorldDescription.SkyLightsGeneration, chance: SpsTowerRules.Chance,
+                whitelist: SpsTowerRules.StructureKind,
+                keepClearFrom: Margins((Pad, 24), (WreckSite, 10), (Wreck, 16), (Settlement, SpsTowerRules.SettlementDistance),
+                    (BanditCamp, 24), (Lodge, 24), (Outpost, 24), (Ruin, 16), (Factory, 16), (Landmark, 16), (GiantWreck, 16),
+                    (GuardianGiant, 24)),
+                conditions: new[] { ConditionNotVoid, ConditionNotGas, ConditionAtmosphere, ConditionNotAsteroid }),
             Def(Underground, minGeneration: WorldDescription.AncientRuinsGeneration, chance: 0.04, whitelist: "gds_ruins", keepClear: 10,
                 keepClearFrom: Margins((Pad, 30), (WreckSite, 8)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas }),
@@ -325,7 +336,7 @@ public sealed partial class StructureTypeRules
                 Monument => (Site(prominence: "high", weights: new[] { ("prominence", 3.0) }), Grade(10, 16, 16)),
                 Outpost => (Site(prominence: "high", altitude: new[] { 0.6, 1.0 }, weights: new[] { ("prominence", 2.0) }), Grade(10, 12, 12)),
                 Factory => (Site(relief: "flat", altitude: new[] { 0.3, 0.7 }, weights: new[] { ("relief", 2.0) }), Grade(14, 24, 24)),
-                Landmark or GiantWreck or Civilization => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
+                Landmark or GiantWreck or Civilization or SpsTower => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
                 Ruin or RailRuin => (new StructureSiteRule(), Grade(12, 16, 16)),
                 SpsLab => (new StructureSiteRule(), Grade(12, 16, 16)),
                 GuardianGiant => (Site(relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(6, 6, 6)),

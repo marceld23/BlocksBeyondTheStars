@@ -146,7 +146,7 @@ public sealed partial class GameServer
         _guardianGiantOnFoot.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (s.Watching || InSpace(s.State.PlayerId) || s.State.Health <= 0f)
+            if (s.Watching || s.OtherSide || InSpace(s.State.PlayerId) || s.State.Health <= 0f) // #3905: no giant stirs for a player over there
             {
                 continue;
             }

@@ -42,6 +42,8 @@ public sealed class CutscenePacingClientTests
     [InlineData("sounders", "snd.choir_tower")]
     [InlineData("sounders", "snd.bridge_song")]
     [InlineData("sounders", "snd.soundi_joins")]
+    [InlineData("sounders", "snd.threshold")]
+    [InlineData("sounders", "snd.other_song")]
     [InlineData("tutorial", "tut.first_base")]
     [InlineData("tutorial", "tut.first_landing")]
     public void APlaceBoundScene_PlaysAwayFromHome_AtOnce_WhenSafe(string pack, string id)

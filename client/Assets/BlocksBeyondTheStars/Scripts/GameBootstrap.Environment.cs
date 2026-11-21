@@ -227,6 +227,7 @@ namespace BlocksBeyondTheStars.Client
             World.SetFormBlocks(Content.GetBlock(BlocksBeyondTheStars.Shared.Bio.FloraForm.BlockKey) is { } bred
                 ? new[] { bred.NumericId.Value }
                 : null);
+            RegisterSoundBlockLook(); // #3906: a sound block glows as a look, it is no light (GameBootstrap.OtherSide.cs)
         }
 
         /// <summary>The mesher's tint lookup: a flora block's per-world colour, black (= "use the global

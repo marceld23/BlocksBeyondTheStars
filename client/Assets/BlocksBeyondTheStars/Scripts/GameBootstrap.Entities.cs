@@ -45,6 +45,11 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="WorldTime"/> as it arrives. The giant's view animates from it, the HUD's boss bar and the music read it.</summary>
         public GuardianGiantFight GuardianGiantFight { get; } = new GuardianGiantFight();
 
+        /// <summary>#3901: the one boss the HUD's bar shows — the generic <see cref="BossStatus"/> (the escort cruiser in a
+        /// flight), stamped on <see cref="WorldTime"/> as it arrives, merged with the giant's own status above. The boss
+        /// bar, the boss music in space and the flight view (which cruiser is the boss, its phase) read it.</summary>
+        public BossBarState BossBar { get; } = new BossBarState();
+
         /// <summary>#2664–#2670: maps the server's snapshot clock onto <see cref="WorldTime"/> for every planet-entity
         /// interpolator (animals, NPCs, machines, bandits) — one offset per connection, re-synced on a world reset.</summary>
         public ServerClockSync EntityClock { get; } = new ServerClockSync();
@@ -193,6 +198,8 @@ namespace BlocksBeyondTheStars.Client
                 PlanetEnemiesLocalTime = EntityClock.ToLocal(m.ServerTime, WorldTime); // #2670: one stamp per list
             };
             Network.GuardianGiantStatusReceived += m => GuardianGiantFight.Receive(m, WorldTime); // #3676
+            Network.BossStatusReceived += m => BossBar.Receive(m, WorldTime); // #3901: the generic boss bar's feed
+            Network.SpaceClosed += _ => BossBar.Leave(BossSources.Space); // the flight closed: its boss's bar goes with it
             Network.CreaturesReceived += m =>
             {
                 Creatures = m.Creatures;

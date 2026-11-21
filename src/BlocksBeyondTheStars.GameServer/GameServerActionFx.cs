@@ -92,7 +92,7 @@ public sealed partial class GameServer
 
         var fx = NewActionFx(session, intent.Kind, key, from, to, intent.Hit, outcome: false);
         SendFxNearby(fx, from, session, includeActor: false, DeliveryMode.Unreliable);
-        if (StartlingEffect(intent.Kind, key))
+        if (!session.OtherSide && StartlingEffect(intent.Kind, key)) // #3905: nobody on our side hears a shot from over there
         {
             StartleNpcsNear(session, from); // #3769: a shot or a swing of a weapon makes the people around jump
         }
@@ -194,7 +194,8 @@ public sealed partial class GameServer
                     continue; // never echo a relayed action to its sender
                 }
             }
-            else if (InSpace(s.State.PlayerId) || WrapDistSq(from, s.State.Position) > radiusSq)
+            else if (InSpace(s.State.PlayerId) || WrapDistSq(from, s.State.Position) > radiusSq
+                     || HiddenFrom(s, actor)) // #3905: what a player does over there is seen only over there
             {
                 continue;
             }

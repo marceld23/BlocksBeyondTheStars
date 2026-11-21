@@ -106,7 +106,7 @@ public sealed partial class GameServer
     {
         foreach (var session in JoinedInActiveWorld())
         {
-            if (!session.Spectating && OnFootHere(session) && WrapDistSq(session.State.Position, at) <= (double)range * range)
+            if (!session.Spectating && !session.OtherSide && OnFootHere(session) && WrapDistSq(session.State.Position, at) <= (double)range * range) // #3905
             {
                 return true;
             }
@@ -321,7 +321,7 @@ public sealed partial class GameServer
     {
         foreach (var session in JoinedInActiveWorld())
         {
-            if (!session.Spectating && OnFootHere(session) && WrapDistSq(session.State.Position, plaza) <= (double)PlaceEventRange * PlaceEventRange
+            if (!session.Spectating && !session.OtherSide && OnFootHere(session) && WrapDistSq(session.State.Position, plaza) <= (double)PlaceEventRange * PlaceEventRange
                 && ActiveFestivalsFor(session).Count > 0)
             {
                 return true;

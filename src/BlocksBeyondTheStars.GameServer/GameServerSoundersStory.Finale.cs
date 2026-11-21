@@ -38,7 +38,8 @@ public sealed partial class GameServer
     private readonly Dictionary<string, string> _storySoundis = new(StringComparer.Ordinal);
     private double _soundersStoryTickAt;
 
-    /// <summary>One pass a second over the active world's players: Echoes, the tower, the story Soundi.</summary>
+    /// <summary>One pass a second over the active world's players: Echoes, the tower, the story Soundi — and (#3910) the
+    /// figures and the choir of the other side.</summary>
     private void TickSoundersStory()
     {
         if (_uptime < _soundersStoryTickAt)
@@ -55,7 +56,7 @@ public sealed partial class GameServer
 
         foreach (var s in JoinedInActiveWorld())
         {
-            if (s.Spectating || InSpace(s.State.PlayerId) || !IsStoryPackActive(s, SoundersIds.PackId))
+            if (!SoundersPassReaches(s))
             {
                 continue;
             }
@@ -63,7 +64,12 @@ public sealed partial class GameServer
             TickSoundersEchoes(s);
             TickChoirTower(s);
             TickStorySoundi(s);
+            TickSoundersOverEcho(s); // #3910: Elora and Kamo at the gate, over there
+            TickSoundersStepEvidence(s); // #3910: a step whose moment lies behind the player already
         }
+
+        SweepOverEchoes(); // #3910: a figure whose player this pass no longer reaches does not stay at the gate
+        TickOverChoir(); // #3910: chapter 11's choir and the tower's gate
     }
 
     /// <summary>Chapter 8 near the tower: the Young Voices gather and the tower's scene plays once.</summary>

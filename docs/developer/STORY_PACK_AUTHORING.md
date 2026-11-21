@@ -183,6 +183,60 @@ validators report unknown fields (the C# tests read every pack strictly).
   [§ Story missions](STORY_IMPLEMENTATION.md#story-missions-per-chapter-2476). Beats still unlock by score, never behind
   a quest.
 
+### A world story's missions (`chapters[].missions[]`)
+
+| Field | Effect |
+|---|---|
+| `id` | unique in the pack and never a chapter's id (it shares the chapter keys: `story:<pack>:ch:<mission>:…`) |
+| `titleKey`, `summaryKey` | the Journal's row (the title is mandatory) and an optional one-line summary |
+| `feasibleIf` | conditions under which this world can offer the mission, checked **once, when its turn comes**: if they fail the mission is closed for good (skipped silently) and its `alternative` stands in |
+| `alternative` | a mission of the same chapter that runs only standing in for this one |
+| `skippable` (default `true`) | the Journal offers *Skip mission* while it runs |
+| `keep` (default `false`) | the mission **stays open after its chapter** (#3892) — see below |
+| `steps` | ordinary `do` steps, each with a `chipKey` (its Journal line); a step may bridge onto a lead (`"objective": { "type": "Lead", "target": "<lead word>" }`) |
+
+**When to use `keep`.** The chapter a player is in follows the world's *shared* score, and some chapters last a single
+beat. A mission without `keep` is handed out only while the world is in exactly its chapter and is let go (closed as
+skipped, no line) when the chapter moves on — right for a task that belongs to that moment of the story. Set `keep` for a
+mission bound to **a place or an encounter a player may not reach in time** (a rare structure, a boss), or one every
+player should still get when they join a world that is already far along:
+
+```json
+{ "id": "m_far_vault", "titleKey": "story.mystory.m.far_vault.title", "keep": true,
+  "feasibleIf": [ "world:vaults" ], "steps": [ … ] }
+```
+
+- A kept mission that **runs** is not let go: it walks on through the later chapters and stays in the Journal.
+- A kept mission that was **never handed out** is handed out later — after the current chapter's own missions (none of
+  them running or left to hand out), earlier chapters first, in data order. A kept mission never starts beside a running
+  mission. A mission without `keep` starts exactly as before, so the new chapter's own mission may start beside a kept
+  one that still runs; the chip then shows the current chapter's mission and returns to the kept one afterwards.
+- Its `alternative` is kept with it — set `keep` on the mission, not on its stand-in.
+- Finished late it still counts for **its own chapter's** bonus (once per save and chapter, never after the last beat).
+- The open finale keeps its chip; the kept mission goes on behind it (Journal, lines, events).
+- `feasibleIf` is not asked again: use facts of the world that do not change (`world:…` options), not something that
+  may hold later. A kept mission the player skips in the Journal stays skipped.
+- `keep` has no effect in the last chapter (the validators warn) and is an error in a player pack.
+
+**A kept mission lives long — write its steps for that** (#3899; VEGA's *The Sky-Light*, *The Sleeper* and *ECHO's Call*
+are the worked examples):
+
+- **Write for the chapter it starts in.** The mission may be finished chapters later, but its texts must not say more than
+  its own chapter knows — and nothing that a later chapter makes wrong ("I wonder why …").
+- **`alreadyDoneIf` on every step** for what a player may have done long before the mission (a place found, a text read,
+  a thing built). It is asked once, when the step activates. For a fact that can turn true *while* the step runs without
+  the step's own event reaching this player, a mission step is also followed by evidence, once a second
+  (`GameServer.MissionStepEvidence`): a `craft:any` step by carrying what its recipe makes, `capsule:opened` by an opened
+  tank of the save, `space:enter` by being in flight, the steps of a mission that ends on `echo:freed` by the cruiser's
+  wreck and by ECHO being free. Another event needs a line there — or an objective another player's action cannot fulfil
+  in your place.
+- **One objective, other words:** when only the *words* depend on what the world knows (no such place found yet), use
+  `variants` on the one step — its chip and lines follow the fact live. A stand-in step (`alternative`) never hands back
+  to the step it stands in for, and `waitWhile` leaves the chip empty.
+- **The closing line of a step is spoken only while it is the chip's step.** Beside the next chapter's mission a kept
+  mission is second on the chip, so its done lines may pass silently; a line that must be heard belongs in an insight
+  `mission:<id>` (spoken when the mission is finished, kept in the narrator's notes).
+
 ## 6. Starting and running next to other stories
 
 | Field | Effect |
@@ -385,7 +439,7 @@ that is active for a player** — started for them, not switched off in their Jo
 |---|---|---|
 | lore texts | `lore_sites.json` (same site kinds as a world story) | found at those sites like VEGA's (a weighted pick among every eligible text), gated by `minChapter` — the 1-based number of the pack's chapter the player must have reached (a chapter is reached once it ran, was done or skipped; 0 = at once). `minKnowledge` is the world story's gate. A text is read once per player (`lore:<key>` — keys unique across packs) |
 | people | `characters[]` (+ `planetTypes[]`) | a character takes an NPC slot in every world that did not switch the pack off (the same person for everyone) — limit it with `planetTypes` (the Sounders: `sounder_world`). A code-spawned NPC becomes a character with `GameServer.ApplyStoryCharacter(npc, characterId)` (name, look, the character id `PickDialog` matches) |
-| dialogs | `dialogs[]` | offered (by `character`, `role` or `job`, like VEGA's) to the players for whom the pack is active. A reply may carry `visibleIf` (a condition — one string or a list: left out while it fails), `melody` (letters A–Z: the client shows notes and sings it with the Sounder voice) and the consequence `milestone:<key>` (sets a milestone under `<pack id>:` or the pack's `milestonePrefix`). A dialog that reaches an end raises `dialog:done` with its key |
+| dialogs | `dialogs[]` | offered (by `character`, `role` or `job`, like VEGA's) to the players for whom the pack is active. A reply may carry `visibleIf` (a condition — one string or a list: left out while it fails), `melody` (letters A–Z: the client shows notes and sings it with the Sounder voice) and the consequence `milestone:<key>` (sets a milestone under `<pack id>:` or the pack's `milestonePrefix`). A dialog that reaches an end raises `dialog:done` with its key. A **dialog** may carry `visibleIf` too (#3910, the same grammar): while it fails the dialog is passed over and the character's next one is asked — one talk per part of a story (the Sounders' Eldest: `"visibleIf": "not:chapter:sounders:s8"` on her plea, `"chapter:sounders:s8"` on the talk after the Bridge Song) |
 | readable texts | `texts[]` (`id`, `titleKey`, `textKey`, `unlockedBy`) + `textsTitleKey` | listed on the pack's Journal page under `textsTitleKey` (the Sounders' "Song Archive") once `unlockedBy` holds; the reader opens the text |
 | star systems | `systems[]` (`id`, `nameKey` or `name`, `planetType`, `bodyName`, `placement`, `visibleIf`) | appended to the galaxy the first time any player may see it (old saves too) and remembered by the save; on a player's star map and a jump target only while the pack is active for them and `visibleIf` holds (or they are, or were, in it). Normal jump rules (a jump generator or a lane). Marker `story_system:<id>`, cutscene anchor `system:<id>` (a `chart` shot) |
 

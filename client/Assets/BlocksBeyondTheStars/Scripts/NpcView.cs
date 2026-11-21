@@ -948,13 +948,19 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair,
-                            lowerFace: lowerFace);
+                        // #3897: the sleeper alone wears the suit (under the escort wing's armour, as a player does) — and no hair in the helmet.
+                        bool escort = EscortGuardLook.Is(nd.Look);
+                        avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: escort, variantSeed: nd.IsRobot ? 0 : seed,
+                            hair: escort ? null : hair, lowerFace: lowerFace);
                     }
 
                     if (nd.Look == "gds_guard")
                     {
                         avatar.SetGuardianLook(); // #1793: the G.D.S. machines — red stripe band, glowing eyes
+                    }
+                    else if (EscortGuardLook.Is(nd.Look))
+                    {
+                        avatar.SetEscortGuardLook(); // #3897: the Guardian armour with blue lights (PlayerAvatar.EscortGuard.cs)
                     }
                     else if (child)
                     {
@@ -1022,11 +1028,16 @@ namespace BlocksBeyondTheStars.Client
 
                 SetCrateSeat(n, nd.Pose == 1 && nd.Held == NpcWorkTools.CrateSeat); // a trader's pilot sits on its crate
                 string held = nd.Pose == 0 ? nd.Held ?? string.Empty : string.Empty; // the tool is put away to sit or sleep
+                held = EscortGuardLook.HeldFor(nd.Look, nd.Pose, held); // #3897: the sleeper's sword, when no tool is named
                 if (held != n.Held)
                 {
                     n.Held = held;
                     var (kind, tint) = HeldItem.ForNpc(held);
-                    n.Avatar.SetHeldItem(kind, tint);
+                    if (!HoldEscortSword(n, held))
+                    {
+                        n.Avatar.SetHeldItem(kind, tint);
+                    }
+
                     SetLantern(n, held == NpcWorkTools.Lantern); // the night watch's lantern shines
                     var (lo, hi) = WorkCadence(nd);
                     n.GestureLo = lo;

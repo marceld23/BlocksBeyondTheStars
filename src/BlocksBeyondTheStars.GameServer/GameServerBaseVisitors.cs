@@ -413,7 +413,7 @@ public sealed partial class GameServer
         var targets = new List<PlayerSession>();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.State.AboardShip && !InSpace(s.State.PlayerId) && !s.Spectating)
+            if (!s.State.AboardShip && !InSpace(s.State.PlayerId) && !s.Spectating && !s.OtherSide) // #3905
             {
                 targets.Add(s);
             }

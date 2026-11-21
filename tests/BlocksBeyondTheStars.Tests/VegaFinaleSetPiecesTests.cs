@@ -169,7 +169,8 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Assert.All(StoryCutsceneIds.Vega, id => Assert.NotNull(Vega.FindCutscene(id))); // every VEGA scene of §5.3 exists now
 
         // The core's voice in the duel dialogue: its name, Guardian red, the anomaly's hum.
-        var core = Assert.Single(Vega.Speakers);
+        Assert.Equal(new[] { "core", "echo" }, Vega.Speakers.Select(s => s.Id)); // #3899: and ECHO, the voice of echo.speaks
+        var core = Vega.Speakers[0];
         Assert.Equal(("core", "ui.finale.duel_title", "#FF5A4A", "anomaly_hum"), (core.Id, core.NameKey, core.Color, core.LineStart));
         Assert.Same(core, Vega.FindSpeaker("core"));
         Assert.Same(Vega.Narrator, Vega.FindSpeaker(string.Empty));

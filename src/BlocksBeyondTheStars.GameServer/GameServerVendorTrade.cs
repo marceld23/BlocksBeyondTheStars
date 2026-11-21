@@ -123,7 +123,7 @@ public sealed partial class GameServer
         double bestSq = KeeperHoldRange * (double)KeeperHoldRange;
         foreach (var s in targets)
         {
-            if (s.Spectating)
+            if (s.Spectating || s.OtherSide) // #3905: no keeper turns to a customer who is over there
             {
                 continue;
             }

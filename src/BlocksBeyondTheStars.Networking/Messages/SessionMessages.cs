@@ -83,6 +83,11 @@ public static class ClientFeatures
     /// <summary>#3405: E at the own robot opens a conversation in the NPC dialogue panel (<see cref="NpcDialogState.RobotNpcId"/>,
     /// up to four replies) — the Unity client announces it. An older build keeps the single line in VEGA's panel.</summary>
     public const string RobotTalk1 = "robottalk1";
+
+    /// <summary>#3904: the client can show the other side (the grey grade, the gate shimmer, the HUD mark, the sound layer's
+    /// chunk variant) — the Unity client announces it. A client without it can never cross: the server refuses the
+    /// crossing at a rune gate with one clear line.</summary>
+    public const string OtherSide1 = "otherside1";
 }
 
 /// <summary>

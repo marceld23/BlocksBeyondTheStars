@@ -16,7 +16,8 @@ pack has beats), every condition parses and names existing packs/chapters/steps/
 targets exist in data/missions.json, event keys are published (warning), 'ui:' only in a player pack's step objectives,
 marker providers, legacy keys (tutorial only), alternatives, a world chapter's story missions (#2476: ids that are no
 chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip text without a {0}, lead
-bridges naming a lead a player can follow), a tutorial pays no rewards (its own fields — a mission it bridges onto keeps
+bridges naming a lead a player can follow; #3892: 'keep' on a world story's missions only, a warning where it changes
+nothing), a tutorial pays no rewards (its own fields — a mission it bridges onto keeps
 the rewards it has in data/missions.json, #2481), every locale key exists in
 English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
 every finale stage is a known one and its speakers are well-formed (#2478: ids, a name, a #RRGGBB colour, a sound that
@@ -116,11 +117,16 @@ FALLBACK_PREDICATES = [
     "planet_wrecks",
     "festival_any", "festival_harvest", "festival_lights", "festival_newyear", "festival_blossoms", "festival_colours",
     "festival_stars", "festival_midsummer", "festival_children", "festival_halloween", "festival_christmas",
-    "monuments", "shrine", "shrine_reachable",
+    "monuments", "shrine", "shrine_reachable", "in_ornemis", "soaniri_reachable",
     "on_foot",
+    # #3685 / #3893–#3899: the guardian giants, the guide towers, the sleeper, ECHO's call.
+    "guardian_giants", "guardian_giant_near",
+    "sps_towers", "sps_tower_near", "sps_tower_lit_near", "sps_tower_known", "sps_guard_post_known", "sps_guard_awake",
+    "sps_tower_lit_by_player", "hacking_chip_carried", "space_bosses", "echo_freed",
 ]
 # #3349: the marker providers (StoryRevealProviders) without an argument.
-REVEAL_PROVIDERS = ["nearest_settlement", "nearest_food_plant", "nearest_station", "nearest_monument", "nearest_rune_shrine"]
+REVEAL_PROVIDERS = ["nearest_settlement", "nearest_food_plant", "nearest_station", "nearest_monument", "nearest_rune_shrine",
+                    "nearest_sps_tower", "nearest_sps_guard"]
 # #3357: where a pack system goes on the star map (StoryPackSystemPlacements).
 SYSTEM_PLACEMENTS = ["edge", "inside"]
 # #3347: milestone families the game writes - a pack's milestonePrefix may not be one (StoryPackMilestones).
@@ -149,7 +155,7 @@ KNOWN_FIELDS = {
         "id", "titleKey", "summaryKey", "optional", "requires", "offerWhen", "autoCompleteIf", "autoStart",
         "openCutscene", "closeCutscene", "fromBeat", "fromEvent", "leads", "steps", "skippable", "missions", "visibleIf",
     },
-    "mission": {"id", "titleKey", "summaryKey", "feasibleIf", "alternative", "skippable", "steps"},
+    "mission": {"id", "titleKey", "summaryKey", "feasibleIf", "alternative", "skippable", "keep", "steps"},
     "lead": {"type", "objKey"},
     "step": {
         "id", "kind", "tier", "legacyKey", "objective", "requires", "feasibleIf", "alternative", "alreadyDoneIf",
@@ -854,6 +860,9 @@ class Validator:
                 key(f"coreArguments[{i}].choices[{j}].textKey", choice.get("textKey"))
                 key(f"coreArguments[{i}].choices[{j}].responseKey", choice.get("responseKey"))
         for i, dialog in enumerate(pack.get("dialogs") or []):
+            offered = dialog.get("visibleIf")  # #3910: a dialog offered under conditions
+            for vi, text in enumerate([offered] if isinstance(offered, str) else (offered or [])):
+                condition(f"dialogs[{i}].visibleIf[{vi}]", text)
             for j, node in enumerate(dialog.get("nodes") or []):
                 key(f"dialogs[{i}].nodes[{j}].promptKey", node.get("promptKey"))
                 for k, choice in enumerate(node.get("choices") or []):
@@ -1001,9 +1010,23 @@ class Validator:
                     key(f"{vp}.midKey", variant.get("midKey"), line_budget)
                     key(f"{vp}.chipKey", variant.get("chipKey"), CHIP)
 
-        def check_missions(cp: str, chapter: dict) -> None:
+        def check_mission_keep(mp: str, chapter: dict, missions: list, mission: dict, last_chapter: bool) -> None:
+            """#3892: 'keep' (the mission stays open after its chapter) - read on a world story's missions only; a warning
+            where it changes nothing: in the last chapter, and on a mission that only stands in for one that is not kept."""
+            if not mission.get("keep"):
+                return
+            mid = mission.get("id") or ""
+            stands_in_for = [o for o in missions if isinstance(o, dict) and o.get("alternative") == mid]
+            if player_pack:
+                r.error(pid, f"{mp}.keep", "keep is read on a world story's missions only")
+            elif last_chapter:
+                r.warn(pid, f"{mp}.keep", f"chapter '{chapter.get('id')}' is the last one - no chapter follows it, so keep changes nothing")
+            elif stands_in_for and not any(o.get("keep") for o in stands_in_for):
+                r.warn(pid, f"{mp}.keep", f"'{mid}' only stands in for a mission that is not kept - set keep on that one (its alternative is kept with it)")
+
+        def check_missions(cp: str, chapter: dict, last_chapter: bool) -> None:
             """#2476: a world chapter's story missions - ids that are no chapter's, a title, feasibility, an alternative of
-            the same chapter, and steps by the mission rules."""
+            the same chapter, 'keep' where it means something (#3892), and steps by the mission rules."""
             missions = chapter.get("missions") or []
             for mi, mission in enumerate(missions):
                 mp = f"{cp}.missions[{mi}]"
@@ -1024,12 +1047,14 @@ class Validator:
                 alternative = mission.get("alternative", "")
                 if alternative and (alternative == mid or not any(isinstance(o, dict) and o.get("id") == alternative for o in missions)):
                     r.error(pid, f"{mp}.alternative", f"'{alternative}' is not another mission of chapter '{chapter.get('id')}'")
+                check_mission_keep(mp, chapter, missions, mission, last_chapter)
                 steps = mission.get("steps") or []
                 if not steps:
                     r.error(pid, f"{mp}.steps", "a mission needs at least one step")
                 check_steps(mp, "mission", mid, steps, LINE, True)
 
         last_from_beat = -1
+        chapter_count = len(pack.get("chapters") or [])
         for ci, chapter in enumerate(pack.get("chapters") or []):
             cp = f"chapters[{ci}]"
             self.unknown_fields(pid, cp, chapter, "chapter")
@@ -1097,7 +1122,7 @@ class Validator:
                 r.warn(pid, cp, "a chapter of a player pack without steps completes at once")
             line_budget = BASIC_LINE if tutorial and not optional else LINE
             check_steps(cp, "chapter", cid, steps, line_budget, False)
-            check_missions(cp, chapter)
+            check_missions(cp, chapter, ci == chapter_count - 1)
 
         chapter_step_ids = {
             s.get("id") for c in (pack.get("chapters") or []) if isinstance(c, dict)

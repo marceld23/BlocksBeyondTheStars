@@ -63,6 +63,10 @@ public static class SoundersIds
     /// <summary>Socket disc: a soft glow.</summary>
     public const string DiscLight = "song_disc_light";
 
+    /// <summary>#3894: socket disc — the crossing disc. Worn in the obsidian chest's socket, a rune gate lets its wearer
+    /// cross to the other side (the other-side core, #3904).</summary>
+    public const string DiscCrossing = "song_disc_crossing";
+
     /// <summary>A collectible song disc: a seeded Sounder song, no story content.</summary>
     public const string DiscSong = "song_disc";
 
@@ -99,6 +103,13 @@ public static class SoundersIds
     /// <summary>Hidden blueprint: the Sounder instruments on the melody block.</summary>
     public const string BlueprintVoice = "sounder_voice";
 
+    /// <summary>#3894: hidden blueprint — the crossing disc (<see cref="DiscCrossing"/>).</summary>
+    public const string BlueprintCrossing = "sounder_crossing";
+
+    /// <summary>#3894: the block of sound a player shapes on the other side (<c>data/blocks.json</c>): it lives in the sound
+    /// layer only, never in the real world's block edits.</summary>
+    public const string SoundBlock = "sound_block";
+
     /// <summary>Melody puzzle (#3346): repeat the Singing Shrine's phrases (chapter 2).</summary>
     public const string PuzzleShrineEcho = "shrine_echo";
 
@@ -113,6 +124,23 @@ public static class SoundersIds
 
     /// <summary>Melody puzzle: the Bell Bloom trail in Ornasa (#3367).</summary>
     public const string PuzzleBloomTrail = "bloom_trail";
+
+    /// <summary>Melody puzzle (#3909): the counter-voice that mends the crack at a rune gate on the other side.</summary>
+    public const string PuzzleCrackMend = "crack_mend";
+
+    /// <summary>Melody puzzle (#3910): the song sung with the choir of the Sounders who crossed over (chapter 11).</summary>
+    public const string PuzzleSongFromOverThere = "song_from_over_there";
+
+    /// <summary>The word the Song from Over There spells in the note alphabet: SOA NIRI, "song home" — the name of the
+    /// Sounders' world.</summary>
+    public const string SongFromOverThereWord = "SOANIRI";
+
+    /// <summary>#3910: the character id of Elora as she stands on the other side (the pack's dialog <c>snd_elora_over</c>) —
+    /// not <c>elora</c>, whose dialog is the Echo's of chapter 5.</summary>
+    public const string EloraOver = "elora_over";
+
+    /// <summary>#3910: the character id of Kamo on the other side (the pack's dialog <c>snd_kamo_over</c>).</summary>
+    public const string KamoOver = "kamo_over";
 
     /// <summary>The four Echoes (#3356), in the order of the Song of Return's parts.</summary>
     public static readonly string[] Echoes = { "elora", "kamo", "feya", "tini" };
@@ -135,6 +163,18 @@ public static class SoundersIds
 
     /// <summary>The player learned the Song of Return — Ornemis shows on their star map and can be a jump target.</summary>
     public const string MilestoneSongLearned = "snd:song_learned";
+
+    /// <summary>#3910: the player heard that the stones are thin (the Eldest, or a rune stone VEGA translated) — the
+    /// crossing disc's blueprint shows in research from now on (<c>hiddenUntil</c> of <c>sounder_crossing</c>).</summary>
+    public const string MilestoneThreshold = "snd:threshold";
+
+    /// <summary>#3910: the great crack is closed — the Song from Over There was sung with the choir (or chapter 11 skipped).</summary>
+    public const string MilestoneGreatCrack = "snd:great_crack";
+
+    /// <summary>#3909: a crack this player helped to mend: <c>snd:crack:&lt;location&gt;:&lt;n&gt;</c>, <c>n</c> the crack's
+    /// number among the mended cracks of that world.</summary>
+    public static string CrackMilestone(string locationId, int number)
+        => MilestonePrefix + "crack:" + locationId + ":" + number.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>A heard rune word, collected in the Song Archive.</summary>
     public static string WordMilestone(string word) => MilestonePrefix + "word:" + word;

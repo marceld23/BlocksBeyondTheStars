@@ -19,13 +19,15 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 public sealed class GiantDerelictLayout
 {
     internal GiantDerelictLayout(string key, DerelictLayout layout, IReadOnlyList<SettlementMarker> chests,
-        IReadOnlyList<SettlementMarker> sounds, string baseHash)
+        IReadOnlyList<SettlementMarker> sounds, string baseHash, Vector3i? console = null, IReadOnlyList<Vector3i>? lamps = null)
     {
         Key = key;
         Layout = layout;
         Chests = chests;
         Sounds = sounds;
         BaseHash = baseHash;
+        Console = console;
+        Lamps = lamps ?? Array.Empty<Vector3i>();
     }
 
     /// <summary>The giant ship's template key.</summary>
@@ -39,6 +41,14 @@ public sealed class GiantDerelictLayout
 
     /// <summary>The template's sound markers that survived (<see cref="SettlementMarker.Data"/> = the marker's settings).</summary>
     public IReadOnlyList<SettlementMarker> Sounds { get; }
+
+    /// <summary>#3902: the cell of a warship's bridge console (the block <c>sps_console</c> stands there), in layout cells —
+    /// null for every ship without a <see cref="GiantShipRules.ConsoleMarker"/>.</summary>
+    public Vector3i? Console { get; }
+
+    /// <summary>#3902: the cells of the red lamps beside the bridge console (the template's
+    /// <see cref="GiantShipRules.LampMarker"/> markers), in layout cells.</summary>
+    public IReadOnlyList<Vector3i> Lamps { get; }
 
     /// <summary>A hash of the decayed wreck by block KEYS (a save version may shift the block ids, never the keys) with every
     /// dye, glow and shape, the doors, the arrival and the guardian bay — 16 hex digits. A change of any block property that
@@ -85,11 +95,16 @@ public static partial class DerelictGenerator
     /// No beta-station damage, no trading posts and no crate spots: the template's chest markers are the chests. The station
     /// paths (<see cref="Generate"/>, <see cref="GenerateLegacy"/>) never run any of this. Memory: the rooms are a 16-bit label
     /// per cell plus their size and centre — no cell list is kept per room.
+    /// <para>#3902: a warship's bridge — a <see cref="GiantShipRules.ConsoleMarker"/> and its
+    /// <see cref="GiantShipRules.LampMarker"/> markers — is never torn, and after everything else the console block and its red
+    /// lamps are set there (no shipped giant wreck carries one). <paramref name="fresh"/> (the escort cruiser's wreck, shot a
+    /// moment ago): no soot and no scrap, and the lights did not all die — the dead lamps of the bridge and
+    /// <see cref="FreshLampShare"/> of the others still burn red. False builds exactly the wreck this pass always built.</para>
     /// </summary>
-    public static GiantDerelictLayout GenerateShip(GiantSpaceLayout giant, long seed, GameContent content, bool alien)
+    public static GiantDerelictLayout GenerateShip(GiantSpaceLayout giant, long seed, GameContent content, bool alien, bool fresh = false)
     {
         var pass = new ShipPass(new Grid(giant), new Ids(content), content, giant, alien,
-            new Random(StableHashing.Seed32("derelict-giant:" + giant.Key, seed)));
+            new Random(StableHashing.Seed32("derelict-giant:" + giant.Key, seed)), fresh, seed);
         pass.Run();
         return pass.Result(content);
     }
@@ -144,13 +159,16 @@ public static partial class DerelictGenerator
         private int _arrivalRoom = -1;
         private Vector3i? _spawner;
 
-        public ShipPass(Grid grid, Ids ids, GameContent content, GiantSpaceLayout source, bool alien, Random rng)
+        public ShipPass(Grid grid, Ids ids, GameContent content, GiantSpaceLayout source, bool alien, Random rng, bool fresh = false,
+            long seed = 0)
         {
             _g = grid;
             _ids = ids;
             _source = source;
             _alien = alien;
             _rng = rng;
+            _fresh = fresh;
+            _seed = seed;
             ReadContent(content);
         }
 
@@ -169,11 +187,21 @@ public static partial class DerelictGenerator
             _exterior = Array.Empty<bool>();
             _protect = Array.Empty<bool>();
             Lights();
-            Soot();
+            if (!_fresh)
+            {
+                Soot(); // a ship shot a moment ago carries no soot and no scrap (#3902); both draw from the stream only here
+            }
+
             ClearArrival();
             CollectStandable();
-            Scrap();
+            if (!_fresh)
+            {
+                Scrap();
+            }
+
             PlaceGuardianBay();
+            PlaceFreshBay();
+            PlaceBridge();
         }
 
         public GiantDerelictLayout Result(GameContent content)
@@ -198,7 +226,7 @@ public static partial class DerelictGenerator
             layout.RoomCount = walkable;
             layout.SealedRoomCount = closed;
             layout.BreachedRoomCount = open;
-            return new GiantDerelictLayout(_source.Key, layout, _chests, _sounds, hash);
+            return new GiantDerelictLayout(_source.Key, layout, _chests, _sounds, hash, _console, _lampCells);
         }
 
         /// <summary>The room of a cell (its label), else of the cell above it (something stands there), else −1.</summary>
@@ -211,6 +239,8 @@ public static partial class DerelictGenerator
         {
             ushort Id(string key) => content.GetBlock(key)?.NumericId.Value ?? 0;
             ushort redLamp = Id("light_red"), warmStrip = Id("strip_light_warm");
+            _redLamp = redLamp;
+            _consoleBlock = Id(GiantShipRules.ConsoleMarker);
             foreach (var def in content.Blocks.Values)
             {
                 ushort id = def.NumericId.Value;
@@ -261,6 +291,14 @@ public static partial class DerelictGenerator
                 {
                     _sounds.Add(m);
                 }
+                else if (m.Type == GiantShipRules.ConsoleMarker)
+                {
+                    _consoleMarker ??= m; // one bridge console per ship
+                }
+                else if (m.Type == GiantShipRules.LampMarker)
+                {
+                    _lampCells.Add(m.LocalPos);
+                }
             }
 
             _wall = _g.Mask(_doorwayCells);
@@ -296,6 +334,7 @@ public static partial class DerelictGenerator
 
             _reserved.Add(_arrival);
             _reserved.Add(new Vector3i(_arrival.X, _arrival.Y + 1, _arrival.Z));
+            ReserveBridge();
         }
 
         /// <summary>A room behind a doorway is one a boarder walks into; so is the arrival's own room.</summary>

@@ -87,7 +87,7 @@ public sealed class AbandonedBedTests : IDisposable
         Assert.True(AbandonedBeds.Applies(WorldDescription.CurrentTerrainGeneration));
         Assert.False(AbandonedBeds.Applies(WorldDescription.GuardianGiantsGeneration)); // 44: the guardian giants
         Assert.False(AbandonedBeds.Applies(WorldDescription.CivilizationsGeneration));
-        Assert.Equal(17, BlocksBeyondTheStars.Shared.State.WorldMetadata.CurrentSaveVersion);
+        Assert.True(BlocksBeyondTheStars.Shared.State.WorldMetadata.CurrentSaveVersion >= 17); // 18: the sky-lights' blocks (#3894)
     }
 
     // ---------------------------------------------------------------- the pass

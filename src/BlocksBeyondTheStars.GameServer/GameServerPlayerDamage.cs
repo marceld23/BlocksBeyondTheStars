@@ -19,8 +19,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Whether anything may hurt this player: not in god mode and not in Sandbox (#2712).</summary>
-    private bool PlayerTakesDamage(PlayerState p) => !p.GodMode && Rules.PlayerTakesDamageFor(p.ModeOverride);
+    /// <summary>Whether anything may hurt this player: not in god mode, not in Sandbox (#2712) and not on the other side
+    /// (#3904 — nothing of our side reaches a player over there, and with <see cref="HostilesIgnore"/> no hostile sees them).</summary>
+    private bool PlayerTakesDamage(PlayerState p) => !p.GodMode && Rules.PlayerTakesDamageFor(p.ModeOverride) && !OverThere(p);
 
     /// <summary>Hostiles — machines, bandits, aggressive or provoked animals, giants — treat this player as not there: the
     /// player's own <see cref="PlayerState.IgnoredByHostiles"/> (god mode, cloak, a stealth preparation, the per-player

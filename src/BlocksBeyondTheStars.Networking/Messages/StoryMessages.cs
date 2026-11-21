@@ -225,7 +225,8 @@ public sealed class NetStoryMission
     /// <summary>The mission id (<see cref="StoryPackActions.SkipChapter"/> skips it by this id).</summary>
     public string Id { get; set; } = string.Empty;
 
-    /// <summary>The chapter it belongs to (the player's current chapter).</summary>
+    /// <summary>The chapter it belongs to: the player's current chapter, or (#3892) an earlier one for a mission that stays
+    /// open after its chapter and still runs.</summary>
     public string ChapterId { get; set; } = string.Empty;
 
     /// <summary>Locale keys of its title and its one-line summary (may be empty).</summary>

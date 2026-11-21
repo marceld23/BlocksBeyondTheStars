@@ -141,7 +141,7 @@ public sealed partial class GameServer
     private void TickLandmarks(double dt)
     {
         _ = dt;
-        if (_worlds.Active is null || (_landmarks.Count == 0 && _giantWrecks.Count == 0 && _civSites.Count == 0 && !HasStructureDens(_world.LocationId)))
+        if (_worlds.Active is null || (_landmarks.Count == 0 && _giantWrecks.Count == 0 && _civSites.Count == 0 && _spsTowers.Count == 0 && !HasStructureDens(_world.LocationId)))
         {
             return;
         }
@@ -175,6 +175,7 @@ public sealed partial class GameServer
 
         RevealGiantWrecks(players); // #3610: a giant wreck found by a passing player (GameServerGiantWrecksWorld.cs)
         RevealCivilizationSites(players); // #3642: a civilization site (GameServerCivilizationsWorld.cs)
+        RevealSpsTowers(players); // #3893: a guide tower found by a passing player (GameServerSpsTowersWorld.cs)
         if (spawned)
         {
             BroadcastCreatures();
@@ -370,7 +371,8 @@ public sealed partial class GameServer
         return new NetLandmark
         {
             Key = lm.Key,
-            Kind = lm.GiantWreck ? GiantShipRules.MapType : lm.Civilization.Length > 0 ? CivilizationMapType : LandmarkPoiType, // #3610, #3642
+            Kind = lm.GiantWreck ? GiantShipRules.MapType : lm.Civilization.Length > 0 ? CivilizationMapType
+                : lm.SpsTower ? SpsTowerRules.MapType : LandmarkPoiType, // #3610, #3642, #3893
             Name = LandmarkName(lm, session.Locale),
             X = corner.X,
             Y = corner.Y,
@@ -390,9 +392,9 @@ public sealed partial class GameServer
     {
         // #3610: the giant wrecks after the landmarks — their silhouettes and emitters, drawn and played the same way
         // … and, since the lively places, the settlements' silhouettes at the tail (GameServerPlaceSilhouettes.cs).
-        Landmarks = _landmarks.Concat(_giantWrecks).Concat(_civSites.Where(c => c.WaterTop is null)).Select(lm => ToNetLandmark(lm, session)) // #3642: no sunken silhouette
+        Landmarks = _landmarks.Concat(_giantWrecks).Concat(_civSites.Where(c => c.WaterTop is null)).Concat(_spsTowers).Select(lm => ToNetLandmark(lm, session)) // #3642: no sunken silhouette; #3893: the guide towers
             .Concat(PlaceSilhouettesOfActiveWorld()).ToArray(),
-        Emitters = _landmarks.Concat(_giantWrecks).Concat(_civSites).SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Concat(PlaceEmittersOfActiveWorld()).Select(e => new NetSoundEmitter
+        Emitters = _landmarks.Concat(_giantWrecks).Concat(_civSites).Concat(_spsTowers).SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Concat(PlaceEmittersOfActiveWorld()).Select(e => new NetSoundEmitter
         {
             X = e.Position.X,
             Y = e.Position.Y,

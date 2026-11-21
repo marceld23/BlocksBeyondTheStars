@@ -48,7 +48,7 @@
           "skippable": false,
           "objective": {
             "event": "build:any",
-            "arg": "lantern|torch|light_white|light_red|light_green|strip_light_cyan|strip_light_warm|pumpkin_lantern|paper_lantern|diya_lamp|campfire",
+            "arg": "lantern|torch|light_white|light_red|light_green|light_blue|strip_light_cyan|strip_light_warm|pumpkin_lantern|paper_lantern|diya_lamp|campfire",
             "required": 30
           },
           "explain": {

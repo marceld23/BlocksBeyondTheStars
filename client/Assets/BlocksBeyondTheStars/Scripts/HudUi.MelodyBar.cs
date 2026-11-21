@@ -171,6 +171,8 @@ namespace BlocksBeyondTheStars.Client
         private void AnimateMelodyTones(MelodyBarModel bar, double now)
         {
             int lit = bar.LitTone(now), glow = bar.GlowTone(now);
+            int next = SoundPaletteTone(bar); // #3908: over there the bar is the palette — the next sound block's tone, else −1
+            ApplyPaletteInk(next >= 0);
             float wave = (float)System.Math.Sin(now * MelodyGlowPulseHz * 2.0 * System.Math.PI);
             float pulse = UiKit.ReducedMotion ? 1f : 0.55f + (0.45f * (0.5f + (0.5f * wave)));
             for (int i = 0; i < _melodyTones.Length; i++)
@@ -178,10 +180,10 @@ namespace BlocksBeyondTheStars.Client
                 var ring = _melodyGlows != null ? _melodyGlows[i] : null;
                 if (ring != null)
                 {
-                    ring.enabled = i == glow;
-                    if (i == glow)
+                    ring.enabled = i == glow || i == next;
+                    if (i == glow || i == next)
                     {
-                        ring.color = new Color(MelodyGlowColor.r, MelodyGlowColor.g, MelodyGlowColor.b, pulse);
+                        ring.color = i == glow ? new Color(MelodyGlowColor.r, MelodyGlowColor.g, MelodyGlowColor.b, pulse) : PaletteMark;
                     }
                 }
 
@@ -192,7 +194,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 bool on = i == lit || bar.Flashing(i, now);
-                image.color = ToneColor(i, on || i == glow ? 1f : 0.62f);
+                image.color = next >= 0 ? PaletteToneColor(i, on) : ToneColor(i, on || i == glow ? 1f : 0.62f);
                 float scale = on && !UiKit.ReducedMotion ? 1.14f : 1f;
                 image.transform.localScale = new Vector3(scale, scale, 1f);
             }
@@ -217,8 +219,11 @@ namespace BlocksBeyondTheStars.Client
             string spelling = bar.SpellingLine(MelodyNoteNames(loc), MelodySpellMarkOpen, MelodySpellMarkClose);
             bool spells = spelling.Length > 0;
             string title = spells && result != null ? result : loc.Get(bar.TitleKey);
-            string line = spells ? spelling : result ?? (bar.FreePlay ? MelodyTaskLine(loc) : null) ?? loc.Get(MelodyHintKey(device));
-            string shown = title + "\n" + line;
+            bool palette = SoundPaletteTone(bar) >= 0; // #3908: over there, the blaster in hand — the keys' hint and the meter
+            string line = spells ? spelling
+                : result ?? (palette ? OtherSideBarHint(loc, device) : null) ?? (bar.FreePlay ? MelodyTaskLine(loc) : null) ?? loc.Get(MelodyHintKey(device));
+            string meter = palette ? OtherSideCountText(loc) : null;
+            string shown = title + "\n" + line + "\n" + meter;
             if (bar.Version == _melodyShownVersion && device == _melodyShownDevice && shown == _melodyShownLine)
             {
                 return;
@@ -228,7 +233,8 @@ namespace BlocksBeyondTheStars.Client
             _melodyShownDevice = device;
             _melodyShownLine = shown;
             _melodyTitle.text = title;
-            _melodyProgress.text = bar.FreePlay || bar.Expected <= 0
+            _melodyProgress.text = meter != null ? meter
+                : bar.FreePlay || bar.Expected <= 0
                 ? string.Empty
                 : string.Format(CultureInfo.InvariantCulture, loc.Get("ui.melody.progress"), bar.Round + 1, bar.RoundCount, bar.Entered, bar.Expected);
             _melodyLine.fontSize = spells ? 13f : 14f; // seven letters with two note names each fit the bar's width

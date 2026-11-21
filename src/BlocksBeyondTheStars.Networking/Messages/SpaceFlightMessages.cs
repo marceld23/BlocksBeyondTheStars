@@ -121,6 +121,43 @@ public sealed class SpaceHeavyShot
     public string TargetPlayerId { get; set; } = string.Empty;
     public byte Phase { get; set; }
     public float Seconds { get; set; }
+
+    /// <summary>#3900: what to draw — empty = the classic heavy shot, <c>SpaceCombatRules.HeavyStyleMegaLaser</c>
+    /// ("mega_laser") = the escort cruiser's mega laser: during the charge an aiming line from the barrel to the
+    /// target, then one thick beam. Additive like the fields below: an older server leaves them empty / 0, and an older
+    /// client draws its classic glow.</summary>
+    public string Style { get; set; } = string.Empty;
+
+    /// <summary>#3900: where the shot comes from — the firing hostile's centre at this moment, in the instance's flight
+    /// coordinates (the client adds its model's barrel offset; the hostile keeps moving during the charge, so the line
+    /// should follow the entity <see cref="EntityId"/> and use this only as the start).</summary>
+    public float OriginX { get; set; }
+
+    /// <inheritdoc cref="OriginX"/>
+    public float OriginY { get; set; }
+
+    /// <inheritdoc cref="OriginX"/>
+    public float OriginZ { get; set; }
+
+    /// <summary>#3900: where the shot points. Charge: the aimed pilot's ship at this moment (the aim follows that ship
+    /// until it fires — draw the line to the ship of <see cref="TargetPlayerId"/> and use this as the start). Hit: the
+    /// ship's position when it was hit. Miss: where the beam ended — the rock it hit (<see cref="Blocked"/>), else the
+    /// spot it was last aimed at.</summary>
+    public float TargetX { get; set; }
+
+    /// <inheritdoc cref="TargetX"/>
+    public float TargetY { get; set; }
+
+    /// <inheritdoc cref="TargetX"/>
+    public float TargetZ { get; set; }
+
+    /// <summary>#3900: the shot's reach in flight units — a target further away than this when it fires is missed. 0
+    /// from an older server (the classic reach then: the engage range times <c>HeavyReachFactor</c>).</summary>
+    public float Range { get; set; }
+
+    /// <summary>#3900: with a miss — the beam ended on an asteroid between the hostile and its target (the pilot hid
+    /// behind a rock).</summary>
+    public bool Blocked { get; set; }
 }
 
 /// <summary>Snapshot of the space instance a player is in (sent on entry and on change).</summary>

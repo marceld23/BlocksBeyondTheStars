@@ -59,6 +59,7 @@ is a landmark stays one and is refused by the check below.
 | `chest` | `table`, `items`, `chance`, `block` (`crate` / `wood_crate`), `hidden=1` | the landmark chest ([LANDMARKS.md](LANDMARKS.md) §2) |
 | `sound` | `sound`, `radius`, `volume` | a bundled loop (§9) |
 | `loot`, `data_terminal`, `relic_cache` | — | the classic loot markers a ruin keeps (planet wrecks spawn them; the shipped ships use chests only) |
+| `sps_console`, `sps_lamp` | `face=±x\|±z` (console) | #3902, `GiantShipRules.BridgeMarkers`: a warship's bridge console and its lamps (§14). Valid, but not in `GiantShipRules.Markers` — the editor's palette does not offer them, and only a wreck in space keeps them |
 
 **What makes one unusable.** `GiantShipRules.Problems(t, blockExists, isSolid)` — one walk over the body: a size of 1 to
 256 per axis, at least one block, every block known and inside the box (a material token is an unknown block), the ground
@@ -426,6 +427,7 @@ door axis from the walls (`GiantShipEditorRules`), runs `GiantShipProblems` and 
 | `ark` | Terraforming Ark | 92 × 62 × 197 | 1 | metal | 5 | three greenhouse halls (crop dome, orchard vault, blossom dome with a pond), the tank hall with tall decorative growth tanks, the seed vault, a lab, animal pens, quarters, the bridge | 14 `giant_ark`, 3 hidden `giant_cache` | `amb_giant_greenhouse`, `amb_giant_hull` |
 | `squid` | Crystal Squid | 103 × 46 × 246 | 1 | alien | 4 | a squid of dyed crystal and glass: eight arms, big glass eyes, round tunnels on two levels, bubble rooms, a heart hall with a glowing core and a spiral ramp | 16 `giant_squid`, 3 hidden `giant_cache` | 3 × `amb_giant_crystal` |
 | `sample_hulk` | Sample Hulk | 40 × 14 × 16 | 1 | metal | 1 | pin-only test hull: two rooms joined by a doorway, a small pool and a tree in a planter | 2 `ruin_common` (one hidden) | — |
+| `escort_cruiser` | Escort Cruiser | 31 × 25 × 88 | 1 | metal | 3 | pin-only — the hull a beaten escort cruiser leaves (§14), never a rolled wreck: one long barrel along the spine over a bridge with red window lamps, two decks with a corridor each, cabins, holds, the engine room, a big robot bay, the bridge with its console markers | 4 `giant_battleship`, 1 hidden `giant_cache` | `amb_giant_hull` |
 
 Every shipped ship has three entrances (the sample one), and kept cells join its decks (ladder shafts; the squid's spiral
 ramp round the heart). Measured on the battleship, the ark and the squid, a wreck loses 15–19 % of its blocks on a planet
@@ -479,5 +481,105 @@ scorch; revisions 1 and 2 unchanged), `GiantShipGeneratorTests` (planet and spac
 none, keep-clear, a changed ship, the one-in-twenty roll), `GiantWreckWorldTests` (list, map, VEGA, scan, the admin stamp),
 `GiantWreckPlacerTests`, `GiantDerelictTests` (start system, boarding, no air, spacewalk, chests, a mined hull cell as one
 cell and a delta, a changed ship, the guardian bay, VEGA, the flight spot), `HullShellTests`, `DerivedStationTests`,
-`AbandonedBedTests` (generation 45: only abandoned two-cell beds aboard, the markers unmoved);
+`AbandonedBedTests` (generation 45: only abandoned two-cell beds aboard, the markers unmoved), `CruiserWreckTests` (§14);
 Client.Tests `SpaceDesignAssemblerTests`, `FlightStructureMeshTests`, `GiantShipEditorTests`, `WorldOptionsLayoutTests`.
+
+## 14. The escort cruiser's wreck (#3902)
+
+A beaten escort cruiser (the space boss, [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) § "The escort cruiser") does not
+vanish: it goes dark and stays where it fell as a wreck the players can board (canon C22). It is the first wreck that is
+**registered at runtime** instead of by the galaxy pass, and the first that is **fresh** instead of centuries old.
+
+**The template.** `data/giant_ships/escort_cruiser.json` from `tools/giant_ships/escort_cruiser.py` — a mid-sized warship
+(31 × 25 × 88; the length stays under 96, where the ruin pass starts breaking a hull in two) and `pinOnly`, so no planet and
+no galaxy pass ever rolls it (`GiantShipsFor` leaves a pin-only ship out; `CruiserWreckTests` asserts it for every planet
+type and for `GiantWreckPlacer.PickDesign`). Its bridge carries two marker types that only a warship has —
+`GiantShipRules.BridgeMarkers`: one `sps_console` (setting `face=±x|±z`: where the console's front looks) and `sps_lamp`
+(each on a one-block post). They are accepted by `GiantShipRules.Problems` (`IsShipMarker`) but are deliberately **not** in
+`GiantShipRules.Markers`, the structure editor's palette of a giant ship; only a wreck in space keeps them
+(`GiantShipGenerator.SpaceMarkers`). The bridge deck, the posts and the wall behind them are `keep` cells, and so is the
+whole shell of the robot bay (every block touching the hall's air, its three red ceiling lamps included — a kept lamp is
+never switched off): the fight never tears the hall open, so the decay finds its room for the guardian bay.
+
+**The fresh option.** `GiantShipGenerator.BuildSpace(…, fresh: true)` runs the same ruin pass (revision 3, `hull`: collapse
+balls, bites, smashed glass, every light switched off) with **no scorch** — no soot tint. `DerelictGenerator.GenerateShip(…,
+fresh: true)` then skips the soot round its own breaches and the scrap on the decks, and the lights did not all die: a dead
+lamp (never a strip) within `CruiserWreckRules.BridgeLampReach` of the console always burns red again, any other with
+`DerelictGenerator.FreshLampShare` (35 %, a hash of seed and cell — never the pass's random stream). A fresh wreck always
+has its guardian bay: should the fight have torn every room with a doorway open, the bay stands below deck — on the lowest
+deck with an open roofed spot, there as far from the way in as it goes (`PlaceFreshBay`; the cruiser's kept bay hall makes
+this a safety net). In both modes a ship with a console marker gets its bridge after everything else
+(`DerelictGenerator.ShipBridge.cs`): the deck under the console and the lamps is never torn, nothing else is put there, and
+the block `sps_console` and a `light_red` per lamp marker are set (`GiantDerelictLayout.Console` / `Lamps`). **Nothing of
+this touches another wreck**: `fresh` defaults to false, a ship without the markers takes none of the branches, and
+`DerelictGenerator.ShipDecayRevision` stays 1 — measured against the build before the change (all six shipped ships, three
+seeds each: the same `BaseHash`), five of those hashes are pinned in `CruiserWreckTests`.
+
+**Registered at runtime** (`GameServerEscortCruiserWreck.cs`). The boss fight calls `OnEscortCruiserDefeated(instance, boss,
+fighterIds, carriesEcho)` inside the kill. The hook writes a `CruiserWreckRecord`, builds the hull inline (about 20 000
+blocks — a few dozen milliseconds, so no background build), registers it as a **derived station** (§6: the save keeps only
+the players' changes) and puts its contact and hull into every open flight of the system; the kill's own `SpaceState`
+carries it to the flight it fell in, the star map is re-sent.
+
+- **The id** is `derelict:cruiser-<system>-<n>` (`CruiserWreckRules.IdPrefix`, `n` = how many wrecks that system has held).
+  The `derelict:` prefix makes every derelict rule hold by the id: boardable by anyone, no air, no shield
+  (`SpaceCombatRules.StationHasShield`), nobody home, no home spawn, falling out is a spacewalk. A wreck that replaces
+  another never reuses its id, so nothing stored under the old one (the interior world, a chest mark, a player's
+  milestone) can reach the new one.
+- **Where the id alone is not enough** the cruiser's registry (`_cruiserWrecks`) is asked beside the derelicts' and the
+  giants': `EnsureDerelict` (routes to `EnsureCruiserWreck`), `RegisterDerelicts` (never a beta station; calls
+  `RegisterCruiserWrecks`), `AddDerelictHulls` (`AddCruiserWreckHulls`), `DerelictSpawnerSpotWorld` (the guardian bay),
+  `OnDerelictBoarded` (`OnCruiserWreckBoarded`, VEGA's own line), `CheckDerelictApproach` (no "an old station" remark),
+  `GiantWreckMissing` (a wreck that has to stay away is no contact, no travel target and no rejoin), and the "a ship, not a
+  station" texts (`IsShipWreckId`: no air, no home, drifted back).
+- **Where.** `CruiserWreckFlightPosition`: where the boss fell, raised until the hull's lowest block is 44 over the flight
+  plane (the station hulls' height — clear of every planet sphere), then pushed sideways until its box keeps 20 from the
+  launch column and 30 from every station hull the server knows there: the flight's own (NPC stations, derelicts, giant
+  wrecks, player stations) plus the system's player stations and the NPC hulls already seen this run. An NPC station of
+  another orbit that nobody has seen yet is not known — the one case in which two hulls can come close. The hull is never
+  turned (no station structure is); the record keeps the yaw for a later use.
+- **One per system.** A new wreck retires the system's old one (`RetireCruiserWrecksIn`): off the star map and out of the
+  open flights at once, and removed for good — the record, the delta blob, the derived record, the door records, the
+  interior overlay, block edits and containers, the chest marks — as soon as nobody is aboard: now, at the next defeat or
+  at the next start (`CruiserWreckRecord.Replaced`).
+- **The record** (`WorldMetadata.CruiserWrecks`, additive): id, system, serial, position, yaw, seed, template, base hash,
+  `CarriesEcho`, `ConsoleOpened`, `EchoFreed`, `Replaced`, the fighters, who got a crate, who got a core. Every start
+  re-registers the wrecks from it (`RegisterCruiserWrecks`); the hull is rebuilt from the seed at its first need and the
+  stored changes are laid over it. Like a giant wreck's pin, a base that no longer comes out as recorded keeps the wreck
+  away while the save holds changes of it (nothing is touched), and is simply adopted when nothing is stored.
+- **The name** is the locale key `station.cruiser_wreck.name`, sent in the receiver's language on the star map
+  (`ToNetBody`) and in the flight's contacts (`WithCruiserWreckNames`); logs and the boarding messages use the English one.
+
+**Aboard** (`GameServerEscortCruiserWreckLife.cs`). Only robots: the guardian bay releases as on every derelict
+([DERELICT_STATIONS.md](DERELICT_STATIONS.md) § Guardians). The chest markers fill once at the first boarding through the
+giant wrecks' path (`SpawnGiantWreckChest`: `giant-chest:<id>:<n>`, `loot_giantchest_<id>_<n>`). Every pilot who hurt the
+boss finds an **owner-locked crate** near the way in the first time they come aboard — 6 to 11 guardian plates and, with
+35 %, a hacking chip (`CruiserWreckCrateFor`; the backpack when no deck cell is free, the deck when the backpack is full).
+Every boarding raises `cruiser:boarded` with the argument `echo` (the story's cruiser) or `plain`.
+
+**The bridge console** (`GameServerEscortCruiserBridge.cs`). The block `sps_console` has one use handler,
+`UseSpsConsole`: it asks the cruiser's bridge first (`TryUseBridgeConsole` — the player is aboard a cruiser's wreck) and
+otherwise calls the guide towers' hook `partial void UseTowerConsole(PlayerSession s, Vector3i cell, ref bool handled)`
+([SPS_TOWERS.md](SPS_TOWERS.md)). Without a `hacking_chip`: `srv.cruiser.console_locked`. With one: the chip is used up,
+every `light_red` within the bridge reach becomes `light_blue` — block changes of the interior, mirrored into the hull and
+so into the wreck's stored changes —, the cue `lights_to_blue` plays, `srv.cruiser.console_blue` goes to everyone aboard
+and the record is marked (a second chip is never taken: `srv.cruiser.console_done`).
+
+- **ECHO's cruiser** (`CarriesEcho`): VEGA's sister core, held silent since the red night, speaks once and says goodbye —
+  the VEGA pack's cutscene `echo.speaks` for everyone aboard (#3899, [CUTSCENES.md](CUTSCENES.md#the-sky-lights-scenes-3899)),
+  **and** her five lines as panel lines under her own name (`ShipAiLine.SpeakerName`, `chr.echo.name`) with VEGA's two
+  answers (`story.vega.echo.*`): a client that plays the scene keeps them out of VEGA's panel (they are the scene's
+  `replaceLineKeys`) and gets them back when the scene is cut short; a client without cutscenes, or a player who was shown
+  the scene before, reads them there. Everyone aboard gets `echo:freed` once (milestone `story:echo_freed`) and ONE
+  `echo_memory_core`, once per player and wreck; a fighter who comes aboard later gets theirs at the boarding. Carried,
+  VEGA reads the core's record into the Journal (`ReadEchoMemoryCore`, the 1 Hz story pass — the lore text
+  `cruiser_echo_core` of site `cruiser_bridge`). ECHO never becomes a companion.
+- **A later cruiser**: the lamps turn blue and the console shows one of the ship's logs (the other texts of site
+  `cruiser_bridge`; `TryRevealLoreText` with a filter never draws ECHO's record there), no core.
+
+**Tests** (`CruiserWreckTests`): the template loads, validates and is never rolled; the bridge markers stay out of the
+editor's palette; the pinned hashes of the wrecks without the option; a fresh wreck (holes, no soot, no scrap, red lamps,
+console, lamps, bay); one boardable wreck where the boss fell, clear of every hull; the flight spot's rules; a second wreck
+replaces the first and its data is gone; a restart puts the wreck back with the players' changes; chests, the bay's robots
+and the fighters' crates; the console without and with a chip, once; ECHO's cores, event, lines and Journal text; every
+text in English and German.

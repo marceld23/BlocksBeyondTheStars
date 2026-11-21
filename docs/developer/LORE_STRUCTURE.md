@@ -34,9 +34,15 @@ data-driven pipeline.
 > [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) §13 in sync. Every generated
 > `data/stories/vega_protocol/lore.json` row must trace back to a canon fact here.
 >
-> Last updated: 2026-11-15 (rev. 8 — the guardian giants, #3685: canon **C18** — the Service's own construction and
+> Last updated: 2026-11-21 (rev. 10 — ECHO's call, #3899 of epic #3891: canon **C22** ECHO's cruiser; the §C catalogue
+> gains the escort cruiser and ECHO; §D lists the three missions "The Sky-Light", "The Sleeper" and "ECHO's Call" with
+> what each chapter may say).
+> Rev. 9 (2026-11-21) — the sky-lights, #3895–#3897 of epic #3891: canon **C19** the guide towers, **C20** the
+> escort wing and its armour, **C21** the sleeper; the §C catalogue gains the guide towers, the escort wing and the
+> sleeper; the leitmotif "red turns blue again".
+> Rev. 8 (2026-11-15) — the guardian giants, #3685: canon **C18** — the Service's own construction and
 > terraforming giants, taken by the Guardian core in the cull; C6/C8/C11 and the §C catalogue point to it; the §E3 memory
-> rule for a defeated giant).
+> rule for a defeated giant.
 > Rev. 7 (2026-11-15) — the lost civilizations in the §C catalogue, #3644/#3645/#3648: the Vanished People,
 > the Grand Technicians, the red fluid, the Labyrinth Builders — world-flavour peoples outside the `vega_protocol` arc —
 > and §C1, the Grand Technicians' internal lore, which never reaches an in-game text; no change to §A/§B.
@@ -164,6 +170,28 @@ beats/fragments declare which facts they touch.
   Guardian's last order.** Cut off from the core, they **still wake after the finale** — the shutdown never reached
   them. They are machines (never animals, never alive), and their story is told without gore: they fall, their
   lights go out, they rest.
+- **C19 — The guide towers ("the sky-lights").** On every prepared settlement world the Service raised a **guide
+  tower**. Its **light led the colony ships in** — people called the towers *the sky-lights* — and its antenna was
+  the **ground end of the relay lattice** ("the long bands"). **The lights were blue.** The night the Guardian core
+  took the network **they turned red**. When VEGA severed the network (C8) the towers **went dark and broke**: no
+  tower stands whole anywhere. What still burns on a ruin are a few emergency lamps — red, stuck in that night.
+- **C20 — The escort wing.** The Service's **guards for routes and towers** (first named in VEGA's memory
+  `vega.mem.4`). Their **field armour came from the same forges as the machines**: the Guardian gear a player forges
+  from guardian plates **is that old pattern** (the item texts stay as they are — robot metal). Its lights were
+  **blue**, and that night they turned **red on everyone — hunter or hunted**.
+- **C21 — The sleeper.** A guard's **neural imprint** (C3) lay sealed in the **capsule tank** of a guard post beside
+  a guide tower. The hacking chip lets the tank **grow him now**: he is a **clone like the players** (C10, C17),
+  **never an original survivor**. He wakes **believing it is still that night**; about **312 years** have passed.
+  What he says must hold for **every** clone (no chosen one), and nothing he says tells what he is — that is VEGA's to
+  say, quietly, to a player whose own story knows it (B9).
+- **C22 — ECHO's cruiser.** The Guardian's cruisers **were the escort wing's cruisers** (C20); the core took them that
+  night. **Only robots are aboard** — the crews got away in the pods. **The first one a player meets carries VEGA's
+  sister core ECHO**, held silent since then. Like the guardian giants (C18) the cruisers **never heard the shutdown**
+  and hunt on after the finale. Freed — a hacking chip at the bridge console of her cruiser's wreck — **ECHO speaks with
+  VEGA once and says goodbye**: she **never becomes a companion**, and the old network is not restored.
+
+**Red turns blue again** is the leitmotif of these facts: a tower, a tank, a bridge — the finale's core hack (C14) is
+the same gesture. It never means the old network is restored (guardrail below): one light is taken back, nothing more.
 
 **Hard guardrails (never generate content that says):** the animals/biomes are the masterminds; the players
 are original (non-clone) humans; the Guardian is simply good/misunderstood; the old SPS or old network is
@@ -183,6 +211,11 @@ cleanly restored; the machines are alive; one player is the unique chosen one.
 | **Grey three-eyed robots** | planet ground enemy [exists, retheme] | ex surface guardians/scanners; three eyes = sensor modules; ground-hugging hunters; grey circuit-plated armour with red sensor eyes (#1337) |
 | **Grey flying scan-drones** | planet hovering enemy [new] | monitor biomes, scan players, alert units — "observe, evaluate, exterminate" |
 | **Guardian giants** | the Guardian's heaviest units, a boss [exists, #3676/#3685 — [GUARDIAN_GIANTS.md](GUARDIAN_GIANTS.md)] | ex SPS construction/terraforming giants (C18). They lie fallen on rocky worlds; about one in four still holds power and wakes to the Guardian's last order — also after the finale. **VEGA's lines follow what the player's own story knows:** before the Service (B2) she is puzzled ("A machine this big? I have no record …"), knowing the Service she recognises one of its builders, knowing the Guardian (B5) she names its hand in it, after the core's shutdown "the core is silent, but this one never heard". Chapter 4's mission *The Fallen Giant* ends on her memory of the builders (insight `guardian_giant`). Each fighter's crate holds a **memory core** (`guardian_giant_core`): the builder's original work order, overwritten by Protocol G (field record `giant_core_order`) |
+| **Guide towers ("the sky-lights")** | ruins on inhabited worlds; a relay console, red emergency lamps [exists, #3893/#3895/#3896 — [SPS_TOWERS.md](SPS_TOWERS.md)] | the Service's guide towers (C19): their light led the colony ships in, their antenna held the long bands. Every one is a ruin. The **relay console** shows records (lore site `sps_tower`): the ships led in, the recall order, the night the lamps turned red, a guard's last entry — and, one piece per tower, **ECHO's last call**. Records are evidence, never narration: none names the Guardian. A **hacking chip** turns a tower's lamps **blue** again, and the tower shows what it still knows of its world. **VEGA's lines follow what the player's own story knows:** before the Service (B2) puzzled, knowing the Service "a guide tower of the Service — the sky-lights", knowing the verdict (B6) "the night it turned red — that was the Guardian", after the core's shutdown "it may be blue again" (insight `sps_tower`). Settlers fear the red lamps and tell of the blue ones ("the sky-lights turned red once") |
+| **The escort wing** | the Service's guards [backstory; met through the sleeper, the towers' records and ECHO] | guards for routes and towers (C20), with cruisers of their own. Their field armour is the pattern players forge as Guardian gear — blue lights then, red since that night. Known through `vega.mem.4`, the console's guard entry, the sleeper's dialog |
+| **The sleeper** | a guard of the escort wing, grown now from his imprint [exists, #3897 — [SPS_TOWERS.md](SPS_TOWERS.md) §9] | steps out of a guard post's **capsule tank** when a hacking chip opens it (C21). **Every guard post holds a different guard** — the first one a save wakes is named by `chr.sps_guard.name` (a placeholder name), the later ones from a small pool; they speak the same lines, and none of the lines says a name. Look `sps_guard` (the armour with **blue** lights). Warm, a little dry, disoriented but never broken: in his head it is still that night. He tells the red night from the inside and what the forged armour really is, gives his rusted sidearm (rebuilt in a workshop) and then lives in the nearest settlement. **He never says what he is.** VEGA does, to the player: before "What You Are" (B9) only that she does not understand what the tank did; from B9, quietly, "He is like you" (insight `sps_guard`) |
+| **The escort cruiser** | a Guardian cruiser, the boss in space [exists, #3900–#3903 — [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) § "The escort cruiser"; its wreck: [GIANT_SHIPS.md](GIANT_SHIPS.md) §14] | one of the escort wing's own cruisers, taken by the core that night (C22). It comes out of hyperspace in a flight: called by the story for a pilot who follows ECHO's call, else as a rare ambush from chapter 6 on — also after the finale. **Only robots fly it**; its logs say the crew got away in the pods, and nobody is ever harmed aboard. Beaten, it does not vanish: its **wreck** stays where it fell and can be boarded (no air, robots, a red-lit bridge). VEGA at its arrival, to a pilot who follows the call: "That hull… that is one of ours. That is the escort wing." |
+| **ECHO** | VEGA's sister core, the ship's core of the escort wing's lead cruiser [exists, #3899/#3902] | fast, loyal, terrible jokes (the sleeper's words). Held silent on her cruiser since the red night: "The core gives the orders now. I am told to be silent." Her **last call** lies in three pieces in the towers' relay buffers (lore `tower_echo_1…3`) and breaks off at "VEGA, if you still listen on the long bands —". A hacking chip at the bridge console of her cruiser's wreck turns the bridge blue and frees her: **she speaks once** (five lines, VEGA answers twice — the scene `echo.speaks`), warns how her sister ships aim, starts a joke she leaves unfinished on purpose, and **says goodbye**. What stays is a **memory core** (`echo_memory_core`, record `cruiser_echo_core`) and VEGA's note (insight `mission:m_echo_call`). **Never a companion, never a second ship AI, never back** — "That is all there is left of me." |
 | **Settlers / vendors / quartermasters** | survivor NPCs [exists] | isolated descendants; legends, fear of the machines, rumours/coordinates |
 | **Net fragments** | story find [proposed] | text-only shards of the old network / SPS data / VEGA memory (§E2) |
 | **Dataqubes** | knowledge find [exists] | mini-games → knowledge; **separate** from net fragments |
@@ -257,6 +290,19 @@ captain **cut her ship loose at VEGA's own request**, so what she carried would 
 severed the network herself); the last fragment brings back her schematics, **not every memory** (the recovery stays
 gradual, B7/B9). The relay insight `vega.relay.first` names the **Scout and Pioneer Service** (never another long
 form).
+
+**The sky-lights' three missions** (#3899). Beside the beats run three story missions that **stay open after their
+chapter** (`keep`), each handed out in the chapter that has earned its words — a mission's text never says more than its
+chapter knows, whenever it is finished:
+
+| Mission | Chapter (knows) | The player | VEGA may say | Touches |
+|---|---|---|---|---|
+| *The Sky-Light* (`m_sky_light`) | 2 *The Service* (B2–B4: the Service, its end, the machines were ours) | reaches a guide tower, reads its relay console | the towers carried the Service's signals; they are the sky-lights of the settlers' legend. **Not** why the lamps are red — the Guardian is not known yet (her own tower lines follow each player's story, §C) | C19 |
+| *The Sleeper* (`m_sleeper`) | 5 *What You Are* (from B9: the clone reveal) | builds a hacking chip, turns a tower blue, opens a guard post's capsule tank, talks to the guard | the tank is "a cousin of your heal tank"; after the talk, quietly: "He is like you" (insight `sps_guard`). The guard himself never says what he is | C20, C21 |
+| *ECHO's Call* (`m_echo_call`) | 6 *It Still Sleeps* (B11: the core only sleeps) | flies out, beats the escort cruiser that carries ECHO, boards its wreck, frees her at the bridge console | ECHO is her sister core; "that is the escort wing"; ECHO's own warning about the sister ships that still guard the sleeping core | C22 |
+
+A save without guide towers skips the first two without a word; rules that allow no space boss skip the third. ECHO's
+call reaches VEGA in two ways: the three pieces read at the towers "fit together", or she picks the call up herself.
 
 ## E. Content-generation schema
 

@@ -80,10 +80,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         // Re-pinned 2026-11-15 (the abandoned bed, terrain generation 45): one more block shifted the ids and atlas slots;
         // geometry unchanged (the same vertex and triangle counts); sky unchanged.
+        // Re-pinned 2026-11-21 (the sky-lights and the other side, #3894): six more blocks (the blue lamp pair, the relay
+        // console, the capsule tank pair, the sound block) shifted the block ids and atlas slots again.
+        // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0x02ff5fe47f670d21UL,
-            ["surface (5,2,7)"] = 0x8b87a1835163f92dUL,
+            ["deep (5,1,7)"] = 0xf1e1826c0ae89d09UL,
+            ["surface (5,2,7)"] = 0x012e655e55ac4ffdUL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

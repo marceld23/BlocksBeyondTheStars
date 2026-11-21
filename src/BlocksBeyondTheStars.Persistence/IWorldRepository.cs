@@ -800,6 +800,19 @@ public interface IWorldRepository : IDisposable
     /// <summary>Removes a structure overlay (the cells it held fall back to the generated terrain under the edits).</summary>
     void DeleteStructureOverlay(string planet, string key);
 
+    /// <summary>Stores (inserts or replaces) a sound block of the other side (#3907), keyed by its world cell — the sound
+    /// layer's own table, apart from the block edits: nothing that reads the real world ever sees a row of it.</summary>
+    void SaveSoundCell(string planet, Vector3i worldPosition, int glow, string owner);
+
+    /// <summary>Every sound block of a location (read once, when the server first needs that world's sound layer).</summary>
+    IReadOnlyList<StoredSoundCell> ListSoundCells(string planet);
+
+    /// <summary>Removes a sound block (dissolved, or a real block took its cell).</summary>
+    void DeleteSoundCell(string planet, Vector3i worldPosition);
+
+    /// <summary>How many sound blocks <paramref name="owner"/> has standing in a location — what the cap counts.</summary>
+    int CountSoundCells(string planet, string owner);
+
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);
 

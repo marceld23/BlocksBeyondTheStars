@@ -895,6 +895,16 @@ public static class StoryWorldPredicates
     /// hand over to the ring of rune stones without it.</summary>
     public const string ShrineReachable = "shrine_reachable";
 
+    /// <summary>#3910: the player is in Ornemis, the Sounders' home system — on Soaniri or anywhere else in it. The Sounders'
+    /// chapter "The Threshold" sends a player who is there to the Eldest in Mirun; anywhere else VEGA translates a rune
+    /// stone instead.</summary>
+    public const string InOrnemis = "in_ornemis";
+
+    /// <summary>#3910: Soaniri, the Sounders' home world, is in this galaxy for the player (they learned the Song of Return)
+    /// and they can get there (same system, a jump generator, a landing there before, instant travel). The Sounders' last
+    /// chapter hands over to any rune gate without it.</summary>
+    public const string SoaniriReachable = "soaniri_reachable";
+
     /// <summary>#3685: this world can hold guardian giants — a giant lies on a body already, or the world is of the giants'
     /// terrain generation (<c>WorldDescription.GuardianGiantsGeneration</c>) and the structure is not switched off. Without
     /// them VEGA's mission "The Fallen Giant" gives way to its stand-in.</summary>
@@ -902,6 +912,50 @@ public static class StoryWorldPredicates
 
     /// <summary>#3685: a guardian giant (lying, awake or fallen) is within its found range of the player on their body.</summary>
     public const string GuardianGiantNear = "guardian_giant_near";
+
+    /// <summary>#3893: this save can have SPS guide towers — the world is of the sky-lights' terrain generation
+    /// (<c>WorldDescription.SkyLightsGeneration</c>) and the towers are switched on (the host's <c>PlaceSpsTowers</c>, the
+    /// world option, the structure kind), or a tower stands in it already. Without them the missions around the towers give
+    /// way to their stand-ins.</summary>
+    public const string SpsTowers = "sps_towers";
+
+    /// <summary>#3893: the ruin of a guide tower is within its found range of the player on their body.</summary>
+    public const string SpsTowerNear = "sps_tower_near";
+
+    /// <summary>#3896: a guide tower whose lamps were turned blue is within its found range of the player on their body — the
+    /// same for every player, whoever lit it. A step "light a tower" can name it in <c>alreadyDoneIf</c>.</summary>
+    public const string SpsTowerLitNear = "sps_tower_lit_near";
+
+    /// <summary>#3895: a guide tower is known in this save — one stands on a body somebody visited (the guide marker
+    /// <c>nearest_sps_tower</c> can lead there). False while none was found yet: a step's text variant can then say where the
+    /// first one will be.</summary>
+    public const string SpsTowerKnown = "sps_tower_known";
+
+    /// <summary>#3897: a guide tower with a guard post (a capsule tank) stands on a body somebody visited — about four towers
+    /// in ten have one.</summary>
+    public const string SpsGuardPostKnown = "sps_guard_post_known";
+
+    /// <summary>#3897: a capsule tank of this save was opened — the sleeper is awake (at his post or in a settlement of that
+    /// world), whoever opened it.</summary>
+    public const string SpsGuardAwake = "sps_guard_awake";
+
+    /// <summary>#3899: the player lit a guide tower before — with a hacking chip, or by their first use of the console of a
+    /// tower somebody else had lit (their own <c>sps_tower:lit</c> was raised) — on any world. A step "light a tower" names
+    /// it in <c>alreadyDoneIf</c> beside <c>sps_tower_lit_near</c>, so a tower lit chapters ago still counts.</summary>
+    public const string SpsTowerLitByPlayer = "sps_tower_lit_by_player";
+
+    /// <summary>#3899: the player carries a hacking chip (the backpack, or the hold of their active ship) — forged in a
+    /// workshop, dropped by a Hunter or found in a crate.</summary>
+    public const string HackingChipCarried = "hacking_chip_carried";
+
+    /// <summary>#3899: the world's rules allow a space boss (the escort cruiser) — free space flight, PvE space combat, the
+    /// hostile machines in space not Off, and ship weapons that may hit them. Without them VEGA's mission "ECHO's Call" is
+    /// skipped.</summary>
+    public const string SpaceBosses = "space_bosses";
+
+    /// <summary>#3899: ECHO, VEGA's sister core, was freed in this save — by anybody, at the bridge console of her cruiser's
+    /// wreck. It stays true when that wreck is gone.</summary>
+    public const string EchoFreed = "echo_freed";
 
     /// <summary>#3673: the player is on foot where the movement lessons count — on a world's surface or walking inside their
     /// ship; not flying (at the helm in space or on a spacewalk), not aboard a station, not in a vehicle or on a train. The
@@ -925,7 +979,9 @@ public static class StoryWorldPredicates
         TrainHere, Multiplayer, RadioWorn, RuinNear, TreasureNear, WreckSignal, PlanetWrecks,
         FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
         FestivalMidsummer, FestivalChildren, FestivalHalloween, FestivalChristmas,
-        Monuments, Shrine, ShrineReachable,
+        Monuments, Shrine, ShrineReachable, InOrnemis, SoaniriReachable,
         GuardianGiants, GuardianGiantNear, OnFoot,
+        SpsTowers, SpsTowerNear, SpsTowerLitNear, SpsTowerKnown, SpsGuardPostKnown, SpsGuardAwake,
+        SpsTowerLitByPlayer, HackingChipCarried, SpaceBosses, EchoFreed,
     };
 }

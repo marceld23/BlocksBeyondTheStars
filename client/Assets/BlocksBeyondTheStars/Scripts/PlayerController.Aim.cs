@@ -94,6 +94,11 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            if (OverThere)
+            {
+                return OtherSideOutlineCell(out cell); // #3908: the cell the Resonance Blaster would shape — nothing else is mined or placed
+            }
+
             return AimTarget(out cell, out _, out _, HeldToolFluidAim() | PlaceFluidAim());
         }
 

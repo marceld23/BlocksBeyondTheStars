@@ -222,6 +222,7 @@ public sealed partial class GameServer
         const string EchoDialogPrefix = "snd_echo_";
         if (string.IsNullOrEmpty(dialogKey) || !dialogKey.StartsWith(EchoDialogPrefix, StringComparison.Ordinal))
         {
+            OnSoundersOverDialogDone(s, dialogKey ?? string.Empty); // #3910: Elora and Kamo on the other side
             return;
         }
 

@@ -148,10 +148,26 @@ public sealed partial class GameServer
         [StoryWorldPredicates.Monuments] = s => _worlds.Find(s.CurrentLocationId)?.Monuments.Count > 0,
         [StoryWorldPredicates.Shrine] = _ => UniqueSiteTarget("shrine") is { } shrine && UniqueSiteExists("shrine", shrine),
         [StoryWorldPredicates.ShrineReachable] = s => UniqueSiteFollowable(s, "shrine"), // #3415: the lead's rule
+        // #3910: the Sounders' chapters 9–11 (GameServerSoundersStory.OtherSide.cs).
+        [StoryWorldPredicates.InOrnemis] = InOrnemis,
+        [StoryWorldPredicates.SoaniriReachable] = SoaniriReachable,
 
         // #3685: VEGA's mission "The Fallen Giant" (GameServerGuardianGiantStory.cs).
         [StoryWorldPredicates.GuardianGiants] = _ => GuardianGiantsInWorld(),
         [StoryWorldPredicates.GuardianGiantNear] = s => NearestGuardianGiantInFoundRange(s) is not null,
+        // #3893: the guide towers (GameServerSpsTowersWorld.cs).
+        [StoryWorldPredicates.SpsTowers] = _ => AnySpsTowerInSave() || SpsTowersPossible,
+        [StoryWorldPredicates.SpsTowerNear] = s => SpsTowerInFoundRange(s) is not null,
+        // #3895–#3897: the towers' life (GameServerSpsTowerLife*.cs, GameServerSleeper*.cs) — the same for every player.
+        [StoryWorldPredicates.SpsTowerLitNear] = s => SpsTowerInFoundRange(s) is { Lit: true },
+        [StoryWorldPredicates.SpsTowerKnown] = _ => AnySpsTowerInSave(),
+        [StoryWorldPredicates.SpsGuardPostKnown] = _ => _meta.SpsTowers.Exists(t => t.HasGuardPost),
+        [StoryWorldPredicates.SpsGuardAwake] = _ => _meta.SpsTowers.Exists(t => t.TankOpened),
+        // #3899: VEGA's missions "The Sleeper" and "ECHO's Call" (GameServerSkyLightMissions.cs, GameServerEchoCallStory.cs).
+        [StoryWorldPredicates.SpsTowerLitByPlayer] = SpsTowerLitByPlayer,
+        [StoryWorldPredicates.HackingChipCarried] = HackingChipCarried,
+        [StoryWorldPredicates.SpaceBosses] = _ => SpaceBossesAllowed,
+        [StoryWorldPredicates.EchoFreed] = _ => EchoFreedInSave,
         // #3673: the movement lessons wait while the player flies the ship (or rides) — where TutorialMovementEvents counts.
         [StoryWorldPredicates.OnFoot] = OnFoot,
     };
@@ -239,7 +255,7 @@ public sealed partial class GameServer
     {
         foreach (var other in _sessions.Values)
         {
-            if (!ReferenceEquals(other, who) && other.Joined && !other.Spectating
+            if (!ReferenceEquals(other, who) && other.Joined && !other.Spectating && !HiddenFrom(who, other) // #3905
                 && other.CurrentLocationId == who.CurrentLocationId
                 && WrapDistSq(other.State.Position, who.State.Position) <= PlayerNearRange * PlayerNearRange)
             {

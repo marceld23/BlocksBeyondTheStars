@@ -74,6 +74,7 @@ namespace BlocksBeyondTheStars.Client
             _facts.AimedDoor = handDoor != 0 && doorAimed;
             _facts.NearDoor = handDoor != 0 && !doorAimed;
             GatherNearbyFacts();
+            FilterInteractionOverThere(); // #3906: over there only a rune stone and those who live there (PlayerController.OtherSide.cs)
 
             Game.Interaction = InteractResolver.Resolve(_facts);
             Game.InteractionFrame = Time.frameCount;

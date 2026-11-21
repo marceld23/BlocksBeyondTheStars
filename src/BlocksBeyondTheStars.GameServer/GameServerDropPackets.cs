@@ -319,7 +319,7 @@ public sealed partial class GameServer
         anyRemoved |= ResettleDropPackets(elapsed);
         foreach (var session in JoinedInActiveWorld())
         {
-            if (session.Watching)
+            if (session.Watching || session.OtherSide) // #3905: nor does a player over there
             {
                 continue; // a watcher's flying camera picks nothing up — an observing admin's as little as a fallen player's (#3765)
             }

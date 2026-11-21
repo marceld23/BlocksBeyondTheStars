@@ -301,6 +301,7 @@ public sealed class CutscenePacingTests : IDisposable
                  {
                      "snd.stones_sing", "snd.shrine_answers", "snd.first_echo", "snd.great_song", "snd.song_of_return",
                      "snd.landing", "snd.elder", "snd.choir_tower", "snd.bridge_song", "snd.soundi_joins",
+                     "snd.threshold", "snd.other_song", // #3910: over there the player is never "at home"
                  })
         {
             Assert.True(sounders.FindCutscene(id)!.Options.PlayInPlace, id);

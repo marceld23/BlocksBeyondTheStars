@@ -185,6 +185,8 @@ public static class StoryRegistry
         Speakers = new List<StoryNarrator>
         {
             new() { Id = "core", NameKey = "ui.finale.duel_title", Color = "#FF5A4A", LineStart = "anomaly_hum" },
+            // #3899: ECHO, VEGA's sister core — the voice of the scene echo.speaks.
+            new() { Id = "echo", NameKey = "chr.echo.name", Color = "#6FA8FF", LineStart = "ai_blip" },
         },
         IntroCutscene = StoryCutsceneIds.Prologue,
         // #2478: the finale set pieces (the fallback carries no cutscenes — the bound ids only log once, the lines play and
@@ -225,6 +227,11 @@ public static class StoryRegistry
             // giant mission's stand-in on a world without giants; one line, one once-key.
             new() { Event = "guardian_giant", MinBeat = 5, TextKey = "story.vega.insight.guardian_giant", OnceKey = "story:insight:guardian-giant" },
             new() { Event = "mission:m_giant_echo", MinBeat = 5, TextKey = "story.vega.insight.guardian_giant", OnceKey = "story:insight:guardian-giant" },
+            // #3895 / #3897: VEGA remembers the sky-lights (at a guide tower's console), and "He is like you" (the sleeper).
+            new() { Event = "sps_tower", MinBeat = 2, TextKey = "story.vega.insight.sps_tower", OnceKey = "story:insight:sps-tower" },
+            new() { Event = "sps_guard", MinBeat = 9, TextKey = "story.vega.insight.sps_guard", OnceKey = "story:insight:sps-guard" },
+            // #3899: the last word of the mission "ECHO's Call" — VEGA keeps her sister's goodbye.
+            new() { Event = "mission:m_echo_call", MinBeat = 11, TextKey = "story.vega.insight.echo", OnceKey = "story:insight:echo" },
         },
     };
 

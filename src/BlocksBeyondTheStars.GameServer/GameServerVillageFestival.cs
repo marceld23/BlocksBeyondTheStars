@@ -318,7 +318,7 @@ public sealed partial class GameServer
         PlayerSession? hero = null;
         foreach (var s in JoinedInActiveWorld())
         {
-            if (string.Equals(s.State.PlayerId, record.HeroId, StringComparison.Ordinal) && !s.Spectating && OnFootHere(s))
+            if (string.Equals(s.State.PlayerId, record.HeroId, StringComparison.Ordinal) && !s.Spectating && !s.OtherSide && OnFootHere(s)) // #3905
             {
                 hero = s;
                 break;

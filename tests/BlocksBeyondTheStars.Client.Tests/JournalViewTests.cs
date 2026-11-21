@@ -455,6 +455,31 @@ public sealed class JournalViewTests
         Assert.Equal("●  m_x", JournalPackPage.MissionTitle(new NetStoryMission { Id = "m_x", TitleKey = "story.vega.m.unknown", State = StoryChapterStates.Active }, Loc, Has));
     }
 
+    /// <summary>#3892: a mission that stays open after its chapter arrives with its own (earlier) chapter's id beside the
+    /// current chapter's missions. The page lists what the server sends — it must never filter the rows by chapter — and
+    /// offers the skip for it like for any running mission.</summary>
+    [Fact]
+    public void AKeptMissionOfAnEarlierChapter_IsListedWithTheCurrentChaptersMissions()
+    {
+        var vega = new NetStoryPack
+        {
+            Id = "vega_protocol",
+            Scope = StoryRegistry.ScopeWorld,
+            Started = true,
+            Missions = new[]
+            {
+                new NetStoryMission { Id = "m_archive", ChapterId = "service", TitleKey = "t.archive", State = StoryChapterStates.Done },
+                new NetStoryMission { Id = "m_observatory", ChapterId = "service", TitleKey = "t.observatory", State = StoryChapterStates.Active, Skippable = true },
+                new NetStoryMission { Id = "m_kept", ChapterId = "signature", TitleKey = "t.kept", State = StoryChapterStates.Active, Skippable = true },
+            },
+        };
+
+        var missions = JournalPackPage.MissionsOf(vega);
+        Assert.Equal(new[] { "m_observatory", "m_kept", "m_archive" }, missions.Select(m => m.Id)); // running first, in the server's order
+        Assert.Equal("●  <t.kept>", JournalPackPage.MissionTitle(missions[1], key => "<" + key + ">"));
+        Assert.Equal("m_kept", Assert.Single(JournalPackPage.MissionActions(missions[1])).ChapterId);
+    }
+
     // ---------------- The Settings' tutorial switch ----------------
 
     [Fact]

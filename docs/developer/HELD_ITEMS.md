@@ -2,8 +2,9 @@
 
 **Status:** current (2026-10-19). Covers #1033, #1427/#2755 (the painted hand), #1931/#1962 (tool models as data), #2278
 (gloves), #2534 (miniatures), #2744 (block faces), #2776–#2778 (the block's own look, a hand on every item, the
-holster and draw), #2798–#2800 (no shared planes, the scanners' handle, gun or blade by range) and #2836–#2838
-(materials on every part, a model for every gadget, ores held as a lump).
+holster and draw), #2798–#2800 (no shared planes, the scanners' handle, gun or blade by range), #2836–#2838
+(materials on every part, a model for every gadget, ores held as a lump) and #3898 (held-beam weapons, §7 — the one
+part of this document the server decides).
 
 The selected quick-bar item is shown in three places: the first-person view (`Viewmodel`, on the camera), the local
 avatar's hand in third person and every other player's avatar (`PlayerAvatar`). All three build the same model through
@@ -280,11 +281,63 @@ The Sounders story pack adds one held gadget and a handful of items the hand sho
   Its hint row names the current Sounders task (#3679, `ui.melody.task` + the pack's chip line) while one runs.
   What the pulse does is the server's (`GameServerResonanceBlaster.cs`): a cone that pushes and dazes hostile creatures and
   machines for 3 s without harm, calms a Soundrak, and on a monument's rune stone opens its sound chamber
-  (`GameServerSoundChambers.cs`).
+  (`GameServerSoundChambers.cs`). On the other side (#3908) the pulse does none of that: it shapes or dissolves a sound
+  block, with the melody bar as the palette — see [OTHER_SIDE.md](OTHER_SIDE.md) § "The sound layer".
 - **Song Discs** (`song_disc_*`, the collectible `song_disc`) are flat item icons — held as the extruded icon card
   (`Icon` miniature). **The Song Spindle** (`song_spindle`) is a block item, held as its cube.
 - **The obsidian armour** is worn, not held: its look is the avatar's (see
   [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md), "Worn gear on the body").
+
+## 7. Held-beam weapons (#3898, the Guardian laser)
+
+Every weapon fires once per press. A weapon whose `tool` block in `data/items.json` carries the four **beam values**
+also fires a continuous beam while the fire control stays down:
+
+| Field | Guardian laser | Meaning |
+|---|---|---|
+| `beamDamagePerSecond` | 55 | damage per second while held (0 = no beam) |
+| `beamEnergyPerSecond` | 9 | suit energy per second — drained whether the beam meets anything or not |
+| `beamRange` | 22 | the beam's own reach in blocks (the shot reaches 34) |
+| `beamTick` | 0.25 | seconds between two resolved hits |
+
+`BeamWeaponRules` (Shared) holds everything around those numbers — what counts as a hold (`HoldSeconds` 0.22), the
+reserve (`ReserveFraction` 0.15 of the suit's maximum), the timeout, the cue ids, the content check — and the balance
+note. `guardian_laser` is the only item with a beam; `ToolMods.Apply` carries the values through a bio-lab change
+(power → damage, energy → drain, range → reach).
+
+**Tap and hold.** A press is always the shot — fired on the press itself by the code that fires every weapon
+(`PlayerController.cs` for the fire key / pad / touch button, `PlayerController.Interact.cs` for the left click), so a
+short press has the timing it always had. The Unity-free `BeamTrigger` (Client.Core) only watches the control stay
+down: after `HoldSeconds` the beam comes on with its first tick, ticks follow at least one `beamTick` apart, and
+letting go ends it — nothing fires on the release. It needs its own press (a control already down when the weapon came
+into the hand starts nothing), it stops when the hand can no longer fire (another item, a menu, a seat, a carried
+block) or the suit reaches its reserve, and after a stop for energy or by the server it waits for the release.
+`PlayerController.BeamWeapon.cs` reads the control (`InputMap.Held(PrimaryFire)` — fire key, pad, touch — or
+`InputMap.PrimaryHeld()` — left click, pad trigger), aims the beam along the camera ray every frame, and sends one
+`BeamWeaponIntent` per tick: the entity under the beam (the crosshair's, else auto-aim's, asked once per tick), the ray,
+and the block it ends on.
+
+**The server decides everything** (`GameServerBeamWeapons.cs`). At most one tick per `beamTick` whatever arrives — a
+schedule per player that moves on by whole ticks and survives a release, so neither a flood nor a press/release
+flutter resolves hits faster (0.06 s of slack for network jitter). A tick runs down the shot's own path
+(`AttackEntity`: the untouchable and companion refusals, the PvP rules, reach, line of fire, aim, `LandHit` with loot,
+story credit and hit reactions) with the tick's numbers — `BeamWeaponRules.TickProfile` stands in for the held tool for
+that one call (`ActiveTool`), so there is no second damage path. Every resolved tick drains its energy; a tick that
+would take the suit below the reserve stops the beam and says so (`srv.attack.beam_reserve`, at most every 6 s). A
+refused tick ("out of reach", "no clear line") is told once every 3 s, not four times a second. The beam also ends when
+the item leaves the hand, the player sits, boards, goes down, changes world or crosses to the other side (the intent
+is not on the other side's allow-list), and when no tick arrived for 0.6 s (`TickBeamWeapons`, per world). A tick that
+ends on a block sets it alight like the weapon's shot does (`ignites`, the fire's own guards, never as a guest in a
+friend's ship).
+
+**The look.** `HeldBeamLine` is one rented line of the `FxBeam` shader the laser's shot uses, in the item's fx colours,
+wider than the shot (0.11 against 0.075) and pulsing, with a glow at the muzzle, a bigger one where it ends, and sparks
+and a short light where it hits. It starts at the same muzzle as every effect (the viewmodel's tip, the avatar's hand in
+third person). **Other players** get one `ActionFx` of kind `WeaponBeam` per resolved tick along the line the server
+validated and one `WeaponBeamEnd` when it is over (a client may send neither); `BeamWeaponView` keeps a line per
+beaming player alive between ticks, from that avatar's hand, eased toward each new end point. The end message also
+reaches the shooter when the server ended the beam, which takes the own beam away. Sounds: `guardian_beam_loop` while
+held (2D for the own beam, positional for another's) and `guardian_beam_end`; a missing clip is silence.
 
 ## Tests
 
@@ -312,6 +365,11 @@ The Sounders story pack adds one held gadget and a handful of items the hand sho
 - Server suite `HeldModelDataTests` — every gadget has a model, every `"m"` in the data is known and bound from the short
   key.
 - `HeldMiniatureTests`, EditMode `HeldItemEditModeTests` and `BlockCubeFacesEditModeTests` — the older halves.
+- `BeamTriggerTests` (#3898, client suite) — a tap never becomes a beam, the hold's start and first tick, ticks never
+  closer than the weapon's tick at any frame rate, every stop, the intent on the wire, one beam against the real server,
+  and the Unity wiring as source text. Server suite `BeamWeaponTests` — the data and its check, the unchanged tap, ticks
+  that land and drain, the cadence against a spamming client, the reserve, every way the beam ends, reach, line of fire
+  and aim, no beam with another weapon, companions, PvP, a plant set alight, and what the other players are told.
 
 The poses were checked by rendering the viewmodel and an avatar from an EditMode batch script (camera at FOV 80,
 16:9, near plane 0.1 like `WorldRig`) — every kind at rest and at two swing phases, the switch frame by frame.

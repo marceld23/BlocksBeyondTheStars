@@ -159,6 +159,7 @@ public sealed partial class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS structure_overlay (
                 planet TEXT NOT NULL, key TEXT NOT NULL, data BYTEA NOT NULL, PRIMARY KEY (planet, key));");
             // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
+            EnsureSoundLayerSchema(); // #3907: the other side's sound blocks, a table of their own
 
             // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
             // columns are added if absent; on a fresh DB they already exist from the CREATE above, so the
@@ -2402,7 +2403,7 @@ public sealed partial class PostgreSqlWorldRepository : IWorldRepository
         "beam", "crystal_cell", "base_claim", "base_pad", "alliance", "crew", "crew_member", "story_state", "named_blob",
         "location_status", "mission", "space_structure", "structure_edit", "flora_regrow", "weather_deposit",
         "fluid_cell", "fluid_source", "fire_cell", "paint_design", "paint_report", "custom_shape", "world_texture",
-        "player_report", "structure_overlay",
+        "player_report", "structure_overlay", "sound_edit",
     };
 
     /// <summary>Rows written before the JSON writer hands its buffer to the file — the dump streams, so a large

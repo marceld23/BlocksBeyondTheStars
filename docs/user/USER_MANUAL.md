@@ -690,6 +690,8 @@ separate unlock; admins can still disable it through server world rules.
   - The scrap pistol fires a glowing brass slug.
   - The gauss pistol charges and leaves rings along its rail.
   - The laser draws a red beam with a glowing hot spot.
+  - The Guardian laser's held beam is a thicker, pulsing red line that stays on while you hold fire, with a glow and
+    sparks where it lands.
   - The plasma blaster throws a wobbling violet ball that lights up a cave as it flies.
   - Blades sweep a slash ribbon.
   - The shock gloves send a cyan ring of pushed air out between your palms; the energy gloves crackle with gold
@@ -1477,6 +1479,19 @@ players.
   the diamond drill. (The mining beam clears a 3×3×3 cube; the laser never takes more than the block you aim at.)
 - **Guardian sword** (tier 3 weapon; blueprint after the plasma sword, made from the vibro knife and guardian plates):
   a sword with a **red hologram blade** that hits as hard as the plasma sword.
+- **Guardian laser** (tier 3 weapon; no blueprint — the workshop rebuilds it from a **Rusted Guardian plasma**, four
+  guardian plates and two energy cells): the one weapon with two ways to fire.
+  - **Tap** the fire control (**F**, the left click, the pad's fire button or the touch attack button) for a single red
+    laser shot — the strongest pistol shot there is, and it costs a little suit energy like every laser shot.
+  - **Hold** it, and after a moment the laser fires a continuous **beam** that follows where you look and burns
+    whatever it stays on: machines, robbers, animals. Sweep it from one target to the next. The beam reaches less far
+    than the shot (22 blocks instead of 34) and, like the shot, it sets plants alight.
+  - The beam **drains suit energy fast** — a full suit feeds it for about nine seconds, a suit battery for about
+    fourteen — and energy only comes back aboard your ship or at a heal tank. So the beam is the easy way to fight, the
+    single shots are the thrifty one.
+  - It **stops by itself at a reserve** of 15 % of your suit's energy and tells you so: you are never left without
+    energy for the jetpack. Single shots still work below the reserve. Let go and press again to start a new beam.
+  - Other players see and hear your beam. It never hurts a pet, a Quali or a friend the world's rules protect.
 - **A full backpack does not stop you.** When neither your inventory nor (while aboard) the cargo hold has
   room, the block still breaks and the drop lands at your feet as a small **block packet**. Packets stack —
   everything you dig nearby joins the same bundle — and once you have space again, walking near one pours it
@@ -3327,6 +3342,40 @@ worlds created with a game version that has generation 43 have them; an older wo
 - **Admins** can lay a giant that can wake in front of them with `/giant guardian` and travel to the giants of a world with
   `/tp giant` (see the admin commands).
 
+### Guide towers, the hacking chip and the sleeper (worlds created since generation 47)
+- On worlds where people live you may find the ruin of a **guide tower** — a tall mast of blue-grey metal, broken,
+  leaning or fallen, with small red lamps still burning. The settlers call these towers **the sky-lights**: long ago
+  their light led the ships in. They are rare, but the first inhabited world of a new save always has one. The whole
+  ruin is protected (nothing can be mined), its chests can be looted, and a ladder or stairs lead to the highest platform
+  that is left. The map marks a tower once you come near; a world option (*Guide towers*) sets how often they stand.
+- **The relay console** stands in the room at the tower's foot. Press *Interact* on it: each time it shows another of
+  its old records.
+- **The hacking chip** talks to the old machines. Hunters carry one now and then, and the workshop builds one from
+  10 titanium plates and 20 Guardian plates. Keep a chip in your backpack and press *Interact* on the console: it takes
+  one chip, the tower's lamps turn **blue** from the bottom to the top, the console plays its last message, and the
+  tower marks the places it still knows on your map (landmarks, wrecks, old sites, other towers). A tower stays blue for
+  everybody.
+- Beside some towers stands a small wooden **guard post** with a sealed **capsule tank**. A chip opens it — and
+  somebody steps out. Talk to him; he has a gift for every player, once. Afterwards he lives in the nearest settlement.
+- VEGA's story sends you to these places: *The Sky-Light* (chapter 2), *The Sleeper* (chapter 5) and *ECHO's Call*
+  (chapter 6). These three missions stay open when the story moves on — you can finish them whenever you like.
+- **Admins**: `/spstower list` and `/spstower <key> [post|nopost]` lay a tower in front of you, `/tp tower [n]` travels
+  to the towers of a world.
+
+### The escort cruiser (the space boss)
+- Sometimes VEGA warns of **a jump signature** — and about twelve seconds later a big Guardian cruiser with a long
+  barrel comes out of hyperspace, far away from you. A boss bar at the top shows its hull and shield, and the boss music
+  plays. It never comes in the start system or in a peaceful world, and only when your ship carries weapons.
+- Its **mega laser** warns you first: the barrel glows, a thin aiming line points at your ship and the HUD says so. Do a
+  **barrel roll** just before it fires, fly out of its reach or get behind an asteroid. A hit never destroys a healthy
+  ship at once. At half hull the cruiser gets angry, fires more often and calls two drones.
+- **Flying away is fine**: if nobody is near for a while, it jumps away again.
+- A beaten cruiser stays as a **wreck you can board** — dock, or go in through a hole on a spacewalk. Only robots are
+  aboard. Every pilot who fought finds a crate of their own near the way in, and on the bridge stands a console with a
+  red light: a hacking chip turns it blue.
+- With several ships in a fight, a ship that is shot down sends only its own crew home; the others fly on.
+- **Admins**: `/cruiser` calls the boss into your flight (`/cruiser echo` the one from VEGA's story).
+
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
   **arcade** of arches, a free-standing **gate** that leads nowhere, a ring of standing stones
@@ -4009,7 +4058,8 @@ A second story runs **next to VEGA's**, for every player on their own: **The Sou
 first time you play a **rune stone** (the stones with painted notes in monuments, ruins and the Singing Shrine). You can
 also start it early in the **Journal**, switch it off there, and a world can leave it out at creation (**Stories** page →
 **Side stories**).
-VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight chapters:
+VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eleven chapters — the first eight lead to the
+Bridge Song, the last three to **the other side** (see below):
 
 1. **The stones sing.** Aim at a rune stone and press **[Use]** — it sings one word. Rune stones always sing, story or
    not; with the story running every new word goes into the **Song Archive** (your Journal's page of this story).
@@ -4063,6 +4113,53 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    sings the song **one letter at a time**, and you answer each letter with the **second voice** — the key to press next
    **glows** on the melody bar, two keys per letter. A wrong note doesn't count; just press the glowing key. Afterwards a little **Soundi** that followed you through Mirun asks for a **sing duel**: it sings, you
    answer. Win, give it a name (it suggests "Muffin") — and it travels with you to every world.
+9. **The Threshold.** Since the Bridge Song the rune stones are thin. **The Eldest** in Mirun tells you so — and if you
+   are not in the Ornemis system, play any rune stone and VEGA translates the same thing. Now the **Crossing disc**
+   appears in your research list. Research it, build it at a workshop, wear the obsidian chest piece and put the disc
+   into its **disc slot** (only one disc fits, so the hearing disc comes out). Then go to a **rune gate** and step
+   through — on the other side **Elora** is waiting at the gate.
+10. **Singing Softly.** **Kamo**, the builder, waits at a rune gate on the other side and shows you how to shape **sound
+    blocks**. Shape twelve — a first bridge — and then **mend the crack** at three different rune gates.
+11. **The Song from Over There.** The biggest crack runs through the **Choir Tower** on Soaniri. Rune stones stand at its
+    foot now: cross there. A whole choir of the Sounders who crossed over gathers around the tower. Play any tone on the
+    melody bar and sing **SOANIRI** ("song home") with them — one letter at a time, with the keys that glow. The great
+    crack closes and the **Lights** gather. Can't reach Soaniri? Then any rune gate works, and the choir comes to you.
+
+If you finished the Bridge Song before these chapters existed, chapter 9 simply starts for you; in the Journal the story
+then reads as running again until chapter 11 is through.
+
+**The other side.** Three or more **rune stones** standing close together are a **rune gate** — monuments and rune shrines
+have one, and three rune stones you place yourself make one too.
+
+- **Crossing.** Wear the obsidian chest piece with the **Crossing disc** in its disc slot and press **[Use]** on one of
+  the gate's rune stones. You must be on foot, on a planet or in a station. A single rune stone only sings.
+- **What it is like.** The other side is the same world — the same hills, the same blocks — in **white, grey and black**.
+  Nothing can hurt you there: no hunger, no thin air, no cold or heat, and nothing attacks you. Players on our side
+  cannot see you; you still see them, and friends who crossed too see each other. The **Lights** drift by (you know them
+  as Qualis; they never speak), and Sounders stand at the gates — talk to them with **[Use]**.
+- **What you can do there.** Walk and fly, chat, play rune stones and the melody bar, talk to those who live there, and
+  use the **Resonance Blaster**. Everything else — mining, building, crafting, trading — waits until you are back; the
+  game tells you so once.
+- **Coming back.** Press **[Use]** on a rune stone of **any** rune gate. You do not need the disc for that. Tall pillars
+  of light mark the gates from far away. If you leave the game over there, you stand at your gate on our side next time.
+- **Sound blocks.** Over there the Resonance Blaster does not push — it **shapes sound**. Hold it, aim and press the
+  right mouse button: a softly glowing **sound block** appears on the face you aim at, or in the open air up to eight
+  blocks in front of you. Walk on them, build stairs and bridges. The **last tone you played on the melody bar** (keys
+  1–8) decides how brightly the next block glows. To **dissolve** a sound block, aim at it and press the left mouse
+  button with the Resonance Blaster in your hand — only you and your allies can dissolve your blocks (a sound block
+  that touches your own body you can always dissolve, so nobody can wall you in). Sound blocks cannot be shaped right
+  next to another player who is not your ally, or against a rune stone. **Gamepad:** the left bumper alone shapes, the
+  right bumper alone dissolves (tap for one, hold for more); a bumper together with the d-pad still plays the bar's
+  upper tones. Sound blocks exist
+  only on the other side (nobody on our side sees them or bumps into them), shaping costs no energy, and you can keep
+  up to 2000 of them on one world. A real block built into the same spot dissolves the sound block.
+- **Mending cracks.** Over there every rune gate carries a **crack** — left by the old songs. Stand among the gate's
+  stones, hold the Resonance Blaster and play **any tone** on the melody bar: the gate sings three tones, and you answer with the keys that glow —
+  twice. A wrong tone does not count. Friends at the same gate play together. A mended crack stays mended for everybody
+  in the world. At the world's own gates (monuments, shrines, ruins) the real side answers: a few **singing plants**
+  bloom around the gate, an emptied relic cache of the monument fills once more, and the Lights leave you a small gift
+  (two crystals and an obsidian — if your backpack is full, VEGA keeps it until you make room). Three rune stones you
+  placed yourself can be mended as well, but nothing blooms there.
 
 **Skipping a part.** You can skip a step or a whole chapter in the **Journal** — you never get stuck for it. VEGA hands
 over what the skipped part would have given you (the Song Spindle and the first disc, the later discs, the two blueprints,
@@ -4070,8 +4167,9 @@ the Resonance Blaster and the obsidian chest piece) and says so; skipped discs c
 your note table, and a skipped Song of Return still puts Ornemis on your star chart. Nothing comes twice if you played the
 part yourself, and the Soundi only joins you if you win the sing duel. If your backpack is full, VEGA keeps the things for
 you and asks you to make room — they always go into your backpack, never onto the ground. And if the next step needs
-something you no longer have — the Song Spindle, the first disc or the **Hearing** disc (for the chest piece's socket and
-the Echoes) — VEGA packs you a new one.
+something you no longer have — the Song Spindle, the first disc, the **Hearing** disc (for the chest piece's socket and
+the Echoes) or, from chapter 9 on, the **Crossing disc** — VEGA packs you a new one. A skipped chapter 9 unlocks the
+Crossing disc's blueprint and hands you one disc.
 
 **The melody bar.** Whenever you play a tune (a shrine, a spindle, an Echo, the tower, a Soundi) the melody bar opens at
 the bottom of the screen: eight tones, each with its own colour and sign. Play them with the number keys **1–8** (the
@@ -5879,6 +5977,9 @@ confirmation is the brief HUD toast.
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/giant guardian` | Lay a **guardian giant that can wake** about 30 blocks in front of you (its feet toward you) on fairly flat, dry ground — a new one each time, for testing the boss fight; `/tp giant` takes you to the giants of this world |
+| `/spstower list` · `/spstower key [post\|nopost]` | List the guide-tower ruins of the game · lay that ruin in front of you, with or without its guard post (worlds of generation 47 and later); `/tp tower [n]` takes you to the towers of this world |
+| `/cruiser` · `/cruiser echo` | Call the escort cruiser (the space boss) into your current flight — it arrives about twelve seconds later · the story's cruiser that carries ECHO |
+| `/otherside` · `/otherside on` · `/otherside off` | Cross to the other side or come back, without Crossing disc and rune gate — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/hound` | Summon this world's Schuppenhund near you (rolls this world's one into the fauna first if it has none) — for testing |
@@ -6054,13 +6155,16 @@ boss) without grinding the whole playthrough. Same admin + `CheatsAllowed` gatin
 | `/gotocore` | Reveal the finale (if needed) and drop you straight into the Guardian core chamber — **skips the flight and the orbital gauntlet** |
 | `/sounders [status]` | *The Sounders' Song*: whether it runs for you, the running chapter, words / discs / Echoes collected, Song of Return, Roll, Bridge Song, Soundi |
 | `/sounders start` | Start *The Sounders' Song* for you now (as if you had played a rune stone) |
-| `/sounders chapter <1-8>` | Make that chapter run now — the chapters before it are skipped |
+| `/sounders chapter <1-11>` | Make that chapter run now — the chapters before it are skipped |
 | `/sounders items` | Hand over the Song Spindle, the socket discs, a collectible disc, the Resonance Blaster and the obsidian armour, mark every story disc decoded and unlock the four Sounder blueprints |
 | `/sounders echo` | Call the next Echo right next to you (no rune stones needed; it stays while chapter 5 runs and the hearing disc is in the socket) |
 | `/sounders song` | Learn the Song of Return — **Ornemis** appears on your star chart |
 | `/sounders soaniri` | Learn the song and land straight on **Soaniri** (no jump drive needed) |
 | `/sounders tower` | On Soaniri: stand on the Choir Tower's platform among its eight pipes |
 | `/sounders soundi` | Get the story Soundi as your travelling companion now |
+| `/sounders cross` | Get what a crossing needs (the blueprint, the obsidian chest piece, the Crossing disc in its slot) and step to the other side where you stand |
+| `/sounders crack` | Mend the crack of the rune gate you stand in (the real side answers as after the mend game) |
+| `/sounders choir` | Let chapter 11's song run now: be on the other side at the Choir Tower's foot — or at the gate you crossed at — and play a tone on the melody bar |
 
 Two ways to test the finale:
 - **Full run:** `/revealfinale` → `/jumpdrive` → (optionally `/god`) → open the star map and hyperjump to

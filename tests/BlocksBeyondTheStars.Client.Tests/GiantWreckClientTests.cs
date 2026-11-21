@@ -53,6 +53,45 @@ public sealed class GiantWreckClientTests
     }
 
     [Fact]
+    public void AnEscortCruisersWreck_IsADerelict_ButNeverCalledADerelictStation()
+    {
+        string wreck = CruiserWreckRules.IdOf("sys3", 1);
+        Assert.True(GiantWreckText.IsCruiserWreck(wreck));
+        Assert.True(GiantWreckText.IsShipWreck(wreck));
+        Assert.False(GiantWreckText.IsGiantWreck(wreck));
+        Assert.True(SpaceTargeting.IsDerelictId(wreck)); // every derelict rule holds for it (the lock calls it "Wreck")
+        Assert.True(SpaceTargeting.IsDerelictTarget(SpaceTargeting.SpaceStation, wreck));
+
+        // The kind word beside its name is the plain "Wreck"; the travel screen tells what the ship is.
+        Assert.Equal("ui.map.kind_wreck", GiantWreckText.DerelictKind(wreck));
+        Assert.Equal("giantship.escort_cruiser.desc", GiantWreckText.DerelictDetail(wreck));
+
+        // The flight chart: its name alone, in this client's language — the others keep "name · kind".
+        static string Text(string key) => "<" + key + ">";
+        Assert.Equal("<station.cruiser_wreck.name>", GiantWreckText.ChartLabel(wreck, "Wreck of an escort cruiser", Text));
+        Assert.Equal("Old Halden · <ui.map.kind_derelict>", GiantWreckText.ChartLabel("derelict:sys0-0", "Old Halden", Text));
+        Assert.Equal("Wanderer Seven · <ui.map.kind_giant_wreck>", GiantWreckText.ChartLabel(GiantShipRules.IdPrefix + "sys0-0", "Wanderer Seven", Text));
+        Assert.True(GiantWreckText.IsShipWreck(GiantShipRules.IdPrefix + "sys0-0"));
+        Assert.False(GiantWreckText.IsShipWreck("derelict:sys0-0"));
+
+        // The words exist in both mandatory languages, and none of them says "station".
+        foreach (string code in new[] { "en", "de" })
+        {
+            var table = ContentLoader.ParseLocaleTable(File.ReadAllText(Path.Combine(ClientTestPaths.DataDir(), "locales", code + ".json")));
+            foreach (string key in new[] { CruiserWreckRules.NameKey, GiantWreckText.DerelictKind(wreck), GiantWreckText.DerelictDetail(wreck) })
+            {
+                Assert.True(table.TryGetValue(key, out string? text) && text.Length > 0, $"{code}: {key} is missing");
+                Assert.DoesNotContain("station", text, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        // The Unity side asks these helpers (PR CI never compiles it).
+        string scripts = Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
+        Assert.Contains("GiantWreckText.ChartLabel(e.Id, e.Name, L)", File.ReadAllText(Path.Combine(scripts, "SpaceMap.cs")));
+        Assert.Contains("GiantWreckText.IsShipWreck(body.Id) ? GiantWreckDetailH : 110f", File.ReadAllText(Path.Combine(scripts, "CraftingTechShipUI.Map.cs")));
+    }
+
+    [Fact]
     public void TheScannerCard_KnowsBothReadouts_AndReadsTheShipClassFromTheTraits()
     {
         Assert.True(GiantWreckText.IsSpaceReadout("station", "giant_wreck"));

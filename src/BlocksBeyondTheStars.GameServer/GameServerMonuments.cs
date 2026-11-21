@@ -281,6 +281,7 @@ public sealed partial class GameServer
             Max = new Vector3i(p.Origin.X + s.Width, p.GroundY + s.Height, p.Origin.Z + s.Length),
             Center = new Vector3f(p.Origin.X + s.Width / 2f, p.GroundY + 1, p.Origin.Z + s.Length / 2f),
             Archetype = archetype,
+            RuneGate = MonumentRuneGate(s, p.Origin, p.GroundY), // #3906: a far rune gate is known without its chunks
         });
         RegisterFootprintBox(StructureTypeRules.Monument, _monuments[^1].Min, _monuments[^1].Max); // #3514: on the stamp and every replay
 

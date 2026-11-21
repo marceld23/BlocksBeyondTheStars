@@ -70,11 +70,14 @@ public sealed partial class GameServer
     /// <summary>
     /// A player played <paramref name="tone"/> (0–7) on <paramref name="instrument"/> on a Sounder world: the singing plants
     /// near them listen (see the class summary). The sound pack's free-play branch of the melody bar and the resonance crystal's
-    /// use call it; anything else that plays a tone for a player may too. A no-op anywhere but a Sounder world.
+    /// use call it; anything else that plays a tone for a player may too. A no-op anywhere but a Sounder world — and for
+    /// a player who is on the other side (#3905): nobody on our side hears their tones, so no plant of our side may
+    /// answer them — no echo flower sings them back, no bell bloom opens, Ornasa's bloom trail does not move.
     /// </summary>
     internal void HearSingingPlants(PlayerSession session, int tone, int instrument)
     {
-        if (!IsSounderWorld || tone < 0 || tone >= SounderAlphabet.ToneCount || session.Spectating || InSpace(session.State.PlayerId))
+        if (!IsSounderWorld || tone < 0 || tone >= SounderAlphabet.ToneCount || session.Spectating || session.OtherSide
+            || InSpace(session.State.PlayerId))
         {
             return;
         }

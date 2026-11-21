@@ -33,6 +33,9 @@ public sealed partial class GameServer
         map["rune_stone"] = UseRuneStone; // #3345 its word in the note alphabet; a melody-site pillar strikes its tone (#3346)
         map[Shared.Sounders.SoundersIds.SongSpindle] = UseSongSpindle; // #3352 put a Song Disc in, hear it, take it out
         map["resonance_crystal"] = UseResonanceCrystal; // #3358 a Choir Tower pipe strikes its tone; any other crystal sings one note
+        // #3902 / #3896 the Service's console: a cruiser's bridge first, else the guide towers' hook (GameServerEscortCruiserBridge.cs)
+        map[Shared.Definitions.GiantShipRules.ConsoleMarker] = UseSpsConsole;
+        map[Shared.Definitions.SpsTowerRules.TankBlock] = UseCapsuleTank; // #3897 a guard post's sealed tank: a hacking chip opens it (GameServerSleeper.cs)
         return map;
     }
 

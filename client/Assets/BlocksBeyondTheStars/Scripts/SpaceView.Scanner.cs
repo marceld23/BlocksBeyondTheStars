@@ -378,7 +378,7 @@ namespace BlocksBeyondTheStars.Client
                 case "Wormhole": return 22f;
                 case "Anomaly": return 3.5f;
                 case "EscapePod": return 2.5f;
-                case "Cruiser": return 4.5f;
+                case "Cruiser": return CruiserTargetRadius(e); // 4.5; #3900: the escort cruiser by its model's scale
                 case "DebrisField": return 6f;    // #2353: the recorder's beacon, roomy brackets
                 case "Debris": return 2f;         // #2353: a few cells of plating
                 case "SalvageCapsule": return 2f;
@@ -398,7 +398,7 @@ namespace BlocksBeyondTheStars.Client
                 case "EscapePod": return Loc("ui.scan.subject.escape_pod", "Life pod") + (string.IsNullOrEmpty(e.Name) ? string.Empty : ": " + e.Name);
                 case "Drone": return Loc("ui.scan.subject.drone", "Guardian drone");
                 case "Ufo": return Loc("ui.scan.subject.ufo", "Guardian saucer");
-                case "Cruiser": return Loc("ui.scan.subject.cruiser", "Guardian cruiser");
+                case "Cruiser": return CruiserName(e); // "Guardian cruiser"; #3900: the boss by its own name
                 case "BanditShip": return string.IsNullOrEmpty(e.Name) ? Loc("ui.scan.subject.bandit_ship", "Raider ship") : e.Name;
                 case "HunterShuttle": return Loc("ui.scan.subject.hunter_shuttle", "Hunter shuttle"); // #3097
                 case "Wormhole": return WormholeLabel(e.Id);

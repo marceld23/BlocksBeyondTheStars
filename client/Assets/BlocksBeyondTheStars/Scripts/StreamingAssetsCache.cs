@@ -77,6 +77,7 @@ namespace BlocksBeyondTheStars.Client
             "giant_ships/ark.json", // #3607: the giant ships (one file per ship, the folder read whole)
             "giant_ships/battleship.json",
             "giant_ships/carrier.json",
+            "giant_ships/escort_cruiser.json", // #3902: the escort cruiser's wreck (pin-only)
             "giant_ships/liner.json",
             "giant_ships/sample_hulk.json",
             "giant_ships/squid.json",
@@ -131,6 +132,9 @@ namespace BlocksBeyondTheStars.Client
             "ships.json",
             "skins.json", // #3321
             "space_salvage.json",
+            "sps_towers/sps_tower_broken.json", // #3893: the guide tower ruins (one file per ruin, the folder read whole)
+            "sps_towers/sps_tower_leaning.json",
+            "sps_towers/sps_tower_stump.json",
             "station_templates.json",
             "stories/festival_blossoms/locales/de.json",
             "stories/festival_blossoms/locales/en.json",

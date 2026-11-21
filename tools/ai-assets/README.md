@@ -157,9 +157,17 @@ track's prompt and its pool).
   `BlockTileAlphaTests` checks rails, beams and the seam. The old pylon picture is the block's own inventory icon
   (`client/Assets/Resources/icons/block_energy_fence.png`).
 - **Song Disc icons** (#3363, the Sounders story pack): only `item_song_disc` is generated (`uv run gen_item_icons.py --only
-  song_disc`, then copy that ONE file into `client/Assets/Resources/icons/`). The eight named discs are colour variants of
+  song_disc`, then copy that ONE file into `client/Assets/Resources/icons/`). The nine named discs are colour variants of
   it — `uv run --no-project --with "pillow>=13" python recolour_song_discs.py [--preview sheet.png]` turns the disc's teal
-  glow into each disc's colour (deterministic, no model) and writes `item_song_disc_<name>.png` next to it.
+  glow into each disc's colour (deterministic, no model) and writes `item_song_disc_<name>.png` next to it. A new disc
+  (the crossing disc of #3912 was the ninth) is one row in `DISCS` and `--only <name>`, so the other discs' files stay
+  untouched.
+- **Capsule tank tiles** (#3912): only the sealed `capsule_tank` is generated (`uv run gen_textures.py --only capsule_tank`
+  → `uv run bundle_textures.py --from-out --only capsule_tank`). Its opened twin is made from it —
+  `uv run --no-project --with "pillow>=13" python open_capsule_tank.py [--preview sheet.png]` turns the frosted window
+  into a dark hollow and switches the warning light off (deterministic, no model), so both tiles show the same frame.
+  The `sound_block` tile is turned into pure greys by a `POST_PROCESS` step of `gen_textures.py`: its colour is the glow
+  the server stamps on each voxel.
 - **The Sounder world's singing plants** (#3358/#3363: `chime_reed`, `bell_bloom`, `bell_bloom_open`, `harp_vine`,
   `echo_flower`) follow the flora billboard pipeline above although their keys carry no `flora_` prefix: they are listed
   in `FOLIAGE`, `DARK_GROUND` and (all but the hanging harp vine) `ROOTED` of `bake_leaf_alpha.py`.
