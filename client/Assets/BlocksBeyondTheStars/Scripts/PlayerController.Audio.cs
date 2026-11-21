@@ -58,6 +58,7 @@ namespace BlocksBeyondTheStars.Client
         {
             float dt = Time.deltaTime;
             var pos = transform.position;
+            OtherSideSteps(grounded && !inWater); // #3908: a step onto a sound block sounds its tone (PlayerController.OtherSide.cs)
             bool feetWet = FeetInWater();
             bool snapped = !_audioPosKnown || (pos - _audioLastPos).sqrMagnitude > AudioSnapDistance * AudioSnapDistance;
             _audioPosKnown = true;

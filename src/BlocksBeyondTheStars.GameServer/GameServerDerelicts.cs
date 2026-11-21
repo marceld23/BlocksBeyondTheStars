@@ -126,7 +126,7 @@ public sealed partial class GameServer
         foreach (var sys in _galaxy.Systems)
         {
             // #3614: a giant wreck shares the derelict prefix but is registered (and built) on its own.
-            foreach (var body in sys.Bodies.Where(b => IsGeneratedDerelictId(b.Id) && !GiantShipRules.IsGiantWreckId(b.Id)).ToList())
+            foreach (var body in sys.Bodies.Where(b => IsGeneratedDerelictId(b.Id) && !IsShipWreckId(b.Id)).ToList()) // #3902: nor a cruiser's wreck
             {
                 int index = DerelictIndex(body.Id);
                 _derelicts[body.Id] = new DerelictSite
@@ -140,6 +140,7 @@ public sealed partial class GameServer
         }
 
         RegisterGiantDerelicts();
+        RegisterCruiserWrecks(); // #3902: the wrecks beaten escort cruisers left (GameServerEscortCruiserWreck.cs)
     }
 
     /// <summary>Builds a derelict the first time it is needed — its layout (seed-pure), its build (from its persisted row
@@ -152,6 +153,11 @@ public sealed partial class GameServer
         if (GiantShipRules.IsGiantWreckId(id))
         {
             return EnsureGiantDerelict(id); // #3614: a giant ship wreck (GameServerGiantDerelicts.cs)
+        }
+
+        if (CruiserWreckRules.IsCruiserWreckId(id))
+        {
+            return EnsureCruiserWreck(id); // #3902: a beaten escort cruiser's wreck (GameServerEscortCruiserWreck.cs)
         }
 
         if (!_derelicts.TryGetValue(id, out var site))
@@ -281,7 +287,7 @@ public sealed partial class GameServer
     /// contacts come with the station contacts — a derelict is a station body without a host, seen from every orbit).</summary>
     private void AddDerelictHulls(SpaceInstance instance, CelestialBody? anchor)
     {
-        if (anchor is null || (_derelicts.Count == 0 && _giantDerelicts.Count == 0))
+        if (anchor is null || (_derelicts.Count == 0 && _giantDerelicts.Count == 0 && _cruiserWrecks.Count == 0))
         {
             return;
         }
@@ -296,6 +302,7 @@ public sealed partial class GameServer
         }
 
         AddGiantDerelictHulls(instance, anchor); // #3614: the system's giant ship wrecks
+        AddCruiserWreckHulls(instance, anchor); // #3902: the wreck a beaten escort cruiser left there
     }
 
     // ---------------- persistence ----------------
@@ -380,14 +387,26 @@ public sealed partial class GameServer
             OnGiantWreckBoarded(session, station); // #3614: its chests and sounds (GameServerGiantDerelictLife.cs)
         }
 
+        bool cruiser = CruiserWreckRules.IsCruiserWreckId(station.Id);
+        if (cruiser)
+        {
+            OnCruiserWreckBoarded(session, station); // #3902: its chests, the fighters' crates, the event (GameServerEscortCruiserWreckLife.cs)
+        }
+
         _stationAirWarnedFor.Remove(session.State.PlayerId); // #2675: told again on every boarding, once
 
         bool firstHere = session.State.Milestones.Add("derelict:boarded:" + station.Id);
-        if (!session.State.Milestones.Contains("vega:hint:" + DerelictNoAirHint))
+        bool hinted = !session.State.Milestones.Contains("vega:hint:" + DerelictNoAirHint);
+        if (hinted)
         {
             ShipAiHintOnce(session, DerelictNoAirHint, station.Name, kind: 2);
         }
-        else if (firstHere)
+
+        if (firstHere && cruiser)
+        {
+            SendVegaLine(session, "vega.cruiser.wreck_boarded", 2); // #3902: robots aboard, the bridge is at the front — also after the hint
+        }
+        else if (firstHere && !hinted)
         {
             SendVegaLine(session, giant ? "vega.giantwreck.boarded" : "vega.derelict.boarded", 2, station.Name);
         }
@@ -416,7 +435,8 @@ public sealed partial class GameServer
     /// is the one its ship-mode decay placed.</summary>
     internal Vector3i? DerelictSpawnerSpotWorld(string stationId)
         => ((_derelicts.TryGetValue(stationId, out var site) ? site.Layout?.SpawnerSpot : null)
-            ?? (_giantDerelicts.TryGetValue(stationId, out var giant) ? giant.SpawnerSpot : null)) is { } spot
+            ?? (_giantDerelicts.TryGetValue(stationId, out var giant) ? giant.SpawnerSpot : null)
+            ?? (_cruiserWrecks.TryGetValue(stationId, out var cruiser) ? cruiser.SpawnerSpot : null)) is { } spot // #3902
            && _stationsById.TryGetValue(stationId, out var st) && st.Materialised
             ? StationCellToWorld(st, spot)
             : null;
@@ -432,7 +452,7 @@ public sealed partial class GameServer
         p.AboveAtmosphere = false;
         session.AwaitingSpawnAdopt = true; // the client's stale stream must not drag them back out (#865)
         _log.Info($"Player '{p.Name}' drifted out of derelict '{station.Name}'; brought back aboard.");
-        string key = GiantShipRules.IsGiantWreckId(station.Id) ? "srv.giantwreck.drifted_back" : "srv.derelict.drifted_back"; // #3614: a ship
+        string key = IsShipWreckId(station.Id) ? "srv.giantwreck.drifted_back" : "srv.derelict.drifted_back"; // #3614, #3902: a ship
         Send(session, new RespawnNotice { X = station.Spawn.X, Y = station.Spawn.Y, Z = station.Spawn.Z, Reason = "@" + key });
         Send(session, new ServerMessage { Text = Localize(session.Locale, key) }); // readable in chat too (#1318)
         SendPlayerState(session);
@@ -452,6 +472,7 @@ public sealed partial class GameServer
         }
 
         if (e.Kind != CombatEntityKind.SpaceStation || !IsGeneratedDerelictId(e.Id)
+            || CruiserWreckRules.IsCruiserWreckId(e.Id) // #3902: the pilot watched it fall — no "an old station" remark
             || e.Position.DistanceSquared(pos) > DerelictApproachRange * DerelictApproachRange)
         {
             return;

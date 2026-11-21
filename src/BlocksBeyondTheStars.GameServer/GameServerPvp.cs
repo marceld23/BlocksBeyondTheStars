@@ -232,7 +232,8 @@ public sealed partial class GameServer
             return;
         }
 
-        if (other == me || FindSessionByPlayerId(other) is not { Joined: true } target || target.Spectating)
+        if (other == me || FindSessionByPlayerId(other) is not { Joined: true } target || target.Spectating
+            || HiddenFrom(session, target)) // #3905: nobody duels a player who is over there
         {
             Reject(session, "duel", "@srv.pvp.duel_gone");
             return;

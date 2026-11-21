@@ -405,6 +405,10 @@ public sealed class NetCodecTests
         [358] = typeof(PlaceList),               // the lively places: the inhabited places of the current world
         [359] = typeof(NpcEmote),                // … and an NPC's gesture without a line
         [360] = typeof(GiveSampleToStationIntent), // #3870: a sample for a research station's archive
+        [361] = typeof(BossStatus),              // #3901: the generic boss bar (the escort cruiser)
+        [362] = typeof(OtherSideState),          // #3904: over there or not, the entry gate, the sound-block meter
+        [363] = typeof(BeamWeaponIntent),        // #3898: a held-beam weapon's tick (the Guardian laser)
+        [364] = typeof(OtherSideGates),          // #3906: the rune gates around a player who is over there
 
     };
 

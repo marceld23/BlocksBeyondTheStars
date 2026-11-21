@@ -335,13 +335,145 @@ generated derelict or a giant wreck it costs its energy and cooldown and removes
 the hull (`HullBlocksFor(damage)`: 1–6), through the same mirror / persistence / broadcast path a spacewalker's pick
 uses. The `Wreck` entity and wreckage fragments take every weapon's damage wherever ship weapons are allowed.
 
+## The escort cruiser — the space boss (#3900, #3901, #3903, 2026-11)
+
+The **escort cruiser** (`escort_cruiser` in `data/enemies.json`, canon C22) is the cruiser as a boss. On the wire it
+is an ordinary space entity of kind `Cruiser` — an older client draws a big cruiser — with
+`Scale = EscortCruiserRules.ModelScale` and the id a `BossStatus` names. Code: `GameServerEscortCruiser.cs` (arrival,
+phases, leaving, the bar), `GameServerSpaceBossCredit.cs` (who gets what), `GameServerSpaceShipLoss.cs` (a downed
+ship in a shared flight), `GameServerEscortCruiserWreck.cs` (the hook the wreck, #3902, hangs on); the numbers both
+sides share are in `Shared/Definitions/EscortCruiserRules.cs`.
+
+**The boss is data.** Its tier sets `boss: true` plus `enrageAtHull`, `enrageSpeed`, `enrageHeavyShotInterval` and
+`reinforcements`; a tier without `boss` is never a boss. Movement uses the hostile pass of every space enemy with its
+own profile (`HostileProfileOf`: notice 240, stand-off 48, speed 5 — a third of a ship's).
+
+**The mega laser is the heavy shot made bigger** — no second attack system. Four more tier values turn a heavy shot
+into it: `heavyShotCharge` (the warning, 2.8 s instead of 1.6), `heavyShotRange` (how close the hunted pilot must be
+for the charge to start, 110 instead of the engage range; it still lands up to `HeavyReachFactor` × that),
+`heavyShotMaxHullShare` (0.4: one hit takes at most 40 % of the target's **full** hull, and a ship above a quarter of
+its hull always keeps one hull point — `SpaceCombatRules.HeavyHullDamage`) and `heavyShotStyle` (`mega_laser`: what the
+client draws). `SpaceHeavyShot` gained additive fields for the aiming line and the beam: `Style`, `OriginX/Y/Z` (the
+hostile's centre), `TargetX/Y/Z` (the aimed ship at the charge; the hit point; where a miss ended), `Range` and
+`Blocked`. Three ways to make it miss: a barrel roll in the last moment, being beyond its reach when it fires, or an
+asteroid on the line between the two (`HeavyShotBlocked`, `HeavyCoverRadius` × the rock's scale — only for a shot with
+a style, the classic heavy shot is unchanged).
+
+**Two phases.** At `enrageAtHull` of its hull it enrages once: its speed × `enrageSpeed`, a heavy shot every
+`enrageHeavyShotInterval` seconds (a longer wait already running is cut short), `reinforcements` space drones called
+(`CombatEntity.CalledByBoss` — they leave with it and do not count toward the sector's ambient wave memory), and
+VEGA says so.
+
+**Arrival from hyperspace.** `SummonEscortCruiser(pilotId, carriesEcho)` (the story; the admin verb `/cruiser`,
+`/cruiser echo`) and the **rare ambush** share one path: VEGA's line `vega.cruiser.incoming`, and
+`EscortCruiserRules.WarnSeconds` (12 s) later the warp-in — `SpaceWarpFx` with style `escort_cruiser`, 225 units from
+the pilot it will hunt and at least 220 from every pilot. The ambush is rolled **once per flight instance**
+(`EscortCruiserRules.AmbushChance`: 0.04 / 0.08 / 0.12 / 0.16 by the `SpaceNpcEnemies` slider × the world's Danger
+factor, capped at 0.25) and arrives 60–150 s into the flight. Its gates (`EscortCruiserAmbushAllowedIn`): space combat
+PvE, the space hostiles not Off, ship weapons that hit NPCs allowed **and** one fitted on a pilot's ship, Danger not
+Off; never in the start system, the Guardian's finale system or a Desolate system; only once the world story reached
+the chapter `sleeps` — or the world has no story, or the story is won. A summon needs only the rules
+(`SpaceBossesAllowed`, the story predicate `world:space_bosses`). One boss per instance at a time.
+
+**The story's summon (#3899, `GameServerEchoCallStory.cs`).** VEGA's mission *ECHO's Call* brings the cruiser that
+carries her sister core: while a pilot with an open step of that mission flies, the story calls the summon after 25 s of
+the flight — once per flight instance, never in the Guardian's finale system, and only while ECHO is still held (not once
+she was freed in the save, not while her cruiser's wreck waits to be boarded). A pilot who flees or loses the ship keeps
+the step, and a later flight brings the cruiser again. A cruiser that is already there or on its way (the ambush) becomes
+hers instead of a second one coming — the first one a player meets carries ECHO (canon C22). Details:
+[STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#the-sky-lights-missions-evidence-while-a-step-runs-and-echos-cruiser-3899).
+
+**After the finale** the ambush stays possible wherever it was: like the guardian giants the cruisers never heard the
+shutdown. It deliberately does **not** ask `RemnantSpaceHostile` (which thins out the ambient waves, #1206).
+
+**Getting away.** With no pilot within twice its notice range for 45 s it jumps away (the same warp flash, departing;
+`vega.cruiser.gone`), its called drones with it, and that instance never rolls again. A Sandbox or god-mode pilot is
+never hunted (the rule of every space hostile); any pilot nearby keeps it from leaving.
+
+**The boss bar (#3901).** `BossStatus` (id, name key, health and shield 0..1, phase, source `giant` | `space`, active,
+defeated) goes to every pilot of the instance: at the warp-in (before the state that carries the entity), on a phase
+change, when hull or shield changed (at most twice a second), once a second otherwise, and a last time with
+`Active = false` (`Defeated` true when it fell, false when it left). The guardian giant keeps its own
+`GuardianGiantStatus`; the client's bar reads both.
+
+**Fights flown together (#3903).** Two rules of space combat did not fit a shared fight:
+
+- *A downed ship.* `DisableShip` used to send every pilot of the instance home and unload it. With another pilot
+  still flying there (`TryDisableOneShipOfSeveral`) only the downed ship's crew goes home — its pilot, and a friend
+  docked aboard — and the flight goes on; the others get `srv.space.ally_ship_down`. A pilot alone in the instance
+  takes the old path unchanged (home, the instance unloads). `KeepShipOnDeath` decides the ship's fate as before.
+- *Loot and credit.* An ordinary hostile pays the pilot of the last shot. A boss remembers every pilot whose shot
+  hurt it (`SpaceBossRuntime.Fighters`); when it falls, each of them still in the game — also one whose ship went down
+  meanwhile — gets the kill credit, the events (`defeat:any` / `space_machine`, `cruiser:defeated` with the system id)
+  and their own full copy of the loot, banked straight into backpack and hold (never as a floating drop a tractor
+  beam of somebody else could take; what finds no room floats where it fell). The story's machine counter moves once.
+
+**The wreck hook.** The kill calls `OnEscortCruiserDefeated(instance, boss, fighterIds, carriesEcho)` once — after the
+credit, before the loot and before that kill's last `SpaceState` broadcast. The boss entity is out of the instance by
+then; its `Position` and `Yaw` are where it fell.
+
+**The wreck (#3902).** A beaten escort cruiser does not vanish: the hook leaves a boardable wreck where it fell
+(`GameServerEscortCruiserWreck.cs`) — a derelict of its own family (`derelict:cruiser-<system>-<n>`, so no air, no shield,
+anyone may board) built from the pin-only giant ship `escort_cruiser` with the *fresh* ruin option (holes and broken
+glass, no soot, no scrap, some red lamps still burning), a contact of every orbit of that system, one per system (a new
+one replaces the old), remembered in `WorldMetadata.CruiserWrecks`. The ordinary two or three debris fragments still
+spawn at the spot. Aboard there are only robots (the guardian bay), the template's chests, a crate for every pilot who
+fought, and on the bridge a console whose red light a hacking chip turns blue — on the story's cruiser VEGA's sister
+core ECHO then speaks once and says goodbye. The whole of it is in
+[GIANT_SHIPS.md § 14](GIANT_SHIPS.md#14-the-escort-cruisers-wreck-3902).
+
+**The client: how the boss is recognised and drawn.** Everything the client decides is presentation; the numbers are
+Unity-free in `Client.Core/Boss/` (`BossBarState`, `EscortCruiserLook`, `MegaLaserAim`) and `Client.Core/Music/BossMusicRules`
+and tested headless (`BossBarStateTests`, `EscortCruiserLookTests`, and `EscortCruiserClientTests` against the real server).
+
+- *Which cruiser is the boss.* `GameBootstrap.BossBar` (a `BossBarState`) takes every `BossStatus`. When the flight view
+  first sees an entity of kind `Cruiser` it builds the boss model if a live status of source `space` names that id
+  (`IsSpaceBoss` — the status arrives before the state, so this holds at first sight) or, as a fallback, if its `Scale`
+  is at least `EscortCruiserLook.BossScaleFrom` (2); every other cruiser is the plain model as before.
+- *The model* (`SpaceView.EscortCruiser.cs`, `BuildEscortCruiserModel` — also the Codex portrait): the cruiser's iron
+  hull and Guardian plating, longer and heavier, a bridge with a row of red glowing windows and, above them, a long
+  barrel pointing forward. The parts are placed by the constants of `EscortCruiserLook`, so
+  `SpaceView.EscortCruiserMuzzleLocal` is the barrel's real front end; effects start at
+  `model.TransformPoint(EscortCruiserMuzzleLocal)`. The server sends no heading for the cruiser, so the client turns
+  the model toward the pilot it hunts (the mega laser's target while it charges, else the nearest pilot's ship).
+  A small component on the model (`EscortCruiserRig`) keeps its scale and phase: at `Phase == 2` the windows pulse
+  brighter and the engine plumes burn hotter (one flash and ring mark the change). The lock brackets
+  (`TargetRadius`), the explosion and the plumes follow the model's scale; the lock label reads the boss's own name.
+- *The mega laser* (`SpaceView.MegaLaser.cs`, `SpaceCombatFx.MegaLaserCharge` / `MegaLaserBeam`): a heavy shot whose
+  `Style` is `mega_laser` takes this path, the classic heavy shot is untouched. Charge: a glow gathers at the muzzle
+  and a thin aiming line runs to the targeted ship, following both, pulsing faster toward the shot — every pilot sees
+  it, the targeted one clearly strongest; that pilot also gets `ui.space.mega_laser_warn` with the seconds left on
+  the heavy shot's warning widget and hears the charge as a 2D cue. Hit: one thick beam muzzle → ship, the impact on
+  shield or hull, a camera jolt (through `FxCamera`, which honours the shake and camera-motion settings). Miss: the
+  beam ends on the rock (`Blocked`, at `Target*`), stops at `Range` when the ship flew out of reach, or passes the
+  ship that rolled away and runs on.
+- *Arrival and leaving*: `SpaceWarpFx.Style == "escort_cruiser"` draws the warp streak three times as big with the
+  cue `cruiser_warp_in` / `cruiser_warp_out` (2D, softer with the distance — it arrives further out than a positional
+  cue carries).
+- *The boss bar* (`HudUi.BossBar.cs`) draws whatever `BossBarState.TryGetBar` names: the name from the status's name
+  key, the hull, a thin shield strip while `Shield > 0`, the deeper pulsing red at phase 2, and the rage mark (the
+  giant's status brings its share along; a generic boss's is `enrageAtHull` of its enemy data). A `BossStatus` boss is
+  live until its last status, or until none came for 4 s. The guardian giant's bar is unchanged — its own
+  `GuardianGiantFight.BossBar` feeds the same model. With two bosses at once the boss of the scene the player is in
+  keeps the bar (in flight the space boss, on foot the giant), so it never flickers between them. While the bar
+  speaks for the boss, no small health bar floats over its model.
+- *The music*: `BossMusicRules.Plays` — the boss track (`music_boss_gauntlet`) loops while a space boss is live in the
+  player's flight, as it does for a giant on foot; a cutscene's and the finale's own music are asked first and win.
+- *Sounds*: `mega_laser_charge`, `mega_laser_fire`, `cruiser_warp_in`, `cruiser_warp_out` under
+  `client/Assets/Resources/audio/`; each call falls back to an existing cue while its clip is missing
+  (`heavy_shot_charge` / `heavy_shot_fire` / `raider_warp_in`). `AudioMixRules` gives the two prefixes the widest
+  distance profile, because the boss fights from 50–130 units away.
+
 ## Deferred (explicitly not in M19)
 
 - Per-player / multiple ships and **PvP ship combat** (needs a ship-ownership model first). On-foot PvP exists since
   #2972 (`GameServerPvp`, `PvpRules`: the `Pvp` modes, `FriendlyFire`, duels, kid-friendly guards); it stops at the
   ship's hull — nobody aboard, in space or on a spacewalk can be hit by a player.
 - The hostiles' numbers (hull, damage, loot per tier) live in `data/enemies.json` since #2971 (`EnemyDefinition`,
-  `GameServer.NewEnemy`); the Codex's *Enemies* chapter shows the same file.
+  `GameServer.NewEnemy`); the Codex's *Enemies* chapter shows the same file. A tier may also carry something only now
+  and then (#3894, `rareLoot`: item, count and a `chance` of 0..1 — the hunter's `hacking_chip`, 0.08): the server rolls
+  it once when it builds the enemy (`GameServerRareLoot.cs`) and adds it to that enemy's loot, so every loot path hands
+  it out like the fixed loot.
 - Large cruisers / boss events (§10.5), Alien UFO special behaviour (§10.4 beyond a flag).
 - Module-level damage, overheating, ammo types beyond a simple energy cost (§7.6, §8.4).
 - Salvage / boarding of defeated ships (§8.5 hard-PvP path).

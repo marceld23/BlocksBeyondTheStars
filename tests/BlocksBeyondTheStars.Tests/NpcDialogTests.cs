@@ -386,7 +386,7 @@ public sealed class NpcDialogTests : IDisposable
         var pack = _content.Stories["vega_protocol"];
         Assert.Equal(2, pack.Characters.Count);
         Assert.All(pack.Characters, c => Assert.NotEqual("quartermaster", string.Join(",", c.Roles))); // item-13 names stay
-        Assert.Equal(2, pack.Dialogs.Count);
+        Assert.Equal(4, pack.Dialogs.Count); // the elder, Sel-9, and the sleeper's two (#3897)
 
         var en = _content.CreateLocalizer(Shared.Localization.GameLocale.English);
         var de = _content.CreateLocalizer(Shared.Localization.GameLocale.German);

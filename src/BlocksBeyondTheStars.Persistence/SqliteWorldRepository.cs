@@ -85,6 +85,7 @@ public sealed partial class SqliteWorldRepository : IWorldRepository
         _saveFireCellCmd?.Dispose();
         _deleteFireCellCmd?.Dispose();
         _setBlockCmd = _loadChunkEditsCmd = _loadEditColumnTopsCmd = _saveFluidCellCmd = _deleteFluidCellCmd = _saveFireCellCmd = _deleteFireCellCmd = null;
+        DisposeSoundLayerCommands(); // #3907
     }
 
     /// <summary>Diagnostic: how many <see cref="RunInTransaction"/> batches were opened (nested calls join the
@@ -212,6 +213,7 @@ public sealed partial class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS structure_overlay (
                 planet TEXT NOT NULL, key TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY (planet, key));");
             // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
+            EnsureSoundLayerSchema(); // #3907: the other side's sound blocks, a table of their own
 
             // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
             // columns are added if absent; on a fresh DB they already exist from the CREATE above, so the

@@ -86,6 +86,7 @@ public static partial class DerelictGenerator
             }
 
             MarkColumn(_arrival);
+            ProtectBridge();
         }
 
         /// <summary>A standing spot's floor, feet and head cells with their face neighbours.</summary>
@@ -197,15 +198,17 @@ public static partial class DerelictGenerator
                     continue;
                 }
 
-                for (int dir = 0; dir < 6; dir++)
+                bool lit = false;
+                for (int dir = 0; dir < 6 && !lit; dir++)
                 {
                     int n = _g.Step(i, dir);
                     int r = n >= 0 ? _g.RoomOf(_label, n) : -1;
-                    if (r >= 0 && _walkable[r] && !_breached[r])
-                    {
-                        _g.SetKeepShape(i, on);
-                        break;
-                    }
+                    lit = r >= 0 && _walkable[r] && !_breached[r];
+                }
+
+                if (lit || StillBurns(i, on))
+                {
+                    _g.SetKeepShape(i, on);
                 }
             }
         }

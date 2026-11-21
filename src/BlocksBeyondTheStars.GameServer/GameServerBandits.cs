@@ -77,7 +77,7 @@ public sealed partial class GameServer
         _banditTargets.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.State.AboardShip && !InSpace(s.State.PlayerId) && !s.Spectating)
+            if (!s.State.AboardShip && !InSpace(s.State.PlayerId) && !s.Spectating && !s.OtherSide) // #3905: nor a player over there
             {
                 _banditTargets.Add(s);
             }

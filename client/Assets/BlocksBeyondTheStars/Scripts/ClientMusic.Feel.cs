@@ -61,6 +61,17 @@ namespace BlocksBeyondTheStars.Client
             _awaySince = -1f;
         }
 
+        /// <summary>Whether the boss-fight track plays (<see cref="BossMusicRules"/>): a guardian giant fights near the
+        /// player on foot (#3676), or a space boss — the escort cruiser — fights in the player's flight (#3901). Asked
+        /// after the cutscene's and the finale's own music, which therefore always win.</summary>
+        private static bool BossFightPlays(GameBootstrap game, bool inSpace)
+            => BossMusicRules.Plays(
+                finaleStaged: false,
+                inSpace: inSpace,
+                aboard: game.Aboard,
+                giantFighting: game.GuardianGiantFight.Fighting(game.WorldTime),
+                spaceBossFighting: game.BossBar.SpaceBossFighting(game.WorldTime));
+
         private float WorldDuck(GameBootstrap game)
         {
             if (game == null || game.Aboard || game.SpaceViewActive || game.InSpace || _context == GiantFight)

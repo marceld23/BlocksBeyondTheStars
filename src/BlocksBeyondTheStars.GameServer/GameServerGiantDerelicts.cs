@@ -208,7 +208,8 @@ public sealed partial class GameServer
 
     /// <summary>Whether a station id is a giant wreck that is not there (anymore) this run — the paths that find a station by
     /// a body (contacts, a menu travel, a rejoin) skip it instead of making it a plain station.</summary>
-    private bool GiantWreckMissing(string id) => GiantShipRules.IsGiantWreckId(id) && EnsureGiantDerelict(id) is null;
+    private bool GiantWreckMissing(string id)
+        => (GiantShipRules.IsGiantWreckId(id) && EnsureGiantDerelict(id) is null) || CruiserWreckMissing(id); // #3902: a cruiser's wreck too
 
     /// <summary>Template + seed → the ruined wreck → the ship-mode decay → the base build (ahead on a background thread where
     /// there is one) → checked against the pin → a derived station at its pinned flight spot.</summary>

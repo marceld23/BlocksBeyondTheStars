@@ -311,6 +311,7 @@ namespace BlocksBeyondTheStars.Client
                 _compassMarkers[i].gameObject.SetActive(false);
             }
 
+            RefreshCompassGate(radius); // #3906: the entry gate while on the other side (HudUi.OtherSide.cs)
             RefreshRadar(radius); // #2292: last, so the contacts draw over the other blips
         }
 

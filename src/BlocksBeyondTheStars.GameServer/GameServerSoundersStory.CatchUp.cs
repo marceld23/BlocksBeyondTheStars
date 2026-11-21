@@ -27,7 +27,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item>s4.2 (research): the Resonance Blaster and obsidian armour blueprints; s4.3 / s4.6 (craft): one Resonance Blaster /
 /// obsidian chest piece, unless one is carried (<c>snd:catchup:&lt;item&gt;</c> makes it once);</item>
 /// <item>chapter 6: the Song of Return is learned (<c>snd:song_learned</c>, Ornemis on the star map); s8.1: Roll is convinced;
-/// s8.2: the Bridge Song counts as sung (the sing duel can start).</item>
+/// s8.2: the Bridge Song counts as sung (the sing duel can start);</item>
+/// <item>#3910 — s9.1 (the stones are thin): <c>snd:threshold</c>, which shows the crossing disc's blueprint; s9.2: the
+/// blueprint is unlocked; s9.3: one crossing disc, unless one is carried; chapter 10: nothing material; chapter 11:
+/// <c>snd:great_crack</c> (see <see cref="SoundersOtherSidePass"/>).</item>
 /// </list>
 /// Only while the story still runs — a chapter of it is ahead — so "Skip all" hands out nothing, and the sing duel's Soundi
 /// (the last step) stays the prize of playing it. VEGA says what was handed over (<c>srv.sounders.catch_up_items</c>) or that
@@ -91,6 +94,12 @@ public sealed partial class GameServer
         ("s6", SoundersCatchUpKind.Milestone, SoundersIds.MilestoneSongLearned),
         ("s8.1", SoundersCatchUpKind.Milestone, SoundersRollConvincedMilestone),
         ("s8.2", SoundersCatchUpKind.Milestone, SoundersBridgeDoneMilestone),
+
+        // #3910 — chapter 9: the crossing disc's blueprint and one disc. (That the stones are thin — snd:threshold, which
+        // shows the blueprint — and the great crack of a skipped chapter 11 are written by SoundersOtherSidePass: the last
+        // chapter has none ahead of it, and nothing of chapter 10 is material.)
+        ("s9.2", SoundersCatchUpKind.Blueprint, SoundersIds.BlueprintCrossing),
+        ("s9.3", SoundersCatchUpKind.Craft, SoundersIds.DiscCrossing),
     };
 
     /// <summary>What a later step needs at hand, while it runs (a step id: while the step is active; a chapter id: while the
@@ -104,6 +113,14 @@ public sealed partial class GameServer
         ("s3.2", SoundersIds.DiscBeginning), // to decode it
         ("s4.7", SoundersIds.DiscHearing), // into the obsidian chest's socket
         ("s5", SoundersIds.DiscHearing), // the Echoes come only to a wearer of the hearing disc
+
+        // #3910: the crossing disc — into the chest's socket (s9.4), through a gate (s9.5), and for everything over there
+        // afterwards. Its recipe needs the blueprint and a workshop; a disc that lies in a crate on another world is as far.
+        ("s9.4", SoundersIds.DiscCrossing),
+        ("s9.5", SoundersIds.DiscCrossing),
+        ("s9.6", SoundersIds.DiscCrossing),
+        ("s10", SoundersIds.DiscCrossing),
+        ("s11", SoundersIds.DiscCrossing),
     };
 
     /// <summary>Seconds between two "make room for it" lines while handed items wait for room in the backpack.</summary>
@@ -126,24 +143,30 @@ public sealed partial class GameServer
     /// what a running step needs and the player no longer has.</summary>
     private void CatchUpSoundersSkips(PlayerSession s)
     {
-        if (!s.Joined || s.Spectating || !IsStoryPackActive(s, SoundersIds.PackId) || !SoundersStoryRuns(s))
+        if (!s.Joined || s.Spectating)
         {
             return;
         }
 
+        // One pass for everything the story hands over, so a full backpack is asked about once (AskRoomForSoundersItems).
         var pass = new SoundersCatchUpPass();
-        bool caughtUp = false;
-        foreach (var (producer, kind, key) in SoundersCatchUps)
+        bool gifted = SoundersOtherSidePass(s, pass); // #3909/#3910: also after the last chapter — a mend is no chapter
+        bool caughtUp = false, supplied = false;
+        if (IsStoryPackActive(s, SoundersIds.PackId) && SoundersStoryRuns(s))
         {
-            if (SoundersProducerSkipped(s.State.Milestones, producer))
+            foreach (var (producer, kind, key) in SoundersCatchUps)
             {
-                caughtUp |= ApplySoundersCatchUp(s, kind, key, pass);
+                if (SoundersProducerSkipped(s.State.Milestones, producer))
+                {
+                    caughtUp |= ApplySoundersCatchUp(s, kind, key, pass);
+                }
             }
+
+            supplied = SupplySoundersNeeds(s, pass);
         }
 
-        bool supplied = SupplySoundersNeeds(s, pass);
         AskRoomForSoundersItems(s, pass);
-        if (!caughtUp && !supplied)
+        if (!caughtUp && !supplied && !gifted)
         {
             return;
         }
@@ -163,6 +186,32 @@ public sealed partial class GameServer
         {
             Send(s, new ServerMessage { Text = "@srv.sounders.need_item:" + string.Join(", ", pass.Supplied) });
         }
+
+        if (gifted)
+        {
+            Send(s, new ServerMessage { Text = "@srv.sounders.crack_gift" });
+        }
+    }
+
+    /// <summary>
+    /// What chapters 9–11 and the cracks keep up outside the table (#3909, #3910), whether or not a chapter is still ahead:
+    /// the gifts of the Lights that are due (true when one was packed — the caller saves and tells), that the stones are
+    /// thin (<see cref="DeriveSoundersThreshold"/>), and the great crack of a skipped last chapter — a milestone only, so
+    /// "Skip all" still hands out nothing.
+    /// </summary>
+    private bool SoundersOtherSidePass(PlayerSession s, SoundersCatchUpPass pass)
+    {
+        bool gifted = HandCrackGifts(s, pass);
+        if (IsStoryPackActive(s, SoundersIds.PackId))
+        {
+            DeriveSoundersThreshold(s);
+            if (SoundersChapterThrough(s.State.Milestones, "s11"))
+            {
+                SetSoundersMilestone(s, SoundersIds.MilestoneGreatCrack);
+            }
+        }
+
+        return gifted;
     }
 
     /// <summary>Whether a chapter of the Sounders' Song still runs for the player (one is ahead of them).</summary>

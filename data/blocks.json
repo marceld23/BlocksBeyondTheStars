@@ -16,6 +16,8 @@
   { "key": "light_white",  "nameKey": "block.light_white.name", "tintable": true, "category": "light",  "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "lightColor": 16777215, "drops": [ { "item": "light_white", "count": 1 } ] },
   { "key": "light_red",    "nameKey": "block.light_red.name", "tintable": true, "category": "light",    "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "lightColor": 16726072, "drops": [ { "item": "light_red", "count": 1 } ] },
   { "key": "light_green",  "nameKey": "block.light_green.name", "tintable": true, "category": "light",  "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "lightColor": 5504865, "drops": [ { "item": "light_green", "count": 1 } ] },
+  // #3894: the blue lamp — the colour of the Service's guide towers ("the sky-lights"). A twin of the red lamp in every field but the colour.
+  { "key": "light_blue",   "nameKey": "block.light_blue.name", "tintable": true, "category": "light",   "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "lightColor": 4033791, "drops": [ { "item": "light_blue", "count": 1 } ] },
   { "key": "water",        "nameKey": "block.water.name", "category": "terrain",        "hardness": 4, "requiredTool": "drill", "minToolTier": 3, "mineable": true, "solid": false, "drops": [ { "item": "water", "count": 1 } ] },
   { "key": "lava",         "nameKey": "block.lava.name", "category": "terrain", "lightColor": 16738842, "lightRadius": 4, "lightSurfaceOnly": true,         "hardness": 4, "requiredTool": "drill", "minToolTier": 3, "mineable": true, "drops": [ { "item": "lava", "count": 1 } ] },
   { "key": "sand",         "nameKey": "block.sand.name", "biomePalette": "desert", "granular": true, "category": "terrain",         "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "sand", "count": 1 } ] },
@@ -380,6 +382,7 @@
   { "key": "light_white_off", "nameKey": "block.light_white_off.name", "tintable": true, "category": "building", "hardness": 0.5, "requiredTool": "none", "minToolTier": 0, "color": 8421504, "drops": [ { "item": "light_white", "count": 1 } ] },
   { "key": "light_red_off", "nameKey": "block.light_red_off.name", "tintable": true, "category": "building", "hardness": 0.5, "requiredTool": "none", "minToolTier": 0, "color": 8404992, "drops": [ { "item": "light_red", "count": 1 } ] },
   { "key": "light_green_off", "nameKey": "block.light_green_off.name", "tintable": true, "category": "building", "hardness": 0.5, "requiredTool": "none", "minToolTier": 0, "color": 2785296, "drops": [ { "item": "light_green", "count": 1 } ] },
+  { "key": "light_blue_off", "nameKey": "block.light_blue_off.name", "tintable": true, "category": "building", "hardness": 0.5, "requiredTool": "none", "minToolTier": 0, "color": 2113664, "drops": [ { "item": "light_blue", "count": 1 } ] },
   { "key": "torch_off", "nameKey": "block.torch_off.name", "tintable": true, "category": "building", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 8412960, "drops": [ { "item": "torch", "count": 1 } ] },
   { "key": "strip_light_cyan_off", "nameKey": "block.strip_light_cyan_off.name", "tintable": true, "category": "building", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "color": 2650176, "drops": [ { "item": "strip_light_cyan", "count": 1 } ] },
   { "key": "strip_light_warm_off", "nameKey": "block.strip_light_warm_off.name", "tintable": true, "category": "building", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "color": 8409856, "drops": [ { "item": "strip_light_warm", "count": 1 } ] },
@@ -449,5 +452,18 @@
   // #3645: the Labyrinth Builders (civilization "labyrinth_builders"): their near-black, basalt-like dressed wall stone, plain
   // and engraved with a meander. Found only.
   { "key": "maze_stone", "nameKey": "block.maze_stone.name", "category": "building", "civilization": "labyrinth_builders", "hardness": 7.0, "requiredTool": "drill", "minToolTier": 1, "color": 1776415, "relief": 0.8, "drops": [ { "item": "maze_stone", "count": 1 } ] },
-  { "key": "maze_stone_carved", "nameKey": "block.maze_stone_carved.name", "category": "building", "civilization": "labyrinth_builders", "hardness": 7.0, "requiredTool": "drill", "minToolTier": 1, "color": 2303273, "relief": 1.0, "drops": [ { "item": "maze_stone_carved", "count": 1 } ] }
+  { "key": "maze_stone_carved", "nameKey": "block.maze_stone_carved.name", "category": "building", "civilization": "labyrinth_builders", "hardness": 7.0, "requiredTool": "drill", "minToolTier": 1, "color": 2303273, "relief": 1.0, "drops": [ { "item": "maze_stone_carved", "count": 1 } ] },
+  // #3894 (epic #3891, "sky-lights & other side"): the fixtures of the Service's guide towers and the block of the other
+  // side. None of them is craftable, none has an item, none can be mined — only the server places and swaps them.
+  // sps_console: the relay console at a guide tower's foot (the use key sends a UseBlockIntent). capsule_tank: one cell of a
+  // guard post's sealed capsule tank (the tank is two of these stacked); capsule_tank_open is the same cell opened, a frame a
+  // player walks into (WalkThroughBlocks.IsOpenTwin). Their own tiles (#3912) are the console's front and the tank's four walls —
+  // the opened tile is the sealed one with its window taken out (tools/ai-assets/open_capsule_tank.py), so the frame stays.
+  { "key": "sps_console", "nameKey": "block.sps_console.name", "category": "machine", "usable": true, "mineable": false, "hardness": 6.0, "requiredTool": "drill", "minToolTier": 2, "emission": 0.5, "color": 4491519, "tileKind": "picture", "facing": "toward", "faces": [ { "side": "side", "tile": "face_tech_side" }, { "side": "top", "tile": "face_tech_top" }, { "side": "bottom", "tile": "metal_panel" } ], "drops": [] },
+  { "key": "capsule_tank", "nameKey": "block.capsule_tank.name", "category": "machine", "usable": true, "mineable": false, "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.45, "color": 8374512, "tileKind": "picture", "faces": [ { "side": "top", "tile": "face_heal_tank_top" }, { "side": "bottom", "tile": "metal_panel" } ], "drops": [] },
+  { "key": "capsule_tank_open", "nameKey": "block.capsule_tank_open.name", "category": "machine", "mineable": false, "solid": false, "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.2, "color": 3496560, "tileKind": "picture", "faces": [ { "side": "top", "tile": "face_heal_tank_top" }, { "side": "bottom", "tile": "metal_panel" } ], "drops": [] },
+  // sound_block: a block of sound, a song that stays where it was sung — it exists only on the other side (the sound layer,
+  // never the real world's block edits). It glows in its tone's colour: "tintable" lets the server stamp a per-voxel glow
+  // colour. No light source ("lightColor": 0): a player may shape up to 2000 of them, and the flood fill is not free.
+  { "key": "sound_block", "nameKey": "block.sound_block.name", "civilization": "sounders", "tintable": true, "category": "building", "mineable": false, "hardness": 1.0, "requiredTool": "none", "minToolTier": 0, "emission": 0.8, "lightColor": 0, "color": 15658734, "tileKind": "material", "drops": [] }
 ]

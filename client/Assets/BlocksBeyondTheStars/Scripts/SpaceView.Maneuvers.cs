@@ -356,6 +356,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The server announced a heavy shot's charge, or fired it.</summary>
         private void OnHeavyShot(SpaceHeavyShot m)
         {
+            if (_active && _root != null && m != null && MegaLaserAim.IsMegaLaser(m.Style))
+            {
+                OnMegaLaser(m); // #3900: the escort cruiser's mega laser has its own picture (SpaceView.MegaLaser.cs)
+                return;
+            }
+
             if (!_active || _root == null || m == null || !_entities.TryGetValue(m.EntityId, out var hostile) || hostile == null)
             {
                 return;
@@ -390,13 +396,20 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            HeavyImpactOnOwnShip(target.position, dir, HeavyCol);
+        }
+
+        /// <summary>A heavy shot that came along <paramref name="dir"/> lands on the own ship at <paramref name="shipAt"/>:
+        /// on the shield bubble while there is any shield, else on the hull. (Also the mega laser's hit, #3900.)</summary>
+        private void HeavyImpactOnOwnShip(Vector3 shipAt, Vector3 dir, Color color)
+        {
             var status = Game.ShipCombat;
             float shieldFrac = status != null && status.ShieldMax > 0f ? status.Shield / status.ShieldMax : 0f;
-            var at = target.position - (dir * ShipLocalBounds().extents.magnitude * 0.6f);
+            var at = shipAt - (dir * ShipLocalBounds().extents.magnitude * 0.6f);
             if (_shield != null && shieldFrac > 0.01f)
             {
                 _shield.Hit(at, shieldFrac);
-                SpaceCombatFx.ShieldDeflect(at, -dir, HeavyCol);
+                SpaceCombatFx.ShieldDeflect(at, -dir, color);
             }
             else
             {

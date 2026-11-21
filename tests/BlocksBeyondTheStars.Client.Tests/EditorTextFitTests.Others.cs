@@ -59,5 +59,6 @@ public sealed partial class EditorTextFitTests
         Label("Planet map legend: giant wreck (104 px at 15)", 104f, 15, "ui.map.kind_giant_wreck"),
         Label("Planet map legend: lost civilization (104 px at 15, #3642)", 104f, 15, "ui.map.kind_civilization"),
         Label("Planet map legend: guardian giant (104 px at 15, #3676)", 104f, 15, "ui.map.kind_guardian_giant"),
+        Label("Planet map legend: guide tower (104 px at 15, #3893)", 104f, 15, "ui.map.kind_sps_tower"),
     };
 }

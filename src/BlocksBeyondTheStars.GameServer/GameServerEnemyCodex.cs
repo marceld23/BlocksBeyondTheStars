@@ -48,12 +48,17 @@ public sealed partial class GameServer
             ShieldMax = tier.Shield,
             HeavyDamage = tier.HeavyShotDamage, // #3756
             HeavyInterval = tier.HeavyShotInterval,
+            HeavyCharge = tier.HeavyShotCharge, // #3900: the mega laser is the heavy shot with these four set
+            HeavyRange = tier.HeavyShotRange,
+            HeavyHullCap = tier.HeavyShotMaxHullShare,
+            HeavyStyle = tier.HeavyShotStyle ?? string.Empty,
         };
         foreach (var loot in tier.Loot)
         {
             entity.Loot.Add(new ItemAmount(loot.Item, loot.Count));
         }
 
+        AddRareLoot(entity, tier); // #3894: what it carries only now and then (the hunter's hacking chip)
         return entity;
     }
 

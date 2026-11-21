@@ -68,6 +68,15 @@ namespace BlocksBeyondTheStars.Client
         /// world's chunks are stored, like <see cref="SetCellLightResolver"/>.</summary>
         public void SetFormBlocks(IEnumerable<ushort>? ids) => _formIds = IdFlags(ids);
 
+        // Sound blocks (#3906): their glow channel is their tone's brightness — a LOOK, drawn as emission by the mesher —
+        // and never a light. A player may shape two thousand of them, and every indexed light is a flood fill.
+        private bool[]? _glowLookIds;
+
+        /// <summary>Registers the blocks whose per-cell glow is only how they look (the sound block of the other side); null
+        /// clears it. Such a cell is never indexed as a light source, whatever its glow channel says. Set it before a
+        /// world's chunks are stored, like <see cref="SetCellLightResolver"/>.</summary>
+        public void SetGlowLookBlocks(IEnumerable<ushort>? ids) => _glowLookIds = IdFlags(ids);
+
         /// <summary>The light a bred plant casts as 0xRRGGBB (0 = none): its colour, dimmed to the share its glow level
         /// casts (<see cref="FloraForm.LightOf"/>) — a dim colour is a short reach in the mesher's flood fill. A plant
         /// without a colour of its own glows white. Shared with the mesher's own light scan (ships, stations).</summary>
@@ -133,6 +142,11 @@ namespace BlocksBeyondTheStars.Client
             if (_formIds is { } forms && block < forms.Length && forms[block])
             {
                 return FormLight(tint, glow);
+            }
+
+            if (_glowLookIds is { } looks && block < looks.Length && looks[block])
+            {
+                return 0; // #3906: a sound block glows as a look only — it lights nothing
             }
 
             int baseRgb = block != BlockId.AirValue ? InherentLightAt(block, pos) : 0;
@@ -304,6 +318,21 @@ namespace BlocksBeyondTheStars.Client
 
             var local = WorldConstants.WorldToLocal(pos);
             return chunk.GetShape(local.X, local.Y, local.Z);
+        }
+
+        /// <summary>The glow colour (0xRRGGBB, 0 = none) stored for a world cell — its per-voxel glow modifier. #3908: a
+        /// sound block's glow is its tone (<c>OtherSideRules.ToneOfGlow</c>), read when the player walks on it. Unknown or
+        /// unloaded cells have none.</summary>
+        public int GetGlow(int wx, int wy, int wz)
+        {
+            var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), _circumference);
+            if (!_chunks.TryGetValue(WorldConstants.WorldToChunk(pos), out var chunk))
+            {
+                return 0;
+            }
+
+            var local = WorldConstants.WorldToLocal(pos);
+            return chunk.GetModifier(local.X, local.Y, local.Z).Glow;
         }
 
         /// <summary>Applies a single authoritative block change (no colour modifier) from the server.</summary>

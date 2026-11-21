@@ -164,6 +164,11 @@ refreshed 2026-10-23.
   ruins exist only on their home bodies — the civilization file and the `civilization` tag, homes pinned from the seed and
   the ocean guarantee, the stamp stage, underwater sites (the `seabed` seat, the water write mode, air pockets), `prop`
   markers, discovery, Codex, VEGA and rumours, the Grand Technicians and the Labyrinth Builders, adding a civilization.
+- [SPS_TOWERS.md](SPS_TOWERS.md) — the SPS guide towers (#3893): the ruins of the Service's "sky-lights" on inhabited worlds
+  (terrain generation 47) — a structure kind of its own on the landmark stack, at least one per save, its record
+  (console, lamps, guard post) and how a ruin is built. Also the towers' life (#3895–#3897): the relay console's
+  records, the hacking chip that turns the lamps blue and shows the world's places on the map, the capsule tank and the
+  sleeper, and what a story pack can name (events, predicates, guide markers).
 - [GUARDIAN_GIANTS.md](GUARDIAN_GIANTS.md) — guardian giants (#3676): fallen fourteen-block machines as block bodies, a few
   of which wake as a boss — the record and its states, the tick (found, stir, wake), the rise, the fight's moves and their
   timed blows, taking damage, lying down lit, the corpse and a loot crate per fighter, the status message, the map, VEGA's
@@ -192,6 +197,9 @@ refreshed 2026-10-23.
 - [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) — the story's design rationale.
 - [STORY_SOUNDERS.md](STORY_SOUNDERS.md) — **The Sounders' Song**, the second story (a side pack next to VEGA): canon,
   the eight chapters, the note alphabet, the per-player milestones and where each mechanic lives.
+- [OTHER_SIDE.md](OTHER_SIDE.md) — **the other side**: the same world as a player state — rune gates and the crossing
+  disc, what a player may do over there (the allow-list), no needs and no harm, who sees whom, the Qualis and the
+  Sounders at the gates, the `OtherSideState` message, and the sound layer (sound blocks) built on it.
 - [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — the lore bible + content schema.
 - [MUSIC_TRACKS.md](MUSIC_TRACKS.md) — music track library reference.
 - [SOUND_DESIGN.md](SOUND_DESIGN.md) — sound architecture + catalogue.

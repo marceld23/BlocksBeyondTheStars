@@ -543,6 +543,26 @@ public sealed class ServerConfig
     public double? GiantWreckChance { get; set; }
 
     /// <summary>
+    /// Whether the server may stamp the ruin of an <b>SPS guide tower</b> (#3893) on a body of a new world (terrain generation
+    /// 47+) — one per body at most, only where an inhabited settlement stands, never on a gas, void or airless world, an
+    /// asteroid, the finale body or a civilization's home; the first such body a save stamps carries one for sure. Only
+    /// decides for bodies that have not decided yet; a tower a world already has stays. Deterministic from the world seed.
+    /// The world option <c>WorldDescription.SpsTowers</c> is the player's switch; this one is the host's. Off also makes the
+    /// story predicate <c>world:sps_towers</c> false, so the missions around the towers give way to their stand-ins.
+    /// </summary>
+    public bool PlaceSpsTowers { get; set; } = true;
+
+    /// <summary>
+    /// The chance (0..1) that a body which could carry one gets a guide tower (#3893, terrain generation 47), scaled by the
+    /// world's structures frequency and the world option. Unset (null) takes the <c>sps_tower</c> kind's chance from
+    /// <c>data/structure_types.json</c> (about every fifth to sixth inhabited world,
+    /// <see cref="Definitions.SpsTowerRules.Chance"/>); a value here overrides it — every stored value is the operator's
+    /// choice. The save's first eligible body carries one whatever the chance says, unless the chance is 0. Tests pin 1.0 to
+    /// get a tower wherever one fits, 0.0 to keep a world free.
+    /// </summary>
+    public double? SpsTowerChance { get; set; }
+
+    /// <summary>
     /// Whether the server may lay <b>fallen guardian giants</b> (#3680) on a body of a new world (terrain generation 44+) — one
     /// or two huge block-built hunter robots lying on dry, flat ground, about one in four of which can still wake. Never on a
     /// gas, void or city world, an asteroid or the finale body. Only decides for bodies that have not decided yet; a giant a

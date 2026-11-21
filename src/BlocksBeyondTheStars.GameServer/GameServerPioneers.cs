@@ -860,7 +860,7 @@ public sealed partial class GameServer
         npc.RoutineEnabled = false;
         npc.ActivityKey = PioneerExploringKey;
         npc.AttendUntil = 0;
-        var watcher = JoinedInActiveWorld().Where(s => !s.Spectating && !InSpace(s.State.PlayerId))
+        var watcher = JoinedInActiveWorld().Where(s => !s.Spectating && !s.OtherSide && !InSpace(s.State.PlayerId)) // #3905
             .OrderBy(s => WrapDistSq(s.State.Position, npc.Pos)).FirstOrDefault();
         o.TripBearing = watcher is not null && WrapDistSq(watcher.State.Position, npc.Pos) > 1.0
             ? BearingFrom(watcher.State.Position, npc.Pos)
@@ -1057,7 +1057,7 @@ public sealed partial class GameServer
     {
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.Spectating && !InSpace(s.State.PlayerId) && WrapDistSq(s.State.Position, spot) <= 80.0 * 80.0
+            if (!s.Spectating && !s.OtherSide && !InSpace(s.State.PlayerId) && WrapDistSq(s.State.Position, spot) <= 80.0 * 80.0
                 && HasLineOfSight(s.State.Position, spot))
             {
                 return true;

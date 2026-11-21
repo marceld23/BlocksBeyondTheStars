@@ -116,6 +116,9 @@ public sealed partial class GameServer
         // #2009: /arachnid — for testing
         ["summon_arachnid"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonArachnid(session)),
 
+        // #3900: /cruiser [echo] — the escort cruiser comes out of hyperspace in the admin's flight, for testing
+        ["summon_cruiser"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSummonEscortCruiser(session, cmd.StringArg)),
+
         // #2081: /biped — a begging herd of bipeds, for testing
         ["summon_biped"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonBiped(session)),
         ["summon_hound"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonHound(session)), // #3326
@@ -146,8 +149,14 @@ public sealed partial class GameServer
         // #3610: "/giantwreck [list|<key>]" — lay a giant ship wreck in front of the admin for a play test (GameServerGiantWrecksAdmin.cs)
         ["giantwreck"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminGiantWreck(session, cmd.StringArg)),
 
+        // #3893: "/spstower [list|<key> [post|nopost]]" — stand a guide tower ruin in front of the admin for a play test (GameServerSpsTowersAdmin.cs)
+        ["spstower"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSpsTower(session, cmd.StringArg)),
+
         // ---- The Sounders' Song QA (#3368): "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi" ----
         ["sounders"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSounders(session, cmd.StringArg)),
+
+        // #3904: "/otherside [on|off]" — the admin crosses to the other side, or comes back, without disc and gate (GameServerOtherSide.cs)
+        ["otherside"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminOtherSide(session, cmd.StringArg)),
     };
 
     /// <summary>
@@ -356,6 +365,7 @@ public sealed partial class GameServer
             return;
         }
 
+        OtherSideBeforeMove(session); // #3904: a teleport brings a player back from over there first
         p.Position = new Vector3f(cmd.X, cmd.Y, cmd.Z);
         // A plain PlayerStateUpdate position is ignored by the client and then reverted by its
         // client-authoritative move stream — every server-side teleport must go through the
@@ -394,6 +404,7 @@ public sealed partial class GameServer
         }
 
         // Beside the target, not inside their capsule (#1055).
+        OtherSideBeforeMove(session); // #3904: a teleport brings a player back from over there first
         p.Position = LandingSpotNear(target.State.Position, target.State.Yaw);
         // Same snap-channel rule as teleport_to_location (#414 M7).
         Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "@srv.tp.to:" + target.State.Name });

@@ -319,6 +319,7 @@ namespace BlocksBeyondTheStars.Client
             WireCalendar(); // #3315: the festival day calendars and the cosmetics their doors unlock
             WireMelody(); // #3345/#3346: the server's melodies and the melody bar
             WireSoundersItems(); // #3352: the note-key minigame of a Song Disc
+            WireOtherSide(); // #3906/#3908: the other side — where the player stands, the gates, the sound blocks
             Network.CrewListReceived += m => Crew = m ?? new CrewList();
             Network.CrewInviteReceived += m =>
             {

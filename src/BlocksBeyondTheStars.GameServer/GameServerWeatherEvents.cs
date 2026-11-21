@@ -82,7 +82,7 @@ public sealed partial class GameServer
     private void ApplyWeatherToPlayer(PlayerSession session, double dt)
     {
         var p = session.State;
-        if (p.InEva || p.AboardShip || p.GodMode || p.Health <= 0f || InStation(p.PlayerId))
+        if (p.InEva || p.AboardShip || p.GodMode || session.OtherSide || p.Health <= 0f || InStation(p.PlayerId)) // #3904: no weather over there
         {
             return;
         }

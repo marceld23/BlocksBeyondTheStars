@@ -35,14 +35,18 @@ public static class SongDiscs
     /// <summary>The story discs the sound chambers hold, in order: the first chamber a player opens, then the second (#3353).</summary>
     public static readonly string[] ChamberOrder = { SoundersIds.DiscGreatSong, SoundersIds.DiscVoices };
 
-    /// <summary>The discs that fit the obsidian chest's socket (#3354): hearing, calm and light.</summary>
-    public static readonly string[] SocketDiscs = { SoundersIds.DiscHearing, SoundersIds.DiscCalm, SoundersIds.DiscLight };
+    /// <summary>The discs that fit the obsidian chest's socket (#3354): hearing, calm and light — and the crossing disc (#3894).</summary>
+    public static readonly string[] SocketDiscs =
+    {
+        SoundersIds.DiscHearing, SoundersIds.DiscCalm, SoundersIds.DiscLight, SoundersIds.DiscCrossing,
+    };
 
-    /// <summary>Every disc item: the six story discs, the two socket discs and the collectible.</summary>
+    /// <summary>Every disc item: the six story discs, the three crafted socket discs and the collectible.</summary>
     public static readonly string[] All =
     {
         SoundersIds.DiscBeginning, SoundersIds.DiscBuilders, SoundersIds.DiscHearing, SoundersIds.DiscHunger,
-        SoundersIds.DiscGreatSong, SoundersIds.DiscVoices, SoundersIds.DiscCalm, SoundersIds.DiscLight, SoundersIds.DiscSong,
+        SoundersIds.DiscGreatSong, SoundersIds.DiscVoices, SoundersIds.DiscCalm, SoundersIds.DiscLight, SoundersIds.DiscCrossing,
+        SoundersIds.DiscSong,
     };
 
     private static readonly Dictionary<string, string[]> Phrases = new(StringComparer.Ordinal)
@@ -55,6 +59,7 @@ public static class SongDiscs
         [SoundersIds.DiscVoices] = new[] { "ILA", "SOA", "LUM" },      // child, song, light
         [SoundersIds.DiscCalm] = new[] { "EMIS", "ARU", "VEL" },       // quiet, sky, water
         [SoundersIds.DiscLight] = new[] { "LUM", "ORN", "ARU" },       // light, star, sky
+        [SoundersIds.DiscCrossing] = new[] { "DUNA", "EMIS", "SOA" },  // far away, quiet, song ("over there one sings softly")
     };
 
     /// <summary>Whether <paramref name="itemKey"/> is any Song Disc.</summary>

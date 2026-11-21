@@ -29,7 +29,7 @@ public sealed class MaterialEconomyTests
     /// <summary>The worldgen-only interior blocks that became craftable (#1108). <c>data_cache</c> stays loot-only.</summary>
     private static readonly string[] Decor =
     {
-        "light_white", "light_red", "light_green", "strip_light_cyan", "strip_light_warm", "force_field",
+        "light_white", "light_red", "light_green", "light_blue", "strip_light_cyan", "strip_light_warm", "force_field",
         "medbay_panel", "lab_panel", "cargo_floor", "engine_panel", "engine_nozzle", "factory_terminal",
         "factory_pipe", "machine_block",
     };
@@ -220,6 +220,9 @@ public sealed class MaterialEconomyTests
             // #3352-#3354 the Sounders: the Song Discs are played in a Song Spindle and worn in the socket, the obsidian armour worn.
             "song_disc_beginning", "song_disc_builders", "song_disc_hearing", "song_disc_hunger", "song_disc_great_song",
             "song_disc_voices", "song_disc_calm", "song_disc_light", "song_disc", "obsidian_helmet", "obsidian_chest", "obsidian_legs", "obsidian_boots",
+            // #3894: the crossing disc is worn in the socket; the hacking chip is used at a guide tower's console and a capsule
+            // tank (the server takes it, no recipe does); ECHO's memory core is a keepsake.
+            "song_disc_crossing", "hacking_chip", "echo_memory_core",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

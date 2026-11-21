@@ -590,6 +590,11 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                if (hostileShip && BossBarSpeaksFor(e.Id))
+                {
+                    continue; // #3901: the HUD's boss bar shows the boss's hull — no small bar over it as well
+                }
+
                 Vector3 at;
                 if (_entities.TryGetValue(e.Id, out var go) && go != null)
                 {

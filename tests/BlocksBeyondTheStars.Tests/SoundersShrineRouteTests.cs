@@ -111,7 +111,12 @@ public sealed class SoundersShrineRouteTests : IDisposable
     {
         var pack = Content.Value.Stories[Pack];
         var where = pack.Chapters.SelectMany(c => c.Steps).Where(s => s.OnStart.Reveal.Length > 0).ToList();
-        Assert.Equal(new[] { "s1.2", "s2.1", "s2.1a", "s3.4", "s4.4", "s5.1", "s5.1a", "s6.2", "s6.2a", "s7.1", "s7.3", "s8.1" },
+        Assert.Equal(
+            new[]
+            {
+                "s1.2", "s2.1", "s2.1a", "s3.4", "s4.4", "s5.1", "s5.1a", "s6.2", "s6.2a", "s7.1", "s7.3", "s8.1",
+                "s9.1", "s9.1a", "s9.5", "s10.3", "s11.1", "s11.1a", "s11.2", // #3910: Mirun, the gates, the Choir Tower
+            },
             where.Select(s => s.Id));
         Assert.All(where.Where(s => s.Id.EndsWith('a')),
             s => Assert.Equal(StoryRevealProviders.NearestRuneShrine, s.OnStart.Reveal)); // #3416: the stand-ins mark a rune shrine

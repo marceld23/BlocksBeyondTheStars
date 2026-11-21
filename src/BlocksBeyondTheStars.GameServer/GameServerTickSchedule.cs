@@ -127,12 +127,14 @@ public sealed partial class GameServer
             TickStep.Dt("TickSreekmakra", TickSreekmakra), // 2026-09: Valuma's shapeshifter and mood (1 Hz)
             TickStep.Dt("TickSingingPlants", TickSingingPlants), // #3367: Soaniri's echo flowers answer, wild bell blooms close again
             TickStep.Plain("TickSoundersStory", TickSoundersStory), // #3368: the Echoes, the Choir Tower's Young Voices, the story Soundi (1 Hz)
+            TickStep.Dt("TickOtherSide", TickOtherSide), // #3904/#3905: who may stay over there; the Qualis and the Sounders at the gates (1 Hz)
             TickStep.Dt("TickGiants", TickGiants), // #1998: the colossus, the sandworms and the thumpers
             TickStep.Dt("TickTrains", TickTrains), // #2113: the monorail trains and their riders
             TickStep.Dt("TickBaseVisits", TickBaseVisits), // #2602 friendly visitors walk up to a base (1 Hz); #2997 walking near a base finds it
             TickStep.Plain("TickBaseLife", TickBaseLife), // #1120/#2718: settlers move in — per world, one base per 10 s, one scan per tick at most
             TickStep.Dt("TickLodges", TickLodges), // #2640/#2641: lodges found by passing players, the store crates (1 Hz)
             TickStep.Dt("TickLandmarks", TickLandmarks), // #3495/#3496: a landmark found by a passing player, its dens (1 Hz)
+            TickStep.Dt("TickSpsTowerLife", TickSpsTowerLife), // #3895–#3897: a lit tower's lamps run blue, VEGA at a tower, the sleeper's place (1 Hz; nothing in a save without towers)
             TickStep.Dt("TickWanderers", TickWanderers), // #2646: named travellers met in the open land (1 Hz)
             TickStep.Dt("TickNpcRoutine", TickNpcRoutine), // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             TickStep.Dt("TickNpcPaths", TickNpcPaths), // #1866: at most one NPC path search per tick
@@ -158,11 +160,13 @@ public sealed partial class GameServer
             TickStep.Plain("TickStoryCompanions", TickStoryCompanions), // #3361/#3365: duels and pack defence; the Soundi sings (1 Hz)
             TickStep.Plain("TickOwnerCrates", TickOwnerCrates), // #3294: owner-locked crates (finale reward, robot parts) for players on foot (1 Hz)
             TickStep.Plain("TickBurning", TickBurning), // #1700: lava and fire hurt animals, robbers and machines too (2 Hz)
+            TickStep.Plain("TickBeamWeapons", TickBeamWeapons), // #3898: a held beam ends when its ticks stop or the hand changes (only while one is on)
             TickStep.Dt("TickHealTanks", TickHealTanks), // base/station regen field: heal + feed + suit recharge
             TickStep.Dt("TickStationsInReach", TickStationsInReach), // #1070: Tab-menu station gates follow the player
             TickStep.Dt("TickTraderDiscounts", TickTraderDiscounts), // #3292: the flower set's trader discount, pushed on change (1 Hz)
             TickStep.Dt("TickVoidRescue", TickVoidRescue),
             TickStep.Dt("TickShipAi", TickShipAi), // VEGA advisor hints + memory-fragment redemption
+            TickStep.Plain("FlushSoundLayer", FlushSoundLayer), // #3907: sound blocks a real block hid show again once the cell is air (only when queued)
             TickStep.Plain("StreamChunks", StreamChunks),
             TickStep.Plain("StreamWorldTextures", StreamWorldTextures), // #1958: one page of the texture list per client per tick
             TickStep.Plain("ServeFarTiles", ServeFarTiles), // #1871: far-terrain tile builds under a per-tick budget

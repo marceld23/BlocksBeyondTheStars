@@ -581,10 +581,13 @@ public sealed partial class GameServer
     private void TickStoryPass(PlayerSession session)
     {
         TickGuardianGiantStory(session); // #3685: a guardian giant found (while a step listens), a carried memory core read
+        TickSpsTowerFound(session); // #3893: a guide tower found (while a step listens)
+        ReadEchoMemoryCore(session); // #3902: a carried memory core of ECHO read into the Journal
         TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
         TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
         TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker
         TickStoryMissions(session); // #2476: VEGA's story missions — handed out, let go, followed by evidence, help escalation
+        TickSkyLightMissions(session); // #3899: mission steps followed by what holds now; ECHO's cruiser for a pilot who follows her call
         RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
         SyncStoryMarkers(session); // #2570: a step done or skipped takes its help marker off the map and the compass
     }

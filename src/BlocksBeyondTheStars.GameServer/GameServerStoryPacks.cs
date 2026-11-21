@@ -171,6 +171,10 @@ public sealed partial class GameServer
 
         /// <summary>This mission is another one's alternative: it runs only standing in for it.</summary>
         public bool IsAlternative { get; set; }
+
+        /// <summary>#3892: it stays open after its chapter (<see cref="StoryMission.Keep"/>; an alternative also when the
+        /// mission it stands in for is kept).</summary>
+        public bool Keep { get; set; }
     }
 
     /// <summary>A chapter of a compiled pack.</summary>
@@ -815,7 +819,7 @@ public sealed partial class GameServer
             return; // switched off for this player or this world — every key stays, nothing runs
         }
 
-        MigratePackIfNeeded(s, pack);
+        PreparePackWalk(s, pack); // the one-time migration; #3910: a pack skipped as a whole stays skipped when it grows
         if (!PackStarted(s, pack))
         {
             if (!EvaluateStoryCondition(pack.StartAfter, s))
@@ -1933,6 +1937,11 @@ public sealed partial class GameServer
         if (StoryRevealProviders.ArgumentOf(reveal, StoryRevealProviders.UniqueSite) is { } siteKind)
         {
             return MarkUniqueSiteReveal(s, step, siteKind); // #3415: the site's world named off-site, its spot marked on arrival
+        }
+
+        if (reveal is StoryRevealProviders.NearestSpsTower or StoryRevealProviders.NearestSpsGuard)
+        {
+            return MarkSpsTowerReveal(s, step, guard: reveal == StoryRevealProviders.NearestSpsGuard); // #3895: here, or the visited world that has one
         }
 
         if (reveal == StoryRevealProviders.NearestStation)

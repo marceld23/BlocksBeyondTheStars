@@ -48,6 +48,7 @@ namespace BlocksBeyondTheStars.Client
             ClientAudio.Instance?.PlayMelodyTone(MelodyBar.Instrument, tone);
             MelodyBar.Flash(tone, Time.unscaledTimeAsDouble);
             Network?.SendMelodyNote(tone, MelodyBar.PuzzleId, MelodyBar.Instrument);
+            SoundPalette.Played(tone); // #3908: the tone played last is the next sound block's tone (the server keeps the same)
         }
 
         /// <summary>The player closes the bar: a running puzzle ends on the server (it answers with the closing state), free

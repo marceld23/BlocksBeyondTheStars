@@ -99,13 +99,15 @@ public sealed partial class GameServer
         }
 
         double rangeSq = (double)EmoteRange * EmoteRange;
+        bool overThere = OverThere(p);
         // #3767: a hit and a fall are heard in the figure's own voice.
         int voice = emote is PlayerEmotes.Hurt or PlayerEmotes.Down ? FindSessionByPlayerId(p.PlayerId)?.Voice ?? 0 : 0;
         foreach (var s in JoinedInActiveWorld())
         {
             var other = s.State;
             if (other.PlayerId == p.PlayerId || other.AboardShip != p.AboardShip
-                || WrapDistSq(other.Position, p.Position) > rangeSq)
+                || WrapDistSq(other.Position, p.Position) > rangeSq
+                || (overThere && !s.OtherSide)) // #3905: a gesture over there is seen only over there
             {
                 continue;
             }

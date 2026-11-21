@@ -85,7 +85,8 @@ GIANT_GENERATION = 42      # WorldDescription.GiantWrecksGeneration: shipped shi
 STYLES = ("", "alien")     # GiantShipRules.StyleAlien: a crystal wreck (shards instead of scrap)
 # Mirrors of the C# rules (GiantShipRules.Problems drops a template that breaks them at load):
 SHIP_PROFILES = ("crash", "hull", "lattice")   # LandmarkRules.GiantShipProfiles: what a giant ship's ruin zone may name
-SHIP_MARKERS = ("entrance", "door_slide", "chest", "sound", "loot", "data_terminal", "relic_cache")  # GiantShipRules.Markers
+SHIP_MARKERS = ("entrance", "door_slide", "chest", "sound", "loot", "data_terminal", "relic_cache",  # GiantShipRules.Markers
+                "sps_console", "sps_lamp")  # + GiantShipRules.BridgeMarkers (#3902: a warship's bridge console and its lamps)
 GLASS = ("glass", "glass_clear")
 SHIP_HEADER_FIELDS = {
     "key", "name", "giantShip", "nameKey", "weight", "minTerrainGeneration", "groundRow", "style", "pack",

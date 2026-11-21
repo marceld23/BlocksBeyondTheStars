@@ -58,9 +58,11 @@ public sealed class WorldMetadata
     /// Grand Technicians' <c>glyph_stone</c>, <c>glyph_stone_band</c>, <c>dark_sandstone</c>, <c>gt_eye</c>, <c>gt_fluid</c>,
     /// <c>gt_mural_0</c> … <c>gt_mural_7</c>; #3645: the Labyrinth Builders' <c>maze_stone</c>, <c>maze_stone_carved</c>).
     /// 17 = the abandoned bed (<c>bed_abandoned</c>, terrain generation 44: a ruin's or a wreck's bed that looks like the bed and
-    /// works as none).</para>
+    /// works as none). 18 = the sky-lights and the other side (#3894, epic #3891: the blue lamp <c>light_blue</c> and its
+    /// unlit twin <c>light_blue_off</c>, the guide towers' <c>sps_console</c>, the guard posts' <c>capsule_tank</c> and
+    /// <c>capsule_tank_open</c>, and the other side's <c>sound_block</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 17;
+    public const int CurrentSaveVersion = 18;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>
@@ -376,6 +378,28 @@ public sealed class WorldMetadata
     /// <summary>#3676: the guardian giants lying in this world — <see cref="GuardianGiantRecord.SiteId"/> → the giant. Written
     /// by the structure stamp, kept up by the boss logic. Additive: an older build drops it, a missing entry means "no giant".</summary>
     public System.Collections.Generic.Dictionary<string, GuardianGiantRecord> GuardianGiants { get; set; } = new();
+
+    /// <summary>#3893: the SPS guide towers standing (as ruins) in this world — one record per placed tower (body, index,
+    /// template, seat, the relay console's cell, the lamp cells, the guard post and its tank, and the state the tower's life
+    /// keeps). Written once by the tower stamp. Additive: an older build drops it, a missing entry means "no tower".</summary>
+    public System.Collections.Generic.List<SpsTowerRecord> SpsTowers { get; set; } = new();
+
+    /// <summary>#3893: the save's guaranteed guide tower was placed — the first body with an inhabited settlement that a world
+    /// of terrain generation 47 stamps carries a tower for sure; every later one rolls the normal chance. Additive: an older
+    /// build drops it (and then no tower is ever rolled there either).</summary>
+    public bool SpsTowerGuaranteeSpent { get; set; }
+
+    /// <summary>#3902: the wrecks defeated escort cruisers left behind — at most one per star system that is on the star map
+    /// (a newer one replaces the older, which stays in the list flagged <see cref="CruiserWreckRecord.Replaced"/> until nobody
+    /// is aboard). Written when the boss falls, re-registered at every start. Additive: an older build drops it, a missing
+    /// entry means "no wreck".</summary>
+    public System.Collections.Generic.List<CruiserWreckRecord> CruiserWrecks { get; set; } = new();
+
+    /// <summary>#3909: the cracks of the other side that were mended in this world — one key per mended rune gate,
+    /// <c>&lt;location&gt;|&lt;x&gt;|&lt;y&gt;|&lt;z&gt;|&lt;reach&gt;</c>: the gate's world, the rounded middle of its rune stones and how far
+    /// the mend reaches (a gate's own stones, or the wide reach of the great crack). Written when a mend puzzle is solved,
+    /// never removed. Additive: an older build drops it, a missing list means "every gate still carries its crack".</summary>
+    public System.Collections.Generic.List<string> MendedCracks { get; set; } = new();
 }
 
 /// <summary>#2716: a base resident who left (<see cref="WorldMetadata.RetiredBaseResidents"/>): where they lived and who they

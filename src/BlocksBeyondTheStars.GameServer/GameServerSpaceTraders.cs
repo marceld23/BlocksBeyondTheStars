@@ -844,7 +844,7 @@ public sealed partial class GameServer
         double reachSq = (double)TraderStayNearRadius * TraderStayNearRadius;
         foreach (var s in JoinedInActiveWorld())
         {
-            if (s.Spectating || InSpace(s.State.PlayerId))
+            if (s.Spectating || s.OtherSide || InSpace(s.State.PlayerId)) // #3905
             {
                 continue;
             }
@@ -1259,7 +1259,7 @@ public sealed partial class GameServer
         var list = new List<PlayerSession>();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.Spectating && !InSpace(s.State.PlayerId))
+            if (!s.Spectating && !s.OtherSide && !InSpace(s.State.PlayerId)) // #3905
             {
                 list.Add(s);
             }

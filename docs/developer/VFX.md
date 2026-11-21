@@ -426,6 +426,12 @@ or heard another player's melee attack at all.
 
 Successful gadget uses broadcast `ActionFx` with `Outcome = true` to everyone in range, including the user. Creature kills broadcast **`CreatureDefeated`** (tag 280) before the list drops the creature.
 
+Two kinds are the **server's alone** (`FxActionKinds.IsValid` refuses them from a client), like the ship's `Roll`: a
+held-beam weapon's `WeaponBeam` (#3898 — one per resolved beam tick, along the line the server validated, to the others
+near) and `WeaponBeamEnd` (the beam is over; to the others and, when the server ended it, to the shooter).
+`BeamWeaponView` draws them as one `HeldBeamLine` per beaming player — see [HELD_ITEMS.md](HELD_ITEMS.md) §7. `FxRemote`
+ignores both kinds, as an older client does.
+
 **No protocol bump:** the messages are cosmetic, and an older peer's `NetCodec.Decode` returns null for an unknown tag (`UnknownOrMalformedExtendedFrames_AreDropped`).
 
 ### Decals: scorch marks and craters (#3058, High on desktop)

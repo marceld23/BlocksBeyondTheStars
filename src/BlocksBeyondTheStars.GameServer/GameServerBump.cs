@@ -114,7 +114,7 @@ public sealed partial class GameServer
     /// <summary>The other players a bump snapshot lists under <c>nearby.players</c>: within the radius, never an observer
     /// (#3504) — the snapshot can be forwarded to the report inbox, and an invisible admin is in nobody's report.</summary>
     private IEnumerable<PlayerSession> BumpNearbyPlayers(PlayerSession session, double r2)
-        => _sessions.Values.Where(o => o.Joined && !o.Spectating && o.ConnectionId != session.ConnectionId
+        => _sessions.Values.Where(o => o.Joined && !o.Spectating && !HiddenFrom(session, o) && o.ConnectionId != session.ConnectionId
                                        && WrapDistSq(session.State.Position, o.State.Position) < r2);
 
     /// <summary>Test seam (#3504): the names a bump snapshot of this player would list as nearby players.</summary>

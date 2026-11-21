@@ -14,7 +14,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the Bridge Song at the Choir Tower in chapter 8), hands out the shrine's reward, writes <c>snd:song_learned</c> (which
 /// shows Ornemis on that player's star map), lets the Echoes appear and turns the end of their dialogs into
 /// <c>echo:questioned</c> (<c>GameServerSoundersStory.Echoes.cs</c>), and stages the finale and the sing duel for the story
-/// Soundi (<c>GameServerSoundersStory.Finale.cs</c>). Everything is per player and only while the pack runs for them.
+/// Soundi (<c>GameServerSoundersStory.Finale.cs</c>). After the Bridge Song the story goes on to the other side (#3910,
+/// chapters 9–11): <c>GameServerSoundersStory.OtherSide.cs</c> and <c>GameServerSoundersStory.Choir.cs</c>.
+/// Everything is per player and only while the pack runs for them.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -30,8 +32,9 @@ public sealed partial class GameServer
     /// <summary>The sing duel was won — the story Soundi travels with the player.</summary>
     internal const string SoundersSoundiWonMilestone = "snd:soundi";
 
-    /// <summary>The pack's chapters in order (the ids of <c>story.json</c>).</summary>
-    private static readonly string[] SoundersChapters = { "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8" };
+    /// <summary>The pack's chapters in order (the ids of <c>story.json</c>): s1–s8 lead to the Bridge Song, s9–s11 (#3910) to
+    /// the other side. <c>SoundersStoryTests</c> holds this list equal to the pack's.</summary>
+    private static readonly string[] SoundersChapters = { "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11" };
 
     /// <summary>The shrine's echo game (chapter 2): C E G E C' — three rounds that grow (2, 4, then all 5 tones).</summary>
     private static readonly int[] ShrineEchoTune = { 0, 2, 4, 2, 7 };
@@ -56,6 +59,7 @@ public sealed partial class GameServer
         RegisterMelodySolvedHandler(SoundersIds.PuzzleSingDuel, OnSingDuelSolved);
         _soundersListener = new SoundersStoryListener(this);
         AddGameEventListener(GameEventKeys.DialogDone, _soundersListener);
+        WireSoundersOtherSide(); // #3910: chapters 9–11, and the cracks they mend (#3909)
     }
 
     /// <summary>Whether chapter <paramref name="chapterId"/> of the Sounders pack runs for <paramref name="s"/>: the pack is
@@ -176,7 +180,7 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The event bus listener: the end of a Sounders dialog.</summary>
+    /// <summary>The event bus listener: the end of a Sounders dialog, and (#3910) a rune stone played.</summary>
     private sealed class SoundersStoryListener : IGameEventListener
     {
         private readonly GameServer _server;
@@ -189,10 +193,17 @@ public sealed partial class GameServer
             {
                 _server.OnSoundersDialogDone(actor, arg);
             }
+            else if (string.Equals(key, GameEventKeys.RunePlayed, StringComparison.Ordinal))
+            {
+                _server.OnSoundersRunePlayed(actor);
+            }
         }
     }
 
     // --- Test seams --------------------------------------------------------------------------------------------------------
+
+    /// <summary>Test seam: the chapter ids the story glue knows (held equal to the pack's).</summary>
+    internal static System.Collections.Generic.IReadOnlyList<string> SoundersChapterIdsForTest => SoundersChapters;
 
     /// <summary>Test seam: the starter's answer for a site.</summary>
     internal MelodyPuzzleSpec? SoundersStarterForTest(PlayerSession s, MelodySite site) => SoundersSiteStarter(s, site);

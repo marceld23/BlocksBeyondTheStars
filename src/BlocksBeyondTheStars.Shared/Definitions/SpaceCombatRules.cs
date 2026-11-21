@@ -48,6 +48,42 @@ public static class SpaceCombatRules
         => stationId == null || stationId == StoryDerelictId
            || !stationId.StartsWith(DerelictIdPrefix, System.StringComparison.Ordinal);
 
+    /// <summary>#3900: <c>SpaceHeavyShot.Style</c> of the escort cruiser's mega laser — a long charge with an aiming line
+    /// from its barrel to the target, then one thick beam. Empty = the classic heavy shot.</summary>
+    public const string HeavyStyleMegaLaser = "mega_laser";
+
+    /// <summary>#3900: a ship with more than this share of its full hull left always keeps a hull point after a capped
+    /// heavy shot (<c>EnemyTier.HeavyShotMaxHullShare</c>) — from above a quarter of its hull no single shot ends the flight.</summary>
+    public const float HeavyLastPointShare = 0.25f;
+
+    /// <summary>#3900: how far to the side of a capped heavy shot's line an asteroid still stops it — fly behind a rock
+    /// and the beam ends there (times the rock's scale).</summary>
+    public const float HeavyCoverRadius = 4f;
+
+    /// <summary>#3900: what a capped heavy shot takes off the hull. <paramref name="onHull"/> is what the shield let
+    /// through; it is cut to <paramref name="maxHullShare"/> of the full hull, and a ship above
+    /// <see cref="HeavyLastPointShare"/> of its hull keeps one point. A share of 0 or less means no cap.</summary>
+    public static float HeavyHullDamage(float onHull, float hull, float hullMax, float maxHullShare)
+    {
+        if (onHull <= 0f || hull <= 0f)
+        {
+            return 0f;
+        }
+
+        if (maxHullShare <= 0f || hullMax <= 0f)
+        {
+            return onHull;
+        }
+
+        float damage = System.Math.Min(onHull, hullMax * maxHullShare);
+        if (hull > hullMax * HeavyLastPointShare && damage > hull - 1f)
+        {
+            damage = System.Math.Max(0f, hull - 1f);
+        }
+
+        return damage;
+    }
+
     /// <summary>#3756: the phases a <c>SpaceHeavyShot</c> message reports.</summary>
     public const byte HeavyPhaseCharge = 0;
 

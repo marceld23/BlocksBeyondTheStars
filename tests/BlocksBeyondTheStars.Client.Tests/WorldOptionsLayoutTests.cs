@@ -256,6 +256,38 @@ public sealed class WorldOptionsLayoutTests
         Assert.Contains("Freq = { \"Off\", \"VeryRare\", \"Rare\", \"Normal\", \"Frequent\" }", options, StringComparison.Ordinal);
     }
 
+    /// <summary>#3893: the guide towers have their slider on the structures page too, and the choice reaches the server — the
+    /// creation options carry it, a preset copies it, only a non-default value becomes <c>--sps-towers</c>, and a playtest
+    /// task may set it.</summary>
+    [Fact]
+    public void SpsTowers_HaveASlider_AndReachTheServer()
+    {
+        string source = Source();
+        int start = source.IndexOf("private static void BuildStructures(", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        Assert.Contains("shell.L(\"ui.worldopt.sps_towers\"), freqSteps,", source.Substring(start), StringComparison.Ordinal);
+
+        string scripts = Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
+        string options = File.ReadAllText(Path.Combine(scripts, "WorldCreationOptions.cs"));
+        Assert.Contains("public int SpsTowers = 3;", options, StringComparison.Ordinal);
+        Assert.Contains("SpsTowers = other.SpsTowers;", options, StringComparison.Ordinal);
+        Assert.Contains("if (SpsTowers != 3) Arg(\"sps-towers\", Freq[SpsTowers]);", options, StringComparison.Ordinal);
+        // The panel's default index 3 is "Normal" — the server's own default, so an untouched panel sends nothing.
+        Assert.Equal(BlocksBeyondTheStars.Shared.World.Frequency.Normal, new BlocksBeyondTheStars.Shared.World.WorldDescription().SpsTowers);
+
+        Assert.Contains("SpsTowers", BlocksBeyondTheStars.Client.Playtests.PlaytestWorldPlan.AllowedOptions);
+        Assert.Contains("case \"SpsTowers\": o.SpsTowers = value; break;", File.ReadAllText(Path.Combine(scripts, "PlaytestHub.cs")), StringComparison.Ordinal);
+
+        // The planet map draws a guide tower with the beacon icon in its own colour, and the legend names it; the fourth
+        // legend row moved the buttons down, still inside the panel (it ends at y = 1000).
+        string map = File.ReadAllText(Path.Combine(scripts, "WorldMap.cs"));
+        Assert.Contains("SpsTowerRules.MapType => SpsTowerLook,", map, StringComparison.Ordinal);
+        Assert.Contains("(\"map_beacon\", SpsTowerKindKey, SpsTowerCol),", map, StringComparison.Ordinal);
+        float buttonsY = Constant(map, @"const float buttonsY = ([0-9.]+)f;", "the map's button row");
+        Assert.True(buttonsY >= 795f + (4 * 34f) && buttonsY + 50f <= 1000f, $"The map's buttons at y={buttonsY} overlap the legend or leave the panel.");
+        Assert.Contains("private const string SpsTowerKindKey = \"ui.map.kind_sps_tower\";", File.ReadAllText(Path.Combine(scripts, "WorldMap.SpsTowers.cs")), StringComparison.Ordinal);
+    }
+
     /// <summary>#2970: each planet-type row is a slider row, a share column and an "Only this" button. The two columns must
     /// not overlap, and the second column's button must end inside the 1580 px viewport (the inline scrollbar sits on its
     /// right edge).</summary>

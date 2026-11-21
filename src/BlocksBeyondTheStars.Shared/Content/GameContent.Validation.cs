@@ -426,6 +426,8 @@ public sealed partial class GameContent
             {
                 problems.Add($"Item '{item.Key}' has invalid MaxStack {item.MaxStack}; must be >= 1.");
             }
+
+            BeamWeaponRules.Validate(item, problems); // #3898: a held beam's four values belong together
         }
 
         foreach (var recipe in _recipes.Values)
@@ -572,9 +574,9 @@ public sealed partial class GameContent
             foreach (var kind in planet.AllowedStructures)
             {
                 // #3358: Soaniri keeps its rune monuments. #3500: + its landmarks, and the buried ruins the stamper already asked for.
-                // #3608: + the giant wrecks.
+                // #3608: + the giant wrecks. #3893: + the guide towers.
                 if (kind is not ("sps_labs" or "net_fragments" or "monuments" or LandmarkRules.StructureKind or "gds_ruins"
-                    or GiantShipRules.StructureKind))
+                    or GiantShipRules.StructureKind or SpsTowerRules.StructureKind))
                 {
                     problems.Add($"Planet '{planet.Key}' allows unknown structure kind '{kind}'.");
                 }

@@ -1,5 +1,5 @@
 {
-  "_comment": "Placement rules of the stamped structure kinds (#3517). Every value here equals the C# default in StructureTypeRules (a test holds them together); a field or kind left out keeps its default, a broken entry is reported and dropped. Which fields a kind reads (not every kind reads conditions or whitelist), and what thresholds mean per kind: see StructureTypeRules. minGeneration can be raised, never lowered below the C# default. keepClear/keepClearFrom act on terrain generation 38+ only; site (where a kind likes to stand) and grade (how it reserves its ground) on terrain generation 40+ only. chanceFrom gives a kind another chance from a terrain generation on (generation -> chance; the highest at or below the world's wins, below every entry chance applies) and can never name a generation before the kind's own. ServerConfig's intercity/rail-ruin/landmark/giant-wreck/guardian-giant chance overrides this file when set. Changing a number only affects bodies stamped afterwards: what stands is replayed from its placement records.",
+  "_comment": "Placement rules of the stamped structure kinds (#3517). Every value here equals the C# default in StructureTypeRules (a test holds them together); a field or kind left out keeps its default, a broken entry is reported and dropped. Which fields a kind reads (not every kind reads conditions or whitelist), and what thresholds mean per kind: see StructureTypeRules. minGeneration can be raised, never lowered below the C# default. keepClear/keepClearFrom act on terrain generation 38+ only; site (where a kind likes to stand) and grade (how it reserves its ground) on terrain generation 40+ only. chanceFrom gives a kind another chance from a terrain generation on (generation -> chance; the highest at or below the world's wins, below every entry chance applies) and can never name a generation before the kind's own. ServerConfig's intercity/rail-ruin/landmark/giant-wreck/guardian-giant/sps-tower chance overrides this file when set. Changing a number only affects bodies stamped afterwards: what stands is replayed from its placement records.",
   "text_tablet": {
     "enabled": true, "minGeneration": 33, "chance": 0, "chanceFrom": {}, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
     "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "",
@@ -112,6 +112,17 @@
     "conditions": ["notVoid", "notGas", "notAsteroid", "notCityWorld"], "whitelist": "guardian_giants",
     "site": { "water": [], "coast": [], "prominence": "", "relief": "flat", "altitude": [], "ground": [], "weights": { "relief": 2 } },
     "grade": { "radius": 6, "maxCut": 6, "maxFill": 6 }
+  },
+  "sps_tower": {
+    "enabled": true, "minGeneration": 47, "chance": 0.18, "chanceFrom": {}, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6,
+    "keepClearFrom": {
+      "pad": 24, "wreck_site": 10, "wreck": 16, "settlement": 60, "banditcamp": 24, "lodge": 24, "outpost": 24,
+      "ruin": 16, "factory": 16, "landmark": 16, "giant_wreck": 16, "guardian_giant": 24
+    },
+    "conditions": ["notVoid", "notGas", "atmosphere", "notAsteroid"], "whitelist": "sps_towers",
+    "site": { "water": [], "coast": [], "prominence": "high", "relief": "flat", "altitude": [], "ground": [], "weights": { "relief": 2 } },
+    "grade": { "radius": 16, "maxCut": 24, "maxFill": 24 }
   },
   "underground": {
     "enabled": true, "minGeneration": 35, "chance": 0.04, "chanceFrom": {}, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,

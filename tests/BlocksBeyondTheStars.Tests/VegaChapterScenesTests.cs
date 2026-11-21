@@ -35,6 +35,14 @@ public sealed class VegaChapterScenesTests : IDisposable
 
     private static readonly string[] BeatCards = { "b01", "b03", "b04", "b07", "b08", "b10" };
 
+    /// <summary>#3899: the sky-lights' scenes — played by the game's code at a place (a tower's console, a capsule tank, the
+    /// pilot's flight, a wreck's bridge), not by a beat. They are no chapter scenes or beat cards, so the arc's rules below
+    /// (place-neutral cameras, captions that reuse a beat's text) do not bind them; SkyLightsMissionsTests holds theirs.</summary>
+    private static readonly string[] SkyLightScenes =
+    {
+        StoryCutsceneIds.TowerMessage, StoryCutsceneIds.TankOpens, StoryCutsceneIds.CruiserArrives, StoryCutsceneIds.EchoSpeaks,
+    };
+
     private readonly string _root;
     private readonly GameContent _content;
     private readonly List<SqliteWorldRepository> _repos = new();
@@ -258,7 +266,7 @@ public sealed class VegaChapterScenesTests : IDisposable
             CutsceneAnchors.Player, CutsceneAnchors.Ship, CutsceneAnchors.HealTank, CutsceneAnchors.StarMap, CutsceneAnchors.Core,
             CutsceneAnchors.Players,
         };
-        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue && !IsFinaleScene(c.Id)))
+        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue && !IsFinaleScene(c.Id) && !SkyLightScenes.Contains(c.Id)))
         {
             Assert.All(scene.Shots.Where(s => !CutsceneCameras.IsSynthetic(s.Camera.Type)),
                 s => Assert.Contains(string.IsNullOrEmpty(s.Camera.Anchor) ? CutsceneAnchors.Player : s.Camera.Anchor, placeNeutral));
@@ -296,7 +304,7 @@ public sealed class VegaChapterScenesTests : IDisposable
     public void EveryCaption_ReusesTheBeatsOwnText_AndKeepsItOutOfThePanel_SoNothingIsReadTwice()
     {
         var beatKeys = Vega.Beats.Select(b => b.TextKey).ToHashSet();
-        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue && !IsFinaleScene(c.Id)))
+        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue && !IsFinaleScene(c.Id) && !SkyLightScenes.Contains(c.Id)))
         {
             foreach (var caption in scene.Shots.SelectMany(s => s.Captions))
             {

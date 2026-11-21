@@ -51,11 +51,12 @@ public static partial class GiantShipGenerator
         GiantShipRules.EntranceMarker,
     };
 
-    /// <summary>The marker types a wreck in space keeps: the planet's plus the doorways.</summary>
+    /// <summary>The marker types a wreck in space keeps: the planet's plus the doorways — and (#3902) a warship's bridge
+    /// console and its lamps, which the ship-mode decay turns into blocks (no shipped giant wreck carries one).</summary>
     public static readonly string[] SpaceMarkers =
     {
         LandmarkRules.ChestMarker, "loot", "data_terminal", "relic_cache", LandmarkRules.SoundMarker, LandmarkRules.DenMarker,
-        GiantShipRules.EntranceMarker, DoorMarker,
+        GiantShipRules.EntranceMarker, DoorMarker, GiantShipRules.ConsoleMarker, GiantShipRules.LampMarker,
     };
 
     /// <summary>The rubble of a human wreck: scrap, rusted panels, iron and carbon fragments.</summary>
@@ -114,9 +115,12 @@ public static partial class GiantShipGenerator
     /// (profile <c>hull</c> — every zone a hull with its own strength) from <paramref name="seed"/>; every piece of at least
     /// <see cref="MinPieceCells"/> blocks stays where it is, water is ice. The markers it keeps (doorways included) are in
     /// template coordinates; <see cref="GiantSpaceLayout.Entrance"/> is the boarding arrival. <paramref name="abandonBeds"/>: the
-    /// beds are the abandoned twin, as on a planet (<see cref="BuildPlanet"/>).
+    /// beds are the abandoned twin, as on a planet (<see cref="BuildPlanet"/>). <paramref name="fresh"/> (#3902, the escort
+    /// cruiser's wreck): the ship was shot a moment ago, not left to the centuries — the same holes and broken glass, but no
+    /// scorch marks at all (no soot tint, no crystal). False (every giant wreck) builds exactly what it always built.
     /// </summary>
-    public static GiantSpaceLayout BuildSpace(StructureTemplate t, long seed, GameContent content, bool abandonBeds = false)
+    public static GiantSpaceLayout BuildSpace(StructureTemplate t, long seed, GameContent content, bool abandonBeds = false,
+        bool fresh = false)
     {
         var grid = Fill(t, 0, content, "stone", out var markers);
         int intact = 0;
@@ -125,7 +129,7 @@ public static partial class GiantShipGenerator
             intact += b != 0 ? 1 : 0;
         }
 
-        var options = new RuinOptions { Overgrowth = false, Scorch = ScorchFor(IsAlien(t)), FreezeWater = true };
+        var options = new RuinOptions { Overgrowth = false, Scorch = fresh ? null : ScorchFor(IsAlien(t)), FreezeWater = true };
         Ruin(t, grid, markers, RuinSeed("space", t, seed), LandmarkRules.ProfileHull, groundRow: 0, "stone", options, content,
             ZonesFor(t, 0, space: true));
         AbandonBeds(grid, markers, groundRow: 0, content, abandonBeds);

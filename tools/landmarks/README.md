@@ -17,6 +17,7 @@ the result without Unity. Python 3.10+, standard library only.
 | `ships.py` | `ShipDesign` — the GIANT SHIP toolkit (see [Giant ships](#giant-ships)): hull, decks, rooms, doors, domes ... |
 | `shipgeom.py` | pure ship geometry: cross-sections, the loft, `Hull` (inside / shell / surface queries), tubes along curves |
 | `civ.py` | `CivDesign` — the CIVILIZATION template toolkit (see [Civilizations](#civilizations)): air pockets as diving bells, `prop` markers, murals, pieces in any of the 24 orientations |
+| `_sps_tower_parts.py`, `sps_tower_*.py` | the SPS GUIDE TOWER ruins (#3893, [docs/developer/SPS_TOWERS.md](../../docs/developer/SPS_TOWERS.md)): `TowerDesign` — a `Design` that writes to `data/sps_towers/`, draws the mast through a mapping (standing, leaning, lying, folded over) and knows the tower markers (`sps_console`, `sps_lamp`, `sps_tank`, `sps_guard_post`) — and one script per ruin |
 | `<key>.py` | one script per landmark, with a `build()` that returns its `Design` (or a list; `civ_*.py` return `CivDesign`s) |
 
 ```bash

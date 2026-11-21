@@ -487,7 +487,8 @@ public sealed partial class GameServer
             }
         }
 
-        return OverlapsGiantWreck(x, z, halfExtent) || OverlapsCivilizationSite(x, z, halfExtent);
+        return OverlapsGiantWreck(x, z, halfExtent) || OverlapsCivilizationSite(x, z, halfExtent)
+               || OverlapsSpsTower(x, z, halfExtent); // #3893: a guide tower's footprint too
     }
 
     /// <summary>The landmark whose box holds the cell, or null.</summary>

@@ -85,6 +85,13 @@ public sealed partial class GameServer
             return; // still cooling down (the client also rate-limits) — ignore quietly
         }
 
+        if (session.OtherSide && intent.GadgetKey == Shared.Sounders.SoundersIds.ResonanceBlaster)
+        {
+            // #3908: over there the blaster shapes sound — no suit energy, its own cadence, nothing a real-side player sees.
+            ShapeSoundWithBlaster(session, new Vector3f(intent.X, intent.Y, intent.Z), intent.Alt, cdKey);
+            return;
+        }
+
         if (intent.GadgetKey == "field_medkit" && !MedkitWouldHeal(session))
         {
             // #2957: everyone the pulse reaches is already healthy. A use that heals nobody cost energy and a cooldown
@@ -623,12 +630,12 @@ public sealed partial class GameServer
     public double GadgetCooldownForTest(string playerId, string gadgetKey)
         => _gadgetReadyAt.TryGetValue(playerId + "|" + gadgetKey, out var at) ? System.Math.Max(0, at - _uptime) : 0;
 
-    /// <summary>Test hook: run a gadget use as if the intent arrived.</summary>
-    public void UseGadgetForTest(string playerId, string gadgetKey, Vector3f target)
+    /// <summary>Test hook: run a gadget use as if the intent arrived (<paramref name="alt"/>: its alternative action, #3908).</summary>
+    public void UseGadgetForTest(string playerId, string gadgetKey, Vector3f target, bool alt = false)
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            HandleUseGadget(s, new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
+            HandleUseGadget(s, new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z, Alt = alt });
         }
     }
 

@@ -118,6 +118,7 @@ public sealed partial class GameServer
         public uint LegsRgb;
         public bool IsRobot;
         public string Look = string.Empty; // #1793: additive client look key ("" = the plain avatar)
+        public bool OtherSideOnly; // #3905: lives on the other side — in the list of the players over there, and of nobody else
         public double WanderPhase;
         public LocomotionState Loco; // stop-and-go loiter/stroll state
         public TickVelocity TickVel; // #2666: the real velocity over the last tick — the client's interpolation tangent
@@ -926,7 +927,8 @@ public sealed partial class GameServer
         var list = new List<NetNpc>();
         foreach (var npc in _npcs)
         {
-            if (!npc.VisitingAway && WrapDistSq(session.State.Position, npc.Pos) <= reachSq) // #2602: away = not in the village
+            if (!npc.VisitingAway && (!npc.OtherSideOnly || session.OtherSide) // #2602: away = not in the village; #3905
+                && WrapDistSq(session.State.Position, npc.Pos) <= reachSq)
             {
                 list.Add(ToNetNpc(npc));
             }

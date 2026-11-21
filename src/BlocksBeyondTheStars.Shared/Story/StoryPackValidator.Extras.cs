@@ -41,6 +41,7 @@ public static partial class StoryPackValidator
 
         foreach (var (d, i) in run.Def.Dialogs.Select((d, i) => (d, i)))
         {
+            run.CheckConditions($"dialogs[{i}].visibleIf", d.VisibleIf); // #3910: a dialog offered under conditions
             foreach (var (n, j) in d.Nodes.Select((n, j) => (n, j)))
             {
                 foreach (var (c, k) in n.Choices.Select((c, k) => (c, k)))

@@ -43,6 +43,7 @@ public sealed class BlockLightTests
         Assert.Equal(0xFFFFFF, LightOf("light_white"));
         Assert.Equal(0xFF3838, LightOf("light_red"));
         Assert.Equal(0x53FF61, LightOf("light_green"));
+        Assert.Equal(0x3D8CFF, LightOf("light_blue")); // #3894: the guide towers' blue
         foreach (var key in new[] { "torch", "fire", "strip_light_cyan", "strip_light_warm" })
         {
             Assert.Equal(_content.GetBlock(key)!.Color!.Value & 0xFFFFFF, LightOf(key));

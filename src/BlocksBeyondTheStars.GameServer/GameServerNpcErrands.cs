@@ -457,7 +457,8 @@ public sealed partial class GameServer
         NpcEmote? message = null;
         foreach (var s in JoinedInActiveWorld())
         {
-            if (OnFootHere(s) && WrapDistSq(s.State.Position, npc.Pos) <= NpcEmoteRange * NpcEmoteRange)
+            if (OnFootHere(s) && WrapDistSq(s.State.Position, npc.Pos) <= NpcEmoteRange * NpcEmoteRange
+                && (!npc.OtherSideOnly || s.OtherSide)) // #3905: somebody who lives over there is seen only over there
             {
                 Send(s, message ??= new NpcEmote { NpcId = npc.Id, Gesture = gesture });
             }

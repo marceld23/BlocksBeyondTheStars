@@ -92,6 +92,8 @@ public sealed partial class GameServer
         {
             _repo.SavePlayer(session.State); // once per player and word — the pack's start rule reads the first one
         }
+
+        OtherSideOnRuneStone(session, cell); // #3904: a stone of a gate is the way over (the crossing disc) and the way back
     }
 
     /// <summary>

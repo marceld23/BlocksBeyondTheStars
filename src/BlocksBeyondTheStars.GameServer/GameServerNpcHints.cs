@@ -49,6 +49,12 @@ public sealed partial class GameServer
             return lodgeHint;
         }
 
+        // (a2b) #3895: the old sky-light — a villager points at the guide tower of their world that is not on the map yet.
+        if (npcKey.StartsWith("settle_", System.StringComparison.Ordinal) && TryEmitSpsTowerRumour(session) is { Length: > 0 } towerRumour)
+        {
+            return towerRumour;
+        }
+
         // (a3) #3642: a settler tells a rumour of a lost civilization at home on another world — each once per player
         // (GameServerCivilizationsWorld.cs). A story, not a secret: anyone hears it — sometimes, so the local hints still come.
         if (npcKey.StartsWith("settle_", System.StringComparison.Ordinal) && TryEmitCivilizationRumour(session, forceRoll) is { Length: > 0 } rumour)

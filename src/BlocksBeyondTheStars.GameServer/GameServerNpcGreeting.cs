@@ -492,6 +492,7 @@ public sealed partial class GameServer
             tags.Add(key);
         }
 
+        AddSpsTowerStoryTags(tags); // #3895: sps_tower_red / sps_tower_blue while a guide tower of this world shows red / is lit
         return tags;
     }
 

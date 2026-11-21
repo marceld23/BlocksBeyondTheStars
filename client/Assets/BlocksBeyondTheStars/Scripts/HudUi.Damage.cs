@@ -263,7 +263,9 @@ namespace BlocksBeyondTheStars.Client
         private void UpdateOxygenAlarm(float dt)
         {
             float o2 = Game.Oxygen;
-            float alarm = o2 <= 25f && Game.Health > 0f ? Mathf.Clamp01((25f - o2) / 25f) : 0f;
+            float alarm = o2 <= 25f && Game.Health > 0f && Game.OtherSide.ShowsNeedWarnings // #3906: no air is needed over there
+                ? Mathf.Clamp01((25f - o2) / 25f)
+                : 0f;
             UrpScenePost.Instance?.SetOxygenAlarm(alarm);
 
             if (alarm <= 0f)

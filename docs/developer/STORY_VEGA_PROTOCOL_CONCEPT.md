@@ -183,15 +183,24 @@ observatory's last log, the vault plaque, the derelict's manifest); no new lore 
 [LORE_STRUCTURE.md](LORE_STRUCTURE.md): the Service's own construction giants, taken by the Guardian in the cull) as a beat
 card the Journal keeps among her notes. It is handed out after *The Long Quiet* (one mission at a time), never in its place.
 
+Since #3899 three missions **stay open after their chapter** (`keep`, #3892) — the sky-lights' three acts (canon C19–C22):
+*The Sky-Light*, *The Sleeper* and *ECHO's Call*. A guide tower may stand worlds away and a boss fight may take several
+flights, so they are not let go when the score moves the chapter on; they come after the chapter's own mission and run on
+beside the next chapter's. Each is written for the chapter it starts in (chapter 2 does not know the Guardian yet). A save
+without guide towers skips the first two silently; rules that allow no space boss skip the third.
+
 | Chapter | Mission | Steps (stand-in) |
 |---|---|---|
 | 1 A Familiar Signature | **Follow the Signal** | find a net fragment (help a settlement, once every fragment is found) |
 | 2 The Service | **The Sealed Observatory** | visit it → read the survey post's last log (**The Deep Archive**: read the notes in a buried vault, when the observatory cannot be reached) |
+| 2 The Service | **The Sky-Light** (after it, kept — #3899) | reach a guide tower → read its relay console; VEGA names the sky-lights of the settlers' legend (skipped without towers) |
 | 3 The Guardian | **What the Stones Remember** | read a monument's runes → help a settlement |
 | 4 The Verdict | **The Long Quiet** | board the derelict → find her cargo manifest (**Ships That Remember**: scan a drifting wreck) |
 | 4 The Verdict | **The Fallen Giant** (after it, #3685) | find a lying guardian giant → scan it → VEGA remembers the Service's builders (**Echo of the Builders**, on a world without giants: scan an old wreck, or stop a Guardian machine — the same memory at its end) |
 | 5 What You Are | **Eyes on Far Stars** | research the radar array → build it into the ship |
+| 5 What You Are | **The Sleeper** (after it, kept — #3899) | build a hacking chip → turn a guide tower's lamps blue → open a guard post's capsule tank → talk to the guard; VEGA: "He is like you" (skipped without towers) |
 | 6 It Still Sleeps | **The Jump Generator** | research the jump generator → build it into the ship |
+| 6 It Still Sleeps | **ECHO's Call** (after it, kept — #3899) | fly out → beat the escort cruiser that carries ECHO → board its wreck → free her at the bridge console; she speaks once and says goodbye (skipped where the rules allow no space boss) |
 | 7 The Guardian Core | — | the finale is this chapter's mission |
 | 8 Resolution | **Survey Orders** | do the first survey order from a station board (link the stars with relays, without stations) |
 
@@ -415,6 +424,13 @@ canon fact, entity, or a reveal/ordering change — **update LORE_STRUCTURE.md i
   (canon C18). A defeated giant counts as five machine kills for the score (inside the kill cap) and always releases each
   fighter's next personal memory; VEGA's lines about them follow what the player's own story knows; they still wake after
   the finale (cut off from the core).
+- **The sky-lights** (epic #3891; canon C19–C22) belong to this arc: the Service's **guide towers** stand as ruins on
+  inhabited worlds, their emergency lamps red since the night the Guardian took the network; a **hacking chip** turns a
+  tower, a guard post's capsule tank and a cruiser's bridge **blue again** — the same gesture as the finale's core hack,
+  and never a restored network. The tank grows a guard of the **escort wing** from his imprint (a clone like the
+  players; he never says so, VEGA does once the player's story knows it). The Guardian's cruisers were the escort wing's;
+  the first one a player meets carries VEGA's sister core **ECHO**, who speaks once and says goodbye — never a companion.
+  Three kept missions tell it (§3.4); the cruisers, like the giants, hunt on after the finale.
 
 **Resolved during implementation (were open):**
 - Hack form: **channel-and-defend** chosen and built (`GameServerStoryFinale.HandleCoreHack` — a

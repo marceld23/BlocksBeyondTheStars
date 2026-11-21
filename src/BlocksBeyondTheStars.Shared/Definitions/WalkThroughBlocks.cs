@@ -42,9 +42,9 @@ public static class WalkThroughBlocks
     /// Crystal Net's open phase block, switched-off force field and open trapdoor (#2264), and the open lift gate (#3174).
     /// Part of <see cref="IsProp"/> and of <see cref="CubeHasCollider"/>, so the mesher and the player's out-of-world guard
     /// read one list: the guard used to know only the lift gate and snapped a player standing in an open phase-block door
-    /// back to the spot before it (#3422).</summary>
+    /// back to the spot before it (#3422). #3894: an opened capsule tank cell is one too — a frame a player walks into.</summary>
     public static bool IsOpenTwin(string? key)
-        => key is "phase_block_open" or "force_field_off" or "trapdoor_open" or "lift_gate_open";
+        => key is "phase_block_open" or "force_field_off" or "trapdoor_open" or "lift_gate_open" or "capsule_tank_open";
 
     /// <summary>Whether the client's chunk mesher gives a full-cube cell of this block a collider (<c>TraitCollidable</c>):
     /// everything but water, fire, the energy gate's membrane, a <paramref name="liquid"/> (oil, the gas sea; #2106), a tree

@@ -195,7 +195,7 @@ public sealed partial class GameServer
         onFoot.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!s.Spectating && !InSpace(s.State.PlayerId))
+            if (!s.Spectating && !s.OtherSide && !InSpace(s.State.PlayerId)) // #3905: a camp does not notice a player over there
             {
                 present.Add(s);
                 if (!s.State.AboardShip)

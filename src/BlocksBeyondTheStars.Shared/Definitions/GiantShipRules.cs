@@ -100,6 +100,27 @@ public static class GiantShipRules
         EntranceMarker, DoorMarker, LandmarkRules.ChestMarker, LandmarkRules.SoundMarker, "loot", "data_terminal", "relic_cache",
     };
 
+    /// <summary>#3902: the bridge console of a warship (the escort cruiser's wreck) — the same word as a guide tower's relay
+    /// console. The ship-mode decay places the block <c>sps_console</c> in the marker's cell (setting <see cref="FaceSetting"/>:
+    /// where its front looks) after everything else, and never tears the deck it stands on.</summary>
+    public const string ConsoleMarker = "sps_console";
+
+    /// <summary>#3902: a lamp beside the bridge console — a red lamp is placed in the marker's cell after the decay, so it
+    /// burns (the hacking chip turns it blue).</summary>
+    public const string LampMarker = "sps_lamp";
+
+    /// <summary>The setting of a <see cref="ConsoleMarker"/> naming the side its front looks to: <c>+x</c>, <c>-x</c>,
+    /// <c>+z</c> or <c>-z</c>.</summary>
+    public const string FaceSetting = "face";
+
+    /// <summary>#3902: the markers of a warship's bridge. A giant ship may carry them, but they are no part of
+    /// <see cref="Markers"/> (the structure editor's palette of a giant ship): only an authored script sets them, and only a
+    /// wreck in space keeps them.</summary>
+    public static readonly string[] BridgeMarkers = { ConsoleMarker, LampMarker };
+
+    /// <summary>Whether a giant ship may carry a marker of this type (<see cref="Markers"/> or <see cref="BridgeMarkers"/>).</summary>
+    public static bool IsShipMarker(string? id) => Array.IndexOf(Markers, id) >= 0 || Array.IndexOf(BridgeMarkers, id) >= 0;
+
     /// <summary>The ruin profiles a giant ship's ruin zones may name — the ruin pass's own list,
     /// <see cref="LandmarkRules.GiantShipProfiles"/> (<c>crash</c>, <c>hull</c>, <c>lattice</c> for a mast or a gantry); an
     /// empty one takes the setting's own (<c>crash</c> on a planet, <c>hull</c> in space). Masonry and underground stand on the
@@ -315,7 +336,7 @@ public static class GiantShipRules
             }
 
             string at = $"marker '{c.Id}' at ({c.X},{c.Y},{c.Z})", id = c.Id ?? string.Empty, where = TemplateProblem.At(c.X, c.Y, c.Z);
-            if (Array.IndexOf(Markers, c.Id) < 0)
+            if (!IsShipMarker(c.Id))
             {
                 problems.Add(new TemplateProblem("marker.not_ship", $"{at} is not a giant ship marker ({string.Join(" | ", Markers)})", id, where));
             }

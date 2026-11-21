@@ -10,7 +10,9 @@
 > So do the **lost civilizations' sites** (#3649, terrain generation 43): landmark-style templates in
 > `data/civilizations/<key>/`, stamped by their own stage with several sites per home body, their civilization's materials
 > and ruin look, `prop` markers, the `seabed` seat and air pockets under water (§2, §3) — see
-> [CIVILIZATIONS.md](CIVILIZATIONS.md).
+> [CIVILIZATIONS.md](CIVILIZATIONS.md). And the **SPS guide towers** (#3893, terrain generation 47): landmark-shaped ruins
+> in `data/sps_towers/`, stamped by their own stage on inhabited worlds, always protected, with a record of their own and
+> three markers the ruin pass keeps (`sps_console`, `sps_lamp`, `sps_tank`) — see [SPS_TOWERS.md](SPS_TOWERS.md).
 
 A **landmark** is one giant building that stands on a planet on its own: a leaning tower, a city gate, a mine, a
 statue. It is authored (and stays editable) in the structure editor, and most of them stand only as **ruins** that the
@@ -32,7 +34,9 @@ its own generator; none could be called for an arbitrary structure.
 A landmark is a `StructureTemplate` with `landmark: true`, one file per landmark under `data/landmarks/<key>.json`
 (the editor's own under `usercontent/landmark_templates/`). It never enters a settlement, module or underground pool,
 and nothing else enters the landmark pool (`GameContent.Landmarks`, `LandmarksFor`) — a template flagged `giantShip` is
-left out with a warning: it belongs in `data/giant_ships/` ([GIANT_SHIPS.md](GIANT_SHIPS.md)).
+left out with a warning: it belongs in `data/giant_ships/` ([GIANT_SHIPS.md](GIANT_SHIPS.md)); so is one flagged `spsTower`
+(`data/sps_towers/`, [SPS_TOWERS.md](SPS_TOWERS.md)), although a guide tower borrows the landmarks' name and Codex keys
+(`landmark.<key>.name` / `.desc`) and their scan ledger, so the Codex lists it among them.
 
 | field | meaning |
 |---|---|
@@ -113,7 +117,8 @@ row, the planet's rock): a wall torch falls with its wall, as the server's suppo
 world. A template without mounted lights is ruined byte for byte as before. A marker's
 cell is never filled, and a marker whose floor fell comes down with it and rests on what is left. A ruin keeps only
 the markers a visitor finds — chests, the classic loot markers, sounds and dens (and a civilization's `prop` markers,
-#3641, whose props are placed after the pass); residents, vendors, doors, rooms and pre-built circuits are gone.
+#3641, whose props are placed after the pass, and a guide tower's `sps_console` / `sps_lamp` / `sps_tank`, #3893, whose
+blocks are placed after the pass too); residents, vendors, doors, rooms and pre-built circuits are gone.
 
 **Air pockets** (#3640, civilization templates only). A cell of kind `air` is a cavity that stays air even under water —
 a diving bell a player can breathe in (the writer's water mode, [CIVILIZATIONS.md](CIVILIZATIONS.md) §5). The pass leaves it

@@ -150,6 +150,10 @@ public static class ContentLoader
 
         content.SetGiantShips(giantShips, warn);
 
+        // Guide towers (#3893): one file per tower ruin under data/sps_towers — set after the blocks and the loot tables, which
+        // they are checked against. Optional: no folder → no towers.
+        content.SetSpsTowers(LoadSpsTowers(Path.Combine(dataDir, SpsTowerRules.DataFolder), warn), warn);
+
         // Civilizations (#3639): one file per civilization under data/civilizations, the templates of a framework civilization in
         // its subfolder — set after the loot tables and the planets, which they are checked against. Optional: no folder → none.
         var (civilizations, civilizationTemplates) = LoadCivilizations(Path.Combine(dataDir, CivilizationRules.DataFolder), warn);
@@ -328,6 +332,18 @@ public static class ContentLoader
         {
             t.Kind = GiantShipRules.TemplateKind;
             t.GiantShip = true;
+            return true;
+        }, warn);
+
+    /// <summary>Loads every guide tower of a folder (#3893): one <see cref="StructureTemplate"/> per file in ordinal file-name
+    /// order (the pool order), the key defaulting to the file name, flagged <see cref="StructureTemplate.SpsTower"/> — the
+    /// folder decides the kind. A file that says it is a landmark or a giant ship is refused by the pool's check; a file
+    /// without a body is kept for the check to report. Unreadable → reported, skipped.</summary>
+    private static List<StructureTemplate> LoadSpsTowers(string dir, Action<string>? warn = null)
+        => LoadTemplatePerFile(dir, "guide tower", t =>
+        {
+            t.Kind = SpsTowerRules.TemplateKind;
+            t.SpsTower = true;
             return true;
         }, warn);
 

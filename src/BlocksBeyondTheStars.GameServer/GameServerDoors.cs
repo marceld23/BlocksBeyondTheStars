@@ -268,7 +268,7 @@ public sealed partial class GameServer
         _doorTargets.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!InSpace(s.State.PlayerId) && !s.Watching)
+            if (!InSpace(s.State.PlayerId) && !s.Watching && !s.OtherSide) // #3905: no door opens for a player over there
             {
                 _doorTargets.Add(s.State.Position);
             }

@@ -23,6 +23,12 @@ namespace BlocksBeyondTheStars.Client
 
             // #2147: the hand door E works — the one under the crosshair, else the nearest; its label follows suit.
             int handDoor = TargetHandDoor(out bool doorAimed);
+            if (OverThere)
+            {
+                handDoor = 0; // #3906: no door opens over there — no label, no pick
+                doorAimed = false;
+            }
+
             if (Game.Views.Doors != null)
             {
                 Game.Views.Doors.SetInteractTarget(handDoor);
@@ -76,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
             Game.AimedBasePadCell = AimedBasePadBlock(); // #3070: a base landing pad — the HUD names it, E opens its panel
+            QuietAimStateOverThere(); // #3906: over there none of these is offered (PlayerController.OtherSide.cs)
         }
 
         /// <summary>#1073: a placed crafting-station block in the crosshair (workbench, forge, …) tells you what it powers in

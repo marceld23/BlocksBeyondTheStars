@@ -171,6 +171,16 @@ public sealed partial class GameServer
             ledgerKey = FillGuardianGiantReadout(readout, guardianGiant, session.Locale);
             value = KnowledgeMonument;
         }
+        else if (subjectType == "block" && SpsTowerForScan(session, cell) is { } guideTower)
+        {
+            // #3893: any block of a guide tower's ruin reads as the tower — the knowledge of a relic and a Codex discovery once
+            // per body and ruin (GameServerSpsTowersWorld.cs).
+            (readout.Kind, readout.SubjectKey, readout.Display, readout.InfoKey, ledgerKey) = SpsTowerScan(guideTower, session.Locale);
+            readout.ThreatKey = "ui.scan.threat.inert";
+            readout.LegacyInfo = "The ruin of a guide tower of the Scout and Pioneer Service.";
+            readout.LegacyThreat = "Inert";
+            value = KnowledgeMonument;
+        }
         else if (subjectType == "block" && GiantWreckForScan(session, cell) is { } wreck)
         {
             // #3611: any block of a giant ship wreck reads as the wreck — the knowledge of a relic and a Codex discovery once

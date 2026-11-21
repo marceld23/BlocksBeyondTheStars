@@ -20,6 +20,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Looping is not supported by SFX v3 yet (ElevenLabs, "SFX v3 for developers", 2026-11-02).
+LOOP_MODEL = "eleven_text_to_sound_v2"
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate one sound effect via ElevenLabs (one file per run).")
@@ -29,8 +31,10 @@ def main() -> None:
                     help="length in seconds (0.5-30); 0 = let the model choose")
     ap.add_argument("--influence", type=float, default=0.3,
                     help="prompt_influence 0..1 (higher = stick closer to the prompt)")
-    ap.add_argument("--loop", action="store_true", help="seamless loop (eleven_text_to_sound_v2)")
-    ap.add_argument("--model", default="eleven_text_to_sound_v2")
+    ap.add_argument("--loop", action="store_true",
+                    help="seamless loop — looping works only with eleven_text_to_sound_v2, so --loop uses that model")
+    ap.add_argument("--model", default="eleven_text_to_sound_v3",
+                    help="model id (default: SFX v3, released 2026-11-02; v2 is still the only one that loops)")
     ap.add_argument("--format", dest="fmt", default="mp3_44100_128", help="output_format, e.g. mp3_44100_128")
     args = ap.parse_args()
 
@@ -55,6 +59,9 @@ def main() -> None:
         kwargs["duration_seconds"] = args.duration
     if args.loop:
         kwargs["loop"] = True
+        if args.model != LOOP_MODEL:
+            print(f"[note] --loop works only with {LOOP_MODEL}; using it instead of {args.model}.")
+            kwargs["model_id"] = LOOP_MODEL
 
     audio = client.text_to_sound_effects.convert(**kwargs)
     data = audio if isinstance(audio, (bytes, bytearray)) else b"".join(audio)

@@ -805,6 +805,8 @@ public sealed partial class GameServer
         resident.BlockSet += cell => OnFurnitureCellSet(npcWorld, cell); // #2655: a bed or seat went (its claim is released) or came
         var farWorld = world;
         resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
+        resident.BlockSet += cell => OnRealBlockSetOverSound(farWorld, cell); // #3907: a real block hides the sound block in its cell, air shows it again
+        resident.PlayerBlockSet += cell => OnPlayerBlockSetOverSound(farWorld, cell); // #3907: the real side wins — a block a player built dissolves it
         resident.ShapedBlockReplaced += (cell, was, wasShape) => OnShapedBlockReplaced(resident, cell, was, wasShape); // #1961: a form over several blocks falls as one piece
         BootStage("containers", LoadContainers); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
 
@@ -905,6 +907,7 @@ public sealed partial class GameServer
                     BootDetail("landmarks", () => StampLandmarks(restricted)); // #3486 (generation 37): one giant authored building — after everything that stands on the ground, before what is buried
                     BootDetail("giant wrecks", () => StampGiantWrecks(restricted)); // #3610 (generation 42): a giant ship wreck — right after the landmark, which it keeps clear of
                     BootDetail("guardian giants", () => StampGuardianGiants(restricted)); // #3680 (generation 44): fallen guardian giants — after every surface structure, which they keep clear of
+                    BootDetail("sps towers", () => StampSpsTowers(restricted)); // #3893 (generation 47): the ruin of a guide tower where people live — after every surface structure, which it keeps clear of
                     BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
 
                     if (_config.PlaceVaults && Stamps(StructureTypeRules.Vault))
@@ -1101,6 +1104,8 @@ public sealed partial class GameServer
         {
             return;
         }
+
+        OtherSideBeforeMove(session); // #3904: a world change (an admin's /goto) brings a player back from over there first
 
         var body = _galaxy.FindBody(intent.DestinationBodyId)!;
         var origin = _galaxy?.FindBody(session.CurrentLocationId);
@@ -2159,6 +2164,12 @@ public sealed partial class GameServer
                 continue; // invulnerable: no drain, no death
             }
 
+            if (session.OtherSide)
+            {
+                HoldVitalsOverThere(session, dt); // #3904: no hunger, no air, no cold and no harm on the other side
+                continue;
+            }
+
             // On an EVA spacewalk there is no atmosphere and no ship/station life support: always drain,
             // regardless of the body you launched from being breathable. InEva overrides everything below.
             // Standing physically inside the landed ship's cabin counts as life support too — a sealed cabin
@@ -2630,6 +2641,8 @@ public sealed partial class GameServer
         {
             return;
         }
+
+        OtherSideBeforeMove(session); // #3904: a forced respawn brings a player back from over there first
 
         // Deaths dealt by AI ticks (creatures, guardians, bandits, speeder crashes) arrive here with the
         // ship cursor still on whoever the server served last — everything downstream (_ship/_shipPlaced/
@@ -3434,14 +3447,19 @@ public sealed partial class GameServer
     private void StreamChunkNow(PlayerSession session, ChunkCoord coord)
     {
         var chunk = _world.GetOrLoadChunk(coord);
+        // #3907: over there a chunk that carries sound blocks goes out in its second variant (real + sound blocks); every
+        // other chunk, and every chunk for a player on the real side, is the one real cache entry.
+        var sound = session.OtherSide ? SoundChunkAt(coord) : null;
         if (_objectTransport != null)
         {
             // #1531: the cached chunk MESSAGE goes over as an object — no RLE encode, no codec, no decode.
-            _objectTransport.SendMessage(session.ConnectionId, ChunkMessageFor(chunk, coord), DeliveryMode.ReliableOrderedBulk);
+            var message = sound is null ? ChunkMessageFor(chunk, coord) : SoundChunkMessageFor(chunk, coord, sound);
+            _objectTransport.SendMessage(session.ConnectionId, message, DeliveryMode.ReliableOrderedBulk);
         }
         else
         {
-            SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord), DeliveryMode.ReliableOrderedBulk); // #1534: the world-stream channel
+            var payload = sound is null ? ChunkPayloadFor(chunk, coord) : SoundChunkPayloadFor(chunk, coord, sound);
+            SendEncoded(session.ConnectionId, payload, DeliveryMode.ReliableOrderedBulk); // #1534: the world-stream channel
         }
         session.Streaming.SentChunks.Add(coord);
         MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
@@ -4016,6 +4034,11 @@ public sealed partial class GameServer
             return; // #3765: the fallen watch — they move their camera and talk, nothing else
         }
 
+        if (session.OtherSide && !OtherSideAllows(session, message))
+        {
+            return; // #3904: over there a player moves, talks and touches the rune stones — the gate said the one line
+        }
+
         // #995: while every player holds the world paused, the simulation is frozen — so gameplay intents
         // must not mutate the frozen world either. A stock client sends nothing from its pause menu, so this
         // only stops a modified client from mining/building/moving while everyone else's clock stands still.
@@ -4310,6 +4333,7 @@ public sealed partial class GameServer
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);
         SendPlayerState(session);
+        OtherSideOnJoin(session); // #3904: on our side — a player who left over there stands at their entry gate
         SendShipRepairStatus(session); // a ship at 1/200 hull shows its repair panel from the first frame (#1561)
         SendRules(session);
         // Online admins carry a player-mode roster in their rule set (#1121) — refresh it now that this
@@ -4680,8 +4704,7 @@ public sealed partial class GameServer
             // and never sends a payload, so silence is normal rather than a sign of a dead client.
             InJoinPlacement = true, // #2465: like the network join, the placement raises no game events
         };
-        session.ClientFeatures.Add(ClientFeatures.Packs1); // #2466: a local player runs in this build
-        session.ClientFeatures.Add(ClientFeatures.DialogClose1); // #2616: …and so does its dialogue panel
+        AddLocalClientFeatures(session); // #2466 packs1, #2616 dialogclose1, #3904 otherside1: a local player runs in this build
         session.Join = TakeJoinSnapshot(state); // #2460: the arrival state, like the network join path
         _sessions[connectionId] = session;
         session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say
@@ -4696,6 +4719,7 @@ public sealed partial class GameServer
         OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: saved aboard a station → back on it
         TellOwnerOfStationsCommissionedAway(session); // #2492: like the network join
+        OtherSideOnJoin(session); // #3904: like the network join
         EndLocalJoinPlacement(session); // #2465 the join's own placement is over; #3506 the admin view logs the join
         return session;
     }
@@ -4945,7 +4969,7 @@ public sealed partial class GameServer
             TrackVerticalSpeed(session, before.Y, reported.Y); // #2286: "Back to my ship" refuses a falling player
             TutorialMovementEvents(session, before, reported, onSurface, move.Crouching); // #2469: walk / jump / crouch lessons
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
-            if (onSurface)
+            if (onSurface && !session.OtherSide) // #3905: nobody on our side hears steps from over there
             {
                 GiantsOnPlayerMoved(session, before, reported); // #2001: footsteps on the sand sea are heard
             }
@@ -6332,6 +6356,11 @@ public sealed partial class GameServer
 
     private ToolProperties ActiveTool(PlayerState player)
     {
+        if (BeamTickTool(player) is { } beamTick)
+        {
+            return beamTick; // #3898: a held beam's tick runs down the shot's path with the tick's own numbers
+        }
+
         int slot = player.SelectedHotbarSlot;
         if (slot >= 0 && slot < player.Inventory.SlotCount && player.Inventory.Slots[slot] is { } stack && !stack.IsEmpty)
         {
@@ -6743,7 +6772,12 @@ public sealed partial class GameServer
     }
 
     private void Reject(PlayerSession session, string action, string reason)
-        => Send(session, new ActionRejected { Action = action, Reason = reason });
+    {
+        if (!BeamTickRefused(session, reason)) // #3898: a held beam's refused tick is said now and then, not four times a second
+        {
+            Send(session, new ActionRejected { Action = action, Reason = reason });
+        }
+    }
 
     /// <summary>Seconds between two "backpack full" toasts for one player (#600).</summary>
     private const double InventoryFullHintCooldown = 8.0;
@@ -6866,10 +6900,7 @@ public sealed partial class GameServer
             StarColor = StarColorOf(sys), // #1604/#3123: the same star the sky and the ship interior show
         }).Select(sys => WithPlaceNames(sys, session.State)).ToArray(); // #2952: this player's own names, theirs alone
 
-        var players = _sessions.Values
-            .Where(s => s.Joined && (!s.Spectating || s == session)) // #3052: an observer is listed to nobody but themselves
-            .Select(s => new NetPlayerLocation { Name = s.State.Name, LocationId = s.CurrentLocationId })
-            .ToArray();
+        var players = StarMapPlayersFor(session); // #3052: no observer but oneself; #3905: nobody who is over there (GameServerOtherSide.Visibility.cs)
 
         // This player's own progression: bodies landed on + systems entered. The body/system the player is
         // currently on always counts (covers legacy saves + the very first spawn before anything was marked).
@@ -7004,7 +7035,7 @@ public sealed partial class GameServer
         return new NetBody
         {
             Id = b.Id,
-            Name = b.Name,
+            Name = CruiserWreckNameFor(receiver, b.Id, b.Name), // #3902: a cruiser's wreck is named in the receiver's language
             Kind = b.Kind.ToString(),
             PlanetType = b.PlanetType,
             Status = b.Status.ToString(),

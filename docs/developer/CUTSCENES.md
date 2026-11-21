@@ -79,7 +79,7 @@ singleplayer world or lock input. One scene plays at a time.
 | `captions[].key` | — | locale key in the core or the pack table; English **and** German mandatory; `{0}` = the play's argument |
 | `captions[].style` | `subtitle` | `subtitle` (lower third, paged at sentence ends), `title_card` (kicker + title), `speaker` (speaker box: avatar, name, typewriter, voice), `reading_frame` (framed panel over the dimmed scene — recap, epilogue), `credits` |
 | `captions[].kickerKey` | `""` | `title_card`: the small line above the title; `reading_frame`: its heading (#2478 — the recap, the epilogue's title) |
-| `captions[].speaker` | `""` = the pack's narrator | `speaker` only: who talks — the narrator's id or one of the pack's `speakers` (#2478, `story.json`: id, `nameKey`, `icon`, `color`, `lineStart`, like the narrator; VEGA's pack has `core`, the Guardian core) |
+| `captions[].speaker` | `""` = the pack's narrator | `speaker` only: who talks — the narrator's id or one of the pack's `speakers` (#2478, `story.json`: id, `nameKey`, `icon`, `color`, `lineStart`, like the narrator; VEGA's pack has `core`, the Guardian core, and since #3899 `echo`, her sister core) |
 | `captions[].at` / `hold` | `0` / `0` | seconds into the shot; how long it stays (`0` = to the end of the shot) |
 | `sfx[].cue` / `at` | — / `0` | the clip and the second it plays |
 | `options.holdWorld` | T3/T4 taking the camera | hold a singleplayer world while the scene plays |
@@ -150,7 +150,9 @@ Every fallback chain ends in `player_view`, which is always possible. A T1 banne
 ### Ids
 
 - **VEGA** (`StoryCutsceneIds.Vega`): `prologue`, `ch1.open` … `ch7.open` (`ch7.open` = the B12 reveal, T4), the beat
-  moments `b01`, `b03`, `b04`, `b07`, `b08`, `b10`, `fin.arrival`, `fin.descent`, `fin.breach`, `fin.duel`,
+  moments `b01`, `b03`, `b04`, `b07`, `b08`, `b10`, the mission card `giant.remembers` (#3685), the sky-lights' scenes
+  `tower.message`, `tank.opens`, `cruiser.arrives`, `echo.speaks` (#3899 — see
+  [The sky-lights' scenes](#the-sky-lights-scenes-3899)), `fin.arrival`, `fin.descent`, `fin.breach`, `fin.duel`,
   `fin.standdown`, `resolution`.
 - **Tutorial** (`StoryCutsceneIds.Tutorial`): `tut.welcome`, `tut.strip`, `tut.course`, `tut.done`, `tut.first_launch`,
   `tut.first_dock`, `tut.first_landing`, `tut.first_jump`, `tut.first_base`, `tut.ship_commissioned`, `tut.first_circuit`,
@@ -268,6 +270,20 @@ Potato/Low presets those three play as cards again (their only camera shots are 
 - **Stingers** (`client/Assets/Resources/audio`, ElevenLabs `gen_sound.py`, 2026-10-12, each ≤ 50 KB for the browser
   payload): `chapter_sting` (calm, a soft pad resolving on a chime), `chapter_sting_memory` (shimmering bells — VEGA
   remembers), `chapter_sting_reveal` (a wondrous rising chord — the big scenes); see `docs/developer/SOUND_DESIGN.md`.
+
+### The sky-lights' scenes (#3899)
+
+Four VEGA scenes that **no beat, chapter or step binds**: the game's code plays each at its place and moment
+(`PlayCutscene`, once per player by the ledger) and has a line form for a client without `cutscenes1`. They are short —
+a staged moment or a card, never a set piece — and skippable. The arc's rules for chapter scenes and beat cards
+(place-neutral cameras, captions that reuse a beat's text) do not bind them; `SkyLightsMissionsTests` holds theirs.
+
+| Id | Played by (server) | Tier | What the player sees | Without the scene |
+|---|---|---|---|---|
+| `tower.message` | `LightSpsTower` → `PlaySpsTowerMessage` — the player who lights a guide tower with a hacking chip; the relay console is the `custom` anchor | T3, `orbit` on the anchor, `playInPlace` | "Guide tower / The light is blue again", then the console's three status lines as subtitles ("Relay console: power restored. Guide light: blue." …) while the camera circles the tower's foot. A machine's records: it names nobody. No chapter (a tower is lit whenever a player has a chip) | this tower's piece of ECHO's call, else the console's next record |
+| `tank.opens` | `OpenCapsuleTank` — everybody on foot within 24 blocks of the tank; the tank is the `custom` anchor | T3, `static` on the anchor, `playInPlace` | "Guard post / The capsule tank opens" and VEGA's one line (`story.vega.tank.opens`) over a still framing of the tank and the guard beside it. Captions only — his words are his dialog afterwards; nothing says what he is. No chapter | VEGA's line in her panel |
+| `cruiser.arrives` | the story glue `PlayEchoCruiserArrival` — a pilot who follows ECHO's call, when her cruiser is in their flight | T2 card on the live flight view, `cooldownExempt` | "Jump signature / The Escort Cruiser", then VEGA: "That hull… that is one of ours. That is the escort wing." Like `fin.arrival`: no camera (a scene that takes it never plays at the helm), free controls; dropped when shots already fly — its title then shows as a banner. The line is sent with it (`replaceLineKeys`) | the line in VEGA's panel |
+| `echo.speaks` | `FreeEcho` — everybody aboard the wreck of ECHO's cruiser when a hacking chip turns its bridge blue | T2 card on the live view, one line per shot | "The bridge turns blue / ECHO", then ECHO's five lines in her own box (the pack speaker `echo`, blue) and VEGA's two answers in hers, in the bridge code's order (`story.vega.echo.1`, `.2`, `echo.vega.1`, `.3`, `.4`, `.5`, `echo.vega.2`). A card because the wreck's robots do not stop for a scene and no camera move is safe inside a hull. The lines are sent with it and are its `replaceLineKeys`, so a scene cut short by danger gives them back to the panel and the story log has them either way | her lines in VEGA's panel under her name |
 
 ### VEGA's finale (#2478)
 

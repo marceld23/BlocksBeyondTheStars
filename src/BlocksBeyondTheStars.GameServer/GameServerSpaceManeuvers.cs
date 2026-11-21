@@ -66,6 +66,17 @@ public sealed partial class CombatEntity
 
     public float HeavyInterval { get; set; }
 
+    /// <summary>#3900: seconds this hostile's heavy shot charges (0 = <see cref="SpaceCombatRules.HeavyChargeSeconds"/>),
+    /// how close its quarry must be for the charge to start (0 = the engage range), the most of the target's full hull
+    /// one hit takes (0 = no cap) and the style the client draws — from its tier, like the damage.</summary>
+    public float HeavyCharge { get; set; }
+
+    public float HeavyRange { get; set; }
+
+    public float HeavyHullCap { get; set; }
+
+    public string HeavyStyle { get; set; } = string.Empty;
+
     /// <summary>#3756: which way round this hostile circles its quarry (+1 / -1; 0 = not picked yet).</summary>
     public int OrbitSign { get; set; }
 }
@@ -350,18 +361,42 @@ public sealed partial class GameServer
             }
 
             e.HeavyTargetId = targetId;
-            e.HeavyFireAt = _uptime + SpaceCombatRules.HeavyChargeSeconds;
-            BroadcastToInstance(instance, new SpaceHeavyShot
-            {
-                EntityId = e.Id,
-                TargetPlayerId = targetId,
-                Phase = SpaceCombatRules.HeavyPhaseCharge,
-                Seconds = SpaceCombatRules.HeavyChargeSeconds,
-            });
+            float charge = HeavyChargeOf(e);
+            e.HeavyFireAt = _uptime + charge;
+            BroadcastToInstance(instance, HeavyShotMessage(e, targetId, SpaceCombatRules.HeavyPhaseCharge, charge,
+                PilotPositionIn(instance, targetId)));
         }
 
         return false;
     }
+
+    /// <summary>Seconds this hostile's heavy shot charges: its tier's, else the classic warning.</summary>
+    private static float HeavyChargeOf(CombatEntity e)
+        => e.HeavyCharge > 0f ? e.HeavyCharge : SpaceCombatRules.HeavyChargeSeconds;
+
+    /// <summary>How close its quarry must be for this hostile's heavy shot to charge: its tier's range, else the engage range.</summary>
+    private static float HeavyRangeOf(CombatEntity e) => e.HeavyRange > 0f ? e.HeavyRange : ShipEngageRange;
+
+    /// <summary>One <see cref="SpaceHeavyShot"/> of this hostile: the phase, where it comes from (the hostile, now) and
+    /// where it points (#3900 — the aiming line and the beam are drawn from these).</summary>
+    private static SpaceHeavyShot HeavyShotMessage(CombatEntity e, string targetId, byte phase, float seconds, Vector3f aim,
+        bool blocked = false)
+        => new()
+        {
+            EntityId = e.Id,
+            TargetPlayerId = targetId,
+            Phase = phase,
+            Seconds = seconds,
+            Style = e.HeavyStyle,
+            OriginX = e.Position.X,
+            OriginY = e.Position.Y,
+            OriginZ = e.Position.Z,
+            TargetX = aim.X,
+            TargetY = aim.Y,
+            TargetZ = aim.Z,
+            Range = HeavyRangeOf(e) * SpaceCombatRules.HeavyReachFactor,
+            Blocked = blocked,
+        };
 
     /// <summary>How long after its due time a charged heavy shot still fires. A flight instance without a pilot at the
     /// helm is not ticked, so a charge can be found long overdue when somebody takes the helm again.</summary>
@@ -408,8 +443,69 @@ public sealed partial class GameServer
             return false;
         }
 
-        float range = ShipEngageRange * reach;
+        float range = HeavyRangeOf(e) * reach;
         return pose.Pos.DistanceSquared(e.Position) <= range * range;
+    }
+
+    /// <summary>#3900: whether a rock stands in the way of a mega laser (a heavy shot with a style): an asteroid whose
+    /// centre lies within <see cref="SpaceCombatRules.HeavyCoverRadius"/> (times its scale) of the line from the hostile
+    /// to its target, between the two. The classic heavy shot goes through as before. <paramref name="at"/> is the
+    /// rock's position — where the beam ends.</summary>
+    private static bool HeavyShotBlocked(SpaceInstance instance, CombatEntity e, Vector3f target, out Vector3f at)
+    {
+        at = target;
+        if (e.HeavyStyle.Length == 0)
+        {
+            return false;
+        }
+
+        float lx = target.X - e.Position.X, ly = target.Y - e.Position.Y, lz = target.Z - e.Position.Z;
+        float lenSq = (lx * lx) + (ly * ly) + (lz * lz);
+        if (lenSq < 1f)
+        {
+            return false;
+        }
+
+        foreach (var rock in instance.Entities)
+        {
+            if (rock.Kind != CombatEntityKind.Asteroid || rock.Hull <= 0f)
+            {
+                continue;
+            }
+
+            float rx = rock.Position.X - e.Position.X, ry = rock.Position.Y - e.Position.Y, rz = rock.Position.Z - e.Position.Z;
+            float t = ((rx * lx) + (ry * ly) + (rz * lz)) / lenSq;
+            if (t <= 0.05f || t >= 0.98f)
+            {
+                continue; // behind the hostile, or behind (or at) the target
+            }
+
+            float px = rx - (lx * t), py = ry - (ly * t), pz = rz - (lz * t);
+            float radius = SpaceCombatRules.HeavyCoverRadius * System.Math.Max(1f, rock.Scale);
+            if ((px * px) + (py * py) + (pz * pz) <= radius * radius)
+            {
+                at = rock.Position;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>#3900: a capped heavy shot lands on the cursor ship: the shield first, then the hull — at most
+    /// <paramref name="maxHullShare"/> of the full hull, and never the last hull point of a ship above a quarter of its
+    /// hull (<see cref="SpaceCombatRules.HeavyHullDamage"/>). VEGA's evasive manoeuvre (Mk3) can still dodge it all.</summary>
+    private void ApplyCappedShipDamage(float amount, float maxHullShare)
+    {
+        if (VegaTryEvade())
+        {
+            return;
+        }
+
+        float toShield = System.Math.Min(_ship.Shield, amount);
+        _ship.Shield -= toShield;
+        float onHull = SpaceCombatRules.HeavyHullDamage(amount - toShield, _ship.Hull, _shipHullMax, maxHullShare);
+        _ship.Hull = System.Math.Max(0f, _ship.Hull - onHull);
     }
 
     /// <summary>The charged shot fires: a hit on the hunted pilot's ship, or a miss. Returns true when the hit
@@ -424,18 +520,17 @@ public sealed partial class GameServer
         var pilot = inReach ? FindSessionByPlayerId(targetId) : null;
         PilotSim? sim = null;
         bool onTarget = pilot is not null && instance.PilotSims.TryGetValue(targetId, out sim) && !IsStaggered(e);
-        bool hit = onTarget && sim is not null && !IsEvading(sim);
-        if (onTarget && !hit)
+        // #3900: the aimed pilot's ship as far as it is known (it may have left the flight) — where the beam points.
+        var aim = e.HeavyTargetId.Length > 0 && instance.PlayerPoses.TryGetValue(e.HeavyTargetId, out var aimed) ? aimed.Pos : e.Position;
+        bool blocked = onTarget && HeavyShotBlocked(instance, e, aim, out aim); // a rock in the mega laser's way
+        bool hit = onTarget && !blocked && sim is not null && !IsEvading(sim);
+        if (onTarget && !blocked && !hit)
         {
             RaiseGameEvent(pilot, GameEventKeys.ShipEvaded, GameEventKeys.EvadedHeavy); // #3831: only the roll made it miss
         }
 
-        BroadcastToInstance(instance, new SpaceHeavyShot
-        {
-            EntityId = e.Id,
-            TargetPlayerId = e.HeavyTargetId,
-            Phase = hit ? SpaceCombatRules.HeavyPhaseHit : SpaceCombatRules.HeavyPhaseMiss,
-        });
+        BroadcastToInstance(instance, HeavyShotMessage(e, e.HeavyTargetId,
+            hit ? SpaceCombatRules.HeavyPhaseHit : SpaceCombatRules.HeavyPhaseMiss, 0f, aim, blocked));
         e.HeavyTargetId = string.Empty;
         if (!hit || pilot is null)
         {
@@ -443,7 +538,15 @@ public sealed partial class GameServer
         }
 
         SetCurrent(pilot); // the damage below must land on THIS pilot's ship
-        ApplyShipDamage(e.HeavyDamage);
+        if (e.HeavyHullCap > 0f)
+        {
+            ApplyCappedShipDamage(e.HeavyDamage, e.HeavyHullCap); // #3900: the mega laser never ends a flight in one hit
+        }
+        else
+        {
+            ApplyShipDamage(e.HeavyDamage);
+        }
+
         if (_ship.Hull <= 0f)
         {
             DisableShip(instance);

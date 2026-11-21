@@ -94,6 +94,11 @@ public sealed class StructureTemplate
     /// (on a planet and in space). It is never a ship type, never a landmark, and no other pool ever offers it.</summary>
     public bool GiantShip { get; set; }
 
+    /// <summary>#3893: an SPS GUIDE TOWER (<see cref="SpsTowerRules"/>) — the ruin of a Scout and Pioneer Service guide tower,
+    /// a landmark-shaped template of <c>data/sps_towers/</c> that only the tower stamper offers. It is never a landmark and
+    /// no other pool ever offers it.</summary>
+    public bool SpsTower { get; set; }
+
     /// <summary>#3639: the CIVILIZATION this template belongs to (<see cref="CivilizationDefinition"/>), empty = none. A template of
     /// a framework civilization lives in <c>data/civilizations/&lt;key&gt;/</c>, is offered only by the civilization stage (no
     /// settlement, station, landmark, giant ship or underground pool ever offers it) and draws from <see cref="CivPool"/>. On any

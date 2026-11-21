@@ -250,7 +250,8 @@ namespace BlocksBeyondTheStars.Client
             // Low-value warning state with hysteresis (#753): trips below 10 %, clears above 15 %, so a
             // value hovering at the threshold doesn't flicker the alarm on and off. Suppressed while dead
             // (every bar bottoms out on the respawn screen — blinking them all helps nobody).
-            v.Warn = active && Game.Health > 0f && (frac < 0.10f || (v.Warn && frac < 0.15f));
+            // #3906: nor on the other side — nothing drains and nothing hurts there, so nothing warns.
+            v.Warn = active && Game.Health > 0f && Game.OtherSide.ShowsNeedWarnings && (frac < 0.10f || (v.Warn && frac < 0.15f));
             v.BaseColor = color;
             if (!active)
             {

@@ -465,7 +465,7 @@ namespace BlocksBeyondTheStars.Client
                     "SpaceStation" => BuildStationModel(_root.transform),
                     "Drone" => BuildDroneModel(_root.transform),
                     "Ufo" => BuildUfoModel(_root.transform),
-                    "Cruiser" => BuildCruiserModel(_root.transform),
+                    "Cruiser" => BuildCruiserEntityModel(_root.transform, e), // #3900: the escort cruiser when it is the boss
                     "BanditShip" => BuildBanditShipModel(_root.transform, e), // #2357: its real voxel hull once the design is here
                     "HunterShuttle" => BuildHunterShuttleModel(_root.transform, e), // #3097: the same, in Guardian steel and red
                     "EscapePod" => BuildEscapePodModel(_root.transform, e),   // #2241: a little lifeboat, not a red cube

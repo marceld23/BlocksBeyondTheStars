@@ -202,6 +202,7 @@ namespace BlocksBeyondTheStars.Client
             ["light_white"] = Lens(new Color(0.95f, 0.97f, 1f)),
             ["light_red"] = Lens(new Color(1f, 0.22f, 0.22f)),
             ["light_green"] = Lens(new Color(0.24f, 1f, 0.36f)),
+            ["light_blue"] = Lens(new Color(0.24f, 0.55f, 1f)), // #3894: the guide towers' blue
         };
 
         /// <summary>Ice and glass share one look (a method, like <see cref="Cleared"/>, so the table needs no field order).</summary>

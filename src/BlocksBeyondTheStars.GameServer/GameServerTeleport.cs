@@ -92,7 +92,7 @@ public sealed partial class GameServer
 
         // A position is only meaningful inside its own scene (#1030): a target flying in space or standing on
         // another body has coordinates that mean nothing here.
-        if (InSpace(targetId)
+        if (InSpace(targetId) || HiddenFrom(session, target) // #3905: an ally who is over there is not here
             || !string.Equals(target.CurrentLocationId, session.CurrentLocationId, System.StringComparison.Ordinal))
         {
             Reject(session, "teleport", "@srv.tpp.not_here:" + target.State.Name);

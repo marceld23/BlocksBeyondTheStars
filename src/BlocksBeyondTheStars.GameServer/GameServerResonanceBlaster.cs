@@ -25,6 +25,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <see cref="SoundrakCalmSeconds"/> (<see cref="CalmCreature"/>, the creatures' calm).</item>
 /// </list>
 /// Each pulse sounds <c>blaster_pulse_1</c>/<c>_2</c> in turn. While held, the client shows the melody bar (the sound part).
+/// <para>On the other side (#3908) it does neither: a pulse shapes or dissolves a sound block
+/// (GameServerSoundLayer.Blaster.cs), with the melody bar as the palette.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -48,6 +50,13 @@ public sealed partial class GameServer
     /// <summary>The blaster's use. False when nothing came of it (a chamber refused): it costs neither energy nor cooldown.</summary>
     private bool UseResonanceBlaster(PlayerSession session, Vector3f target)
     {
+        if (session.OtherSide)
+        {
+            // #3908: over there the blaster changes only sound — it pushes nobody and opens no chamber. The gadget table
+            // hands its pulse to ShapeSoundWithBlaster (GameServerSoundLayer.Blaster.cs) before it ever gets here.
+            return false;
+        }
+
         var cell = AimedCell(session.State, target);
         if (cell is { } c && WithinReach(session.State, c))
         {

@@ -91,7 +91,8 @@ public sealed class StoryPackValidationContext
 /// client reports — a warning otherwise, #2469), marker providers, legacy keys (tutorial only), alternatives, empty hint
 /// ids, the graduation (#2469: its line, its counter, at most three suggested optional chapters), a world chapter's story
 /// missions (#2476: ids that are no chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip
-/// text without a slot, lead bridges naming a lead a player can follow), <c>lore:</c> conditions naming a lore text that
+/// text without a slot, lead bridges naming a lead a player can follow; #3892: <c>keep</c> on a world story's missions only,
+/// a warning where it changes nothing), <c>lore:</c> conditions naming a lore text that
 /// exists, a tutorial pays no rewards (its own fields: a mission it bridges onto keeps the rewards it has in
 /// <c>data/missions.json</c>, #2481 — the Crystal workshop course), every locale key exists in English and
 /// German, every cutscene binding resolves in the pack's <c>cutscenes.json</c> and every cutscene follows the tier, camera,

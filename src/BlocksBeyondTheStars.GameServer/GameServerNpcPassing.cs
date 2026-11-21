@@ -89,7 +89,7 @@ public sealed partial class GameServer
         foreach (var session in JoinedInActiveWorld())
         {
             var p = session.State;
-            if (session.Spectating || (_shipPlaced && p.AboardShip) || InSpace(p.PlayerId)
+            if (session.Spectating || session.OtherSide || (_shipPlaced && p.AboardShip) || InSpace(p.PlayerId) // #3905
                 || _uptime < session.Npc.PassingGreetReadyAt || InConversationNearby(session))
             {
                 continue; // aboard / in flight / in a conversation already — nobody calls out across it
@@ -177,7 +177,7 @@ public sealed partial class GameServer
     /// voice budget exists to prevent), not away visiting a base and not a guest at one (#2602 — a guest greets with its
     /// own line), not cheering in a festival ring (#2604).</summary>
     private bool MayGreetInPassing(ServerNpc npc)
-        => npc.Pose != 2 && (npc.Goal is null || npc.OnErrand) && npc.Role != "guardian" && npc.Job != "streamer"
+        => npc.Pose != 2 && !npc.OtherSideOnly && (npc.Goal is null || npc.OnErrand) && npc.Role != "guardian" && npc.Job != "streamer"
            && (npc.TalkWith is null || _uptime >= npc.TalkUntil)
            && !npc.VisitingAway && !IsGuestJob(npc.Job) && npc.Phase != NpcPhase.Festival;
 

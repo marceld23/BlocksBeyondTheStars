@@ -269,10 +269,11 @@ namespace BlocksBeyondTheStars.Client
                     ("map_mark_danger", GuardianGiantKindKey, GuardianGiantCol), // #3676: a guardian giant (WorldMap.GuardianGiants.cs)
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
                     (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), (null, "poi.guardian_core", GuardianCoreCol), // glyph-only rows (⦿, ◎ #1792)
+                    ("map_beacon", SpsTowerKindKey, SpsTowerCol), // #3893: a guide tower (WorldMap.SpsTowers.cs)
                 };
-                // Six slots per row of 140 px (the longest label at 15 px, "Netzfragment-Signal", wraps nowhere). #2647: the third
-                // row (y 863–893) put the buttons below at y=904, still inside the panel (it ends at y=1000); since #3676 it is
-                // full (six entries) — a nineteenth would need a fourth row.
+                // Six slots per row of 140 px (the longest label at 15 px, "Netzfragment-Signal", wraps nowhere). The third row
+                // (y 863–893) was full since #3676; #3893 opened a fourth (y 897–927), which moved the buttons below from
+                // y=904 to y=938 — they end at y=988, still inside the panel (it ends at y=1000). A fifth row does not fit.
                 const int perRow = 6;
                 const float slotW = 140f, rowH = 34f;
                 for (int li = 0; li < entries.Length; li++)
@@ -292,7 +293,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            const float buttonsY = 904f;
+            const float buttonsY = 938f;
             UiKit.AddButton(root, ix, buttonsY, 120, 50, "−", () => { _radius = Mathf.Min(640, _radius + 90); Build(); });
             UiKit.AddButton(root, ix + 140, buttonsY, 120, 50, "+", () => { _radius = Mathf.Max(60, _radius - 90); Build(); });
             UiKit.AddButton(root, ix + 300, buttonsY, 240, 50, L("ui.map.clear_waypoint"), () => { Game.Waypoint = null; Refresh(); });
@@ -801,6 +802,7 @@ namespace BlocksBeyondTheStars.Client
             BlocksBeyondTheStars.Shared.Definitions.GiantShipRules.MapType => ("✖", GiantWreckCol, "map_wreck"), // #3611: a giant ship wreck — the wreck icon in hull steel blue
             BlocksBeyondTheStars.Client.Core.CivilizationText.MapType => CivilizationLook, // #3642: a lost civilization's site — the ruin icon in verdigris
             BlocksBeyondTheStars.Shared.Definitions.GuardianGiantRules.PoiType => GuardianGiantLook, // #3676: a found guardian giant — the danger mark in Guardian red
+            BlocksBeyondTheStars.Shared.Definitions.SpsTowerRules.MapType => SpsTowerLook, // #3893: a guide tower — the beacon icon in the sky-lights' blue (WorldMap.SpsTowers.cs)
             "outpost" => ("⌂", OutpostCol, "map_base"), // #2681: a pioneer's outpost ("Mira's outpost") — an NPC's base, in sand
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };

@@ -448,7 +448,7 @@ public sealed partial class GameServer
         {
             string pid = s.State.PlayerId;
             CountWandererCooldown(pid, hosting: outs.Any(w => w.HostId == pid));
-            if (!belong || s.Spectating)
+            if (!belong || s.Spectating || s.OtherSide) // #3905: no traveller walks up to a player over there
             {
                 continue;
             }
@@ -1025,7 +1025,7 @@ public sealed partial class GameServer
         double rangeSq = WandererCustomerRange * (double)WandererCustomerRange;
         foreach (var s in _wandererTargets)
         {
-            if (!s.Spectating && WrapDistSq(s.State.Position, npc.Pos) <= rangeSq)
+            if (!s.Spectating && !s.OtherSide && WrapDistSq(s.State.Position, npc.Pos) <= rangeSq)
             {
                 return true;
             }

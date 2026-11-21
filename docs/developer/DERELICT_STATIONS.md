@@ -537,3 +537,9 @@ derelict machinery, and what the derelict machinery gained for it.
 
 Tests: `GiantWreckPlacerTests`, `GiantDerelictTests`, `DerivedStationTests`, `HullShellTests`; Client.Tests
 `SpaceDesignAssemblerTests`, `FlightStructureMeshTests`.
+
+**A third family (#3902).** The wreck a beaten escort cruiser leaves is a derelict too — `derelict:cruiser-<system>-<n>`
+(`CruiserWreckRules.IdPrefix`), a derived station like a giant wreck, but registered at runtime where the boss fell, built
+with the *fresh* option of the ruin pass and the ship-mode decay, one per system, and with a bridge console of its own.
+Every rule above that is keyed on `derelict:` holds for it by its id; where a registry is asked, the cruiser wrecks' one
+(`_cruiserWrecks`) is asked beside the derelicts' and the giants'. See [GIANT_SHIPS.md §14](GIANT_SHIPS.md#14-the-escort-cruisers-wreck-3902).

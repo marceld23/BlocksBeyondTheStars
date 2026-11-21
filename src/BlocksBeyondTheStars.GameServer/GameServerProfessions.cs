@@ -243,7 +243,7 @@ public sealed partial class GameServer
             foreach (var s in JoinedInActiveWorld())
             {
                 var p = s.State;
-                if (s.Spectating || InSpace(p.PlayerId) || p.Milestones.Contains(StreamerNeverMilestone)
+                if (s.Spectating || s.OtherSide || InSpace(p.PlayerId) || p.Milestones.Contains(StreamerNeverMilestone) // #3905
                     || WrapDistSq(p.Position, npc.Pos) > StreamerAskRange * StreamerAskRange)
                 {
                     continue;

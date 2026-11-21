@@ -142,8 +142,8 @@ public static partial class StoryPackValidator
     }
 
     /// <summary>#2476: a world chapter's story missions — ids unique in the pack and never a chapter's id (they share the
-    /// chapter keys), a title, feasibility, an alternative of the same chapter, and steps by the mission rules (do steps with a
-    /// chip text; lead bridges allowed).</summary>
+    /// chapter keys), a title, feasibility, an alternative of the same chapter, <c>keep</c> where it means something (#3892),
+    /// and steps by the mission rules (do steps with a chip text; lead bridges allowed).</summary>
     private static void ValidateMissions(Run run, string cp, StoryChapter ch)
     {
         var missions = ch.Missions ?? new List<StoryMission>();
@@ -180,6 +180,7 @@ public static partial class StoryPackValidator
                 run.Error($"{mp}.alternative", $"'{m.Alternative}' is not another mission of chapter '{ch.Id}'");
             }
 
+            ValidateMissionKeep(run, mp, ch, missions, m);
             var steps = m.Steps ?? new List<StoryStep>();
             if (steps.Count == 0)
             {
@@ -187,6 +188,30 @@ public static partial class StoryPackValidator
             }
 
             ValidateSteps(run, new StepOwner(mp, "mission", m.Id, steps, LineMaxEn, LineMaxDe, mission: true));
+        }
+    }
+
+    /// <summary>#3892: <c>keep</c> (the mission stays open after its chapter) — read on a world story's missions only; a
+    /// warning where it changes nothing: in the last chapter (nothing comes after it), and on a mission that only stands in
+    /// for one that is not kept (an alternative is kept with its mission; alone it is never handed out later).</summary>
+    private static void ValidateMissionKeep(Run run, string mp, StoryChapter ch, List<StoryMission> missions, StoryMission m)
+    {
+        if (!m.Keep)
+        {
+            return;
+        }
+
+        if (run.PlayerPack)
+        {
+            run.Error($"{mp}.keep", "keep is read on a world story's missions only");
+        }
+        else if (run.Def.Chapters.Count > 0 && ReferenceEquals(run.Def.Chapters[run.Def.Chapters.Count - 1], ch))
+        {
+            run.Warn($"{mp}.keep", $"chapter '{ch.Id}' is the last one — no chapter follows it, so keep changes nothing");
+        }
+        else if (missions.Any(o => o is not null && o.Alternative == m.Id) && !missions.Any(o => o is not null && o.Alternative == m.Id && o.Keep))
+        {
+            run.Warn($"{mp}.keep", $"'{m.Id}' only stands in for a mission that is not kept — set keep on that one (its alternative is kept with it)");
         }
     }
 }

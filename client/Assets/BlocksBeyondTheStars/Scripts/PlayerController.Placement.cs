@@ -301,7 +301,7 @@ namespace BlocksBeyondTheStars.Client
         private void UpdatePlacementGhost()
         {
             _ghostFrame = Time.frameCount;
-            string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
+            string held = Game != null && !OverThere ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null; // #3906: nothing is placed over there — no ghost
             UpdateBasePadPreview(held); // #3070: a held landing pad shows its landing square
             bool rotatable = HeldOrientable(held, out _);
             if (Game != null)

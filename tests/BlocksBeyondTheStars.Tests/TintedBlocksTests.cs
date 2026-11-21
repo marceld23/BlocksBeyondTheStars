@@ -53,7 +53,7 @@ public sealed class TintedBlocksTests : IDisposable
     {
         foreach (var key in new[]
         {
-            "glass", "glass_clear", "torch", "lantern", "light_white", "light_red", "light_green",
+            "glass", "glass_clear", "torch", "lantern", "light_white", "light_red", "light_green", "light_blue",
             "strip_light_cyan", "strip_light_warm",
         })
         {

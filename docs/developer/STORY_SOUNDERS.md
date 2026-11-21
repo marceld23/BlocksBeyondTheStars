@@ -1,6 +1,7 @@
 # The Sounders' Song — concept and how it is built
 
-Status: implemented (epic #3368, issues #3344–#3367). Live Done/Open status: [../../TODO.md](../../TODO.md).
+Status: implemented (epic #3368, issues #3344–#3367; chapters 9–11 and the cracks: epic #3891, issues #3909, #3910). Live
+Done/Open status: [../../TODO.md](../../TODO.md).
 
 **The Sounders' Song** (*Das Lied der Sounders*) is the second story of the game, next to VEGA's. It is a **side pack per
 player** (`data/stories/sounders/`, `kind: side`, `scope: player`): it runs in the same world as VEGA's story, every
@@ -20,6 +21,13 @@ sketches by Theo and a classmate; the names by Marcel and Justus, 2026-11-07).
 - **The Great Song** — all Sounders sang together at the Choir Tower to save their world. The song carried every singer
   into the Qualis' world. **They are not dead**: as **Echoes** they still sing "on the other side", and where rune stones
   stand the wall between the realities is thin. Only the few who did not sing stayed behind.
+- **The other side is a place you can go** (#3891). It is the Qualis' world and the same place as ours — the same hills,
+  the same blocks — in white, grey and black. The Sounders who sang the Great Song live there; they call the Qualis
+  **"the Lights"**, their neighbours. Where three or more rune stones stand close together the wall is thin enough to step
+  through: a **rune gate**. **The old songs built here and cracked walls over there** — every gate still carries such a
+  crack. So over there one sings **softly**, with the Bridge Song's counter-voice, which breaks nothing. **Sound blocks**
+  are sound, not matter: a song that stays where it is sung. The Qualis stay strange and never speak. How the place is
+  built: [OTHER_SIDE.md](OTHER_SIDE.md).
 - **The Final Song** — the survivors' myth of the Great Song: their people "rose to a higher place". The Echoes tell the
   truth.
 - **The living Sounders** — a few hum (they no longer build by singing) in the village **Mirun** on **Soaniri**, in the
@@ -40,7 +48,7 @@ sketches by Theo and a classmate; the names by Marcel and Justus, 2026-11-07).
 - **The twist inside the pack:** VEGA's old monument "translations" (her own pack's rune inscriptions) were the
   archive's guesses — the runes were never letters. VEGA's texts stay as they are; she says so herself in chapter 3.
 
-## 2. The story (8 chapters)
+## 2. The story (11 chapters)
 
 | Chapter | What the player does | Ends with |
 |---|---|---|
@@ -52,6 +60,45 @@ sketches by Theo and a classmate; the names by Marcel and Justus, 2026-11-07).
 | s6 The Song of Return | plays **ORNEMIS** in the note alphabet at a singing shrine (the Singing Shrine or a ring) | Ornemis on the player's star map |
 | s7 Homecoming | jumps to Ornemis, lands on Soaniri, meets **the Eldest** in Mirun | the Young Voices are at the Choir Tower |
 | s8 The Bridge Song | persuades **Roll**, plays the counter-voice at the **Choir Tower**'s eight pipes (one letter per round: the choir sings it, the player answers the glowing keys — #3677), then wins the **sing duel** with a Soundi | the Soundi travels with the player |
+| s9 The Threshold | hears from **the Eldest** that the stones are thin, researches and builds the **Crossing disc**, puts it into the obsidian chest's socket, steps through a **rune gate** and talks to **Elora** on the other side | the first look at the other side |
+| s10 Singing Softly | talks to **Kamo** at a gate over there, shapes twelve **sound blocks** with the Resonance Blaster ("a first bridge"), mends the **crack** of three different gates | the real side blooms at the mended gates |
+| s11 The Song from Over There | crosses at the **Choir Tower** on Soaniri and sings SOANIRI ("song home") with the choir of the Sounders who crossed over — the Bridge Song's game, from the other side | the great crack closes, the Lights gather |
+
+**Chapters 9 to 11 (#3910) continue a story that was already finished.** The engine walks the chapters of a pack whatever
+its "done" stamp says, so a player who finished chapter 8 before gets chapter 9 by itself at the next join. The stamp
+(`story:sounders:done`) stays — conditions and the pack's lore and dialogs read it — and the Journal derives what it
+shows from the chapters (`JournalSystem.NetPackOf`): while a non-optional chapter is neither done nor skipped the pack
+reads as running, without the done mark and the badge; once chapter 11 is through it is done again. The chapter card
+counts "Part n of 11" from the pack (`CutsceneArgs.PlaceOf`); finishing chapter 11 by play advances the pack's graduation
+counter `story:sounders` (the achievement `sounders_song`). A player who had **skipped the whole pack** ("Skip all")
+made another choice: for them the new chapters are closed as skipped, silently — nothing starts, nothing is handed over
+(`KeepWhollySkippedPackSkipped`, `GameServerStoryPacks.Grown.cs`; the rule holds for every player pack that grows). They
+can restart the story from the Journal.
+
+- **s9.** The Eldest has one talk per part of the story — a dialog's own `visibleIf` (#3910): `snd_eldest` until chapter 8
+  is through, `snd_eldest_threshold` after it. A player who is not in the Ornemis system (`world:in_ornemis`) plays any
+  rune stone instead and VEGA translates the same idea (s9.1a); whoever hears it from the Eldest after all is through the
+  stand-in (`TickSoundersStepEvidence`). Either way `snd:threshold` is written, and only then the blueprint
+  `sounder_crossing` shows in research (`hiddenUntil: milestone:snd:threshold`). The crossing itself is the other-side
+  core's (`otherside:crossed`, argument: the body id); the scene `snd.threshold` plays with it. Then Elora stands at the
+  gate the player came through — a figure only players over there see, placed while s9.6 runs
+  (`TickSoundersOverEcho`, character id `elora_over`, dialog `snd_elora_over`); she goes eight seconds after the talk,
+  and when the player leaves or returns. Players at one gate share her.
+- **s10.** Kamo stands the same way at any gate (`kamo_over`, `snd_kamo_over` — not once per player: a child may hear
+  the how-to again). `sound:shaped` counts the blocks; `crack:mended` comes once per gate and world, so three are three
+  different gates — on any world, and three placed rune stones make a gate (they mend, but the real side gives nothing
+  for them). The cracks: [OTHER_SIDE.md](OTHER_SIDE.md) § "The cracks".
+- **s11.** The Choir Tower was built with crystal pipes and no rune stones, so it is no gate by itself: while a player of
+  chapter 11 is within 64 blocks, three rune stones stand at its foot (`EnsureChoirTowerGate` — ordinary blocks nobody
+  owns, never where a gate stands already, never in front of the doorway). s11.1 completes on a crossing on Soaniri; while
+  Soaniri is out of reach (`world:soaniri_reachable`) any gate stands in (s11.1a); a player who is over there already is
+  through either at once. The choir — Elora, Kamo, Feya, Tini and two to four more, with the small talk of the folk at
+  the gates — gathers around the song's site (the tower's foot; the gate the player came through anywhere else) while a
+  player of the chapter is over there within 64 blocks. A tone on the melody bar within 24 blocks starts the puzzle
+  `song_from_over_there` (Harmony, one letter a round, glowing keys, the word SOANIRI). Solved: `snd:great_crack`, a mend
+  with a reach of 64 blocks (the site's gate and every gate around it), five Qualis of the other side over the site, the
+  scene `snd.other_song` and the closing card `snd.epilogue2`. Afterwards the folk at the gates have one more line for
+  this player (`dlg.snd_over_folk.c_crack`), and the crossing stays possible for good.
 
 Nobody dies, nobody in the story is a villain, wrong notes never punish (a wrong note simply does not count — nothing
 restarts, #3678), every place-bound step has a fallback (no shrine → the
@@ -91,7 +138,10 @@ on to the next disc. This is deliberate: a skipper gets what the skipped steps w
 the builders and the hearing disc (the chest socket's disc chapters 4 and 5 need), s4.4 the Great Song disc — each only when
 not decoded and not at hand (`NextMissingDisc`), and once (`snd:catchup:<disc>` — a disc in a spindle is not at hand). s4.2: the two blueprints are unlocked. s4.3 / s4.6: one Resonance Blaster /
 obsidian chest piece unless one is carried (`snd:catchup:<item>` makes it once). Chapter 6: `snd:song_learned` (Ornemis on the
-star map). s8.1: `snd:roll_convinced`; s8.2: `snd:bridge_done` (the sing duel can start). A player who played a step has its
+star map). s8.1: `snd:roll_convinced`; s8.2: `snd:bridge_done` (the sing duel can start). #3910 — s9.1: `snd:threshold`
+(the Crossing disc's blueprint shows); s9.2: the blueprint is unlocked; s9.3: one Crossing disc unless one is carried;
+chapter 10: nothing material; chapter 11: `snd:great_crack` (written by `SoundersOtherSidePass`, which also runs when no
+chapter is ahead any more — a milestone only, so "Skip all" still hands out no item). A player who played a step has its
 milestones and never gets a second item. The catch-up runs only while a chapter of the story is still ahead, so "Skip all"
 hands out nothing and the sing duel's Soundi (the last step) stays the prize of playing it. VEGA says what came
 (`srv.sounders.catch_up_items`, the item and blueprint names in the player's language) or that the gaps were filled
@@ -104,7 +154,8 @@ is no event in the world, so the drop-at-the-feet rule of mining overflow does n
 (achievements, calendar doors). **Needed items come again** (`SoundersNeeds`) — the key items nothing else hands out
 twice: while s3.1 runs the Song Spindle (no recipe before disc 1 is decoded; the shrine's own reward, an event in the world,
 still drops at the feet when the backpack is full), while s3.2 runs disc 1 (the relic caches never bring it), while s4.7 (the
-hearing disc into the chest's socket) or chapter 5 (the Echoes come only to a wearer of the hearing disc) runs the hearing disc.
+hearing disc into the chest's socket) or chapter 5 (the Echoes come only to a wearer of the hearing disc) runs the hearing disc,
+and (#3910) while s9.4, s9.5, s9.6 or chapter 10 or 11 runs the Crossing disc (nothing crosses without it).
 When the player has none at hand — backpack, worn, or in a Song Spindle of their world — VEGA packs a replacement
 (`srv.sounders.need_item`; it waits for room like the catch-up), which also heals a save whose skipped disc is lying
 somewhere. A spare is harmless. The Great Song disc is not on the list: the next sound chamber brings it while it is not
@@ -129,6 +180,11 @@ it, `srv.sounders.wrong_disc_find` (the relic caches) when not (`HintStoryDisc`,
 | Resonance Blaster, sound chambers | `GameServerGadgets.cs`, `GameServerSoundChambers.cs` | [HELD_ITEMS.md](HELD_ITEMS.md) |
 | Obsidian armour, disc socket | equipment, `GearLook` | [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md) |
 | Echoes, the Eldest, Roll, story glue | `GameServerSoundersStory*.cs` | this doc §5 |
+| The other side: the state, rune gates, crossing and coming back, what a player may do there, who sees whom, the Qualis and the Sounders at the gates, the gate list | `GameServerOtherSide*.cs` | [OTHER_SIDE.md](OTHER_SIDE.md) |
+| Sound blocks: the second layer of a world, shaping and dissolving with the Resonance Blaster, the tone palette | `GameServerSoundLayer*.cs`, `Shared/Sounders/OtherSideRules.cs` | [OTHER_SIDE.md](OTHER_SIDE.md) § "The sound layer" |
+| Cracks: the mend game from the melody bar, the saved mends, the bloom, the relic cache, the gift of the Lights | `GameServerOtherSideCracks*.cs`, `GameServerMelodyPuzzles.FreePlay.cs` | [OTHER_SIDE.md](OTHER_SIDE.md) § "The cracks" |
+| Chapters 9–11: the threshold, Elora and Kamo over there, the choir, the Song from Over There, the great crack | `GameServerSoundersStory.OtherSide.cs`, `GameServerSoundersStory.Choir.cs` | this doc §2 |
+| A dialog offered under conditions (`dialogs[].visibleIf`) | `DialogDefinition.VisibleIf`, `PickDialog` | [STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md) §16 |
 | Ornemis (pack star systems) | story engine | [MULTIWORLD_AND_SYSTEM_FLIGHT.md](MULTIWORLD_AND_SYSTEM_FLIGHT.md) |
 | Soaniri, Mirun, Ornasa, the Choir Tower, singing plants | `sounder_world`, `GameServerSounderWorld*.cs` | [WORLD_GENERATION.md](WORLD_GENERATION.md) |
 | Sounder, Soundi, Soundrak, Quali, Soundeling | body plans, `data/creatures.json` | [CREATURE_RIG.md](CREATURE_RIG.md) |
@@ -190,6 +246,15 @@ The runtime owns `story:sounders:…`. The pack's own flags live under `snd:`:
 | `snd:echo:<id>` | an Echo was questioned to the end |
 | `snd:song_learned` | the Song of Return was played (or chapter 6 skipped) — Ornemis shows on this player's star map |
 | `snd:roll_convinced` / `snd:bridge_done` | Roll was convinced / the Bridge Song was sung (or the step skipped) |
+| `snd:threshold` | the player heard that the stones are thin (the Eldest's dialog, a rune stone VEGA translated, or a skip) — the Crossing disc's blueprint shows |
+| `snd:crossed` | the first crossing to the other side (the other-side core writes it; kept for good) |
+| `snd:over` | carried only **while** the player is over there (the core's marker: the damage gate reads it, and a save written meanwhile is recognised at the next join) |
+| `snd:crack:<location>:<n>` | the player took part in mending a crack: the `n`-th mended crack of that world |
+| `snd:crack_gift:<crack key>` | a gift of the Lights for that mend still waits for room in the backpack (removed when it is packed) |
+| `snd:great_crack` | the Song from Over There was sung with the choir (or chapter 11 skipped) |
+
+The mended cracks themselves are the world's, not a player's: `WorldMetadata.MendedCracks`
+([OTHER_SIDE.md](OTHER_SIDE.md) § "The cracks").
 
 ## 6. Assets
 

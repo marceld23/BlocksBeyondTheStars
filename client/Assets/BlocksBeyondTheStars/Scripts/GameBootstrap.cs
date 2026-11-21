@@ -580,6 +580,8 @@ namespace BlocksBeyondTheStars.Client
                         Network.ClosesDialogs = true;
                         // #3405: E at the own robot opens a conversation in NpcDialogUi (four replies) — robottalk1.
                         Network.TalksWithRobot = true;
+                        // #3904: this client can show the other side (the grey grade, the gate, the sound layer) — otherside1.
+                        Network.ShowsOtherSide = true;
                         // #3021 "My festivals": the selection rides on the join, so the join's own greeting already follows it.
                         Network.FestivalPreset = (int)FestivalMood.Preset(Settings);
                         Network.FestivalCustom = FestivalMood.Custom(Settings);

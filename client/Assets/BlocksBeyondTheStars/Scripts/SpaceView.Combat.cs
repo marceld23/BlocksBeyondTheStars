@@ -66,7 +66,7 @@ namespace BlocksBeyondTheStars.Client
             _entityKinds.TryGetValue(m.Id, out var kind);
             float scale = kind switch
             {
-                "Cruiser" => 2.2f,
+                "Cruiser" => CruiserExplosionScale(m.Id), // 2.2; #3900: the escort cruiser by its model's scale
                 "BanditShip" => 1.5f,
                 "HunterShuttle" => 1.3f, // #3097: shot down before it could land
                 "Ufo" => 1.2f,
@@ -229,6 +229,12 @@ namespace BlocksBeyondTheStars.Client
                 if (fx.Style == "wormhole")
                 {
                     WormholeVisuals.FlashAt(at, fx.Arriving); // #2242: another pilot vanishing into / shooting out of a rift
+                    continue;
+                }
+
+                if (fx.Style == BlocksBeyondTheStars.Shared.Definitions.EscortCruiserRules.WarpStyle)
+                {
+                    EscortCruiserWarp(at, fx.Arriving); // #3900: the boss's arrival and its jump away — the same streak, much bigger
                     continue;
                 }
 

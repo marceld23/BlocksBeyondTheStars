@@ -25,7 +25,9 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_ressaw", // #3421
         "ui.admin.help_landmark", // #3496
         "ui.admin.help_giantwreck", // #3610
+        "ui.admin.help_spstower", // #3893
         "ui.admin.help_guardian_giant", // #3676
+        "ui.admin.help_cruiser", // #3900
         "ui.cmd.usage_giant", // #3676: /giant guardian
         "ui.admin.help_wilderness", // #2646
         "ui.admin.help_rail", // #3447
@@ -33,6 +35,7 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_fleet",
         "ui.admin.help_story",
         "ui.admin.help_sounders", // #3368
+        "ui.admin.help_otherside", // #3904
         "ui.admin.help_tutorial", // #2471
         "ui.admin.help_maintenance",
         "ui.admin.help_world", // #3390: the cheats line split in two

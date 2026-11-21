@@ -69,7 +69,8 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!CanTradeTogether(fromPlayer, toPlayer))
+        if (!CanTradeTogether(fromPlayer, toPlayer)
+            || (FindSessionByPlayerId(toPlayer) is { } wanted && HiddenFrom(from, wanted))) // #3905: over there is not here
         {
             Reject(from, "trade", "@srv.trade.too_far");
             return;

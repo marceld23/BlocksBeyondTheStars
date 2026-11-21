@@ -83,6 +83,7 @@ public sealed partial class GameServer
         On<FireWeaponIntent>(map, (gs, s, m) => gs.HandleFireWeapon(s, m));
         On<AttackEntityIntent>(map, (gs, s, m) => gs.HandleAttackEntity(s, m));
         On<ShootBlockIntent>(map, (gs, s, m) => gs.HandleShootBlock(s, m));
+        On<BeamWeaponIntent>(map, (gs, s, m) => gs.HandleBeamWeapon(s, m)); // #3898: a held-beam weapon's tick
         On<UseStationIntent>(map, (gs, s, m) => gs.HandleUseStation(s, m));
         On<LocateStationIntent>(map, (gs, s, m) => gs.HandleLocateStation(s, m)); // #1072
         On<SetAppearanceIntent>(map, (gs, s, m) => gs.HandleSetAppearance(s, m));

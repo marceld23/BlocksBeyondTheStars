@@ -341,25 +341,26 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A trader warping in/out: a stretched light streak from far away, a flash and a ring.</summary>
-        public static void WarpZip(Vector3 at, Vector3 dir, bool arriving)
+        /// <summary>A trader warping in/out: a stretched light streak from far away, a flash and a ring.
+        /// <paramref name="size"/> makes the whole picture bigger for a bigger ship (#3900: the escort cruiser).</summary>
+        public static void WarpZip(Vector3 at, Vector3 dir, bool arriving, float size = 1f)
         {
             var color = new Color(0.6f, 0.8f, 1f);
-            var far = at - dir.normalized * 90f;
+            var far = at - dir.normalized * (90f * size);
             var mat = FxKit.BeamMaterial("warpzip", Color.white, coreWidth: 0.6f, noiseScale: 0.1f, noiseSpeed: 40f, intensity: 3f);
             if (arriving)
             {
-                FxKit.Beam(far, at, color, 0.9f, 0.3f, mat);
+                FxKit.Beam(far, at, color, 0.9f * size, 0.3f, mat);
             }
             else
             {
-                FxKit.Beam(at, at + dir.normalized * 90f, color, 0.9f, 0.3f, mat);
+                FxKit.Beam(at, at + dir.normalized * (90f * size), color, 0.9f * size, 0.3f, mat);
             }
 
-            FxKit.Flash(at, Color.white, 3f * FxKit.FlashScale, 0.15f);
-            FxKit.Flash(at, color, 5f, 0.35f);
-            FxKit.Ring(at, Vector3.zero, color, 0.5f, 7f, 0.5f, thickness: 0.12f, intensity: 2.2f);
-            FxLights.Flash(at, color, 2.5f, 18f, 0.4f);
+            FxKit.Flash(at, Color.white, 3f * size * FxKit.FlashScale, 0.15f);
+            FxKit.Flash(at, color, 5f * size, 0.35f);
+            FxKit.Ring(at, Vector3.zero, color, 0.5f * size, 7f * size, 0.5f, thickness: 0.12f, intensity: 2.2f);
+            FxLights.Flash(at, color, 2.5f, 18f * size, 0.4f);
         }
 
         /// <summary>A scan pulse from the ship: an expanding fresnel shell and a camera-facing ring.</summary>

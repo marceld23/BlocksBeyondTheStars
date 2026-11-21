@@ -2330,6 +2330,7 @@ namespace BlocksBeyondTheStars.Client
                 case "light_white": return 1.00f;
                 case "light_red": return 1.00f;
                 case "light_green": return 1.00f;
+                case "light_blue": return 1.00f; // #3894
                 case "lava": return 1.00f;
                 case "flora_emberbloom": return 0.95f;
                 case "flora_cinderbush": return 0.70f; // smouldering volcanic embers

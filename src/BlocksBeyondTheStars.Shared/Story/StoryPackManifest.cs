@@ -171,7 +171,8 @@ public sealed class StoryChapter
 /// other. Per player: in multiplayer everyone does their own. Finishing one counts as following a lead for the chapter bonus
 /// (<see cref="StoryDefinition.LeadBonusMilestones"/>, still once per save and chapter); there is no other reward. A mission
 /// never holds a beat back: the score keeps revealing them, and when the player's chapter moves on an unfinished mission is let
-/// go (closed as skipped). Older clients (no <c>packs1</c>) get no missions — they keep the story chip they know.
+/// go (closed as skipped) — unless it is marked <see cref="Keep"/> (#3892), which lets it run on and still be handed out in
+/// the later chapters. Older clients (no <c>packs1</c>) get no missions — they keep the story chip they know.
 /// </summary>
 public sealed class StoryMission
 {
@@ -194,6 +195,15 @@ public sealed class StoryMission
 
     /// <summary>Whether the player may skip the mission in the Journal; unset = allowed.</summary>
     public bool? Skippable { get; set; }
+
+    /// <summary>#3892: the mission stays open after its chapter (JSON <c>keep</c>, default false). The chapter follows the
+    /// world's shared score, so without this a mission is handed out only while the world is in exactly its chapter and is let
+    /// go when the chapter moves on. A kept mission that runs keeps running through the later chapters, and one that was never
+    /// handed out (the player came late, or the chapter lasted a single beat) is still handed out later — after the current
+    /// chapter's own missions, in data order, never beside another running mission. Its <see cref="Alternative"/> is kept with
+    /// it. Finished late it still counts for its own chapter's bonus (once per save and chapter, never after the last beat).
+    /// It has no effect in the last chapter. For a mission bound to a place a player may not find in time.</summary>
+    public bool Keep { get; set; }
 
     /// <summary>The mission's steps in order (two to four is the rule of thumb; every step needs a chip text — the Journal's
     /// line).</summary>
@@ -553,6 +563,18 @@ public static class StoryRevealProviders
     /// one in reach (an older world, a planet type without shrines) — and no line from afar.</summary>
     public const string NearestRuneShrine = "nearest_rune_shrine";
 
+    /// <summary><c>nearest_sps_tower</c> — the relay console of the nearest guide tower on the player's world (#3895). On a world
+    /// without one, when a tower stands on another body somebody visited, the narrator names that world and its system (inside
+    /// its system the world becomes the space waypoint) — the spot is marked on arrival. Nothing while no tower is known
+    /// anywhere (<c>world:sps_tower_known</c>).</summary>
+    public const string NearestSpsTower = "nearest_sps_tower";
+
+    /// <summary><c>nearest_sps_guard</c> — the sleeper of the nearest guard post on the player's world (#3897): the guard where he
+    /// stands once his capsule tank was opened (his post, or the settlement he went to), else the sealed tank. From a world
+    /// without a guard post the narrator names a visited world that has one, like <c>nearest_sps_tower</c>. Nothing while no
+    /// guard post is known (<c>world:sps_guard_post_known</c>).</summary>
+    public const string NearestSpsGuard = "nearest_sps_guard";
+
     /// <summary><c>pack_site:&lt;id&gt;</c> — a site the gameplay code registered for a pack (#3349,
     /// <c>GameServer.RegisterPackSite</c>: the Sounders' Choir Tower), while the player is on its world. Nothing elsewhere.</summary>
     public const string PackSite = "pack_site";
@@ -571,7 +593,8 @@ public static class StoryRevealProviders
 
         if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal) || string.Equals(reveal, NearestFoodPlant, StringComparison.Ordinal)
             || string.Equals(reveal, NearestStation, StringComparison.Ordinal) || string.Equals(reveal, NearestMonument, StringComparison.Ordinal)
-            || string.Equals(reveal, NearestRuneShrine, StringComparison.Ordinal))
+            || string.Equals(reveal, NearestRuneShrine, StringComparison.Ordinal)
+            || string.Equals(reveal, NearestSpsTower, StringComparison.Ordinal) || string.Equals(reveal, NearestSpsGuard, StringComparison.Ordinal))
         {
             return true;
         }

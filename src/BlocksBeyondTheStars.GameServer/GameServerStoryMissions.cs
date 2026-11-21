@@ -24,13 +24,20 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the steps' <c>story:&lt;story&gt;:step:&lt;step&gt;</c> — per player, so in multiplayer everyone does their own.</item>
 /// <item><b>Letting go.</b> A mission never holds a beat back: the score keeps revealing them. When the player's chapter moves on,
 /// a mission of an earlier chapter that is not finished is closed as skipped (its satisfied ones count as done first).</item>
+/// <item><b>Staying open</b> (#3892, <see cref="StoryMission.Keep"/>): a kept mission is not let go. One that runs keeps
+/// walking through the later chapters; one that was never handed out is handed out later — once none of the current chapter's
+/// own missions is left to hand out or running, in data order, with its <c>feasibleIf</c> / <c>alternative</c> as ever (the
+/// alternative of a kept mission is kept too). A kept mission never starts beside a running one; a mission without the switch
+/// starts exactly as before, so at most one kept mission and one of the current chapter run at a time — the chip shows the
+/// current chapter's first. The Journal lists the running kept ones after the chapter's own.</item>
 /// <item><b>Lead bridges</b> (<see cref="StoryObjectiveTypes.Lead"/>): a step that is one of the chapter-lead words is followed
 /// exactly like that lead (the lead listener's events, the lead's evidence, the heal tank's spot), shows the lead's own
 /// place-aware text on the chip where it can be followed from here (its own chip text elsewhere) and marks the lead's place.</item>
 /// <item><b>The chip.</b> A running mission takes the chapter lead's place (rank "VEGA lead" of synthesis §5.3, source
 /// <c>story</c>, the story's id as its pack) — never over the open finale. Leads keep counting in the background.</item>
 /// <item><b>The bonus.</b> Finishing a mission counts as following a lead of its chapter for the chapter bonus: once per save and
-/// chapter (<see cref="PayLeadBonus"/>), never after the arc's last beat. No other reward.</item>
+/// chapter (<see cref="PayLeadBonus"/>), never after the arc's last beat — a kept mission finished late pays under its own
+/// chapter's key. No other reward.</item>
 /// <item><b>Older clients</b> (no <c>packs1</c>) get no missions — no lines, no state; they keep the story chip they know.</item>
 /// </list>
 /// </summary>
@@ -74,6 +81,7 @@ public sealed partial class GameServer
                 var mission = new CompiledMission(chapter, missionDef, storyChapter.Id, ci)
                 {
                     FeasibleIf = StoryConditionParser.ParseList(missionDef.FeasibleIf, predicates),
+                    Keep = missionDef.Keep,
                 };
                 pack.Missions.Add(mission);
                 byId[mission.Id] = mission;
@@ -96,6 +104,7 @@ public sealed partial class GameServer
 
             mission.Alternative = alternative;
             alternative.IsAlternative = true;
+            alternative.Keep |= mission.Keep; // #3892: what stands in for a kept mission stays open with it
         }
 
         foreach (var step in pack.StepsById.Values)
@@ -157,7 +166,8 @@ public sealed partial class GameServer
 
     /// <summary>Brings a player's story missions up to date: running missions walk (a step activates and speaks, a satisfied
     /// mission is done); a mission of a chapter the player has left is let go (done when satisfied, else skipped — never a new
-    /// line for it); and when none of the current chapter's runs, the next one is handed out. Cheap (milestone lookups).</summary>
+    /// line for it) unless it is kept (#3892: it walks on); and when none of the current chapter's runs, the next one is
+    /// handed out. Cheap (milestone lookups).</summary>
     private void AdvanceStoryMissions(PlayerSession s)
     {
         if (!StoryMissionsRunFor(s, out var pack))
@@ -176,7 +186,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (mission.StoryChapterIndex < current)
+                if (mission.StoryChapterIndex < current && !mission.Keep)
                 {
                     // The story moved on: what is through counts, the rest is let go — no step of it speaks any more.
                     bool satisfied = ChapterSatisfied(s, mission.Chapter);
@@ -211,19 +221,54 @@ public sealed partial class GameServer
     /// <summary>Hands out the next mission of the player's chapter when none of it runs: the first one (in data order) that is not
     /// through and stands in for nobody; an infeasible one is skipped silently and its alternative starts instead (or is skipped
     /// too when it cannot be done either). Waits while the basic training runs and while a story card or scene still waits in the
-    /// player's cutscene queue. Returns whether anything changed.</summary>
+    /// player's cutscene queue. #3892: when none of the chapter's own is left, the first kept mission of an earlier chapter that
+    /// is not through gets its turn the same way — and a kept mission never starts beside a running one (a mission without the
+    /// switch starts exactly as before). Returns whether anything changed.</summary>
     private bool StartNextMission(PlayerSession s, CompiledPack pack, int current)
     {
-        var missions = pack.Missions.Where(m => m.StoryChapterIndex == current).ToList();
-        if (missions.Count == 0 || missions.Any(m => ChapterRuns(s, m.Chapter)) || !MissionStartAllowed(s))
+        bool own = false;
+        bool kept = false;
+        bool keptRuns = false;
+        foreach (var mission in pack.Missions)
+        {
+            if (mission.StoryChapterIndex == current)
+            {
+                if (ChapterRuns(s, mission.Chapter))
+                {
+                    return false; // one of the chapter's own runs: one at a time
+                }
+
+                own = true;
+            }
+            else if (mission.Keep && mission.StoryChapterIndex < current)
+            {
+                kept = true;
+                keptRuns |= ChapterRuns(s, mission.Chapter);
+            }
+        }
+
+        if ((!own && !kept) || !MissionStartAllowed(s))
         {
             return false;
         }
 
         bool changed = false;
-        foreach (var mission in missions)
+        return (own && HandOutFirst(s, pack, current, earlier: false, keptRuns, ref changed))
+               || (kept && !keptRuns && HandOutFirst(s, pack, current, earlier: true, keptRuns, ref changed))
+               || changed;
+    }
+
+    /// <summary><see cref="StartNextMission"/>'s walk over one group in data order — the current chapter's missions, or
+    /// (<paramref name="earlier"/>, #3892) the kept ones of the chapters before it: starts the first that is not through and
+    /// feasible (true); what this world cannot offer is closed as skipped on the way (<paramref name="changed"/>), its
+    /// alternative standing in. A kept mission of the current chapter waits while an earlier kept one still runs
+    /// (<paramref name="keptRuns"/>) — it cannot be lost, and the chapter's next mission goes first.</summary>
+    private bool HandOutFirst(PlayerSession s, CompiledPack pack, int current, bool earlier, bool keptRuns, ref bool changed)
+    {
+        foreach (var mission in pack.Missions)
         {
-            if (mission.IsAlternative || ChapterDoneOrSkipped(s, mission.Chapter))
+            bool inGroup = earlier ? mission.Keep && mission.StoryChapterIndex < current : mission.StoryChapterIndex == current;
+            if (!inGroup || mission.IsAlternative || ChapterDoneOrSkipped(s, mission.Chapter) || (mission.Keep && keptRuns))
             {
                 continue;
             }
@@ -249,7 +294,7 @@ public sealed partial class GameServer
             }
         }
 
-        return changed;
+        return false;
     }
 
     /// <summary>Whether VEGA may hand a mission out now: no basic training runs for the player (no story task during the
@@ -302,7 +347,7 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>The running mission step VEGA's chip shows for this player — the first active step of the first running mission of
-    /// their current chapter — or null.</summary>
+    /// their current chapter, else (#3892) of a kept mission of an earlier chapter that still runs — or null.</summary>
     private CompiledStep? MissionChipStep(PlayerSession s)
     {
         if (!StoryMissionsRunFor(s, out var pack))
@@ -311,19 +356,39 @@ public sealed partial class GameServer
         }
 
         int current = TrackChapterIndex(s);
+        CompiledStep? kept = null;
         foreach (var mission in pack.Missions)
         {
-            if (mission.StoryChapterIndex != current || !ChapterRuns(s, mission.Chapter))
+            bool own = mission.StoryChapterIndex == current;
+            if (!own && (kept is not null || !mission.Keep || mission.StoryChapterIndex > current))
             {
                 continue;
             }
 
-            foreach (var step in mission.Chapter.Steps)
+            if (!ChapterRuns(s, mission.Chapter) || CurrentStepOf(s, mission) is not { } step)
             {
-                if (step.IsDo && StepActive(s, step) && !StepComplete(s, step))
-                {
-                    return step;
-                }
+                continue;
+            }
+
+            if (own)
+            {
+                return step; // the current chapter's mission ranks first
+            }
+
+            kept = step;
+        }
+
+        return kept;
+    }
+
+    /// <summary>A running mission's current step: its first active task that is not through, or null.</summary>
+    private CompiledStep? CurrentStepOf(PlayerSession s, CompiledMission mission)
+    {
+        foreach (var step in mission.Chapter.Steps)
+        {
+            if (step.IsDo && StepActive(s, step) && !StepComplete(s, step))
+            {
+                return step;
             }
         }
 
@@ -540,7 +605,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The Journal's mission rows of the VEGA page: the missions of the player's current chapter VEGA handed out — running
-    /// or done — with their steps (done, running, ahead; a step that was skipped or never needed as a stand-in is left out).</summary>
+    /// or done — and after them (#3892) the kept missions of earlier chapters that still run, each with its steps (done,
+    /// running, ahead; a step that was skipped or never needed as a stand-in is left out).</summary>
     private NetStoryMission[] JournalMissions(PlayerSession s)
     {
         if (!StoryMissionsRunFor(s, out var pack))
@@ -550,35 +616,47 @@ public sealed partial class GameServer
 
         int current = TrackChapterIndex(s);
         var chip = MissionChipStep(s);
-        var m = MilestonesOf(s);
         var rows = new List<NetStoryMission>();
         foreach (var mission in pack.Missions)
         {
-            if (mission.StoryChapterIndex != current)
+            if (mission.StoryChapterIndex == current && JournalMissionRow(s, mission, chip) is { } row)
             {
-                continue;
+                rows.Add(row);
             }
+        }
 
-            bool done = m.Contains(StoryPackKeys.ChapterDone(pack.Id, mission.Id));
-            bool running = ChapterRuns(s, mission.Chapter);
-            if (!done && !running)
+        foreach (var mission in pack.Missions)
+        {
+            if (mission.Keep && mission.StoryChapterIndex < current && ChapterRuns(s, mission.Chapter)
+                && JournalMissionRow(s, mission, chip) is { } row)
             {
-                continue;
+                rows.Add(row);
             }
-
-            rows.Add(new NetStoryMission
-            {
-                Id = mission.Id,
-                ChapterId = mission.StoryChapterId,
-                TitleKey = mission.Def.TitleKey ?? string.Empty,
-                SummaryKey = mission.Def.SummaryKey ?? string.Empty,
-                State = done ? StoryChapterStates.Done : StoryChapterStates.Active,
-                Skippable = running && (mission.Def.Skippable ?? true),
-                Steps = JournalMissionSteps(s, mission, chip),
-            });
         }
 
         return rows.ToArray();
+    }
+
+    /// <summary>One mission's Journal row, or null when VEGA never handed it out (neither running nor done).</summary>
+    private NetStoryMission? JournalMissionRow(PlayerSession s, CompiledMission mission, CompiledStep? chip)
+    {
+        bool done = MilestonesOf(s).Contains(StoryPackKeys.ChapterDone(mission.Chapter.Pack.Id, mission.Id));
+        bool running = ChapterRuns(s, mission.Chapter);
+        if (!done && !running)
+        {
+            return null;
+        }
+
+        return new NetStoryMission
+        {
+            Id = mission.Id,
+            ChapterId = mission.StoryChapterId,
+            TitleKey = mission.Def.TitleKey ?? string.Empty,
+            SummaryKey = mission.Def.SummaryKey ?? string.Empty,
+            State = done ? StoryChapterStates.Done : StoryChapterStates.Active,
+            Skippable = running && (mission.Def.Skippable ?? true),
+            Steps = JournalMissionSteps(s, mission, chip),
+        };
     }
 
     private NetStoryMissionStep[] JournalMissionSteps(PlayerSession s, CompiledMission mission, CompiledStep? chip)
@@ -621,7 +699,9 @@ public sealed partial class GameServer
         }
 
         var m = MilestonesOf(who);
-        var running = pack.Missions.FirstOrDefault(x => ChapterRuns(who, x.Chapter));
+        int current = TrackChapterIndex(who); // #3892: beside a kept mission of an earlier chapter, the current chapter's is named
+        var running = pack.Missions.FirstOrDefault(x => x.StoryChapterIndex == current && ChapterRuns(who, x.Chapter))
+                      ?? pack.Missions.FirstOrDefault(x => ChapterRuns(who, x.Chapter));
         int done = pack.Missions.Count(x => m.Contains(StoryPackKeys.ChapterDone(pack.Id, x.Id)));
         string step = running is null ? string.Empty : running.Chapter.Steps.FirstOrDefault(st => StepActive(who, st) && !StepComplete(who, st))?.Id ?? string.Empty;
         return $", mission={(running is null ? "-" : running.Id + (step.Length > 0 ? "/" + step : string.Empty))}, missionsDone={done}/{pack.Missions.Count(x => !x.IsAlternative)}";
@@ -649,6 +729,9 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: how many mission lead resolutions ran so far.</summary>
     internal int MissionLeadResolutionsForTest => _missionLeadResolutions;
+
+    /// <summary>Test seam: whether this chapter's bonus was paid in this save (its once-key).</summary>
+    internal bool LeadBonusPaidForTest(string chapterId) => _storyState.MilestoneKeys.Contains(StoryLeads.BonusKey(chapterId, 1));
 
     /// <summary>Test seam: the <c>/story</c> missions part for a player.</summary>
     internal string StoryMissionStatusForTest(PlayerSession s) => StoryMissionStatus(s);

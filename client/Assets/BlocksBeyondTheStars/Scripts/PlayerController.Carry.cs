@@ -58,7 +58,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (!CanLiftBlock)
+            if (!CanLiftBlock || OverThere) // #3906: no block is lifted over there
             {
                 return;
             }

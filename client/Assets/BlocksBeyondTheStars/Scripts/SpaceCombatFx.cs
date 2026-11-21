@@ -207,6 +207,136 @@ namespace BlocksBeyondTheStars.Client
             FxLights.Flash(from, color, 3f, 18f, 0.35f);
         }
 
+        /// <summary>The escort cruiser's mega laser gathering (#3900): for <paramref name="seconds"/> light streams into a
+        /// growing core at the barrel's <paramref name="muzzle"/>, and a thin pulsing aiming line runs from there to
+        /// <paramref name="aim"/> (the targeted ship) — both followed every frame, the line pulsing faster toward the shot
+        /// and strongest for the pilot it points at (<paramref name="atMe"/>, <see cref="MegaLaserAim"/>). Either point
+        /// answering null ends the picture there and then (the cruiser is gone, or the shot fired early).</summary>
+        public static void MegaLaserCharge(Func<Vector3?> muzzle, Func<Vector3?> aim, float seconds, Color color, bool atMe)
+        {
+            Vector3? start = muzzle();
+            if (start == null)
+            {
+                return;
+            }
+
+            var core = Color.Lerp(color, Color.white, 0.7f);
+            var lin = FxKit.Lin(color);
+            var kit = FxKit.Ensure();
+            LineRenderer line = RentAimLine(kit, core, start.Value);
+            float acc = 0f;
+            Vector3 last = start.Value;
+            bool gone = false;
+            bool still = UiKit.ReducedMotion;
+            int light = FxLights.Track(() => last, color, 3f, 22f, seconds + 0.05f);
+            FxKit.Animate(seconds, t =>
+            {
+                if (gone)
+                {
+                    return;
+                }
+
+                Vector3? now = muzzle();
+                if (now == null)
+                {
+                    gone = true;
+                    FxLights.Remove(light);
+                    DrawAimLine(line, last, null, lin, 0f);
+                    return;
+                }
+
+                last = now.Value;
+                acc = MegaLaserGlow(last, t, color, core, acc);
+                DrawAimLine(line, last, aim(), lin, MegaLaserAim.Alpha(t, seconds, atMe, still), MegaLaserAim.Width(t, atMe));
+            }, () =>
+            {
+                FxLights.Remove(light);
+                if (line != null)
+                {
+                    kit.ReleaseBeam(line);
+                }
+            });
+        }
+
+        /// <summary>The pooled line the mega laser's aim is drawn with — invisible until its first frame; null without the
+        /// beam shader.</summary>
+        private static LineRenderer RentAimLine(FxKit kit, Color core, Vector3 at)
+        {
+            var mat = FxKit.BeamMaterial("mega_aim", core, coreWidth: 0.25f, noiseScale: 0.2f, noiseSpeed: 14f, intensity: 2.4f);
+            if (mat == null)
+            {
+                return null;
+            }
+
+            var line = kit.RentBeam(mat);
+            line.widthMultiplier = 0f;
+            line.SetPosition(0, at);
+            line.SetPosition(1, at);
+            return line;
+        }
+
+        /// <summary>One frame of the glow gathering at the muzzle (the heavy shot's, about twice as big): the growing core
+        /// and the motes streaming in. Returns the mote clock <paramref name="acc"/> for the next frame.</summary>
+        private static float MegaLaserGlow(Vector3 at, float t, Color color, Color core, float acc)
+        {
+            FxKit.Emit(FxKit.Kind.Glow, at, Vector3.zero, Mathf.Lerp(1.6f, 7f, t), 0.07f, color);
+            FxKit.Emit(FxKit.Kind.Glow, at, Vector3.zero, Mathf.Lerp(0.6f, 3.2f, t), 0.06f, core);
+            acc += Time.deltaTime * FxKit.Density;
+            while (acc > 0.03f)
+            {
+                acc -= 0.03f;
+                var from = at + (UnityEngine.Random.onUnitSphere * Mathf.Lerp(9f, 4f, t));
+                FxKit.Emit(FxKit.Kind.Motes, from, (at - from) / 0.25f, 0.2f, 0.25f, core);
+            }
+
+            return acc;
+        }
+
+        /// <summary>One frame of the mega laser's aiming line; without a <paramref name="to"/> it is not drawn.</summary>
+        private static void DrawAimLine(LineRenderer line, Vector3 from, Vector3? to, Color lin, float alpha, float width = 0f)
+        {
+            if (line == null)
+            {
+                return;
+            }
+
+            if (to == null)
+            {
+                line.widthMultiplier = 0f;
+                return;
+            }
+
+            line.SetPosition(0, from);
+            line.SetPosition(1, to.Value);
+            line.widthMultiplier = width;
+            var c = new Color(lin.r, lin.g, lin.b, alpha);
+            line.startColor = c;
+            line.endColor = c;
+        }
+
+        /// <summary>The mega laser fires (#3900): the heavy shot's beam made thicker and longer-lived, with a white-hot
+        /// core, from the barrel's muzzle to <paramref name="to"/>. With <paramref name="impact"/> the beam ends on
+        /// something solid there — the rock a pilot hid behind — and bursts on it.</summary>
+        public static void MegaLaserBeam(Vector3 from, Vector3 to, Color color, bool impact)
+        {
+            var core = Color.Lerp(color, Color.white, 0.8f);
+            var mat = FxKit.BeamMaterial("hostile_mega", core, coreWidth: 0.5f, noiseScale: 0.3f, noiseSpeed: 26f, intensity: 4.2f);
+            FxKit.Beam(from, to, color, 2.8f, 0.9f, mat);
+            FxKit.Beam(from, to, core, 1f, 0.6f, mat);
+            FxKit.Ring(from, Vector3.zero, color, 1f, 11f, 0.6f, thickness: 0.16f, intensity: 2.6f);
+            FxKit.Flash(from, core, 6f * FxKit.FlashScale, 0.2f);
+            FxLights.Flash(from, color, 4f, 30f, 0.5f);
+            if (!impact)
+            {
+                return;
+            }
+
+            FxKit.Flash(to, core, 4f * FxKit.FlashScale, 0.18f);
+            FxKit.Ring(to, Vector3.zero, color, 0.5f, 6f, 0.5f, thickness: 0.12f, intensity: 2.2f);
+            FxKit.Burst(FxKit.Kind.Motes, to, 22, from - to, 70f, 5f, 16f, 0.08f, 0.16f, 0.3f, 0.8f, color, Color.white);
+            FxLights.Flash(to, color, 2.5f, 14f, 0.35f);
+        }
+
         /// <summary>A shot scattering off a shield at <paramref name="at"/> (the shield's own ripple is
         /// <see cref="FxShield.Hit"/>): a flash, a flat ring on the bubble and sparks thrown back.</summary>
         public static void ShieldDeflect(Vector3 at, Vector3 outward, Color color)

@@ -69,7 +69,7 @@ namespace BlocksBeyondTheStars.Client
         // #3676: a guardian giant fights near the player on foot — the finale's gauntlet track loops until the fight is
         // decided (it collapses or lies down again, or the player leaves its range); neither ducked nor muffled.
         private const string GiantFight = "giant_fight";
-        private const string GiantFightTrack = "music_boss_gauntlet";
+        private const string GiantFightTrack = BossMusicRules.Track; // also a space boss's fight in flight (#3901)
 
         private const string SynthPrefix = "synth:";
 
@@ -343,9 +343,9 @@ namespace BlocksBeyondTheStars.Client
                 return finale;
             }
 
-            if (!inSpace && !game.Aboard && game.GuardianGiantFight.Fighting(game.WorldTime))
+            if (BossFightPlays(game, inSpace))
             {
-                return GiantFight; // #3676: a guardian giant fights near the player
+                return GiantFight; // #3676: a guardian giant fights near the player; #3901: a space boss in the flight
             }
 
             if (inSpace)

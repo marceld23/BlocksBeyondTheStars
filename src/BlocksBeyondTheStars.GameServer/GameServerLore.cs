@@ -21,20 +21,27 @@ public sealed partial class GameServer
 
     /// <summary>Reveals one still-unread lore text of a site kind to a player, or does nothing when the packs
     /// have no (eligible) text left for them there. Weighted pick, once per player per text — the world story's texts gated by
-    /// the world's knowledge level, an active player pack's (#3347) by the player's chapter in it.</summary>
-    private void TryRevealLoreText(PlayerSession session, string site)
+    /// the world's knowledge level, an active player pack's (#3347) by the player's chapter in it. <paramref name="only"/>
+    /// (#3902) narrows the site's texts to the ones a caller means (ECHO's core record, a cruiser's ship's logs). Returns
+    /// whether a text was revealed.</summary>
+    private bool TryRevealLoreText(PlayerSession session, string site, System.Func<LoreSite, bool>? only = null)
     {
         if (string.IsNullOrEmpty(site))
         {
-            return;
+            return false;
         }
 
         var p = session.State;
         var eligible = EligibleLoreSites(session, site);
+        if (only is not null)
+        {
+            eligible.RemoveAll(l => !only(l));
+        }
+
         int totalWeight = eligible.Sum(l => System.Math.Max(1, l.Weight));
         if (eligible.Count == 0)
         {
-            return; // this player has read everything the site (currently) has to say
+            return false; // this player has read everything the site (currently) has to say
         }
 
         int roll = _loreRng.Next(totalWeight);
@@ -53,6 +60,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(p);
         Send(session, new LoreTextRevealed { Key = pick.Key, Site = pick.Site, TextKey = pick.TextKey });
         RaiseGameEvent(session, GameEventKeys.LoreRead, string.IsNullOrEmpty(pick.Site) ? site : pick.Site); // #2476: "read the observatory's last log"
+        return true;
     }
 
     /// <summary>The lore-site kind of a structure-loot container, derived from its id

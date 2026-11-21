@@ -175,7 +175,8 @@ public sealed partial class GameServer
     /// and re-entering the radius, and every switch to the 2 Hz list ran the client's interpolation dry — a stutter along the
     /// whole body; a world holds a handful of giants at most).</summary>
     private bool InCreatureMotionStream(PlayerSession session, CombatEntity c, double rangeSq)
-        => c.Giant is not null || WrapDistSq(session.State.Position, c.Position) <= rangeSq;
+        => (c.Giant is not null || WrapDistSq(session.State.Position, c.Position) <= rangeSq)
+           && (!c.OtherSideOnly || session.OtherSide); // #3905: an animal of the other side only for who is over there
 
     /// <summary>Test seam (#3466): whether a creature is in a player's 7.5 Hz motion stream right now.</summary>
     internal bool InCreatureMotionStreamForTest(string playerId, string creatureId)

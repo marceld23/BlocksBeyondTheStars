@@ -1114,9 +1114,9 @@ public sealed partial class GameServer
     /// doesn't replay it. Finale-gauntlet instances never rolled a wave record, so they are unaffected.</summary>
     private void RecordAmbientHostileKill(SpaceInstance instance, CombatEntity target)
     {
-        if (!_ambientWaves.TryGetValue(instance.Id, out var wave))
+        if (target.CalledByBoss || !_ambientWaves.TryGetValue(instance.Id, out var wave))
         {
-            return;
+            return; // (#3900: a drone the escort cruiser called is no part of the sector's wave)
         }
 
         if (target.Kind == CombatEntityKind.Drone)
@@ -1305,6 +1305,7 @@ public sealed partial class GameServer
     private void DamageSpaceTarget(SpaceInstance instance, PlayerSession? session, CombatEntity target, float damage)
     {
         target.Hull -= AbsorbByShield(target, damage); // #3758: a hostile's shield first
+        NoteSpaceBossFighter(target, session);          // #3903: everyone who hurt a boss shares its loot and the credit
 
         // item 20 S3: a voxel ore asteroid carves down to match its hull as you shoot it (visible depletion).
         // A derelict hull (#1664) is salvaged the same way — plating comes off shot by shot — and so is a
@@ -1381,6 +1382,12 @@ public sealed partial class GameServer
     /// <summary>What the pilot is credited for a destroyed hostile: the raider bounty, or a machine kill for the story.</summary>
     private void CreditSpaceKill(SpaceInstance instance, PlayerSession? session, CombatEntity target)
     {
+        if (target.Boss is not null)
+        {
+            CreditSpaceBossKill(instance, session, target); // #3903: every pilot who fought, not only the last shot
+            return;
+        }
+
         if (target.Kind == CombatEntityKind.BanditShip)
         {
             OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
@@ -1419,6 +1426,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (target.Boss is not null)
+        {
+            PaySpaceBossLoot(instance, target); // #3903: a share for every pilot who fought (GameServerSpaceBossCredit.cs)
+            return;
+        }
+
         if (_ship.HasModule(TractorModule))
         {
             // With a tractor beam fitted, loot floats as a salvage drop to be collected, instead of
@@ -1436,11 +1449,17 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session is null)
+        if (session is not null)
         {
-            return;
+            BankEntityLoot(instance, target, session);
         }
+    }
 
+    /// <summary>Banks a destroyed entity's loot straight into the collector's backpack and hold (the ship cursor must
+    /// point at them); what finds no room floats at the spot as a salvage drop (#1475), and the "+n → where" toasts
+    /// say where it went (#1317).</summary>
+    private void BankEntityLoot(SpaceInstance instance, CombatEntity target, PlayerSession session)
+    {
         var pool = new MaterialPool(_content, session.State, _ship);
         var backpackBefore = target.Loot.Select(l => session.State.Inventory.CountOf(l.Item)).ToList();
         var cargoBefore = target.Loot.Select(l => _ship.Cargo.CountOf(l.Item)).ToList();
@@ -2036,6 +2055,7 @@ public sealed partial class GameServer
             // comply and it leaves, refuse and it fights (see GameServerBanditShips).
             TickBanditShips(instance, dt);
             TickHunterShuttles(instance, dt); // #3097: a weak Guardian shuttle — skirmish, flee, land a robot camp
+            TickSpaceBosses(instance, dt);    // #3900: the escort cruiser — the rare ambush, its phases, its jump away
 
             // Peaceful encounters (#1129): sometimes a life pod drifts by (fly close = rescue) or an
             // anomaly shimmers (scan it). Never hostile — runs under every preset, like the traders.
@@ -2248,7 +2268,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var (aggro, _, speed) = HostileProfile(e.Kind);
+            var (aggro, _, speed) = HostileProfileOf(e);
             if (speed <= 0f || aggro <= 0f)
             {
                 continue; // not a mobile hunter (e.g. stations / asteroids / drops)
@@ -2400,6 +2420,11 @@ public sealed partial class GameServer
         _ => (0f, 0f, 0f),
     };
 
+    /// <summary>The movement profile of one hostile: its kind's (<see cref="HostileProfile"/>), or a space boss's own
+    /// (#3900 — the escort cruiser notices further and flies faster once enraged).</summary>
+    private static (float Aggro, float MinDist, float Speed) HostileProfileOf(CombatEntity e)
+        => e.Boss is { } boss ? (EscortCruiserRules.NoticeRange, EscortCruiserRules.StandOff, boss.Speed) : HostileProfile(e.Kind);
+
     /// <summary>Moves the instance's hostile NPCs: a slow patrol orbit around their post when the ship is
     /// far, a closing chase (with a sideways weave so they read as flown, not railed) once it enters their
     /// aggro range — stopping at a per-kind stand-off distance where their weapon aura works.</summary>
@@ -2413,7 +2438,7 @@ public sealed partial class GameServer
                 continue; // #3097: a fleeing hunter shuttle runs its own course (TickHunterShuttles); #3758: an ion pulse holds it
             }
 
-            var (aggro, minDist, speed) = HostileProfile(e.Kind);
+            var (aggro, minDist, speed) = HostileProfileOf(e);
             if (speed <= 0f)
             {
                 continue;
@@ -2531,10 +2556,16 @@ public sealed partial class GameServer
     /// away (durable edits) — parked on the owner's home landing pad. The owner must repair it through the
     /// normal own-ship repair flow before it can launch again (enforced in <see cref="EnterSpace"/>).</item>
     /// </list>
-    /// Either way the flight instance is unloaded.
+    /// Either way the flight instance is unloaded — unless other pilots still fly in it (#3903): then only this ship's
+    /// crew goes home and the flight goes on (<see cref="TryDisableOneShipOfSeveral"/>).
     /// </summary>
     private void DisableShip(SpaceInstance instance)
     {
+        if (TryDisableOneShipOfSeveral(instance))
+        {
+            return; // #3903: other pilots still fly here — only this ship's crew went home, the flight goes on
+        }
+
         bool keepShip = Rules.KeepShipOnDeath;
         // #2357: the defeated pilot's OWN hull — the ship cursor points at them. The first "ship" structure used to do,
         // but an NPC trader's or a raider's ownerless hull (kind "ship" too) can come first in the dictionary.
@@ -2703,7 +2734,7 @@ public sealed partial class GameServer
         {
             InstanceId = instance.Id,
             Kind = instance.Kind,
-            Entities = instance.Entities.Select(ToNet).ToArray(),
+            Entities = WithCruiserWreckNames(session, instance.Entities.Select(ToNet).ToArray()), // #3902: its name in the receiver's language
             SkipLaunch = skipLaunch,
             Hyperjump = hyperjump,
             HasResumePose = resume.HasValue || launchBeside, // #2118: where the ship floated before the flight view closed; #2440: the launch column
