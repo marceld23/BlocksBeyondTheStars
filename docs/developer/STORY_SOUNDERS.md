@@ -83,14 +83,18 @@ can restart the story from the Journal.
   core's (`otherside:crossed`, argument: the body id); the scene `snd.threshold` plays with it. Then Elora stands at the
   gate the player came through — a figure only players over there see, placed while s9.6 runs
   (`TickSoundersOverEcho`, character id `elora_over`, dialog `snd_elora_over`); she goes eight seconds after the talk,
-  and when the player leaves or returns. Players at one gate share her.
+  and when the player leaves or returns — also when they quit the game, change worlds, fly off, watch or switch the pack
+  off (the leave step and `SweepOverEchoes`: the figure never stays at a gate without its player). Players at one gate
+  share her.
 - **s10.** Kamo stands the same way at any gate (`kamo_over`, `snd_kamo_over` — not once per player: a child may hear
   the how-to again). `sound:shaped` counts the blocks; `crack:mended` comes once per gate and world, so three are three
   different gates — on any world, and three placed rune stones make a gate (they mend, but the real side gives nothing
-  for them). The cracks: [OTHER_SIDE.md](OTHER_SIDE.md) § "The cracks".
+  for them). A gate of a generated site is that SITE's: stones a player adds beside a monument never make it a second
+  gate. The cracks: [OTHER_SIDE.md](OTHER_SIDE.md) § "The cracks".
 - **s11.** The Choir Tower was built with crystal pipes and no rune stones, so it is no gate by itself: while a player of
   chapter 11 is within 64 blocks, three rune stones stand at its foot (`EnsureChoirTowerGate` — ordinary blocks nobody
-  owns, never where a gate stands already, never in front of the doorway). s11.1 completes on a crossing on Soaniri; while
+  owns, never where a gate stands already, never in front of the doorway; written once per world, remembered as the
+  stamped feature `<location>|choir_gate`, so no later look raises a second set). s11.1 completes on a crossing on Soaniri; while
   Soaniri is out of reach (`world:soaniri_reachable`) any gate stands in (s11.1a); a player who is over there already is
   through either at once. The choir — Elora, Kamo, Feya, Tini and two to four more, with the small talk of the folk at
   the gates — gathers around the song's site (the tower's foot; the gate the player came through anywhere else) while a

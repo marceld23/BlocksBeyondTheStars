@@ -82,22 +82,29 @@ public sealed partial class GameServer
     /// gate they came through. Null on our side of a world without a tower.</summary>
     private Vector3f? OverChoirSiteFor(PlayerSession s) => ChoirTowerFoot() ?? EntryGateOf(s);
 
+    /// <summary>The <see cref="Shared.State.WorldMetadata.StampedFeatures"/> entry of a world whose Choir Tower got its
+    /// three rune stones: they are written once per world and never again.</summary>
+    internal const string ChoirGateFeature = "choir_gate";
+
     /// <summary>
     /// Three rune stones at the foot of the Choir Tower, so the song's site is a gate: checked every few seconds while a
-    /// player of chapter 11 is near. Nothing is written where a gate stands already (stones raised before, or a player's),
-    /// where the paving is taken, or where somebody stands.
+    /// player of chapter 11 is near, until they stand. Written ONCE per world — the world remembers it
+    /// (<see cref="ChoirGateFeature"/>), so no later look can raise a second set, whatever is loaded and whatever became
+    /// of the first. Nothing is written where a gate stands already (a player's), where the paving is taken, or where
+    /// somebody stands.
     /// </summary>
     private void EnsureChoirTowerGate(Vector3f foot)
     {
         string location = _world.LocationId;
-        if ((_choirTowerGateCheckAt.TryGetValue(location, out double at) && _uptime < at)
+        if (FeatureStamped(ChoirGateFeature)
+            || (_choirTowerGateCheckAt.TryGetValue(location, out double at) && _uptime < at)
             || _content.GetBlock("rune_stone") is not { } rune)
         {
             return;
         }
 
         _choirTowerGateCheckAt[location] = _uptime + 5.0;
-        if (IsGate(foot, out _))
+        if (RuneGroupStandsAt(foot, rune.NumericId.Value))
         {
             return;
         }
@@ -117,9 +124,34 @@ public sealed partial class GameServer
                 BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = rune.NumericId.Value });
             }
 
+            MarkFeatureStamped(ChoirGateFeature); // saved with the metadata: once per world, for good
             _log.Info($"Three rune stones stand at the Choir Tower's foot on {location} now (chapter 11's gate).");
             return;
         }
+    }
+
+    /// <summary>Whether a rune gate stands at <paramref name="at"/> — the rule of <see cref="IsGate"/>, but read from the
+    /// world itself like <see cref="ChoirGateCellFree"/>, not only from what is loaded: <see cref="IsGate"/> takes an
+    /// unloaded chunk for air, and after a restart the tower's chunks need not be loaded when the first look comes.</summary>
+    private bool RuneGroupStandsAt(Vector3f at, ushort rune)
+    {
+        int cx = (int)Math.Floor(at.X), cy = (int)Math.Floor(at.Y), cz = (int)Math.Floor(at.Z);
+        int count = 0;
+        for (int dx = -EchoRuneScanRadius; dx <= EchoRuneScanRadius; dx++)
+        {
+            for (int dy = -EchoRuneScanRadius; dy <= EchoRuneScanRadius; dy++)
+            {
+                for (int dz = -EchoRuneScanRadius; dz <= EchoRuneScanRadius; dz++)
+                {
+                    if (_world.GetBlock(new Vector3i(cx + dx, cy + dy, cz + dz)).Value == rune && ++count >= EchoRuneGroupSize)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>A stone may stand here: the cell and the one above are open, it has paving under it, and nobody is in it.

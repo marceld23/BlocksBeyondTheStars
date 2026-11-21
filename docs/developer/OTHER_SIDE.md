@@ -44,8 +44,10 @@ The use key on a rune stone runs `UseRuneStone` as always — the stone sings it
 - **Over there**, a stone of a gate brings the player back where they stand (`TryReturn`). The disc is not needed.
 - **A lone stone only sings**, on both sides, and nothing is said.
 - A player who carries the disc but does not wear it in the socket is told so at a gate; every other refusal of a
-  crossing is told too. A stone that is a pillar of a melody puzzle the player is playing strikes its tone instead and
-  never reaches this code.
+  crossing is told too. **On our side**, a stone that is a pillar of a melody puzzle the player is playing strikes its
+  tone instead and never reaches this code. **Over there** a stone is never struck as a pillar (`UseRuneStone` skips
+  `TryStrikeMelodyPillar`): the use key is the way home, also at the Singing Shrine or a ring, also while a mend game
+  runs — puzzles played over there take their tones from the melody bar.
 - Two flips of one player are at least 2.5 s apart, so a held key does not cross and come straight back.
 
 A crossing is refused with one of these locale keys (they are also the `out` of `TryCross`):
@@ -60,7 +62,8 @@ A crossing is refused with one of these locale keys (they are also the `out` of 
 | `srv.otherside.no_disc` | the crossing disc is not in the worn chest's socket |
 
 Both flips raise a game event (`otherside:crossed`, `otherside:returned`; argument: the body id, so a story step can
-ask for a crossing on one world), save the player and send the state message.
+ask for a crossing on one world), save the player — once: the save of the stone's word is folded into it — and send the
+state message.
 
 ### The API (for the story and the sound layer)
 
@@ -144,7 +147,7 @@ The rule is one predicate, `HiddenFrom(viewer, subject)` (the subject is over th
 | A gesture, a flinch | `GameServerEmotes.cs` `BroadcastPlayerEmote` |
 | The effect of an action (a swing, a shot, a gadget's outcome); people nearby are not startled | `GameServerActionFx.cs` `SendFxNearby`, `HandleFxIntent` |
 | A tone of the melody bar and a puzzle's notes | `GameServerMelodyPuzzles.cs` `SendNotesAround` |
-| The star map's player list | `StarMapPlayersFor` (from `SendStarMap`) |
+| The star map's player list. A flip only marks it stale: the message has no players-only part, so the 1 Hz watch sends the map once per second at most (`FlushOtherSideStarMaps`), and only to those whose list changed — everybody on our side and whoever flipped; a player who stayed over there sees everybody before and after | `StarMapPlayersFor` (from `SendStarMap`) |
 | An ally's teleport to the player ("not here") | `GameServerTeleport.cs` `TeleportToPlayer` |
 | A trade request ("too far") and a duel challenge ("gone") | `GameServerTrade.cs` `RequestTrade`, `GameServerPvp.cs` `ChallengeDuel` |
 | The bump snapshot's nearby players (it can reach the report inbox) | `GameServerBump.cs` |
@@ -164,6 +167,7 @@ The world's own senses skip a player who is over there at their gathering points
 | Drops on the ground | `GameServerDropPackets.cs` |
 | Weather (no storm drains or charges the suit) | `GameServerWeatherEvents.cs` |
 | Companions (a pet with no owner in sight would give the place away: it waits, as for an observer, and is back with the return) | `GameServerTaming.cs` `ReconcileCompanions` |
+| Soaniri's singing plants (no echo flower sings a tone from over there back to our side, no bell bloom opens, Ornasa's bloom trail does not move). A mended crack's bloom is the story's own answer and not this | `GameServerSingingPlants.cs` `HearSingingPlants` |
 
 The handshake of a flip (`HideFromOurSide`, `ShowOnOurSide`): at a crossing our side gets a `PlayerLeft` for the avatar
 and the players already over there show the newcomer their looks; at a return the one who came back gets a `PlayerLeft`
@@ -337,8 +341,10 @@ need no client work.
 | Only in a cell that is air on the real side and holds no sound block; inside the build band | `SoundShapeRefusal` |
 | Not in the base zone (or base pad square) of a player who is no ally — the check real edits use, `IsBaseProtected`. Protected structures only guard real edits: sound may stand on or beside them | `SoundShapeRefusal` |
 | Not in a body: nobody's head cell, and nobody's feet cell but the builder's own (who is lifted, as with a real block) | `SoundCellHoldsABody` |
+| **Nobody is walled in.** Not within one cell of the body of ANOTHER player over there (the 3×4×3 box around their feet and head, `SoundBodyMargin`) unless that player is the builder's ally — nine blocks of a stranger would be a cage: its prisoner cannot dissolve them, cannot mine and cannot reach a rune stone | `SoundCellHoldsABody` |
+| **A gate's stones stay free.** Not in a cell that touches a `rune_stone` (its six neighbours, the cell above it among them) | `SoundCellAtRuneStone` |
 | `OtherSideRules.SoundBlockCap` (2000) per player and location; one more is refused with `srv.otherside.sound_cap` | `SoundShapeRefusal` |
-| Only the builder, their allies (`AreAllied`: alliance or crew) and admins dissolve one — `srv.otherside.not_yours` | `TryDissolveSound` |
+| Only the builder, their allies (`AreAllied`: alliance or crew) and admins dissolve one — `srv.otherside.not_yours`. **The exception:** anybody dissolves a sound block that stands in or within one cell of their own body (the same 3×4×3 box), whoever built it — so a player who walked into a build, or was caged in spite of the rule above, sings their way out | `TryDissolveSound` |
 | **The real side wins**: a real block a **player** writes into the cell (a write that names an owner) dissolves the sound block for good — layer, save, the `sound_dissolve` cue | `OnPlayerBlockSetOverSound` (`ServerWorld.PlayerBlockSet`) |
 | Any other real block in the cell — snow, flowing water, falling sand, a regrown plant, fire, a worldgen stamp — only **hides** the sound block | `OnRealBlockSetOverSound` (`ServerWorld.BlockSet`) |
 
@@ -367,6 +373,14 @@ Over there the gadget table hands the blaster's pulse to `ShapeSoundWithBlaster`
 costs no suit energy, has its own cadence (`OtherSideRules.ShapeCooldownSeconds`, 0.2 s; a refused pulse holds the blaster
 for 1 s so the refusal is one line), sends no gadget outcome and no pulse sound — nothing a real-side player could
 notice. It does not push and opens no chamber. On the real side the blaster is unchanged.
+
+**The cadence is a schedule, with one tick of tolerance.** Intents are handled once per server tick (1/15 s), and the
+client pulses every 0.22 s while the trigger is held — so two pulses arrive three or four ticks apart, and a three-tick
+gap can fall just short of 0.2 s. A check of "now ≥ ready" swallowed about every third pulse of a held trigger without
+a word. So over there the gadget table takes a pulse up to `OtherSideRules.ShapeJitterToleranceSeconds` (0.07 s, one
+tick) early, and a shaped block moves the next-ready time on by one cooldown **from when the pulse was due**, not from
+now (the held beam's pattern, `BeamWeaponRules.JitterToleranceSeconds`): a client that pulses every tick still gets
+five blocks a second on average and never more (`SoundShapingTests.TheCadence_…`).
 
 The client sends the aim point, as for every gadget, and one additive field: **`UseGadgetIntent.Alt`** (bool, default
 false; an older client never sets it, an older server drops it). It picks one of two actions — shaping and dissolving
@@ -438,21 +452,45 @@ gate is whole.
 A mended crack is one string in `WorldMetadata.MendedCracks` (additive, saved with the metadata the moment it is mended):
 
 ```
-<location>|<x>|<y>|<z>|<reach>
+<location>|<x>|<y>|<z>|<reach>[|<site>]
 ```
 
-— the gate's world, the middle of its rune stones rounded to whole blocks, and how far the mend reaches
-(`CrackGateReach`, 12 blocks; the great crack of the Sounders' chapter 11 reaches `GreatCrackReach`, 64). A gate whose
-middle lies within a mended crack's reach is whole (`IsCrackMended`), so a gate stays mended when a stone is added or
-mined and its middle moves a little, and one mend never covers the next monument. The list only grows; it is parsed once
-per change. The gate list asks through its hook `OtherSideGateCracked` (declared in `GameServerOtherSide.GateList.cs`,
-implemented here).
+— the gate's world, the middle of its rune stones rounded to whole blocks, how far the mend reaches
+(`CrackGateReach`, 12 blocks; the great crack of the Sounders' chapter 11 reaches `GreatCrackReach`, 64), and — for a
+gate the world itself carries — the **site** its stones belong to. A gate is whole (`IsCrackMended`) when
 
-Gates a player built count: three placed rune stones are a gate, and its crack can be mended like any other.
+- its middle lies within a mended crack's reach (so a gate stays mended when a stone is added or mined and its middle
+  moves a little, and one mend never covers the next monument), **or**
+- its site was mended, wherever the middle was measured then.
+
+The list only grows; it is parsed once per change. The gate list asks through its hook `OtherSideGateCracked` (declared
+in `GameServerOtherSide.GateList.cs`, implemented here); the site is looked up only on the active world, and only when
+the reach says "cracked" and a site of that world was mended at all.
+
+**Why the site.** The middle of a gate is the mean of the rune stones within 8 blocks of whoever looks. Stones a player
+places beside a monument, and another place to stand, move it further than 12 blocks while the monument's stones are
+still part of the gate — keyed by the middle alone, the same monument was mended, counted (chapter 10's "three different
+gates") and paid again. `WorldGateSite(gate)` (`GameServerOtherSideCracks.Sites.cs`) names the site instead: of the
+rune stones around the gate that no player placed (at least three, else there is no site), the structure most of them
+belong to —
+
+| Site id | What |
+|---|---|
+| `shrine` | the Singing Shrine |
+| `<kind>@<x>:<z>` | a stamped structure: the box it registered in the footprint registry (`monument@…`, `ruin@…`, `unique_site@…`, `sounder_site@…`, `settlement@…` …; the pad and crash-site reservations are no structures) |
+| `rune_shrine@<x>:<z>` | a rune shrine of the terrain (seed arithmetic, `RuneShrinesNear`) |
+| `stones@<x>:<y>:<z>` | world stones in none of these (terrain stones of an old world): the first cell of the whole group — the stones found are grown by every world stone within 8 blocks, twice at most, so the id does not depend on which part of the group the look began at |
+
+A site id never holds a `|`. Stones a player placed never count toward a site.
+
+Gates a player built count: three placed rune stones are a gate, and its crack can be mended like any other — it has no
+site, keeps the position key and gets no answer from the real side.
 
 ### The mend game
 
-Mending **never blocks the way home**: the use key on a stone of a cracked gate still brings the player back. The game
+Mending **never blocks the way home**: the use key on a stone of a cracked gate still brings the player back — also
+where the stones are the pillars of a melody site, also while the game runs (over there a stone is never struck as a
+pillar, see "Gates, crossing, coming back"). The game
 therefore starts from the melody bar — the melody puzzles' free-play starters (`RegisterMelodyFreePlayStarter`, the twin
 of the site starters): a tone played with no puzzle running asks the starters, and `CrackMendStarter` answers when the
 player is over there and stands in a cracked gate (`IsGate` at their position; a place that was none is not searched
@@ -468,7 +506,9 @@ there follows the rule of the tones (`SendNotesAround`'s `from`, `HiddenFrom`).
 
 ### Mended
 
-`MendCrack(gate, reach, solver)`, once per gate and world:
+`MendCrack(gate, reach, solver)`, once per gate and world — for a gate of a world site: once per SITE and world,
+whatever stones stand around it and wherever the mender stood (a second mend of the same site returns false: no event,
+no milestone, nothing from the real side):
 
 - the key is saved (`_repo.SaveMetadata`);
 - the cue `crack_mend` plays at the gate for the players over there (`BroadcastToOtherSide`; an unknown cue is silent);
@@ -479,9 +519,10 @@ there follows the rule of the tones (`SendNotesAround`'s `from`, `HiddenFrom`).
 
 ### The real side answers
 
-Only at a gate **the world itself carries** (`IsWorldGate`: at least three of its rune stones were not placed by a
-player — a monument's, a rune shrine's, a ruin's, the Singing Shrine's, the Choir Tower's): three stones a player placed
-mend, but give nothing, so nobody farms gifts with three stones. Once per gate and world, since a gate is mended once:
+Only at a gate **the world itself carries** (`WorldGateSite` names a site: at least three of its rune stones were not
+placed by a player — a monument's, a rune shrine's, a ruin's, the Singing Shrine's, the Choir Tower's): three stones a
+player placed mend, but give nothing, so nobody farms gifts with three stones. Once per site and world, since a site is
+mended once:
 
 - **The singing plants bloom.** Three to five chime reeds, bell blooms and echo flowers (the harp vine hangs from
   obsidian and has no place on open ground) appear 3–11 blocks around the gate, as ordinary block changes nobody owns.
@@ -504,8 +545,19 @@ mend, but give nothing, so nobody farms gifts with three stones. Once per gate a
 `/sounders crack` (behind the cheat gate) mends the crack of the gate the admin stands in; `/sounders cross` hands over
 what a crossing needs and takes the admin over. `tests/BlocksBeyondTheStars.Tests/OtherSideCracksTests.cs` covers the
 state and the gate list, where the game starts, a solved game (the save, the event, the cue, the list), the way home
-through a cracked gate, the bloom and the gift (also with a full backpack), a player-built gate, several players at one
-gate, a reload and the motif.
+through a cracked gate (also at a gate of melody pillars), the bloom and the gift (also with a full backpack), a
+player-built gate, a world site that is mended once whatever stones a player adds, the site's id from wherever it is
+looked at, several players at one gate, a reload and the motif.
+
+### Known edges of the site rule
+
+- A group of world stones in no registered structure (`stones@…`) is named by its first cell. Mining that very stone
+  gives the rest of the group another id; the position rule still holds it whole as long as its middle stays within
+  the mend's reach, so a second payout would need both — the first stone mined AND the middle moved by more than 12
+  blocks with placed stones. Sites the server knows by structure (monuments, shrines, ruins, the Sounders' sites) have
+  no such edge.
+- A stamped structure is one site, however many rune groups it carries: mending one group of a ruin makes the ruin's
+  other groups whole.
 
 ## The client
 

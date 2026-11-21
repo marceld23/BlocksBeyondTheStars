@@ -110,6 +110,22 @@ internal sealed class StructureFootprints
         return false;
     }
 
+    /// <summary>The first registered box that covers the column (<paramref name="x"/>, <paramref name="z"/>) — the
+    /// structure a generated block there belongs to — or null. <paramref name="skip"/> leaves kinds out (the
+    /// reservations that are no structure). Registration order is the same on every load, so the answer is too.</summary>
+    public Footprint? Covering(int x, int z, Func<string, bool>? skip = null)
+    {
+        foreach (var e in _entries)
+        {
+            if (Math.Abs(DeltaX(x - e.Cx)) < e.Hw && Math.Abs(z - e.Cz) < e.Hl && (skip is null || !skip(e.Kind)))
+            {
+                return e;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Whether a square of <paramref name="halfExtent"/> around a point comes closer than <paramref name="margin"/> (or
     /// an entry's own, larger margin) to any box — <paramref name="exceptKind"/>'s boxes aside.</summary>
     public bool Overlaps(int x, int z, int halfExtent, int margin, string? exceptKind = null)

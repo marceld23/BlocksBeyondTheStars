@@ -191,11 +191,34 @@ public sealed class OtherSideViewTests
         Assert.Equal(40f, view.Gates[1].X);
         Assert.True(view.Gates[1].Cracked);
 
-        // The return clears the book even when the empty list is still on its way.
+        // The return: the last gates stay while the look eases back — their lights fade with it instead of popping off —
+        // through the server's empty list too, and are gone when the look has arrived (whether or not that list came).
+        view.Tick(10f);
         view.Apply(State(false, OtherSideReasons.Returned));
+        Assert.Equal(2, view.Gates.Count);
+        view.ApplyGates(new OtherSideGates());
+        Assert.Equal(2, view.Gates.Count);
+        view.Tick(OtherSideView.BlendSeconds / 2f);
+        Assert.Equal(2, view.Gates.Count);
+        Assert.InRange(view.Look, 0.01f, 0.99f); // what the lights are drawn with meanwhile
+        view.Tick(OtherSideView.BlendSeconds);
+        Assert.Equal(0f, view.Blend);
         Assert.Equal(0, view.Gates.Count);
 
-        view.Gates.Apply(null);
+        // A return the look does not ease for (the join's state) drops them at once; so does an empty list on our side.
+        view.Apply(State(true, OtherSideReasons.Sync));
+        view.ApplyGates(new OtherSideGates { Gates = new[] { new NetOtherSideGate { X = 1f } } });
+        Assert.Equal(1, view.Gates.Count);
+        view.Apply(State(false, OtherSideReasons.Rejoined));
+        Assert.Equal(0, view.Gates.Count);
+        view.ApplyGates(null);
+        Assert.Equal(0, view.Gates.Count);
+
+        // Over there the server's list replaces the book, an empty one included.
+        view.Apply(State(true, OtherSideReasons.Crossed));
+        view.ApplyGates(new OtherSideGates { Gates = new[] { new NetOtherSideGate { X = 1f }, new NetOtherSideGate { X = 2f } } });
+        Assert.Equal(2, view.Gates.Count);
+        view.ApplyGates(new OtherSideGates());
         Assert.Equal(0, view.Gates.Count);
 
         var many = new NetOtherSideGate[OtherSideGateBook.Capacity + 5];

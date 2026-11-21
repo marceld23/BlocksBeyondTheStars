@@ -374,6 +374,40 @@ public sealed class SoundersOtherSideStoryTests
         Assert.DoesNotContain(kamo, w.Server.OtherSideNpcIdsForTest());
     }
 
+    /// <summary>The per-second pass that lets a figure go only looks at joined players the story reaches — so a figure
+    /// stood at its gate for good when its player quit, watched, flew off or switched the pack off.</summary>
+    [Fact]
+    public void AFigureOfTheOtherSide_DoesNotStayAtTheGate_WhenItsPlayerQuitsOrIsNoLongerReached()
+    {
+        using var w = World("snd10_quit");
+        PlayedThrough(w, 9);
+        var keeper = w.Server.AddLocalPlayer("Keeper"); // somebody else keeps the world resident
+        keeper.State.AboardShip = false;
+        keeper.State.Position = new Vector3f(NpcLifeWorld.Cx - 8.5f, w.Feet, NpcLifeWorld.Cz - 8.5f);
+        string id = w.Player.State.PlayerId;
+        CrossAt(w, BuildGate(w));
+        w.Server.TickSoundersStoryForTest();
+        int kamo = w.Server.SoundersOverEchoNpcForTest(id);
+        Assert.Contains(kamo, w.Server.OtherSideNpcIdsForTest());
+
+        // The pass does not reach the player any more (an observer): the next pass lets the figure go.
+        w.Player.Spectating = true;
+        w.Server.TickSoundersStoryForTest();
+        Assert.Null(w.Server.SoundersOverEchoForTest(id));
+        Assert.DoesNotContain(kamo, w.Server.OtherSideNpcIdsForTest());
+
+        w.Player.Spectating = false;
+        w.Server.AdvanceUptimeForTest(3.0); // past the pause between two looks for a gate
+        w.Server.TickSoundersStoryForTest();
+        kamo = w.Server.SoundersOverEchoNpcForTest(id);
+        Assert.Contains(kamo, w.Server.OtherSideNpcIdsForTest()); // he is back for the player
+
+        // The player quits: the leave step lets the figure go at once — no pass will ever look at them again.
+        w.Server.OtherSideOnLeaveForTest(w.Player);
+        Assert.Null(w.Server.SoundersOverEchoForTest(id));
+        Assert.DoesNotContain(kamo, w.Server.OtherSideNpcIdsForTest());
+    }
+
     // ---- chapter 11 ------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -482,6 +516,50 @@ public sealed class SoundersOtherSideStoryTests
         Assert.InRange(w.Server.OverChoirNamesForTest().Count, SvGameServer.OverChoirMin, SvGameServer.OverChoirMax);
         Deliver(w, new MelodyNoteIntent { Tone = 0 });
         Assert.Equal(SoundersIds.PuzzleSongFromOverThere, w.Server.RunningMelodyPuzzle(w.Player)); // the song, not the gate's own crack
+    }
+
+    /// <summary>The tower's three stones are written once per world. A look that takes an unloaded chunk for air saw "no
+    /// gate" after a restart and raised a second set on the next side; and stones that are gone must not come back as a
+    /// second set either — the world remembers that it wrote them.</summary>
+    [Fact]
+    public void TheChoirTowersGate_IsWrittenOncePerWorld_AlsoAfterARestartWithTheTowerNotLoaded()
+    {
+        using var w = new NpcLifeWorld(Content.Value, "snd11_tower_once", padHalf: 4, configure: c =>
+        {
+            c.StartPlanet = SoundersIds.PlanetType;
+            c.World.TerrainGeneration = WorldDescription.CurrentTerrainGeneration;
+        });
+        var tower = w.Server.SounderSitesForTest().Single(s => s.Key == SvGameServer.ChoirTowerSiteKey);
+        ushort rune = Content.Value.GetBlock("rune_stone")!.NumericId.Value;
+        List<Vector3i> RuneStones() => Enumerable.Range(-8, 17)
+            .SelectMany(dx => Enumerable.Range(-8, 17).Select(dz => new Vector3i(tower.X + dx, tower.FloorY + 1, tower.Z + dz)))
+            .Where(c => w.Server.World.GetBlock(c).Value == rune).ToList();
+        void Look()
+        {
+            PlayedThrough(w, 10);
+            w.Player.State.Position = new Vector3f(tower.X + 5.5f, tower.FloorY + 1f, tower.Z + 0.5f);
+            w.Server.AdvanceUptimeForTest(6.0); // past the pause between two looks
+            w.Server.TickSoundersStoryForTest();
+        }
+
+        Look();
+        var first = RuneStones();
+        Assert.Equal(3, first.Count);
+        Assert.Contains(w.Server.Metadata.StampedFeatures, f => f.EndsWith("|" + SvGameServer.ChoirGateFeature, StringComparison.Ordinal));
+
+        // A restart: nothing around the tower is loaded when the first look comes.
+        w.Restart();
+        Look();
+        Assert.Equal(first, RuneStones());
+
+        // And should the stones ever be gone, the world does not raise a second set.
+        foreach (var cell in first)
+        {
+            w.Server.World.SetBlock(cell, default);
+        }
+
+        Look();
+        Assert.Empty(RuneStones());
     }
 
     /// <summary>The tones of each letter of <paramref name="word"/> in the note alphabet.</summary>

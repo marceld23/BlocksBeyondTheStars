@@ -102,6 +102,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void DrawGateLights(OtherSideView view, float look)
         {
+            // After a return the book keeps its gates until the look has eased back (OtherSideView.ApplyGates), so the
+            // lights fade out with the grey instead of popping off.
             int count = look > 0.001f && EnsureMaterials() ? view.Gates.Count : 0;
             double now = Time.unscaledTimeAsDouble;
             var me = Game.PlayerPosition;

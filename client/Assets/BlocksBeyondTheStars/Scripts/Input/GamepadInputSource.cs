@@ -280,6 +280,14 @@ namespace BlocksBeyondTheStars.Client
         public bool SecondaryDown() => (Connected() && Input.GetKeyDown(BtnLb)) || TriggerDown(TriggerPlace);
         public bool SecondaryHeld() => (Connected() && Input.GetKey(BtnLb)) || TriggerHeld(TriggerPlace);
 
+        /// <summary>The mine trigger (RT) on its own — false while the player has the triggers switched off. For the one
+        /// caller that must tell a trigger from the shoulder button beside it: the other side's palette, where a shoulder
+        /// button is also the melody bar's modifier (<see cref="PalettePadHands"/>).</summary>
+        public bool TriggerMineHeld() => TriggerHeld(TriggerMine);
+
+        /// <summary>The place trigger (LT) on its own — see <see cref="TriggerMineHeld"/>.</summary>
+        public bool TriggerPlaceHeld() => TriggerHeld(TriggerPlace);
+
         // No direct 1..9 pick on a pad — the hotbar is cycled via HotbarScroll (d-pad) instead.
         public int HotbarSlotDown() => -1;
 

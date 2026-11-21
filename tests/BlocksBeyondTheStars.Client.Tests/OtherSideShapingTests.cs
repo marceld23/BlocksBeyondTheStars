@@ -141,13 +141,13 @@ public sealed class OtherSideShapingTests
         var palette = new SoundPalette();
         Assert.Equal(0, palette.Tone);
 
-        palette.Played(5);
+        Assert.True(palette.Played(5, 1.0));
         Assert.Equal(5, palette.Tone);
         int version = palette.Version;
-        palette.Played(5);
+        palette.Played(5, 1.5);
         Assert.Equal(version, palette.Version);
-        palette.Played(-1); // leaving the bar is no tone
-        palette.Played(8);
+        palette.Played(-1, 2.0); // leaving the bar is no tone
+        palette.Played(8, 2.5);
         Assert.Equal(5, palette.Tone);
 
         palette.Reset();
@@ -162,6 +162,156 @@ public sealed class OtherSideShapingTests
             Assert.True(level > last + 0.05f, $"tone {tone} is not clearly lighter than tone {tone - 1}");
             last = level;
         }
+    }
+
+    [Fact]
+    public void ThePalette_MarksTheLastToneTheServerTook_NotOneMashedPastItsNoteBudget()
+    {
+        // The server takes a burst of sixteen notes and ten a second after that; the rest it drops unheard — and the
+        // next sound block gets the last tone it TOOK. The palette keeps the same budget on the send times.
+        var palette = new SoundPalette();
+        double t = 10.0;
+        for (int i = 0; i < (int)SoundPalette.NoteBurst; i++)
+        {
+            Assert.True(palette.Played(i % 8, t), $"note {i} of the burst");
+        }
+
+        Assert.Equal(7, palette.Tone); // the sixteenth note: tone 15 % 8
+        Assert.False(palette.Played(2, t)); // the seventeenth at the same instant: dropped
+        Assert.False(palette.Played(3, t + 0.05)); // half a note refilled: still dropped
+        Assert.Equal(7, palette.Tone);
+
+        Assert.True(palette.Played(4, t + 0.12)); // a good tenth of a second at ten a second: one note
+        Assert.Equal(4, palette.Tone);
+        Assert.False(palette.Played(1, t + 0.12));
+        Assert.Equal(4, palette.Tone);
+
+        // The bar's "leave" is no tone, but it takes one of the budget like every note.
+        Assert.True(palette.Played(-1, t + 0.25));
+        Assert.False(palette.Played(6, t + 0.25));
+        Assert.Equal(4, palette.Tone);
+
+        // The budget never holds more than the burst, however long the bar rested.
+        t += 60.0;
+        int taken = 0;
+        for (int i = 0; i < 40; i++)
+        {
+            taken += palette.Played(i % 8, t) ? 1 : 0;
+        }
+
+        Assert.Equal((int)SoundPalette.NoteBurst, taken);
+
+        // A calm melody (five notes a second) is never dropped.
+        palette.Reset();
+        for (int i = 0; i < 200; i++)
+        {
+            Assert.True(palette.Played(i % 8, 100.0 + (i * 0.2)));
+        }
+
+        // The numbers are the server's (its constants are private; this pins the mirror to the source).
+        string server = File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "src", "BlocksBeyondTheStars.GameServer", "GameServerMelodyPuzzles.cs"));
+        Assert.Contains("private const double MelodyNoteBurst = 16;", server);
+        Assert.Contains("private const double MelodyNotesPerSecond = 10;", server);
+        Assert.Equal((16.0, 10.0), (SoundPalette.NoteBurst, SoundPalette.NotesPerSecond));
+    }
+
+    // ---- the gamepad's hands under the open melody bar ---------------------------------------------------------------
+
+    private const float PadFrame = 1f / 60f;
+
+    /// <summary>Runs <paramref name="seconds"/> of frames with the same pad state; returns the frames that asked to shape
+    /// and to dissolve.</summary>
+    private static (int Shape, int Dissolve) Hold(PalettePadHands hands, float seconds, bool lb = false, bool rb = false, bool lt = false, bool rt = false, bool dpad = false)
+    {
+        int shape = 0, dissolve = 0;
+        int frames = (int)MathF.Round(seconds / PadFrame);
+        for (int i = 0; i < frames; i++)
+        {
+            hands.Update(PadFrame, lb, rb, lt, rt, dpad);
+            shape += hands.Shape ? 1 : 0;
+            dissolve += hands.Dissolve ? 1 : 0;
+        }
+
+        return (shape, dissolve);
+    }
+
+    [Fact]
+    public void OnAPad_AShoulderAlone_IsTheHand_ATapIsOnePulse_AHoldKeepsPulsing()
+    {
+        var hands = new PalettePadHands();
+
+        // A tap of the left shoulder: nothing while it is down, one frame's pulse as it is let go.
+        Assert.Equal((0, 0), Hold(hands, 0.1f, lb: true));
+        Assert.Equal((1, 0), Hold(hands, 0.2f));
+
+        // A tap of the right shoulder dissolves.
+        Assert.Equal((0, 0), Hold(hands, 0.1f, rb: true));
+        Assert.Equal((0, 1), Hold(hands, 0.2f));
+
+        // A hold: after the grace it asks every frame (the shaper paces the pulses), and the release adds nothing.
+        var held = Hold(hands, 1f, lb: true);
+        int graceFrames = (int)MathF.Ceiling(PalettePadHands.ChordGrace / PadFrame);
+        Assert.InRange(held.Shape, 60 - graceFrames - 2, 60 - graceFrames + 1);
+        Assert.Equal((0, 0), Hold(hands, 0.2f));
+
+        // Through the shaper: a second of the left shoulder held alone builds at the building pace.
+        var shaper = new SoundShaper();
+        int pulses = 0;
+        for (int i = 0; i < 120; i++)
+        {
+            hands.Update(PadFrame, true, false, false, false, false);
+            pulses += shaper.Tick(PadFrame, active: true, hands.Shape, hands.Dissolve, aimsAtSoundBlock: false) == SoundShapeAction.Shape ? 1 : 0;
+        }
+
+        Assert.InRange(pulses, 7, 9); // two seconds less the grace, one pulse every 0.22 s
+    }
+
+    [Fact]
+    public void OnAPad_AShoulderWithTheDpad_StaysTheBarsModifier_AndNeverShapes()
+    {
+        var hands = new PalettePadHands();
+
+        // The chord for tones 5–8: shoulder down, then the d-pad, both let go.
+        Assert.Equal((0, 0), Hold(hands, 0.1f, rb: true));
+        Assert.Equal((0, 0), Hold(hands, 0.1f, rb: true, dpad: true));
+        Assert.Equal((0, 0), Hold(hands, 1f, rb: true)); // still held after the tone: the whole hold is the chord
+        Assert.Equal((0, 0), Hold(hands, 0.2f));        // … and its release is no tap
+
+        // Pressed onto an already pushed d-pad: the modifier as well.
+        Assert.Equal((0, 0), Hold(hands, 0.1f, dpad: true));
+        Assert.Equal((0, 0), Hold(hands, 1f, lb: true, dpad: true));
+        Assert.Equal((0, 0), Hold(hands, 0.2f));
+
+        // The d-pad alone (tones 1–4) asks for nothing.
+        Assert.Equal((0, 0), Hold(hands, 0.5f, dpad: true));
+
+        // A hold that already shapes turns into the modifier the moment the d-pad is pushed.
+        Assert.True(Hold(hands, 0.6f, lb: true).Shape > 0);
+        Assert.Equal((0, 0), Hold(hands, 0.5f, lb: true, dpad: true));
+        Assert.Equal((0, 0), Hold(hands, 0.5f, lb: true));
+        Assert.Equal((0, 0), Hold(hands, 0.2f));
+
+        // The next press alone is the hand again.
+        Assert.Equal((0, 0), Hold(hands, 0.1f, lb: true));
+        Assert.Equal((1, 0), Hold(hands, 0.2f));
+    }
+
+    [Fact]
+    public void OnAPad_TheTriggers_AreAlwaysTheHand_AndAButtonHeldFromBefore_StartsNothing()
+    {
+        var hands = new PalettePadHands();
+
+        // The triggers (they read true only while the player switched them on) are no modifier: at once, d-pad or not.
+        Assert.Equal((6, 0), Hold(hands, 0.1f, lt: true));
+        Assert.Equal((0, 6), Hold(hands, 0.1f, rt: true, dpad: true));
+        Assert.Equal((0, 0), Hold(hands, 0.1f));
+
+        // The bar did not hold the shoulders (closed, a menu): a shoulder still down when it takes them is no press.
+        hands.Reset();
+        Assert.False(hands.Shape || hands.Dissolve);
+        Assert.Equal((0, 0), Hold(hands, 1f, lb: true, rb: true));
+        Assert.Equal((0, 0), Hold(hands, 0.2f)); // no tap from the stale hold either
+        Assert.True(Hold(hands, 0.6f, lb: true).Shape > 0);
     }
 
     // ---- walking on sound ----------------------------------------------------------------------------------------

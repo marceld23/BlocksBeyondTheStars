@@ -56,7 +56,7 @@ public sealed partial class GameServer
 
         foreach (var s in JoinedInActiveWorld())
         {
-            if (s.Spectating || InSpace(s.State.PlayerId) || !IsStoryPackActive(s, SoundersIds.PackId))
+            if (!SoundersPassReaches(s))
             {
                 continue;
             }
@@ -68,6 +68,7 @@ public sealed partial class GameServer
             TickSoundersStepEvidence(s); // #3910: a step whose moment lies behind the player already
         }
 
+        SweepOverEchoes(); // #3910: a figure whose player this pass no longer reaches does not stay at the gate
         TickOverChoir(); // #3910: chapter 11's choir and the tower's gate
     }
 

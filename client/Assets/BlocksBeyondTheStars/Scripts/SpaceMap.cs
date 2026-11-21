@@ -529,8 +529,9 @@ namespace BlocksBeyondTheStars.Client
                     float grow = BlocksBeyondTheStars.Client.Core.GiantWreckText.IsGiantWreck(e.Id) ? 6f : 0f;
                     Centered(_chart, p, new Vector2(20f + grow, 20f + grow), UiKit.DiscSprite, DiscCol);
                     Centered(_chart, p, new Vector2(12f + grow, 12f + grow), UiKit.DiscSprite, WreckCol);
-                    string kindKey = derelict ? BlocksBeyondTheStars.Client.Core.GiantWreckText.DerelictKind(e.Id) : "ui.map.kind_wreck";
-                    Label(_chart, p + new Vector2(0f, -18f - grow * 0.5f), $"{e.Name} · {L(kindKey)}");
+                    // #3902: an escort cruiser's wreck is no "derelict station" — its name says what it is (ChartLabel).
+                    string label = derelict ? BlocksBeyondTheStars.Client.Core.GiantWreckText.ChartLabel(e.Id, e.Name, L) : $"{e.Name} · {L("ui.map.kind_wreck")}";
+                    Label(_chart, p + new Vector2(0f, -18f - grow * 0.5f), label);
                     _targets.Add((e.Id, p, e.Name));
                 }
             }

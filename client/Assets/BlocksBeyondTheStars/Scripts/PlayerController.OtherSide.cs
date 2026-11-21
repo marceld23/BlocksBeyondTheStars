@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         private object _soundBlockContent;
         private ushort _soundBlockId;
         private bool _soundStepsRunning;
+        private readonly PalettePadHands _padHands = new PalettePadHands();
 
         /// <summary>True while the player is on the other side (the server's word, <see cref="GameBootstrap.OtherSide"/>).</summary>
         private bool OverThere => Game != null && Game.OtherSide.Over;
@@ -61,7 +62,8 @@ namespace BlocksBeyondTheStars.Client
             bool aimed = HoldsResonanceBlaster() && ResolveSoundAim(out _);
             var aim = _soundAim;
             bool onSound = aimed && aim.Surface && IsSoundBlockCell(aim.HitX, aim.HitY, aim.HitZ);
-            var action = Game.SoundShaper.Tick(Time.deltaTime, aimed, InputMap.SecondaryHeld(), InputMap.PrimaryHeld(), onSound);
+            ReadSoundHands(out bool shape, out bool dissolve);
+            var action = Game.SoundShaper.Tick(Time.deltaTime, aimed, shape, dissolve, onSound);
             if (action == SoundShapeAction.None)
             {
                 return true;
@@ -76,6 +78,30 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// The two hand keys over there this frame: the place key shapes, the mine key dissolves. The mouse and the touch
+        /// buttons are read as everywhere. On a gamepad the open melody bar holds the shoulder buttons (its "tones 5–8"
+        /// modifier, <see cref="InputMap.MelodyBarCapture"/>) and <see cref="InputMap"/> drops the pad's part — so the
+        /// pad is read here through <see cref="PalettePadHands"/>: a shoulder button alone is the hand, with the d-pad
+        /// it stays the bar's modifier, and the triggers (where switched on) are always the hand.
+        /// </summary>
+        private void ReadSoundHands(out bool shape, out bool dissolve)
+        {
+            shape = InputMap.SecondaryHeld();
+            dissolve = InputMap.PrimaryHeld();
+            if (!InputMap.MelodyBarCapture)
+            {
+                _padHands.Reset(); // the bar is closed: the pad's shoulders and triggers are in the two reads above
+                return;
+            }
+
+            bool dpad = MelodyBarInput.DirectionOf(InputMap.PadDpadX(), InputMap.PadDpadY()) != PadDirection.None;
+            _padHands.Update(Time.deltaTime, InputMap.PadHeld(PadButton.Lb), InputMap.PadHeld(PadButton.Rb),
+                InputMap.PadTriggerPlaceHeld(), InputMap.PadTriggerMineHeld(), dpad);
+            shape |= _padHands.Shape;
+            dissolve |= _padHands.Dissolve;
         }
 
         /// <summary>The blaster's aim this frame (resolved once a frame, whoever asks): the point to send and the cell it

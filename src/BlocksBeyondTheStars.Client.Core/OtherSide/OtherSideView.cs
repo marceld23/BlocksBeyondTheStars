@@ -71,7 +71,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Moves with every state the server sent — a cheap "anything new?" for the HUD.</summary>
         public int Version { get; private set; }
 
-        /// <summary>The gates around the player while over there (<see cref="OtherSideGates"/>).</summary>
+        /// <summary>The gates around the player while over there (<see cref="OtherSideGates"/>, through
+        /// <see cref="ApplyGates"/>) — and, after a return, the last of them until the look has eased back.</summary>
         public OtherSideGateBook Gates { get; } = new OtherSideGateBook();
 
         // ---------------- What may I start? ----------------
@@ -132,29 +133,37 @@ namespace BlocksBeyondTheStars.Client
             GateZ = m.GateZ;
             SoundBlocksUsed = Math.Max(0, m.SoundBlocksUsed);
             SoundBlockCap = Math.Max(0, m.SoundBlockCap);
-            if (!Over)
+            var cue = OtherSideCue.None;
+            if (flipped) // else a count moved: the look keeps easing where it is
             {
-                Gates.Clear(); // the lights go out with the return, whether or not the empty list arrives
+                string reason = m.Reason ?? string.Empty;
+                if (!Eases(reason))
+                {
+                    Blend = Over ? 1f : 0f;
+                }
+                else if (HasFanfare(reason))
+                {
+                    cue = Over ? OtherSideCue.Cross : OtherSideCue.Return;
+                }
             }
 
-            if (!flipped)
+            DropGatesOnOurSide(); // at once when the look does not ease; else when it has eased back (Tick)
+            return cue;
+        }
+
+        /// <summary>Takes the server's gate list. Over there it replaces the book. On our side nothing is listed — the
+        /// server's empty list says "the lights go out": the last gates stay in the book while the look eases back, so
+        /// their lights fade with it instead of popping off, and are dropped when it has arrived
+        /// (<see cref="Tick"/>).</summary>
+        public void ApplyGates(OtherSideGates? m)
+        {
+            if (Over || (m?.Gates is { Length: > 0 }))
             {
-                return OtherSideCue.None; // a count moved: the look keeps easing where it is
+                Gates.Apply(m);
+                return;
             }
 
-            string reason = m.Reason ?? string.Empty;
-            if (!Eases(reason))
-            {
-                Blend = Over ? 1f : 0f;
-                return OtherSideCue.None;
-            }
-
-            if (!HasFanfare(reason))
-            {
-                return OtherSideCue.None;
-            }
-
-            return Over ? OtherSideCue.Cross : OtherSideCue.Return;
+            DropGatesOnOurSide();
         }
 
         /// <summary>One frame: the blend moves toward the side the player is on.</summary>
@@ -168,6 +177,17 @@ namespace BlocksBeyondTheStars.Client
 
             float step = dt / BlendSeconds;
             Blend = Blend < target ? Math.Min(target, Blend + step) : Math.Max(target, Blend - step);
+            DropGatesOnOurSide();
+        }
+
+        /// <summary>On our side with the look fully back, no gate carries a light — whether or not the server's empty
+        /// list arrived. Until then the last gates stay, fading with the look.</summary>
+        private void DropGatesOnOurSide()
+        {
+            if (!Over && Blend <= 0f)
+            {
+                Gates.Clear();
+            }
         }
 
         /// <summary>A new session or a new world: our side, at once (the server says otherwise right after, if so).</summary>

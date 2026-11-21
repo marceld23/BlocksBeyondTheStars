@@ -124,7 +124,7 @@ namespace BlocksBeyondTheStars.Client
         // The live backends. All are polled every frame and merged; see the class summary. The touch source
         // is inert unless a touch UI is active (tablet / touch browser), so it contributes nothing on desktop.
         private static readonly IInputSource _desktop = new DesktopInputSource();
-        private static readonly IInputSource _pad = new GamepadInputSource();
+        private static readonly GamepadInputSource _pad = new GamepadInputSource();
         private static readonly IInputSource _touch = new TouchInputSource();
 
         private static int _deviceFrame = -1;
@@ -386,7 +386,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#3346: the melody bar is open and takes the number keys 1–8, the pad's d-pad and its shoulders — the hotbar
         /// keys, the d-pad's hotbar cycle and its chat/rotate verbs, and the shoulders' mine/place stay quiet meanwhile (a
-        /// shoulder is the bar's "tones 5–8" modifier, it must not mine the pillar in front of the player).</summary>
+        /// shoulder is the bar's "tones 5–8" modifier, it must not mine the pillar in front of the player). On the other
+        /// side the Resonance Blaster's hands read the pad themselves meanwhile (<see cref="PalettePadHands"/>).</summary>
         public static bool MelodyBarCapture => MelodyBarFrame >= Time.frameCount - 1;
 
         /// <summary>The two verbs that live on the pad's d-pad (up: chat, down: rotate shape) — the bar's tones while it is open.</summary>
@@ -615,6 +616,14 @@ namespace BlocksBeyondTheStars.Client
         public static bool PrimaryHeld() => _desktop.PrimaryHeld() || (!MelodyBarCapture && _pad.PrimaryHeld()) || _touch.PrimaryHeld();
         public static bool SecondaryDown() => _desktop.SecondaryDown() || (!MelodyBarCapture && _pad.SecondaryDown()) || _touch.SecondaryDown();
         public static bool SecondaryHeld() => _desktop.SecondaryHeld() || (!MelodyBarCapture && _pad.SecondaryHeld()) || _touch.SecondaryHeld();
+
+        /// <summary>The pad's mine trigger (RT) on its own — true only while the player switched the triggers on. The other
+        /// side's palette reads the triggers and the shoulder buttons apart (<see cref="PalettePadHands"/>): a trigger is
+        /// never the melody bar's modifier, so it shapes and dissolves while the bar holds the shoulders.</summary>
+        public static bool PadTriggerMineHeld() => _pad.TriggerMineHeld();
+
+        /// <summary>The pad's place trigger (LT) on its own — see <see cref="PadTriggerMineHeld"/>.</summary>
+        public static bool PadTriggerPlaceHeld() => _pad.TriggerPlaceHeld();
 
         /// <summary>Hotbar slot 0..8 picked directly this frame (number keys), or −1. Pad + touch have no
         /// direct pick (they cycle via <see cref="HotbarScroll"/>), so this is the keyboard's answer. #3346: none while the

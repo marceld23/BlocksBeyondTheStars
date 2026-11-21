@@ -44,7 +44,7 @@ public sealed class OtherSideClientServerTests
         h.Client.OtherSideGatesReceived += m =>
         {
             gateLists.Add(m);
-            view.Gates.Apply(m);
+            view.ApplyGates(m); // as the client wires it
         };
         h.Client.ServerMessageReceived += m => said.Add(m.Text);
         h.Client.ActionRejected += m => said.Add(m.Action + ":" + m.Reason);
@@ -75,7 +75,7 @@ public sealed class OtherSideClientServerTests
 
         // ---- the palette: the tone played last on the melody bar ----
         h.Client.SendMelodyNote(5, string.Empty, SoundersIds.InstrumentVoice);
-        palette.Played(5);
+        Assert.True(palette.Played(5, 0.0)); // one note, well inside the server's note budget
 
         // ---- shape: the use key, the blaster in hand ----
         var aim = Aim(h, p);
@@ -113,7 +113,9 @@ public sealed class OtherSideClientServerTests
         Assert.False(view.HasGate);
         Assert.True(h.PumpUntil(() => h.World.GetBlock(cell.X, cell.Y, cell.Z).Value != sound, 100), "the sound block stayed in the client's world on our side");
         Assert.True(h.PumpUntil(() => gateLists.Count > 0 && (gateLists[^1].Gates?.Length ?? 0) == 0), "the lights never went out");
-        Assert.Equal(0, view.Gates.Count);
+        Assert.True(view.Gates.Count > 0); // the server's empty list arrived: the last lights fade with the look …
+        view.Tick(OtherSideView.BlendSeconds);
+        Assert.Equal(0, view.Gates.Count); // … and are gone when it is back
         Assert.DoesNotContain(said, t => t.Contains("gadget:")); // no pulse was refused on the way
     }
 

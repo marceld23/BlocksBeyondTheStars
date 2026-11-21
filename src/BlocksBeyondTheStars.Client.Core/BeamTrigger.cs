@@ -22,7 +22,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Send one beam tick to the server now.</summary>
         public bool Tick { get; }
 
-        /// <summary>The beam went off this frame — tell the server and take the beam away.</summary>
+        /// <summary>The beam went off this frame, or a hold whose beam the server or the reserve had ended was let go —
+        /// tell the server and take the beam away.</summary>
         public bool Stopped { get; }
 
         /// <summary>The suit is at its reserve: the beam stopped, or did not start, for lack of energy — say so once.</summary>
@@ -44,7 +45,8 @@ namespace BlocksBeyondTheStars.Client
     /// <para><b>It stops</b> on the release, when the hand can no longer fire (<c>canBeam</c>: the item changed, a menu,
     /// a seat, a carried block …), when the suit reaches its reserve (<c>canPay</c>), and when the server says so
     /// (<see cref="ServerStopped"/>). After a stop for energy or by the server it waits for the release before a new
-    /// press counts — a held control does not restart the beam four times a second.</para>
+    /// press counts — a held control does not restart the beam four times a second. That release is reported as a stop
+    /// as well, so the server hears the end of every hold it refused.</para>
     /// </summary>
     public sealed class BeamTrigger
     {
@@ -90,12 +92,16 @@ namespace BlocksBeyondTheStars.Client
                 case Phase.Beam:
                     return WhileBeaming(dt, held, canBeam, canPay, tick);
                 case Phase.Spent:
-                    if (!held)
+                    if (held)
                     {
-                        State = Phase.Idle;
+                        return default;
                     }
 
-                    return default;
+                    // The release ends the hold for the server too. It remembers that it refused this hold and says so
+                    // only once; without the release it would stay silent at the next refused hold, and the client's
+                    // own beam of that hold would stay drawn.
+                    State = Phase.Idle;
+                    return new BeamStep(started: false, tick: false, stopped: true, starved: false);
                 default:
                     if (pressed && canBeam)
                     {
@@ -170,13 +176,15 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The on-foot input did not run this frame (a menu, a vehicle, the ship's view): whatever was going on
-        /// is over. True when a beam was on — the caller then tells the server and takes the beam away.</summary>
+        /// is over. True when a beam was on, or a hold the beam ended in was still down (<see cref="Phase.Spent"/> — its
+        /// release is owed to the server, see <see cref="Update"/>) — the caller then tells the server and takes the beam
+        /// away.</summary>
         public bool Cancel()
         {
-            bool wasBeaming = State == Phase.Beam;
+            bool tellServer = State == Phase.Beam || State == Phase.Spent;
             State = Phase.Idle;
             _wasHeld = true; // a control still down when the input comes back is no new press
-            return wasBeaming;
+            return tellServer;
         }
     }
 }

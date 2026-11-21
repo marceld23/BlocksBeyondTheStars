@@ -215,30 +215,75 @@ namespace BlocksBeyondTheStars.Client
     /// The melody bar as the palette (#3908): the tone the player played last on the bar is the tone — and the glow — of
     /// their next sound block. The server keeps that tone per session (0 before any tone was played); this is the
     /// client's mirror of the same rule, so the bar can mark it.
+    /// <para>The server takes a tone only within its note budget — a burst of <see cref="NoteBurst"/> notes, refilled
+    /// at <see cref="NotesPerSecond"/> (<c>GameServerMelodyPuzzles.TakeMelodyNoteBudget</c>) — and drops the rest
+    /// unheard. The mirror keeps the same budget on the times the notes were sent, so the tone it marks is the last one
+    /// the server took, not one a kid mashed past the budget.</para>
     /// </summary>
     public sealed class SoundPalette
     {
+        /// <summary>The server's note budget: this many notes at once (<c>MelodyNoteBurst</c>).</summary>
+        public const double NoteBurst = 16;
+
+        /// <summary>The server's note budget: refilled this fast (<c>MelodyNotesPerSecond</c>).</summary>
+        public const double NotesPerSecond = 10;
+
+        private double _tokens = NoteBurst;
+        private double _budgetAt;
+        private bool _budgetStarted;
+
         /// <summary>The tone (0–7) the next sound block gets.</summary>
         public int Tone { get; private set; }
 
         /// <summary>Moves when the tone changes.</summary>
         public int Version { get; private set; }
 
-        /// <summary>The player played a tone on the melody bar (a tone outside 0–7, the bar's "leave", changes nothing).</summary>
-        public void Played(int tone)
+        /// <summary>
+        /// A note of the melody bar went to the server at <paramref name="now"/> (seconds on any steady clock). Every
+        /// note takes one of the budget, the bar's "leave" (a tone outside 0–7) too; a note within the budget that is a
+        /// tone becomes the palette's tone. False when the server will have dropped the note — the tone stays then.
+        /// </summary>
+        public bool Played(int tone, double now)
         {
-            if (tone < 0 || tone >= OtherSideRules.ToneGlow.Length || tone == Tone)
+            if (!TakeNoteBudget(now))
             {
-                return;
+                return false;
             }
 
-            Tone = tone;
-            Version++;
+            if (tone >= 0 && tone < OtherSideRules.ToneGlow.Length && tone != Tone)
+            {
+                Tone = tone;
+                Version++;
+            }
+
+            return true;
         }
 
-        /// <summary>A new session: the server starts at tone 0 again.</summary>
+        /// <summary>The server's budget rule, on the client's clock.</summary>
+        private bool TakeNoteBudget(double now)
+        {
+            if (_budgetStarted)
+            {
+                _tokens = Math.Min(NoteBurst, _tokens + (Math.Max(0.0, now - _budgetAt) * NotesPerSecond));
+            }
+
+            _budgetStarted = true;
+            _budgetAt = now;
+            if (_tokens < 1.0)
+            {
+                return false;
+            }
+
+            _tokens -= 1.0;
+            return true;
+        }
+
+        /// <summary>A new session: the server starts at tone 0 again (and the budget is full — a join takes longer than
+        /// its refill).</summary>
         public void Reset()
         {
+            _tokens = NoteBurst;
+            _budgetStarted = false;
             if (Tone != 0)
             {
                 Tone = 0;

@@ -89,7 +89,10 @@ public sealed partial class GameServer
     private readonly Dictionary<string, HeldBeam> _heldBeams = new(StringComparer.Ordinal);
     private readonly Dictionary<string, double> _beamNextTickAt = new(StringComparer.Ordinal);
     private readonly Dictionary<string, double> _beamReserveLineAt = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _beamRefusalTold = new(StringComparer.Ordinal);
+    /// <summary>The players who were told that their hold fires nothing, and when the hold's last refused tick came in. A
+    /// hold is a run of ticks no further apart than <see cref="BeamWeaponRules.TimeoutSeconds"/>: a tick after a longer
+    /// silence is a new hold and is told again, whether or not the client sent a release in between.</summary>
+    private readonly Dictionary<string, double> _beamRefusalTold = new(StringComparer.Ordinal);
     private readonly List<string> _beamScratch = new();
 
     /// <summary>The beam tick being resolved right now — set only for the one <see cref="AttackEntity"/> call of
@@ -173,8 +176,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>The server will not fire this player's beam (the reserve, a seat, another item …): a beam that is on ends,
-    /// and the shooter's client is told once to let go of its own — once per hold, however many ticks it still sends
-    /// (the next release or the next beam that does start clears it).</summary>
+    /// and the shooter's client is told once to let go of its own — once per hold, however many ticks it still sends.
+    /// A new hold is told again: after a release, after a beam that did start, and — for a client that stopped sending
+    /// without a release — with the first refused tick after <see cref="BeamWeaponRules.TimeoutSeconds"/> of silence.
+    /// Without that, a hold refused from its first tick would get no end and the client would draw a beam that does
+    /// nothing.</summary>
     private void RefuseHeldBeam(PlayerSession session)
     {
         string id = session.State.PlayerId;
@@ -184,7 +190,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_beamRefusalTold.Add(id))
+        bool sameHold = _beamRefusalTold.TryGetValue(id, out double heardAt) && _uptime - heardAt <= BeamWeaponRules.TimeoutSeconds;
+        _beamRefusalTold[id] = _uptime;
+        if (!sameHold)
         {
             var at = session.State.Position;
             Send(session, NewActionFx(session, FxActionKinds.WeaponBeamEnd, HeldItemKey(session.State), at, at, hit: false, outcome: false));
@@ -327,7 +335,7 @@ public sealed partial class GameServer
 
         if (tellShooter)
         {
-            _beamRefusalTold.Add(playerId); // the shooter hears this end; a tick still on its way says nothing more
+            _beamRefusalTold[playerId] = _uptime; // the shooter hears this end; a tick still on its way says nothing more
         }
 
         var from = beam.Drawn ? beam.From : session.State.Position;

@@ -47,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
         private string _otherSideHint;
         private object _otherSideHintLoc;
         private InputDeviceKind _otherSideHintDevice = (InputDeviceKind)(-1);
+        private (ClientSettings Settings, int Bindings, PadGlyphSet Glyphs, bool Triggers) _otherSideHintStamp;
         private Text[] _melodySymbols;
         private bool _paletteInk;
 
@@ -220,13 +221,18 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The palette's hint row: which key shapes, which dissolves, and that a tone picks the next block's tone
-        /// (the key tokens expanded for the device in hand; rebuilt only when the language or the device changes).</summary>
+        /// (the key tokens expanded for the device in hand; rebuilt only when the language, the device or a binding
+        /// changes — <see cref="GlyphStamp"/>: a rebind, the pad's glyph set, the triggers switch). The full controls line
+        /// shows the same text over there (<see cref="ControlsLine"/>).</summary>
         private string OtherSideBarHint(Localizer loc, InputDeviceKind device)
         {
-            if (_otherSideHint == null || device != _otherSideHintDevice || !ReferenceEquals(loc, _otherSideHintLoc))
+            var stamp = GlyphStamp;
+            if (_otherSideHint == null || device != _otherSideHintDevice || !ReferenceEquals(loc, _otherSideHintLoc)
+                || !stamp.Equals(_otherSideHintStamp))
             {
                 _otherSideHintDevice = device;
                 _otherSideHintLoc = loc;
+                _otherSideHintStamp = stamp;
                 _otherSideHint = ExpandKeyTokens(loc, loc.Get("ui.otherside.bar_hint"));
             }
 

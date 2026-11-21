@@ -5,8 +5,10 @@ using System.Linq;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Sounders;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -160,6 +162,80 @@ public sealed class OtherSideVisibilityTests
         a.State.Position = new Vector3f(cell.X + 0.5f, cell.Y, cell.Z + 0.5f);
         w.Tick(2.0);
         Assert.Equal(0, a.State.Inventory.CountOf("stone"));
+    }
+
+    /// <summary>A flip changes nothing on the star map but its player list — and the message has no players-only part. So
+    /// a flip only marks; the 1 Hz watch sends the map once, and only to those whose list changed.</summary>
+    [Fact]
+    public void AFlip_SendsTheStarMapOnce_AndOnlyToThoseWhoseListChanged()
+    {
+        using var w = new OtherSideStage(Content, "starmap_flush");
+        var stays = w.Crossed("Stays"); // over there the whole time: sees everybody, before and after
+        var b = Friend(w);
+        var a = w.Player("Kid", w.AtGateA);
+        OtherSideStage.Dress(a);
+        w.Tick(2.0);
+        w.Transport.Sent.Clear();
+
+        // The kid crosses, comes back and crosses again within the same second.
+        Assert.True(w.Server.TryCrossForTest(a, w.GateA[1], out _));
+        Assert.True(w.Server.TryReturnForTest(a, w.GateA[1], out _));
+        Assert.True(w.Server.TryCrossForTest(a, w.GateA[1], out _));
+        Assert.Empty(w.Transport.Messages().OfType<StarMapData>()); // a flip itself sends no star map to anybody
+
+        w.Tick(1.2);
+        var map = Assert.Single(w.Transport.To<StarMapData>(b)); // three flips, one map
+        Assert.DoesNotContain(map.Players, p => p.Name == "Kid");
+        Assert.Contains(Assert.Single(w.Transport.To<StarMapData>(a)).Players, p => p.Name == "Stays"); // the one who flipped
+        Assert.Empty(w.Transport.To<StarMapData>(stays)); // nothing changed for who stayed over there
+
+        w.Tick(3.0);
+        Assert.Single(w.Transport.To<StarMapData>(b)); // and nothing more until somebody flips again
+    }
+
+    /// <summary>Soaniri's singing plants are of our side: the tones a player plays over there are not heard there, so no
+    /// bell bloom may open for them (a real block change — on Ornasa's trail it opens a chamber) and no echo flower may
+    /// sing them back to the players on our side.</summary>
+    [Fact]
+    public void TonesPlayedOverThere_ReachNoSingingPlantOfOurSide()
+    {
+        using var w = new OtherSideStage(Content, "plants", c =>
+        {
+            c.StartPlanet = SoundersIds.PlanetType;
+            c.World.TerrainGeneration = WorldDescription.CurrentTerrainGeneration;
+        });
+        var a = w.Crossed("Kid");
+        a.State.Position = w.AtLoneStone; // no gate here: the bar is free play, not a mend game
+        var at = a.State.Position.ToBlock();
+        var bloom = new Vector3i(at.X + 2, at.Y, at.Z);
+        var flower = new Vector3i(at.X - 2, at.Y, at.Z);
+        w.Server.World.SetBlock(bloom, Content.GetBlock(FloraCatalog.BellBloomKey)!.NumericId);
+        w.Server.World.SetBlock(flower, Content.GetBlock(FloraCatalog.EchoFlowerKey)!.NumericId);
+        var b = w.Player("Friend", new Vector3f(flower.X - 1.5f, at.Y, flower.Z + 0.5f)); // on our side, beside the flower
+        int[] phrase = SounderAlphabet.TonesOnly(SounderAlphabet.Encode("MI")); // a phrase of the Song of Return
+        string KeyAt(Vector3i cell) => Content.BlockById(w.Server.World.GetBlock(cell))?.Key ?? "air";
+
+        w.Transport.Sent.Clear();
+        foreach (int tone in phrase)
+        {
+            w.Send(a, new MelodyNoteIntent { Tone = tone });
+        }
+
+        w.Server.TickSingingPlantsForTest(3.0);
+        Assert.Null(w.Server.RunningMelodyPuzzle(a));
+        Assert.Equal(FloraCatalog.BellBloomKey, KeyAt(bloom)); // no bloom opened
+        Assert.Empty(w.Transport.To<NoteSequence>(b)); // neither the tones nor an echo flower's answer reached our side
+
+        // Back on our side the same phrase opens the bloom: the plants were there, they just must not hear the other side.
+        Assert.True(w.Server.TryReturnForTest(a, w.GateA[1], out _));
+        foreach (int tone in phrase)
+        {
+            w.Send(a, new MelodyNoteIntent { Tone = tone });
+        }
+
+        Assert.Equal(FloraCatalog.BellBloomOpenKey, KeyAt(bloom));
+        w.Server.TickSingingPlantsForTest(3.0);
+        Assert.Contains(w.Transport.To<NoteSequence>(b), n => n.Instrument == SoundersIds.InstrumentVoice); // the echo flower answers
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
@@ -97,6 +98,61 @@ public sealed class SoundShapingTests : IDisposable
         Assert.Empty(w.Transport.To(real)); // no pulse sound, no gadget effect, no block change on the real side
         Assert.DoesNotContain(w.Transport.Messages().OfType<SoundFx>(), f => f.SoundId.StartsWith("blaster_pulse", StringComparison.Ordinal));
         Assert.DoesNotContain(w.Transport.To<ActionRejected>(singer), r => r.Action == "gadget");
+    }
+
+    /// <summary>The server handles intents once per tick (1/15 s) and a held trigger pulses every 0.22 s, so two pulses
+    /// arrive three or four ticks apart — and a three-tick gap can fall just short of the 0.2 s cooldown. Such a pulse
+    /// used to be swallowed without a word (about every third block of a held trigger). The cadence is a schedule now: a
+    /// pulse up to a tick early counts, and the schedule moves on by whole cooldowns, so nobody gets more than five
+    /// blocks a second.</summary>
+    [Fact]
+    public void TheCadence_TakesAPulseOneTickEarly_ButNeverMoreThanFiveBlocksASecond()
+    {
+        using var w = World("blaster_jitter");
+        var singer = Singer(w);
+        string id = singer.State.PlayerId;
+        singer.State.Position = new Vector3f(NpcLifeWorld.Cx + 0.5f, w.Feet, NpcLifeWorld.Cz + 0.5f);
+        var grounds = new List<Vector3i>(); // pad cells around the singer (not the ones under and beside them)
+        for (int dx = -3; dx <= 3; dx++)
+        {
+            for (int dz = -3; dz <= 3; dz++)
+            {
+                if (Math.Abs(dx) > 1 || Math.Abs(dz) > 1)
+                {
+                    grounds.Add(new Vector3i(NpcLifeWorld.Cx + dx, w.PadY, NpcLifeWorld.Cz + dz));
+                }
+            }
+        }
+
+        bool Fire()
+        {
+            int before = w.Server.SoundBlocksOf(id);
+            Pulse(w, TopFace(grounds[before])); // always a fresh cell: only the cadence can swallow the pulse
+            return w.Server.SoundBlocksOf(id) == before + 1;
+        }
+
+        const double tick = 1.0 / 15.0;
+        Assert.True(Fire());
+        foreach (double gap in new[] { 0.18, 4 * tick, 0.14, 3 * tick, 4 * tick })
+        {
+            w.Server.AdvanceUptimeForTest(gap);
+            Assert.True(Fire(), $"a pulse {gap:0.00} s after the last one is a held trigger's, not a spammer's");
+        }
+
+        w.Server.AdvanceUptimeForTest(0.10); // more than a tick early: still swallowed, and quietly
+        Assert.False(Fire());
+        Assert.Empty(w.Transport.To<ActionRejected>(singer));
+
+        // A client that pulses every single tick: five blocks a second on average, never more.
+        w.Server.AdvanceUptimeForTest(1.0);
+        int start = w.Server.SoundBlocksOf(id);
+        for (int i = 0; i < 45; i++) // three seconds
+        {
+            w.Server.AdvanceUptimeForTest(tick);
+            Fire();
+        }
+
+        Assert.InRange(w.Server.SoundBlocksOf(id) - start, 14, 16);
     }
 
     [Fact]

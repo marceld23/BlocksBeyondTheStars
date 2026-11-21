@@ -20,8 +20,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// with a short counter-voice game. How it is built: <c>docs/developer/OTHER_SIDE.md</c> § "The cracks".
 /// <list type="bullet">
 /// <item><b>The state</b> is per world and saved: <c>WorldMetadata.MendedCracks</c>, one key per mended gate — its world,
-/// the rounded middle of its stones and the reach of the mend. A gate whose middle lies within a mended crack's reach is
-/// whole. The gate list's hook <see cref="OtherSideGateCracked"/> reads it.</item>
+/// the rounded middle of its stones, the reach of the mend and, for a gate the world itself carries, the site its stones
+/// belong to (<see cref="WorldGateSite"/>, <c>GameServerOtherSideCracks.Sites.cs</c>). A gate whose middle lies within a
+/// mended crack's reach is whole — and so is every gate of a mended site, wherever its middle is measured: a site is
+/// mended, counted and answered once. The gate list's hook <see cref="OtherSideGateCracked"/> reads it.</item>
 /// <item><b>Mending never blocks the way home</b>: the use key on a stone of a cracked gate still brings the player back.
 /// The mend game starts from the melody bar instead — a tone played over there while standing in a cracked gate
 /// (<see cref="RegisterMelodyFreePlayStarter"/>): the gate sings a three-tone motif made from its place, then the motif
@@ -54,8 +56,9 @@ public sealed partial class GameServer
     /// <summary>Seconds a place that turned out to be no cracked gate is not searched again for one player's free tones.</summary>
     private const double CrackScanSeconds = 1.5;
 
-    /// <summary>One entry of <c>WorldMetadata.MendedCracks</c>, parsed.</summary>
-    private readonly record struct MendedCrack(string LocationId, Vector3f Centre, float Reach);
+    /// <summary>One entry of <c>WorldMetadata.MendedCracks</c>, parsed. <c>Site</c> is the world site the gate belonged
+    /// to (<see cref="WorldGateSite"/>), empty for a gate a player built.</summary>
+    private readonly record struct MendedCrack(string LocationId, Vector3f Centre, float Reach, string Site);
 
     private readonly List<MendedCrack> _mendedCracks = new();
     private int _mendedCracksParsed = -1;
@@ -81,9 +84,25 @@ public sealed partial class GameServer
         => cracked = !IsCrackMended(locationId, centre);
 
     /// <summary>Whether the gate with its middle at <paramref name="centre"/> on <paramref name="locationId"/> is whole:
-    /// a mended crack of that world reaches it.</summary>
+    /// a mended crack of that world reaches it — or the world site its stones belong to was mended, wherever the middle
+    /// was measured then (<see cref="WorldGateSite"/>; asked only on the active world, and only when the reach says
+    /// "cracked" and a site of that world was mended at all).</summary>
     internal bool IsCrackMended(string locationId, Vector3f centre)
     {
+        if (MendedByReach(locationId, centre, out bool anySite))
+        {
+            return true;
+        }
+
+        return anySite && string.Equals(locationId, _world.LocationId, StringComparison.Ordinal)
+               && WorldGateSite(centre) is { } site && IsSiteMended(locationId, site);
+    }
+
+    /// <summary>The position rule alone: a mended crack of that world lies within its reach of <paramref name="centre"/>.
+    /// <paramref name="anySite"/>: a world site of that world was mended (so a gate may be whole by its site).</summary>
+    private bool MendedByReach(string locationId, Vector3f centre, out bool anySite)
+    {
+        anySite = false;
         int circumference = _worlds.Find(locationId)?.World.Circumference ?? 0;
         foreach (var crack in MendedCracks())
         {
@@ -92,6 +111,7 @@ public sealed partial class GameServer
                 continue;
             }
 
+            anySite |= crack.Site.Length > 0;
             double distSq = circumference > 0
                 ? WorldConstants.WrapDistanceSquared(crack.Centre, centre, circumference)
                 : crack.Centre.DistanceSquared(centre);
@@ -127,16 +147,20 @@ public sealed partial class GameServer
     }
 
     /// <summary>The key of a mended crack: <c>&lt;location&gt;|&lt;x&gt;|&lt;y&gt;|&lt;z&gt;|&lt;reach&gt;</c>, the middle rounded to
-    /// whole blocks. It is also the argument of <c>crack:mended</c>.</summary>
-    internal static string CrackKey(string locationId, Vector3f centre, float reach)
-        => string.Format(CultureInfo.InvariantCulture, "{0}|{1}|{2}|{3}|{4}", locationId,
+    /// whole blocks — and, for a gate of a world site, <c>|&lt;site&gt;</c> after it (<see cref="WorldGateSite"/>; a site
+    /// id never holds a <c>|</c>). It is also the argument of <c>crack:mended</c>.</summary>
+    internal static string CrackKey(string locationId, Vector3f centre, float reach, string? site = null)
+    {
+        string key = string.Format(CultureInfo.InvariantCulture, "{0}|{1}|{2}|{3}|{4}", locationId,
             (long)Math.Round(centre.X), (long)Math.Round(centre.Y), (long)Math.Round(centre.Z), (long)Math.Round(reach));
+        return string.IsNullOrEmpty(site) ? key : key + "|" + site;
+    }
 
     private static bool TryParseCrackKey(string key, out MendedCrack crack)
     {
         crack = default;
         string[] parts = (key ?? string.Empty).Split('|');
-        if (parts.Length != 5 || parts[0].Length == 0
+        if (parts.Length is not (5 or 6) || parts[0].Length == 0
             || !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float x)
             || !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float y)
             || !float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float z)
@@ -145,7 +169,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        crack = new MendedCrack(parts[0], new Vector3f(x, y, z), Math.Max(1f, reach));
+        crack = new MendedCrack(parts[0], new Vector3f(x, y, z), Math.Max(1f, reach), parts.Length == 6 ? parts[5] : string.Empty);
         return true;
     }
 
@@ -229,19 +253,24 @@ public sealed partial class GameServer
     /// a gate the world itself carries, answered by the real side (the bloom). <paramref name="reach"/> is how far the mend
     /// covers (<see cref="CrackGateReach"/>; <see cref="GreatCrackReach"/> for the great crack). <paramref name="solver"/>
     /// took part wherever they stand. False when the gate was whole already.
+    /// <para>A gate of a world site (<see cref="WorldGateSite"/>) is the SITE's: it is whole once its site was mended,
+    /// wherever the middle of the stones is measured now — extra stones a player placed beside a monument, or another
+    /// place to stand, never make it a second gate that counts and pays again.</para>
     /// </summary>
     internal bool MendCrack(Vector3f gate, float reach, PlayerSession? solver)
     {
         string location = _world.LocationId;
-        bool whole = IsCrackMended(location, gate);
-        string key = CrackKey(location, gate, reach);
+        string? site = WorldGateSite(gate);
+        bool whole = MendedByReach(location, gate, out _) || (site is not null && IsSiteMended(location, site));
+        string key = CrackKey(location, gate, reach, site);
         if ((whole && reach <= CrackGateReach) || _meta.MendedCracks.Contains(key))
         {
             return false;
         }
 
-        // The real side answers once per gate: not again when a wider mend (the great crack) covers a gate that was whole.
-        bool answers = !whole && IsWorldGate(gate);
+        // The real side answers once per site: never for stones a player placed, and not again when a wider mend (the
+        // great crack) covers a gate that was whole.
+        bool answers = !whole && site is not null;
         _meta.MendedCracks.Add(key);
         _repo.SaveMetadata(_meta);
         int number = MendedCracks().Count(c => string.Equals(c.LocationId, location, StringComparison.Ordinal));
@@ -300,34 +329,7 @@ public sealed partial class GameServer
     /// <see cref="EchoRuneGroupSize"/> of its rune stones were not placed by a player (a monument's, a shrine's, a ruin's,
     /// a lone stone of the terrain, the Choir Tower's). Three stones a player placed are a gate too, but not this.
     /// </summary>
-    internal bool IsWorldGate(Vector3f gate)
-    {
-        if (_content.GetBlock("rune_stone") is not { } rune)
-        {
-            return false;
-        }
-
-        int cx = (int)Math.Floor(gate.X), cy = (int)Math.Floor(gate.Y), cz = (int)Math.Floor(gate.Z);
-        int own = 0;
-        for (int dx = -EchoRuneScanRadius; dx <= EchoRuneScanRadius; dx++)
-        {
-            for (int dy = -EchoRuneScanRadius; dy <= EchoRuneScanRadius; dy++)
-            {
-                for (int dz = -EchoRuneScanRadius; dz <= EchoRuneScanRadius; dz++)
-                {
-                    var cell = new Vector3i(cx + dx, cy + dy, cz + dz);
-                    if (_world.GetBlockIfLoaded(cell).Value == rune.NumericId.Value
-                        && !string.Equals(RuneSiteKind(cell), RuneSitePlaced, StringComparison.Ordinal)
-                        && ++own >= EchoRuneGroupSize)
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
+    internal bool IsWorldGate(Vector3f gate) => WorldGateSite(gate) is not null;
 
     // ---------------- Test seams ----------------
 

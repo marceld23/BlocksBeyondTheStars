@@ -24,14 +24,16 @@ public sealed class OtherSideWiringTests
         string boot = Script("GameBootstrap.OtherSide.cs");
         Assert.Contains("public OtherSideView OtherSide { get; } = new OtherSideView();", boot);
         Assert.Contains("Network.OtherSideStateReceived += OnOtherSideState;", boot);
-        Assert.Contains("Network.OtherSideGatesReceived += m => OtherSide.Gates.Apply(m);", boot);
+        Assert.Contains("Network.OtherSideGatesReceived += m => OtherSide.ApplyGates(m);", boot); // a return's empty list lets the lights fade
         Assert.Contains("Network.JoinAccepted += _ => ForgetOtherSide();", boot);
         Assert.Contains("SoundShaper.Hold();", boot); // a refused pulse rests the trigger, like the server
         Assert.Contains("World?.SetGlowLookBlocks(", boot); // sound blocks glow, they are no light sources
         Assert.Contains("RegisterSoundBlockLook();", Script("GameBootstrap.Environment.cs"));
         Assert.Contains("WireOtherSide();", Script("GameBootstrap.Knowledge.cs"));
         Assert.Contains("Network.ShowsOtherSide = true;", Script("GameBootstrap.cs")); // the capability word otherside1
-        Assert.Contains("SoundPalette.Played(tone);", Script("GameBootstrap.Melody.cs")); // the tone played last is the palette
+        string melody = Script("GameBootstrap.Melody.cs");
+        Assert.Contains("SoundPalette.Played(tone, Time.unscaledTimeAsDouble);", melody); // the tone played last is the palette …
+        Assert.Contains("SoundPalette.Played(-1, Time.unscaledTimeAsDouble);", melody);   // … within the server's note budget, which the leave takes from too
     }
 
     [Fact]
@@ -66,7 +68,26 @@ public sealed class OtherSideWiringTests
 
         string rig = Script("PlayerController.OtherSide.cs");
         Assert.Contains("private bool OverThere => Game != null && Game.OtherSide.Over;", rig);
-        Assert.Contains("Game.SoundShaper.Tick(Time.deltaTime, aimed, InputMap.SecondaryHeld(), InputMap.PrimaryHeld(), onSound)", rig);
+        Assert.Contains("ReadSoundHands(out bool shape, out bool dissolve);", rig);
+        Assert.Contains("Game.SoundShaper.Tick(Time.deltaTime, aimed, shape, dissolve, onSound)", rig);
+        Assert.Contains("shape = InputMap.SecondaryHeld();", rig);  // the place key shapes (mouse, touch, a pad whose bar is closed)
+        Assert.Contains("dissolve = InputMap.PrimaryHeld();", rig); // the mine key dissolves
+
+        // A gamepad under the open melody bar: InputMap drops the pad's place and mine there (the shoulders are the bar's
+        // modifier), so the rig reads the pad itself — a shoulder alone is the hand, with the d-pad the modifier, the
+        // triggers (where switched on) always the hand. Without this nothing could be shaped with a pad.
+        Assert.Contains("if (!InputMap.MelodyBarCapture)", rig);
+        Assert.Contains("_padHands.Update(Time.deltaTime, InputMap.PadHeld(PadButton.Lb), InputMap.PadHeld(PadButton.Rb),", rig);
+        Assert.Contains("InputMap.PadTriggerPlaceHeld(), InputMap.PadTriggerMineHeld(), dpad);", rig);
+        Assert.Contains("shape |= _padHands.Shape;", rig);
+        Assert.Contains("dissolve |= _padHands.Dissolve;", rig);
+        string map = Script("InputMap.cs");
+        Assert.Contains("public static bool PadTriggerMineHeld() => _pad.TriggerMineHeld();", map);
+        Assert.Contains("public static bool PadTriggerPlaceHeld() => _pad.TriggerPlaceHeld();", map);
+        Assert.Contains("(!MelodyBarCapture && _pad.SecondaryHeld())", map); // everywhere else the bar keeps the pad's hands quiet, as before
+        string pad = Script(Path.Combine("Input", "GamepadInputSource.cs"));
+        Assert.Contains("public bool TriggerMineHeld() => TriggerHeld(TriggerMine);", pad);   // RT, only while switched on
+        Assert.Contains("public bool TriggerPlaceHeld() => TriggerHeld(TriggerPlace);", pad); // LT
         Assert.Contains("action == SoundShapeAction.Dissolve);", rig); // the mine key's pulse carries Alt
         Assert.Contains("SoundAim.Resolve(_soundSolid,", rig);
         Assert.Contains("Game.OtherSide.FilterInteraction(_facts, rune, aimedLivesThere, nearLivesThere);", rig);
@@ -96,6 +117,14 @@ public sealed class OtherSideWiringTests
         Assert.Contains("loc.Get(\"ui.otherside.bar_hint\")", part);
         Assert.Contains("loc.Get(\"ui.otherside.count\")", part);
         Assert.Contains("Game.OtherSide.Over && bar.FreePlay ? Game.SoundPalette.Tone : -1", part);
+        Assert.Contains("|| !stamp.Equals(_otherSideHintStamp))", part); // a rebind, the glyph set or the triggers switch renames the keys
+
+        // The bottom controls line: over there the full line (mine, place, attack, loot …) gives way to the other side's.
+        Assert.Contains("_hint.text = ControlsLine(loc, hintMode, shortHint);", hud);
+        string line = Script("HudUi.HintLine.cs");
+        Assert.Contains("if (overThere && !shortHint && HoldsSoundBlaster())", line);
+        Assert.Contains("return OtherSideBarHint(loc, device);", line);
+        Assert.Contains("if (shortHint || overThere)", line);
 
         string bar = Script("HudUi.MelodyBar.cs");
         Assert.Contains("int next = SoundPaletteTone(bar);", bar);

@@ -205,41 +205,43 @@ public sealed partial class GameServer
     /// The use key on a rune stone, after the stone sang (<see cref="UseRuneStone"/>): over there a stone of a gate brings
     /// the player back; on our side, with the crossing disc in the chest's socket, a stone of a gate takes them over. A
     /// lone stone only sings, in both cases. A player who carries the disc but does not wear it in the socket is told so
-    /// at a gate; every other refusal of a crossing is told as well.
+    /// at a gate; every other refusal of a crossing is told as well. True when the player changed sides (the flip saved
+    /// the player).
     /// </summary>
-    private void OtherSideOnRuneStone(PlayerSession s, Vector3i cell)
+    private bool OtherSideOnRuneStone(PlayerSession s, Vector3i cell)
     {
         string id = s.State.PlayerId;
         if (_otherSideFlipReadyAt.TryGetValue(id, out double readyAt) && _uptime < readyAt)
         {
-            return;
+            return false;
         }
 
         if (s.OtherSide)
         {
-            if (TryReturn(s, cell, out _))
+            if (!TryReturn(s, cell, out _))
             {
-                _otherSideFlipReadyAt[id] = _uptime + OtherSideFlipCooldownSeconds;
+                return false;
             }
 
-            return;
+            _otherSideFlipReadyAt[id] = _uptime + OtherSideFlipCooldownSeconds;
+            return true;
         }
 
         bool socket = HasActiveSocketDisc(s.State, SoundersIds.DiscCrossing);
         if ((!socket && !CarriesSounderItem(s.State, SoundersIds.DiscCrossing))
             || s.CurrentLocationId != _world.LocationId || !IsGate(StoneCentre(cell), out var gate))
         {
-            return; // no crossing disc, or a lone stone: the stone sings, as it always did
+            return false; // no crossing disc, or a lone stone: the stone sings, as it always did
         }
 
         if (CrossAtGate(s, gate, out string refusal))
         {
             _otherSideFlipReadyAt[id] = _uptime + OtherSideFlipCooldownSeconds;
+            return true;
         }
-        else
-        {
-            Send(s, new ServerMessage { Text = "@" + refusal }); // at a gate, with the disc: say what is in the way
-        }
+
+        Send(s, new ServerMessage { Text = "@" + refusal }); // at a gate, with the disc: say what is in the way
+        return false;
     }
 
     // ---------------- Crossing and coming back ----------------
@@ -410,6 +412,7 @@ public sealed partial class GameServer
     /// <summary>A player who leaves the game over there is saved at the entry gate, on our side.</summary>
     private void OtherSideOnLeave(PlayerSession s)
     {
+        ReleaseOverEchoOnLeave(s); // #3910: the story figure that stood at a gate for this player goes with them
         if (!s.OtherSide)
         {
             return;
@@ -472,6 +475,7 @@ public sealed partial class GameServer
 
         TickOtherSideFolk(world);
         TickOtherSideGateLists(world); // #3906: after the folk pass, which finds the gates around the players
+        FlushOtherSideStarMaps(); // #3905: the star maps the flips of the last second made stale, once each
     }
 
     private bool MayStayOverThere(PlayerSession s)

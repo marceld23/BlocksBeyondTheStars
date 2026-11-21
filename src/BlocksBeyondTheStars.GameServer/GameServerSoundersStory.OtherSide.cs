@@ -210,7 +210,7 @@ public sealed partial class GameServer
                         || WrapDistSq(s.State.Position, echo.Npc.Pos) > EchoLeaveDistance * EchoLeaveDistance;
             if (gone)
             {
-                ReleaseOverEcho(pid, echo, here);
+                ReleaseOverEcho(pid, echo);
             }
 
             return;
@@ -261,18 +261,62 @@ public sealed partial class GameServer
         _overEchoes[s.State.PlayerId] = new OverEcho { Character = character, Npc = npc, LocationId = location };
     }
 
-    /// <summary>The figure is no longer this player's; it leaves the world when it is nobody's.</summary>
-    private void ReleaseOverEcho(string playerId, OverEcho echo, bool onItsWorld)
+    /// <summary>The figure is no longer this player's; it leaves ITS world when it is nobody's — whichever world is under
+    /// the cursor: the player may have changed worlds, or be leaving the game, while others keep that world resident. A
+    /// world that was unloaded took its NPCs with it.</summary>
+    private void ReleaseOverEcho(string playerId, OverEcho echo)
     {
         _overEchoes.Remove(playerId);
-        if (!onItsWorld || _overEchoes.Values.Any(e => ReferenceEquals(e.Npc, echo.Npc)))
+        if (_overEchoes.Values.Any(e => ReferenceEquals(e.Npc, echo.Npc)))
         {
-            return; // another world is under the cursor (its NPCs go with it), or somebody else still talks to it
+            return; // somebody else still talks to it
         }
 
-        if (_npcs.Remove(echo.Npc))
+        if (_worlds.Find(echo.LocationId) is { } world && world.Npcs.Remove(echo.Npc))
         {
-            BroadcastNpcs();
+            world.NpcListDirty = true; // goes out with that world's next flush
+        }
+    }
+
+    /// <summary>The player leaves the game (from the leave step of the other side, whichever side they are on): their
+    /// figure does not wait at the gate for good. The per-second pass only sees joined players.</summary>
+    private void ReleaseOverEchoOnLeave(PlayerSession s)
+    {
+        string pid = s.State.PlayerId;
+        _overEchoScanAt.Remove(pid);
+        if (_overEchoes.TryGetValue(pid, out var echo))
+        {
+            ReleaseOverEcho(pid, echo);
+        }
+    }
+
+    /// <summary>Whether the per-second story pass looks at this player (<see cref="TickSoundersStory"/>).</summary>
+    private bool SoundersPassReaches(PlayerSession s)
+        => !s.Spectating && !InSpace(s.State.PlayerId) && IsStoryPackActive(s, SoundersIds.PackId);
+
+    /// <summary>
+    /// Once a second per world, after the players' own pass: a figure of this world whose player that pass no longer
+    /// reaches — they left the game, changed worlds, fly, watch, or switched the pack off — is released, and the entries
+    /// of a world that left memory are dropped (its NPCs went with it). Without it such a figure stood at its gate until
+    /// the world was unloaded. One count read while nobody has a figure.
+    /// </summary>
+    private void SweepOverEchoes()
+    {
+        if (_overEchoes.Count == 0)
+        {
+            return;
+        }
+
+        string here = _world.LocationId;
+        foreach (var (pid, echo) in _overEchoes.ToList())
+        {
+            bool orphan = string.Equals(echo.LocationId, here, StringComparison.Ordinal)
+                ? !(FindSessionByPlayerId(pid) is { Joined: true } s && s.CurrentLocationId == here && SoundersPassReaches(s))
+                : _worlds.Find(echo.LocationId) is null;
+            if (orphan)
+            {
+                ReleaseOverEcho(pid, echo);
+            }
         }
     }
 

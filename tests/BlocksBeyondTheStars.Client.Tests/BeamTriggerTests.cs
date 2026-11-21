@@ -171,6 +171,36 @@ public sealed class BeamTriggerTests
     }
 
     [Fact]
+    public void TheReleaseAfterAServersStop_IsAStopToo_SoTheServerHearsTheEndOfEveryHold()
+    {
+        // The server refuses a hold once and then stays silent until it hears the release (or a beam that does start).
+        // Without the release it would not answer the next refused hold, and that hold's own beam would stay drawn.
+        var trigger = new BeamTrigger();
+        Run(trigger, 1f, held: true);
+        Assert.True(trigger.ServerStopped());
+        Assert.Equal((0, 0, 0, 0), Run(trigger, 0.5f, held: true)); // nothing while the control stays down
+        Assert.Equal((0, 0, 1, 0), Run(trigger, 0.2f, held: false)); // the release: one stop, once
+        Assert.Equal(BeamTrigger.Phase.Idle, trigger.State);
+
+        // The second hold starts over, and the same again.
+        Assert.Equal(1, Run(trigger, 0.5f, held: true).Started);
+        Assert.True(trigger.ServerStopped());
+        Assert.Equal((0, 0, 1, 0), Run(trigger, 0.2f, held: false));
+
+        // A hold that ended at the reserve owes the release as well (a second stop is nothing to the server).
+        Run(trigger, 1f, held: true);
+        Assert.Equal((0, 0, 1, 1), Run(trigger, 0.5f, held: true, canPay: false));
+        Assert.Equal((0, 0, 1, 0), Run(trigger, 0.2f, held: false));
+
+        // A menu that opens while the stopped hold is still down ends the hold as well.
+        Run(trigger, 1f, held: true);
+        Assert.True(trigger.ServerStopped());
+        Assert.True(trigger.Cancel());
+        Assert.False(trigger.Cancel());
+        Assert.Equal((0, 0, 0, 0), Run(trigger, 0.5f, held: false)); // … and its release is no second stop
+    }
+
+    [Fact]
     public void TheIntent_CarriesTheTick_AndTheRelease()
     {
         var transport = new RecordingClientTransport();

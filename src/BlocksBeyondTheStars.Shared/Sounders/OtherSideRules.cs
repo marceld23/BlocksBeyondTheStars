@@ -18,6 +18,13 @@ public static class OtherSideRules
     /// 1.2 s of its sonic push on the real side, so a wall or a stair grows at a building pace.</summary>
     public const double ShapeCooldownSeconds = 0.2;
 
+    /// <summary>How much earlier than a full <see cref="ShapeCooldownSeconds"/> the server still takes the next shaping
+    /// pulse: one server tick (15 Hz). Intents are handled once per tick, so two pulses a held trigger sends 0.22 s apart
+    /// arrive three or four ticks apart — and the three-tick ones would lose to the cooldown by rounding alone. The
+    /// server's schedule moves on by whole cooldowns from the time the pulse was due (as the held beam's does), so being
+    /// early never adds up to more than five blocks a second.</summary>
+    public const double ShapeJitterToleranceSeconds = 0.07;
+
     /// <summary>The block key of a sound block — an alias of <see cref="SoundersIds.SoundBlock"/>, the one literal.</summary>
     public const string SoundBlockKey = SoundersIds.SoundBlock;
 

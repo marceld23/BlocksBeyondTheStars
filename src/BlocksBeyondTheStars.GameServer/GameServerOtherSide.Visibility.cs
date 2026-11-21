@@ -111,8 +111,13 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The players who changed sides since the star maps last went out (<see cref="FlushOtherSideStarMaps"/>).</summary>
+    private readonly HashSet<string> _starMapFlipped = new(System.StringComparer.Ordinal);
+
     /// <summary>A flip changed who gets which list: the entity lists of the player's world go out with this tick's flush,
-    /// and the star map's player list is told again.</summary>
+    /// and the star map's player list is told again — marked here, sent by the 1 Hz watch
+    /// (<see cref="FlushOtherSideStarMaps"/>): the star map message has no players-only part, so a flip must not build
+    /// and send the whole map to everybody at once.</summary>
     private void OtherSideListsChanged(PlayerSession s)
     {
         if (_worlds.Active is { } active && active.LocationId == s.CurrentLocationId)
@@ -121,7 +126,32 @@ public sealed partial class GameServer
             BroadcastNpcs();
         }
 
-        BroadcastStarMap();
+        _starMapFlipped.Add(s.State.PlayerId);
+    }
+
+    /// <summary>
+    /// From the 1 Hz watch (<see cref="TickOtherSide"/>): the star maps the flips of the last second made stale go out,
+    /// once each, however many flips there were — and only to those whose player list changed: everybody on our side
+    /// (the one who flipped appeared or vanished for them) and the ones who flipped themselves (they now see, or no
+    /// longer see, who is over there). A player who stayed over there sees everybody, before and after. One count read
+    /// while nobody flipped.
+    /// </summary>
+    private void FlushOtherSideStarMaps()
+    {
+        if (_starMapFlipped.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var session in _sessions.Values)
+        {
+            if (session.Joined && (!session.OtherSide || _starMapFlipped.Contains(session.State.PlayerId)))
+            {
+                SendStarMap(session);
+            }
+        }
+
+        _starMapFlipped.Clear();
     }
 
     /// <summary>The star map's player list as <paramref name="session"/> is sent it: everybody joined, without the

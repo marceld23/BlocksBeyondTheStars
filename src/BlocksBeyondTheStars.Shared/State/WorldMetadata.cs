@@ -397,8 +397,10 @@ public sealed class WorldMetadata
 
     /// <summary>#3909: the cracks of the other side that were mended in this world — one key per mended rune gate,
     /// <c>&lt;location&gt;|&lt;x&gt;|&lt;y&gt;|&lt;z&gt;|&lt;reach&gt;</c>: the gate's world, the rounded middle of its rune stones and how far
-    /// the mend reaches (a gate's own stones, or the wide reach of the great crack). Written when a mend puzzle is solved,
-    /// never removed. Additive: an older build drops it, a missing list means "every gate still carries its crack".</summary>
+    /// the mend reaches (a gate's own stones, or the wide reach of the great crack) — followed by <c>|&lt;site&gt;</c> when
+    /// the gate's stones are a generated site's (a monument, a rune shrine, a ruin …): that site is mended for good,
+    /// wherever the middle of its stones is measured later. Written when a mend puzzle is solved, never removed.
+    /// Additive: an older build drops it, a missing list means "every gate still carries its crack".</summary>
     public System.Collections.Generic.List<string> MendedCracks { get; set; } = new();
 }
 

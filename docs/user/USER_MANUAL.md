@@ -3342,6 +3342,40 @@ worlds created with a game version that has generation 43 have them; an older wo
 - **Admins** can lay a giant that can wake in front of them with `/giant guardian` and travel to the giants of a world with
   `/tp giant` (see the admin commands).
 
+### Guide towers, the hacking chip and the sleeper (worlds created since generation 47)
+- On worlds where people live you may find the ruin of a **guide tower** — a tall mast of blue-grey metal, broken,
+  leaning or fallen, with small red lamps still burning. The settlers call these towers **the sky-lights**: long ago
+  their light led the ships in. They are rare, but the first inhabited world of a new save always has one. The whole
+  ruin is protected (nothing can be mined), its chests can be looted, and a ladder or stairs lead to the highest platform
+  that is left. The map marks a tower once you come near; a world option (*Guide towers*) sets how often they stand.
+- **The relay console** stands in the room at the tower's foot. Press *Interact* on it: each time it shows another of
+  its old records.
+- **The hacking chip** talks to the old machines. Hunters carry one now and then, and the workshop builds one from
+  10 titanium plates and 20 Guardian plates. Keep a chip in your backpack and press *Interact* on the console: it takes
+  one chip, the tower's lamps turn **blue** from the bottom to the top, the console plays its last message, and the
+  tower marks the places it still knows on your map (landmarks, wrecks, old sites, other towers). A tower stays blue for
+  everybody.
+- Beside some towers stands a small wooden **guard post** with a sealed **capsule tank**. A chip opens it — and
+  somebody steps out. Talk to him; he has a gift for every player, once. Afterwards he lives in the nearest settlement.
+- VEGA's story sends you to these places: *The Sky-Light* (chapter 2), *The Sleeper* (chapter 5) and *ECHO's Call*
+  (chapter 6). These three missions stay open when the story moves on — you can finish them whenever you like.
+- **Admins**: `/spstower list` and `/spstower <key> [post|nopost]` lay a tower in front of you, `/tp tower [n]` travels
+  to the towers of a world.
+
+### The escort cruiser (the space boss)
+- Sometimes VEGA warns of **a jump signature** — and about twelve seconds later a big Guardian cruiser with a long
+  barrel comes out of hyperspace, far away from you. A boss bar at the top shows its hull and shield, and the boss music
+  plays. It never comes in the start system or in a peaceful world, and only when your ship carries weapons.
+- Its **mega laser** warns you first: the barrel glows, a thin aiming line points at your ship and the HUD says so. Do a
+  **barrel roll** just before it fires, fly out of its reach or get behind an asteroid. A hit never destroys a healthy
+  ship at once. At half hull the cruiser gets angry, fires more often and calls two drones.
+- **Flying away is fine**: if nobody is near for a while, it jumps away again.
+- A beaten cruiser stays as a **wreck you can board** — dock, or go in through a hole on a spacewalk. Only robots are
+  aboard. Every pilot who fought finds a crate of their own near the way in, and on the bridge stands a console with a
+  red light: a hacking chip turns it blue.
+- With several ships in a fight, a ship that is shot down sends only its own crew home; the others fly on.
+- **Admins**: `/cruiser` calls the boss into your flight (`/cruiser echo` the one from VEGA's story).
+
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
   **arcade** of arches, a free-standing **gate** that leads nowhere, a ring of standing stones
@@ -4106,17 +4140,21 @@ have one, and three rune stones you place yourself make one too.
 - **What you can do there.** Walk and fly, chat, play rune stones and the melody bar, talk to those who live there, and
   use the **Resonance Blaster**. Everything else — mining, building, crafting, trading — waits until you are back; the
   game tells you so once.
-- **Coming back.** Press **[Use]** on a rune stone of **any** rune gate. You do not need the disc for that. Lights mark
-  the gates from far away. If you leave the game over there, you stand at your gate on our side next time.
+- **Coming back.** Press **[Use]** on a rune stone of **any** rune gate. You do not need the disc for that. Tall pillars
+  of light mark the gates from far away. If you leave the game over there, you stand at your gate on our side next time.
 - **Sound blocks.** Over there the Resonance Blaster does not push — it **shapes sound**. Hold it, aim and press the
   right mouse button: a softly glowing **sound block** appears on the face you aim at, or in the open air up to eight
   blocks in front of you. Walk on them, build stairs and bridges. The **last tone you played on the melody bar** (keys
   1–8) decides how brightly the next block glows. To **dissolve** a sound block, aim at it and press the left mouse
-  button with the Resonance Blaster in your hand — only you and your allies can dissolve your blocks. Sound blocks exist
+  button with the Resonance Blaster in your hand — only you and your allies can dissolve your blocks (a sound block
+  that touches your own body you can always dissolve, so nobody can wall you in). Sound blocks cannot be shaped right
+  next to another player who is not your ally, or against a rune stone. **Gamepad:** the left bumper alone shapes, the
+  right bumper alone dissolves (tap for one, hold for more); a bumper together with the d-pad still plays the bar's
+  upper tones. Sound blocks exist
   only on the other side (nobody on our side sees them or bumps into them), shaping costs no energy, and you can keep
   up to 2000 of them on one world. A real block built into the same spot dissolves the sound block.
 - **Mending cracks.** Over there every rune gate carries a **crack** — left by the old songs. Stand among the gate's
-  stones and play **any tone** on the melody bar: the gate sings three tones, and you answer with the keys that glow —
+  stones, hold the Resonance Blaster and play **any tone** on the melody bar: the gate sings three tones, and you answer with the keys that glow —
   twice. A wrong tone does not count. Friends at the same gate play together. A mended crack stays mended for everybody
   in the world. At the world's own gates (monuments, shrines, ruins) the real side answers: a few **singing plants**
   bloom around the gate, an emptied relic cache of the monument fills once more, and the Lights leave you a small gift
@@ -5939,6 +5977,9 @@ confirmation is the brief HUD toast.
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/giant guardian` | Lay a **guardian giant that can wake** about 30 blocks in front of you (its feet toward you) on fairly flat, dry ground — a new one each time, for testing the boss fight; `/tp giant` takes you to the giants of this world |
+| `/spstower list` · `/spstower key [post\|nopost]` | List the guide-tower ruins of the game · lay that ruin in front of you, with or without its guard post (worlds of generation 47 and later); `/tp tower [n]` takes you to the towers of this world |
+| `/cruiser` · `/cruiser echo` | Call the escort cruiser (the space boss) into your current flight — it arrives about twelve seconds later · the story's cruiser that carries ECHO |
+| `/otherside` · `/otherside on` · `/otherside off` | Cross to the other side or come back, without Crossing disc and rune gate — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/hound` | Summon this world's Schuppenhund near you (rolls this world's one into the fauna first if it has none) — for testing |

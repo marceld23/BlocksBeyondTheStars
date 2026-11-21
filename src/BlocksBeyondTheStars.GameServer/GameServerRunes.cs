@@ -58,7 +58,10 @@ public sealed partial class GameServer
     /// <summary>The use key on a rune stone (registered in <see cref="BuildBlockUseHandlers"/>).</summary>
     private void UseRuneStone(PlayerSession session, Vector3i cell)
     {
-        if (TryStrikeMelodyPillar(session, cell))
+        // Over there the use key on a stone is the way home and nothing else (#3909: mending never blocks it): a stone
+        // that is a melody pillar — the Singing Shrine's, a ring's — is not struck into a running puzzle and starts none.
+        // The mend game takes its answers from the melody bar.
+        if (!session.OtherSide && TryStrikeMelodyPillar(session, cell))
         {
             return; // a pillar of the melody site the player plays at: its tone, not the word
         }
@@ -88,12 +91,13 @@ public sealed partial class GameServer
             RaiseGameEvent(session, GameEventKeys.RunePlayed, RuneSiteKind(cell));
         }
 
-        if (changed)
+        // #3904: a stone of a gate is the way over (the crossing disc) and the way back. A flip saves the player itself —
+        // with the word above — so one use of a stone is one save, never two.
+        bool flipped = OtherSideOnRuneStone(session, cell);
+        if (changed && !flipped)
         {
             _repo.SavePlayer(session.State); // once per player and word — the pack's start rule reads the first one
         }
-
-        OtherSideOnRuneStone(session, cell); // #3904: a stone of a gate is the way over (the crossing disc) and the way back
     }
 
     /// <summary>

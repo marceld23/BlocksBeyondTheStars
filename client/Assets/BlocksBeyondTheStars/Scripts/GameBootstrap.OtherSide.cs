@@ -39,7 +39,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Network.OtherSideStateReceived += OnOtherSideState;
-            Network.OtherSideGatesReceived += m => OtherSide.Gates.Apply(m);
+            Network.OtherSideGatesReceived += m => OtherSide.ApplyGates(m); // the return's empty list lets the lights fade
             Network.ActionRejected += m =>
             {
                 if (m != null && m.Action == "gadget" && OtherSide.Over)

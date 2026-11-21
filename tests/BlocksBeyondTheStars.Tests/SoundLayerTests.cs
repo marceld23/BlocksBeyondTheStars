@@ -314,6 +314,76 @@ public sealed class SoundLayerTests
         Assert.Equal(OtherSideRules.ToneGlow[0], w.Server.SoundGlowAt(free));
     }
 
+    /// <summary>Nine sound blocks would wall a player in for good (they cannot dissolve a stranger's, mine, or reach a rune
+    /// stone): a stranger's block never stands within one cell of somebody's body, and whatever touches a player's body
+    /// is theirs to dissolve, whoever built it.</summary>
+    [Fact]
+    public void NobodyIsWalledIn_NoStrangersBlockBesideABody_AndEverybodyDissolvesWhatTouchesThem()
+    {
+        using var w = World("sound_cage");
+        var builder = w.Player;
+        builder.OtherSide = true;
+        builder.State.Role = PlayerRole.Player; // the first joiner is the world's admin; this is about ordinary players
+        var victim = Join(w, "Victim", 2.5f, overThere: true);
+        var feet = victim.State.Position.ToBlock();
+
+        // The 3×4×3 box around the victim's feet and head: nothing of the builder's goes there (the row below is the pad).
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = 0; dy <= 2; dy++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    var cell = new Vector3i(feet.X + dx, feet.Y + dy, feet.Z + dz);
+                    Assert.False(w.Server.TryShapeSound(builder, cell, 0, out string key), $"a block at {dx},{dy},{dz} would close a cage");
+                    Assert.Equal(SvGameServer.SoundBlockedKey, key);
+                }
+            }
+        }
+
+        var beyond = new Vector3i(feet.X + 2, feet.Y, feet.Z); // one cell further out: an ordinary cell
+        Assert.True(w.Server.TryShapeSound(builder, beyond, 0, out string refusal), refusal);
+
+        // A block that stands beside the victim anyway (they walked into a build): theirs to dissolve, whoever built it.
+        var wall = new Vector3i(feet.X + 1, feet.Y + 1, feet.Z);
+        w.Server.PutSoundCellForTest(wall, OtherSideRules.ToneGlow[0], builder.State.PlayerId);
+        Assert.True(w.Server.TryDissolveSound(victim, wall, out refusal), refusal);
+        Assert.False(w.Server.IsSoundBlock(wall));
+
+        // Everywhere else the ownership rule holds.
+        Assert.False(w.Server.TryDissolveSound(victim, beyond, out refusal));
+        Assert.Equal(SvGameServer.SoundNotYoursKey, refusal);
+        Assert.True(w.Server.IsSoundBlock(beyond));
+
+        // An ally may build right beside a friend — but still not inside them.
+        w.Server.RequestAllianceForTest(builder.State.PlayerId, victim.State.PlayerId);
+        w.Server.RespondAllianceForTest(victim.State.PlayerId, builder.State.PlayerId, accept: true);
+        Assert.True(w.Server.TryShapeSound(builder, wall, 0, out refusal), refusal);
+        Assert.False(w.Server.TryShapeSound(builder, new Vector3i(feet.X, feet.Y + 1, feet.Z), 0, out refusal));
+        Assert.Equal(SvGameServer.SoundBlockedKey, refusal);
+    }
+
+    [Fact]
+    public void NoSoundBlock_TouchesARuneStone_SoAGatesStonesStayInReach()
+    {
+        using var w = World("sound_runes");
+        var singer = w.Player;
+        singer.OtherSide = true;
+        var stone = OnPad(w, 5, 5);
+        w.Server.World.SetBlock(stone, w.Block("rune_stone"));
+
+        foreach (var (dx, dy, dz) in new[] { (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, 1, 0) })
+        {
+            var cell = new Vector3i(stone.X + dx, stone.Y + dy, stone.Z + dz);
+            Assert.False(w.Server.TryShapeSound(singer, cell, 0, out string key), $"a block at {dx},{dy},{dz} would cover the stone");
+            Assert.Equal(SvGameServer.SoundBlockedKey, key);
+        }
+
+        // A cell that does not touch the stone is an ordinary cell: diagonally beside it, and two cells away.
+        Assert.True(w.Server.TryShapeSound(singer, new Vector3i(stone.X + 1, stone.Y + 1, stone.Z), 0, out string refusal), refusal);
+        Assert.True(w.Server.TryShapeSound(singer, new Vector3i(stone.X + 2, stone.Y, stone.Z), 0, out refusal), refusal);
+    }
+
     /// <summary>What weather and nature write goes through <c>ServerWorld.SetBlock</c> with no owner — settling snow,
     /// flowing water, falling sand. The test writes the same way.</summary>
     [Theory]

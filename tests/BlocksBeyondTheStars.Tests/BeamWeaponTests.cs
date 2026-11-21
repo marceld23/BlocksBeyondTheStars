@@ -473,6 +473,42 @@ public sealed class BeamWeaponTests : IDisposable
         Assert.Equal(2, BeamFxTo(t, p, FxActionKinds.WeaponBeamEnd).Count); // a new hold, told again
     }
 
+    /// <summary>A client that stops sending ticks without a release (it left its own "spent" state, or the release was
+    /// lost) and holds again later: the server must tell that new hold too, or the client draws a beam that does nothing.</summary>
+    [Fact]
+    public void AHoldRefusedFromItsFirstTick_IsToldAgain_AlsoWithoutARelease()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("beam_refused_again", t);
+        var p = OnFoot(server, "Alice", 100.5f, 100.5f);
+        var machine = Machine(server, 110.5f, 100.5f);
+        p.State.SuitEnergy = 10f; // below the reserve of 15: no tick is ever paid
+
+        for (int i = 0; i < 4; i++)
+        {
+            server.BeamWeaponForTest("Alice", TickAt(machine.Id));
+            server.AdvanceUptimeForTest(Tick);
+        }
+
+        Assert.False(server.HeldBeamActiveForTest("Alice"));
+        Assert.Single(BeamFxTo(t, p, FxActionKinds.WeaponBeamEnd)); // once per hold, however many ticks it sends
+
+        // No release arrives. Later the control is held again — still refused from its first tick.
+        server.AdvanceUptimeForTest(BeamWeaponRules.TimeoutSeconds + 0.1);
+        server.BeamWeaponForTest("Alice", TickAt(machine.Id));
+        Assert.Equal(2, BeamFxTo(t, p, FxActionKinds.WeaponBeamEnd).Count);
+
+        for (int i = 0; i < 3; i++)
+        {
+            server.AdvanceUptimeForTest(Tick);
+            server.BeamWeaponForTest("Alice", TickAt(machine.Id));
+        }
+
+        Assert.Equal(2, BeamFxTo(t, p, FxActionKinds.WeaponBeamEnd).Count); // and once for that hold as well
+        Assert.Equal(1000f, machine.Hull);
+        Assert.Equal(10f, p.State.SuitEnergy);
+    }
+
     [Fact]
     public void TheBeam_NeverHurtsACompanion()
     {

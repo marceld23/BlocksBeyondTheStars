@@ -148,6 +148,41 @@ public sealed class SleeperTests : IDisposable
         Assert.Equal("Iven", server.NetNpcForTest(server.SleeperForTest(tower)!.Value.NpcId).Name);
     }
 
+    /// <summary>A guide tower is ONE protected structure overlay (<c>sps_tower:&lt;index&gt;</c>), laid into every chunk that
+    /// loads. What the server changes on it afterwards — the opened tank, the lamps turned blue — are block edits, and a
+    /// chunk gets its overlay cells first and its edits on top: after a reload the tank is still open and no lamp is red
+    /// again while the record says "opened" and "lit".</summary>
+    [Fact]
+    public void AfterAReload_TheOpenedTankAndTheBlueLamps_StillLieOverTheTowersOverlay()
+    {
+        var (server, _) = _worlds.Start("sleeper_reload");
+        var p = SpsTowerLifeWorlds.Join(server, 1, "Pilot");
+        var tower = SpsTowerLifeWorlds.Stamp(server, p, "sps_tower_stump post");
+        var tank = tower.Tank!;
+        Assert.True(server.World.HasStructureOverlay(SpsTowerRules.FeatureKey(tower.Index)), "the tower is stored as one overlay");
+        p.State.Inventory.Add(Chip, 2, 16);
+        SpsTowerLifeWorlds.StandAt(p, tank.ToVector());
+        Assert.True(server.UseCapsuleTankForTest(p, tower));
+        SpsTowerLifeWorlds.StandAt(p, tower.Console!.ToVector());
+        Assert.True(server.UseSpsTowerConsoleForTest(p, tower));
+        Assert.True(tower.TankOpened && tower.Lit);
+        Assert.NotEmpty(tower.TowerLamps);
+        Assert.Equal(2, tower.TankLamps.Count);
+
+        server.Stop();
+        _worlds.CloseLast();
+        var (again, _) = _worlds.Start("sleeper_reload");
+
+        var back = again.Metadata.SpsTowers.Single(x => x.SiteId == tower.SiteId);
+        Assert.True(back.TankOpened && back.Lit);
+        Assert.True(again.World.HasStructureOverlay(SpsTowerRules.FeatureKey(back.Index)));
+        ushort open = Id(SvGameServer.SleeperTankOpenBlock), blue = Id(SpsTowerRules.LitLampBlock);
+        Assert.Equal(open, again.World.GetBlock(back.Tank!.ToVector()).Value);
+        Assert.Equal(open, again.World.GetBlock(Upper(back.Tank!)).Value);
+        Assert.All(back.TankLamps, l => Assert.Equal(blue, again.World.GetBlock(l.ToVector()).Value));
+        Assert.All(back.TowerLamps, l => Assert.Equal(blue, again.World.GetBlock(l.ToVector()).Value));
+    }
+
     [Fact]
     public void EveryGuardPost_HoldsADifferentGuard_NamedInTheOrderTheTanksAreOpened_AndTheGiftStaysOncePerPlayer()
     {

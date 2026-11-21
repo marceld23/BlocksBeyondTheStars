@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             ["light_white"] = 0x8ad9ac33d897e9d5UL,
             ["light_red"] = 0x532e9caef6687ac5UL,
             ["light_green"] = 0x6725b9a585b93bd5UL,
-            [AllBlocks] = 0xb07894f6b5c11355UL, // the abandoned bed (generation 45): one more block joined the content; every per-key pin still passed
+            [AllBlocks] = 0x32c874415e28ceb5UL, // the sky-lights and the other side (#3894): six more blocks joined the content; every per-key pin still passed
         };
 
         private static GameContent LoadContentOrIgnore()

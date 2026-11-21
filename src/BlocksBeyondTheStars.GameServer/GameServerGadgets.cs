@@ -80,12 +80,14 @@ public sealed partial class GameServer
         }
 
         string cdKey = p.PlayerId + "|" + intent.GadgetKey;
-        if (_gadgetReadyAt.TryGetValue(cdKey, out var readyAt) && _uptime < readyAt)
+        bool shapesSound = session.OtherSide && intent.GadgetKey == Shared.Sounders.SoundersIds.ResonanceBlaster;
+        double early = shapesSound ? Shared.Sounders.OtherSideRules.ShapeJitterToleranceSeconds : 0.0; // a pulse one tick early still counts
+        if (_gadgetReadyAt.TryGetValue(cdKey, out var readyAt) && _uptime < readyAt - early)
         {
             return; // still cooling down (the client also rate-limits) — ignore quietly
         }
 
-        if (session.OtherSide && intent.GadgetKey == Shared.Sounders.SoundersIds.ResonanceBlaster)
+        if (shapesSound)
         {
             // #3908: over there the blaster shapes sound — no suit energy, its own cadence, nothing a real-side player sees.
             ShapeSoundWithBlaster(session, new Vector3f(intent.X, intent.Y, intent.Z), intent.Alt, cdKey);

@@ -19,8 +19,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// (GameServerSoundLayer.Chunks.cs). A change of a sound cell goes out as an ordinary <see cref="BlockChanged"/> to the
 /// players of that world who are over there, and to nobody else.</para>
 /// <para>The rules (CONTRACT.md "The other side", 7): a sound block stands only in a cell that is air on the real side,
-/// inside the build band, not in a base zone of a player who is no ally, and not in a body; one player may have
-/// <see cref="OtherSideRules.SoundBlockCap"/> standing per world; only the builder, their allies and admins dissolve one.
+/// inside the build band, not in a base zone of a player who is no ally, not in a body, not right beside the body of a
+/// player who is no ally, and not touching a rune stone (nobody is walled in, no gate is walled off); one player may have
+/// <see cref="OtherSideRules.SoundBlockCap"/> standing per world; only the builder, their allies and admins dissolve one
+/// — and anybody the one that touches their own body.
 /// <b>The real side wins:</b> a real block a PLAYER writes into the cell dissolves the sound block for good
 /// (<see cref="OnPlayerBlockSetOverSound"/>). Any other real block — snow, flowing water, falling sand, a regrown plant,
 /// fire, a worldgen stamp — only HIDES it: the cell stays in the layer and the save (and in the builder's count), the
@@ -430,19 +432,24 @@ public sealed partial class GameServer
             return SoundBlockedKey; // only where the real side is air and no sound stands yet
         }
 
-        if (IsBaseProtected(cell, p.PlayerId, p.IsAdmin) || SoundCellHoldsABody(s, cell))
+        if (IsBaseProtected(cell, p.PlayerId, p.IsAdmin) || SoundCellHoldsABody(s, cell) || SoundCellAtRuneStone(world, cell))
         {
-            return SoundBlockedKey; // not in the base of a player who is no ally, and not in somebody
+            return SoundBlockedKey; // not in the base of a player who is no ally, not in or around somebody, not on a gate's stones
         }
 
         return SoundBlocksOf(world, p.PlayerId) >= OtherSideRules.SoundBlockCap ? SoundCapKey : null;
     }
 
-    /// <summary>A sound block is solid for the players over there: none goes into the head cell of one of them, nor into
-    /// the feet cell of anybody but the builder (who may lift themselves on it, as with a real block).</summary>
+    /// <summary>How far around another player's body no stranger's sound block may stand, and how far around their own body
+    /// a player may dissolve anybody's (cells): the body's two cells grown by this are a 3×4×3 box.</summary>
+    internal const int SoundBodyMargin = 1;
+
+    /// <summary>A sound block is solid for the players over there, so nobody may be walled in with them: none goes into
+    /// the head cell of a player, nor into the feet cell of anybody but the builder (who may lift themselves on it, as
+    /// with a real block) — and none within <see cref="SoundBodyMargin"/> cells of the body of a player who is not the
+    /// builder's ally (<see cref="AreAllied"/>), so a stranger cannot close a cage around somebody.</summary>
     private bool SoundCellHoldsABody(PlayerSession builder, Vector3i cell)
     {
-        int circumference = _world.Circumference;
         foreach (var s in JoinedInActiveWorld())
         {
             if (!s.OtherSide || s.Spectating)
@@ -450,20 +457,58 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var feet = WorldConstants.CanonicalBlock(s.State.Position.ToBlock(), circumference);
-            if ((cell.X == feet.X && cell.Z == feet.Z)
-                && (cell.Y == feet.Y + 1 || (cell.Y == feet.Y && !ReferenceEquals(s, builder))))
+            bool own = ReferenceEquals(s, builder);
+            if (InSoundBodyBox(s, cell, 0))
             {
-                return true;
+                if (!own || cell.Y != s.State.Position.ToBlock().Y)
+                {
+                    return true; // in a body (the builder's own feet cell aside)
+                }
+            }
+            else if (!own && InSoundBodyBox(s, cell, SoundBodyMargin) && !AreAllied(s.State.PlayerId, builder.State.PlayerId))
+            {
+                return true; // right beside a player who is no ally of the builder
             }
         }
 
         return false;
     }
 
+    /// <summary>Whether a cell lies in a player's body box — the feet cell and the head cell — grown by
+    /// <paramref name="margin"/> cells on every side (the short way round the seam).</summary>
+    private bool InSoundBodyBox(PlayerSession s, Vector3i cell, int margin)
+    {
+        var feet = s.State.Position.ToBlock();
+        int dx = WorldConstants.WrapDeltaX(cell.X - feet.X, _world.Circumference);
+        int dy = cell.Y - feet.Y;
+        int dz = cell.Z - feet.Z;
+        return dx >= -margin && dx <= margin && dz >= -margin && dz <= margin && dy >= -margin && dy <= 1 + margin;
+    }
+
+    /// <summary>A gate's stones stay free: no sound block in a cell that touches a rune stone (its six neighbours — the
+    /// cell above a stone is one of them), so nobody walls the way home in.</summary>
+    private bool SoundCellAtRuneStone(LoadedWorld world, Vector3i cell)
+    {
+        if (_content.GetBlock("rune_stone") is not { } rune)
+        {
+            return false;
+        }
+
+        ushort id = rune.NumericId.Value;
+        var real = world.World;
+        return real.GetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z)).Value == id
+               || real.GetBlock(new Vector3i(cell.X, cell.Y + 1, cell.Z)).Value == id
+               || real.GetBlock(new Vector3i(cell.X - 1, cell.Y, cell.Z)).Value == id
+               || real.GetBlock(new Vector3i(cell.X + 1, cell.Y, cell.Z)).Value == id
+               || real.GetBlock(new Vector3i(cell.X, cell.Y, cell.Z - 1)).Value == id
+               || real.GetBlock(new Vector3i(cell.X, cell.Y, cell.Z + 1)).Value == id;
+    }
+
     /// <summary>Dissolves the sound block in a cell for a player who is over there: the builder, an ally of the builder or
-    /// an admin. On a refusal <paramref name="refusalKey"/> is <see cref="SoundNotYoursKey"/> (somebody else's) or
-    /// <see cref="SoundBlockedKey"/> (no sound block there, or not over there).</summary>
+    /// an admin — and ANYBODY when the block stands in or within <see cref="SoundBodyMargin"/> cells of their own body
+    /// (whoever built it: nobody stays walled in). On a refusal <paramref name="refusalKey"/> is
+    /// <see cref="SoundNotYoursKey"/> (somebody else's) or <see cref="SoundBlockedKey"/> (no sound block there, or not
+    /// over there).</summary>
     internal bool TryDissolveSound(PlayerSession s, Vector3i cell, out string refusalKey)
     {
         var world = _worlds.Active;
@@ -475,7 +520,8 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!p.IsAdmin && found.Owner != p.PlayerId && !AreAllied(found.Owner, p.PlayerId))
+        if (!p.IsAdmin && found.Owner != p.PlayerId && !AreAllied(found.Owner, p.PlayerId)
+            && !InSoundBodyBox(s, cell, SoundBodyMargin))
         {
             refusalKey = SoundNotYoursKey;
             return false;

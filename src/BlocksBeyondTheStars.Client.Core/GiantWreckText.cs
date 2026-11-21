@@ -58,11 +58,37 @@ public static class GiantWreckText
     /// <summary>Whether a space entity / star-map body id is a giant wreck.</summary>
     public static bool IsGiantWreck(string? id) => GiantShipRules.IsGiantWreckId(id);
 
-    /// <summary>The kind word key of a derelict body or contact: the giant wreck's own, else the derelict station's.</summary>
-    public static string DerelictKind(string? id) => IsGiantWreck(id) ? KindKey : DerelictKindKey;
+    /// <summary>The kind word of an escort cruiser's wreck (#3902): "Wreck". Its name already says whose
+    /// (<see cref="CruiserWreckRules.NameKey"/>, "Wreck of an escort cruiser" — the server names the contact and the
+    /// star-map body with it), so the word beside the name is the plain one.</summary>
+    public const string CruiserWreckKindKey = "ui.map.kind_wreck";
 
-    /// <summary>The travel screen's detail key of a derelict body: the giant wreck's own, else the derelict station's.</summary>
-    public static string DerelictDetail(string? id) => IsGiantWreck(id) ? DetailKey : DerelictDetailKey;
+    /// <summary>Whether a space entity / star-map body id is an escort cruiser's wreck (#3902) — a derelict of its own
+    /// family like the giant wreck: every derelict rule holds for it, only its words differ (it is no "derelict
+    /// station").</summary>
+    public static bool IsCruiserWreck(string? id) => CruiserWreckRules.IsCruiserWreckId(id);
+
+    /// <summary>Whether a derelict is a ship's wreck (a giant wreck or a cruiser's) rather than an old station — the
+    /// travel screen gives its longer paragraph more room.</summary>
+    public static bool IsShipWreck(string? id) => IsGiantWreck(id) || IsCruiserWreck(id);
+
+    /// <summary>The kind word key of a derelict body or contact: the giant wreck's own, the plain "Wreck" for a cruiser's
+    /// wreck, else the derelict station's.</summary>
+    public static string DerelictKind(string? id)
+        => IsGiantWreck(id) ? KindKey : IsCruiserWreck(id) ? CruiserWreckKindKey : DerelictKindKey;
+
+    /// <summary>The flight chart's label of a derelict contact: its name and its kind word ("Wanderer Seven · Giant
+    /// wreck", "Old Halden · Derelict station"). An escort cruiser's wreck reads its name alone, in this client's
+    /// language — "Wreck of an escort cruiser" says both. <paramref name="text"/> resolves a locale key.</summary>
+    public static string ChartLabel(string? id, string? name, Func<string, string> text)
+        => IsCruiserWreck(id) ? text(CruiserWreckRules.NameKey) : name + " · " + text(DerelictKind(id));
+
+    /// <summary>The travel screen's detail key of a derelict body: the giant wreck's own, the escort cruiser's ship text
+    /// for its wreck (what it is, who is aboard, what waits on the bridge), else the derelict station's.</summary>
+    public static string DerelictDetail(string? id)
+        => IsGiantWreck(id) ? DetailKey
+            : IsCruiserWreck(id) ? GiantShipRules.DescriptionKey(CruiserWreckRules.TemplateKey)
+            : DerelictDetailKey;
 
     /// <summary>Whether a scan readout is a giant wreck's in space (kind <c>station</c>, subject <see cref="SpaceSubject"/>).</summary>
     public static bool IsSpaceReadout(string? kind, string? subjectKey) => kind == "station" && subjectKey == SpaceSubject;

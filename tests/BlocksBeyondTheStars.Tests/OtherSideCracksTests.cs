@@ -257,6 +257,116 @@ public sealed class OtherSideCracksTests
         Assert.Equal(0, s.State.Inventory.CountOf("crystal"));
     }
 
+    /// <summary>The middle of a gate is the mean of the rune stones around whoever looks. Stones a player places beside a
+    /// world gate — and another place to stand — move it further than a mend reaches while the world's stones are still
+    /// part of the gate; keyed by the middle alone, the same site was mended, counted and paid again.</summary>
+    [Fact]
+    public void AWorldSite_IsMendedOnce_WhateverStonesAPlayerAddsAndWhereverTheyStand()
+    {
+        using var w = new OtherSideStage(Content, "crack_site");
+        var s = w.Crossed("Kid");
+        var gate = GateCentre(w, w.AtGateA);
+        string? site = w.Server.WorldGateSiteForTest(gate);
+        Assert.NotNull(site);
+        var heard = new RecordingGameEventListener();
+        w.Server.AddGameEventListener(GameEventKeys.CrackMended, heard);
+
+        Assert.True(w.Server.MendCrackForTest(s, gate));
+        int plants = PlantsNear(w, gate);
+        w.Server.TickStoryPacksForTest(s);
+        Assert.Equal(2, s.State.Inventory.CountOf("crystal"));
+        Assert.EndsWith("|" + site, Assert.Single(w.Server.Metadata.MendedCracks), StringComparison.Ordinal);
+
+        // Thirty stones of the player's, up and away from the gate, and a place to stand from which both groups are seen.
+        var rune = Content.GetBlock("rune_stone")!.NumericId;
+        int y0 = w.PadY + 1;
+        for (int x = OtherSideStage.Cx + 6; x <= OtherSideStage.Cx + 7; x++)
+        {
+            for (int z = OtherSideStage.Cz + 11; z <= OtherSideStage.Cz + 13; z++)
+            {
+                for (int y = y0 + 7; y <= y0 + 11; y++)
+                {
+                    w.Server.World.SetBlock(new Vector3i(x, y, z), rune, owner: s.State.PlayerId);
+                }
+            }
+        }
+
+        s.State.Position = new Vector3f(OtherSideStage.Cx + 6.5f, y0 + 4, OtherSideStage.Cz + 11.5f);
+        var moved = GateCentre(w, s.State.Position);
+        Assert.True(moved.DistanceSquared(gate) > SvGameServer.CrackGateReach * SvGameServer.CrackGateReach, "the middle moved out of the mend's reach");
+        Assert.Equal(site, w.Server.WorldGateSiteForTest(moved)); // … and it is still the same site
+
+        Assert.True(w.Server.IsCrackMendedForTest(moved)); // what the gate list's crack flag asks
+        w.Tick(2.0);
+        Note(w, s, 0); // so the mend game does not start again …
+        Assert.Null(w.Server.RunningMelodyPuzzle(s));
+        Assert.False(w.Server.MendCrackForTest(s, moved)); // … and a mend from anywhere else counts for nothing
+
+        Assert.Single(heard.Events); // not a second "different gate" for the story
+        Assert.Single(w.Server.Metadata.MendedCracks);
+        Assert.Equal(plants, PlantsNear(w, gate)); // no second bloom
+        Assert.False(w.Server.CrackGiftWaitsForTest(s)); // no second gift
+        w.Server.TickStoryPacksForTest(s, 2);
+        Assert.Equal(2, s.State.Inventory.CountOf("crystal"));
+    }
+
+    [Fact]
+    public void TheSite_IsTheWorldsOwnStones_FromWhereverTheGateIsLookedAt_AndPlacedStonesHaveNone()
+    {
+        using var w = new OtherSideStage(Content, "crack_site_id");
+        var s = w.Crossed("Kid");
+        var rune = Content.GetBlock("rune_stone")!.NumericId;
+        int y0 = w.PadY + 1;
+        w.Server.World.SetBlock(new Vector3i(OtherSideStage.Cx - 8, y0, OtherSideStage.Cz + 3), rune); // a fourth stone of the world, six blocks west
+
+        // From the gate's middle all four are seen; from further east only three — the group is the same group.
+        string? whole = w.Server.WorldGateSiteForTest(new Vector3f(OtherSideStage.Cx + 0.5f, y0, OtherSideStage.Cz + 3.5f));
+        string? part = w.Server.WorldGateSiteForTest(new Vector3f(OtherSideStage.Cx + 4.5f, y0, OtherSideStage.Cz + 3.5f));
+        Assert.NotNull(whole);
+        Assert.Equal(whole, part);
+        Assert.DoesNotContain("|", whole, StringComparison.Ordinal); // it rides in the crack's key
+        Assert.NotEqual(whole, w.Server.WorldGateSiteForTest(GateCentre(w, w.AtGateB))); // every gate of the world is its own site
+
+        var built = new[] { new Vector3i(OtherSideStage.Cx + 14, y0, OtherSideStage.Cz + 14), new Vector3i(OtherSideStage.Cx + 16, y0, OtherSideStage.Cz + 14), new Vector3i(OtherSideStage.Cx + 15, y0, OtherSideStage.Cz + 16) };
+        foreach (var cell in built)
+        {
+            w.Server.World.SetBlock(cell, rune, owner: s.State.PlayerId);
+        }
+
+        Assert.Null(w.Server.WorldGateSiteForTest(GateCentre(w, new Vector3f(OtherSideStage.Cx + 15.5f, y0, OtherSideStage.Cz + 15.5f))));
+    }
+
+    /// <summary>"Mending never blocks the way home" also where a gate's stones are the pillars of a melody site (the
+    /// Singing Shrine, a ring): over there the use key on a stone is the return — the running mend game takes its answers
+    /// from the melody bar only.</summary>
+    [Fact]
+    public void AtAGateOfMelodyPillars_TheUseKeyStillTakesThePlayerHome_WhileTheMendGameRuns()
+    {
+        using var w = new OtherSideStage(Content, "crack_pillars");
+        var rune = Content.GetBlock("rune_stone")!.NumericId;
+        int cx = OtherSideStage.Cx + 12, cz = OtherSideStage.Cz + 12, y = w.PadY + 1;
+        var pillars = new[] { (0, -3), (2, -2), (3, 0), (2, 2), (0, 3), (-2, 2), (-3, 0), (-2, -2) } // clockwise from north
+            .Select(o => new Vector3i(cx + o.Item1, y, cz + o.Item2)).ToArray();
+        foreach (var cell in pillars)
+        {
+            w.Server.World.SetBlock(cell, rune);
+        }
+
+        Assert.NotNull(w.Server.RegisterMelodySite("test_ring", pillars));
+        var s = w.Player("Kid", new Vector3f(cx + 0.5f, y, cz + 0.5f));
+        OtherSideStage.Dress(s);
+        w.Use(s, pillars[0]);
+        Assert.True(s.OtherSide);
+
+        Note(w, s, 0);
+        Assert.Equal(SoundersIds.PuzzleCrackMend, w.Server.RunningMelodyPuzzle(s));
+
+        w.Use(s, pillars[2]); // a pillar strike would feed the game and never reach the return
+
+        Assert.False(s.OtherSide);
+        Assert.Contains("@srv.otherside.returned", w.Transport.TextsTo(s));
+    }
+
     [Fact]
     public void EverybodyOverThereAtTheGate_TakesPart_AndNobodyOnOurSide()
     {

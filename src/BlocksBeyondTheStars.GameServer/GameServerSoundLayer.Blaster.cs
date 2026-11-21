@@ -88,7 +88,10 @@ public sealed partial class GameServer
             Reject(session, "gadget", "@" + refusal);
         }
 
-        _gadgetReadyAt[cooldownKey] = _uptime + (done ? OtherSideRules.ShapeCooldownSeconds : SoundRefusalCooldown);
+        // The cadence is a schedule, as the held beam's: the next pulse is due one cooldown after THIS one was due, so a
+        // pulse the gadget table took a tick early (ShapeJitterToleranceSeconds) does not shorten the average interval.
+        double due = _gadgetReadyAt.TryGetValue(cooldownKey, out double readyAt) ? System.Math.Max(readyAt, _uptime) : _uptime;
+        _gadgetReadyAt[cooldownKey] = done ? due + OtherSideRules.ShapeCooldownSeconds : _uptime + SoundRefusalCooldown;
     }
 
     /// <summary>The cell a shaping pulse fills: in front of the aimed face when the cell behind it is a surface within the

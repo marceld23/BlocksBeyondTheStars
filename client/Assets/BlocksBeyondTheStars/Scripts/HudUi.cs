@@ -333,15 +333,7 @@ namespace BlocksBeyondTheStars.Client
             int hintMode = Settings != null ? Settings.ControlsHintMode : ClientSettings.ControlsHintShort;
             bool shortHint = hintMode == ClientSettings.ControlsHintShort;
             PlaceHintLine(shortHint);
-            string hint = Game.SpaceViewActive || hintMode == ClientSettings.ControlsHintOff ? string.Empty : InputMap.ActiveDevice switch
-            {
-                // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
-                InputDeviceKind.Touch => string.Empty,
-                InputDeviceKind.Gamepad => shortHint ? PadLine(loc, "ui.hud.hint_short_pad") : PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
-                _ => shortHint ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_short")) : KeyboardHint(loc, MelodyBarShown), // #2502: the bound keys ({key:Action} tokens); #3431: no hotbar under the bar
-            };
-
-            _hint.text = WithContextHints(loc, hint, shortHint);
+            _hint.text = ControlsLine(loc, hintMode, shortHint); // HudUi.HintLine.cs — over there the other side's own line
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
