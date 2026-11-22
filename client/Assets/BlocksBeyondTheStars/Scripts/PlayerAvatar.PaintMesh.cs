@@ -86,13 +86,20 @@ namespace BlocksBeyondTheStars.Client
         /// chunk is a cap continuing its sides (#3178); the helmet's open front is its lip (#1776) or the solid pad. Faces
         /// are laid out in face order — a side is one quad (4 vertices), a cap four triangles (12 vertices).</summary>
         private static Mesh BuildPaintedMesh(Vector3 center, Vector3 size, Vector3 bbMin, Vector3 bbMax, int part, int row,
-            int frontChunk = -1, int lip = LipNone)
+            int frontChunk = -1, int lip = LipNone, bool sharp = false)
         {
             var m = new PaintMeshBuild
             {
                 Center = center, Size = size, BbMin = bbMin, BbMax = bbMax, Ext = bbMax - bbMin, Part = part,
                 Chunks = FaceChunks(part, row),
             };
+
+            // 0 = the flat faces below; "sharp" asks for them outright (the far stage's twin, RoundLod).
+            float radius = sharp ? 0f : PaintRadius(size, bbMin, bbMax);
+            if (radius > 0f)
+            {
+                return BuildRoundedPaintedMesh(m, radius, frontChunk, lip);
+            }
 
             for (int f = 0; f < 6; f++)
             {

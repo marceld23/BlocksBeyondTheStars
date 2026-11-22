@@ -95,6 +95,8 @@ namespace BlocksBeyondTheStars.Client
                     t = _table;
                     if (t == null || !ReferenceEquals(t.Content, content))
                     {
+                        LookSod.Apply(content); // the grass kinds' sod faces, before the table reads the faces
+                        LookDeviceForms.Apply(content); // the device forms' tiles get slots in the face band
                         t = new Table(content);
                         _table = t;
                     }

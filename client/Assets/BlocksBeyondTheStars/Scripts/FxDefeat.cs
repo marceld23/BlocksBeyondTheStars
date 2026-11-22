@@ -162,7 +162,9 @@ namespace BlocksBeyondTheStars.Client
             var parts = new List<Renderer>();
             foreach (var r in root.GetComponentsInChildren<Renderer>(false))
             {
-                if (r is MeshRenderer && r.enabled && r.GetComponent<MeshFilter>() != null && r.bounds.size.sqrMagnitude > 1e-4f)
+                // (A coat mesh is no part of its own — it flies with the part it grows on.)
+                if (r is MeshRenderer && r.enabled && r.GetComponent<MeshFilter>() != null && r.bounds.size.sqrMagnitude > 1e-4f
+                    && (r.name.Length == 0 || r.name[0] != CoatMotion.Mark))
                 {
                     parts.Add(r);
                 }
@@ -236,7 +238,9 @@ namespace BlocksBeyondTheStars.Client
             if (robot)
             {
                 FxKit.Burst(FxKit.Kind.Sparks, center, 16, Vector3.up, 70f, 3f, 7f, 0.04f, 0.07f, 0.3f, 0.6f, new Color(1f, 0.75f, 0.35f), Color.white);
-                FxKit.Burst(FxKit.Kind.Debris, center, 8, Vector3.up, 70f, 2f, 4.5f, 0.05f, 0.09f, 0.7f, 1.1f, new Color(0.3f, 0.32f, 0.36f));
+                // Bolts and bits of scrap metal.
+                FxKit.BurstDebris(FxKit.Kind.Debris, center, 8, Vector3.up, 70f, 2f, 4.5f, 0.05f, 0.09f, 0.7f, 1.1f, new Color(0.3f, 0.32f, 0.36f), null,
+                    FxKit.DebrisLookOf("scrap_metal"), chipTexels: 8);
                 FxLights.Flash(center, new Color(1f, 0.7f, 0.35f), 1.6f, 6f, 0.3f);
             }
         }

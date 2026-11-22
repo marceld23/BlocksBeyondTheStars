@@ -21,6 +21,7 @@ Shader "BlocksBeyondTheStars/Cloud"
         _CloudSunDir ("Sun Dir", Vector) = (0, 1, 0, 0)
         _SunShade ("Sun Shade", Float) = 0
         _Bulge ("UV Bulge Normal", Float) = 0
+        _Billow ("Billow texture", Float) = 0
     }
 
     // ---------------- URP ----------------
@@ -49,6 +50,7 @@ Shader "BlocksBeyondTheStars/Cloud"
                 float4 _CloudSunDir;
                 float _SunShade;
                 float _Bulge;
+                float _Billow; // 1 = the texture holds a billow heap (rg = normal, b = thickness, a = cover)
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; };
@@ -59,11 +61,13 @@ Shader "BlocksBeyondTheStars/Cloud"
                 float3 wN : TEXCOORD1;
                 float3 wR : TEXCOORD2;
                 float3 wU : TEXCOORD3;
+                float3 wp : TEXCOORD4;
             };
 
             Varyings vert(Attributes v)
             {
                 Varyings o;
+                o.wp = TransformObjectToWorld(v.positionOS.xyz);
                 o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.wN = TransformObjectToWorldNormal(v.normalOS);
@@ -76,6 +80,24 @@ Shader "BlocksBeyondTheStars/Cloud"
             {
                 half4 t = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 half3 rgb = _Color.rgb;
+                if (_Billow > 0.5)
+                {
+                    // Billowy clouds (Clouds.cs): the texture is a heap of round billows — its normal in rg, how
+                    // thick the cloud is there in b. Every billow gets a lit side and a shaded one: _Color on the sun's
+                    // side, _ShadeColor (the sky's colour) away from it, a little darker where it faces the ground, and
+                    // a bright rim on thin edges when the eye looks toward the sun (the light comes through).
+                    float2 tn = t.rg * 2.0 - 1.0;
+                    float3 toEye = normalize(_WorldSpaceCameraPos - i.wp);
+                    float3 nrm = normalize(i.wR * tn.x + i.wU * tn.y + toEye * sqrt(saturate(1.0 - dot(tn, tn))));
+                    float3 L = normalize(_CloudSunDir.xyz);
+                    float wrap = saturate(dot(nrm, L) * 0.62 + 0.42);
+                    rgb = lerp(_ShadeColor.rgb, _Color.rgb, wrap * wrap * (3.0 - 2.0 * wrap));
+                    rgb *= lerp(0.84, 1.0, saturate(nrm.y * 0.5 + 0.5));
+                    float through = pow(saturate(dot(-toEye, L)), 5.0) * (1.0 - t.b);
+                    rgb += _Color.rgb * (through * 0.7);
+                    return half4(rgb, t.a * _Color.a * (1.0 - BbtsSkyObjectHaze()));
+                }
+
                 if (_SunShade > 0.5)
                 {
                     float3 nrm;

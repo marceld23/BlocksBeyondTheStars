@@ -100,7 +100,10 @@ ShellVaryings BbtsShellVert(ShellAttributes v)
     float3 wp = TransformObjectToWorld(float3(v.positionOS.x, lift, v.positionOS.z));
     // The wind leans the upper layers more (rooted at the ground); a corner shared by two cells moves the same way in
     // both, so the carpet never tears along the block edges. Sheltered cells stand still like the plants (#2519).
-    wp += BbtsShellSway(wp, layer * layer) * (BBTS_SHELL_SWAY * BbtsSwayShelter(info.x) * fade);
+    // Calm grass (_Sc_LookGrass.w): under the grass clumps the carpet is the quiet fur beneath the blades and
+    // leans less in the wind. (Measured on consecutive frames: the sway is NOT what makes the carpet flicker — with
+    // the sway at zero the frame-to-frame change stayed the same. That was the SSAO, see GameLook.ApplyCarpetAo.)
+    wp += BbtsShellSway(wp, layer * layer) * (BBTS_SHELL_SWAY * lerp(1.0, 0.4, saturate(_Sc_LookGrass.w)) * BbtsSwayShelter(info.x) * fade);
 
     o.positionCS = TransformWorldToHClip(wp);
     o.cellUv = v.uv;
@@ -140,7 +143,10 @@ float4 BbtsShellStrandPx(ShellVaryings i, out float px)
 {
     float2 d = fwidth(i.cellUv) * BBTS_SHELL_STRANDS;
     px = max(max(d.x, d.y), 1e-4);
-    return BbtsShellStrand(i.cellUv, i.info.z, i.info.w, min(BBTS_SHELL_MIN_WIDTH * px, 0.35));
+    // Calm grass (_Sc_LookGrass.w): a strand never falls below about 1.2 pixels instead of 0.6 — the thin
+    // ones were what flickered.
+    float calm = saturate(_Sc_LookGrass.w);
+    return BbtsShellStrand(i.cellUv, i.info.z, i.info.w, min(lerp(BBTS_SHELL_MIN_WIDTH, 1.2, calm) * px, lerp(0.35, 0.45, calm)));
 }
 
 // The carpet's hard cut — the depth pass, and the colour pass without MSAA.

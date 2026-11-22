@@ -453,8 +453,16 @@ namespace BlocksBeyondTheStars.Client
             // carrying its wall/ceiling mount (#2683) is the exception: its descriptor is a mount, not a building form,
             // and its cell is already handled by the slim-prop traits — a stamped light must cull its neighbours exactly
             // as an unstamped one does (no water sheet between a wet lantern and the pond around it).
+            // Device forms (ChunkMesher.DeviceForms.cs): a device drawn as a form does not fill its cell either — by its
+            // block id alone, so the answer is the same in every chunk. FormOnlyOpens = only the form opens the face: the
+            // neighbour draws it, but records no collider face (the device's collider is still the cube).
+            bool deviceForms = atlas != null;
             bool ShapedNeighbourOpens(int px, int py, int pz)
-                => worldShape != null && !ShapeCode.IsCube(worldShape(px, py, pz)) && !traits.Has(worldBlock(px, py, pz), TraitTorchProp);
+                => (worldShape != null && !ShapeCode.IsCube(worldShape(px, py, pz)) && !traits.Has(worldBlock(px, py, pz), TraitTorchProp))
+                   || (deviceForms && traits.DeviceFormOf(worldBlock(px, py, pz)) != null);
+            bool FormOnlyOpens(int px, int py, int pz)
+                => deviceForms && traits.DeviceFormOf(worldBlock(px, py, pz)) != null
+                   && (worldShape == null || ShapeCode.IsCube(worldShape(px, py, pz)));
 
             WaterSurfaceData WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
@@ -699,6 +707,22 @@ namespace BlocksBeyondTheStars.Client
             Vector2[] groveDrift = null;
             bool[] groveKnown = null;
 
+            // Vent ground: the vent's block id and the atlas tile of its hole — 0 = the
+            // content has no vent, or the hole got no slot. Planet chunks with an atlas only.
+            // The preset's share of the look (GameLook.Tiers.cs), read once per build so a preset change during the build
+            // cannot give one chunk two tiers: the near drawers' data only where they run, the crown far forms by tier.
+            bool recordCrowns = GameLook.RecordCrownCells, recordPlants = GameLook.RecordPlantCells, recordGrass = GameLook.RecordGrassClumps;
+            int crownFarTier = GameLook.CrownFarFormsTier;
+            bool crownForms = crownFarTier != GameLook.CrownFarNone && atlas != null && floraTint != null; // ChunkMesher.CrownForms.cs
+            ushort ventId = 0;
+            Rect ventHoleUv = default;
+            if (GameLook.VentGround && atlas != null && floraTint != null
+                && ShapeFaceTextures.TextureSlots(content, out _).TryGetValue(LookSod.VentHoleTile, out int ventHoleSlot))
+            {
+                ventId = traits.VentOf();
+                ventHoleUv = atlas.TileUv((ushort)ventHoleSlot);
+            }
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -707,6 +731,20 @@ namespace BlocksBeyondTheStars.Client
                 if (id.IsAir)
                 {
                     continue;
+                }
+
+                // Vent ground, ChunkMesher.Vent.cs: a geyser vent is drawn as the ground beside it — everything
+                // below reads the ground block — and its hole is laid on the top face after the faces. The cell stays a
+                // vent in the world; one with no ground beside or below it keeps its own tile.
+                bool ventHole = false;
+                if (ventId != 0 && id.Value == ventId)
+                {
+                    var host = VentHost(traits, worldBlock, origin.X + x, origin.Y + y, origin.Z + z);
+                    if (!host.IsAir)
+                    {
+                        id = host;
+                        ventHole = true;
+                    }
                 }
 
                 // See-through blocks (glass, force fields) render in a separate alpha-blended submesh and
@@ -806,6 +844,33 @@ namespace BlocksBeyondTheStars.Client
                 bool collidable = (tf & TraitCollidable) != 0;
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
+                // Crown forms: a generated conifer ends in a bare trunk block above its last ring of needles.
+                // The spire that closes its cone is drawn in the cell above — display only, in the needles' colour. Not on
+                // Potato (crownForms off): its conifer keeps the leaf shell it had before the look.
+                if (crownForms && isWood && GameLook.StagedCrowns && ConiferTopAt(traits, worldBlock, wx, wy, wz))
+                {
+                    var needleId = new BlockId(traits.NeedlesOf());
+                    if (recordCrowns)
+                    {
+                        data.CrownCells.Add(new CrownCell
+                        {
+                            Local = new Vector3(x, y + 1, z), Hash = unchecked(wx * 92837111 ^ (wy + 1) * 689287499 ^ wz * 283923481),
+                            Inner = false, Tint = floraTint(needleId), TintMode = 1f, Sky = Skylight(wx, wy + 1, wz),
+                            Light = BlockLightAt(wx, wy + 1, wz), LightDir = BlockLightDirAt(wx, wy + 1, wz),
+                            Tile = atlas.TileUv(needleId.Value).center, Metal = 0f, Emission = 0f,
+                            Form = (byte)BlockShapeGeometry.CrownFormNeedleTip,
+                        });
+                    }
+
+                    // Crown far forms (ChunkMesher.CrownFar.cs): the spire's far form, so the cone closes beyond the
+                    // clusters' range too (and on Low, which draws no clusters). No collider, like the spire.
+                    int tipHash = unchecked(wx * 92837111 ^ (wy + 1) * 689287499 ^ wz * 283923481);
+                    AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        0, 0, ShapeCode.UpPlusY, new Vector3(x, y + 1, z), atlas.TileUv(needleId.Value), traits.MaterialOf(needleId).x, 0f, 0f,
+                        floraTint(needleId), 1f, Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz),
+                        leafCode: LeafCodeCrown, cluster: CrownFarFaces(CrownFarForms.NeedleTip, 0, CrownFarYaw(CrownFarForms.NeedleTip, 0f, tipHash)));
+                }
+
                 // Per-cell flora tint jitter (#675): a deterministic ±8 % brightness wobble on the species
                 // tint so a field stops being one flat colour. Flora species only (not tree leaves/logs —
                 // a speckled crown would read as noise) and deliberately SMALL, so species identity (incl.
@@ -862,11 +927,30 @@ namespace BlocksBeyondTheStars.Client
                 // Ground detail on open-topped planet ground cells: the T0 tufts and the #3056 grass carpet.
                 // Render-only, drawn instanced (ChunkMesher.HighDetails.cs → GroundScatter / GrassShells).
                 // Plain cube tops only: on a grass slab or stair a tuft or the carpet would float above the shape.
-                if (atlas != null && (traits.ScatterOf(id) >= 0 || traits.CarpetOf(id)) && worldBlock(wx, wy + 1, wz).IsAir
+                // Cover under plants: layers add up. A plant is a block in the cell above, so the plain rule
+                // ("only under air") would leave a bare patch of the flat tile under every plant; the grass also
+                // grows under a plant that stands on a narrow foot (`under`: 2 = full, 1 = low, 0 = none — by the plant's
+                // family, BlockTraits.CoverUnderOf). Display only: nothing in the world changes.
+                var aboveGround = worldBlock(wx, wy + 1, wz);
+                // Both extras only where the clumps run (recordGrass): Low and Potato keep the classic "only under air".
+                int under = aboveGround.IsAir || !GameLook.CoverUnderPlants || !recordGrass ? 0 : traits.CoverUnderOf(aboveGround);
+                if (atlas != null && !ventHole // nothing grows on a vent: its hole lies there
+                    && (traits.ScatterOf(id) >= 0 || traits.CarpetOf(id) || (recordGrass && GameLook.GroundCover && traits.ScrubOf(id) > 0))
+                    && (aboveGround.IsAir || (under > 0 && traits.CarpetOf(id)))
                     && ShapeCode.IsCube(chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z))))
                 {
                     AddGroundDetail(data, traits, id, x, y, z, wx, wz, Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz),
-                        chunk.IsEditedLocal(WorldConstants.LocalIndex(x, y, z)));
+                        chunk.IsEditedLocal(WorldConstants.LocalIndex(x, y, z)), under > 0);
+
+                    // Grass clumps: the sides where the ground drops away beside a carpet top — the clumps'
+                    // fringe hangs over them. One entry per GrassTops entry (AddGroundDetail adds one per carpet host).
+                    // Bit 4 = the clumps stay low here (a plant with leaves near the ground stands on this top).
+                    if (recordGrass && traits.CarpetOf(id))
+                    {
+                        data.GrassEdges.Add((worldBlock(wx + 1, wy, wz).IsAir ? 1 : 0) | (worldBlock(wx - 1, wy, wz).IsAir ? 2 : 0)
+                            | (worldBlock(wx, wy, wz + 1).IsAir ? 4 : 0) | (worldBlock(wx, wy, wz - 1).IsAir ? 8 : 0)
+                            | (under == 1 ? 16 : 0));
+                    }
                 }
 
                 // Natural-block variation: a deterministic WORLD-position hash (stable across remeshes,
@@ -992,6 +1076,10 @@ namespace BlocksBeyondTheStars.Client
                         (CrossPlantScale(wx, 0, wz, 0x10, 1f) - 1f) * 0.13f,
                         (CrossPlantScale(wx, 0, wz, 0x20, 1f) - 1f) * 0.13f);
                     float bredSpin = (CrossPlantScale(wx, 0, wz, 0x40, 1f) - 1f) * 30f;
+
+                    // Plant bodies: on a planet the leafy parts are recorded as bodies (AddBredPart).
+                    _bredStage = recordPlants && floraTint != null;
+                    _bredHash = unchecked((wx * 92837111) ^ (wy * 689287499) ^ (wz * 283923481));
 
                     if (body.SolidShape >= 0)
                     {
@@ -1129,6 +1217,30 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
+                    // Plant bodies: a plant of a species that has a generated body (PlantForms — by now every small
+                    // plant) is recorded for PlantBodies, which draws the body near the camera; its crossed picture stays in
+                    // the mesh as the far picture and carries a mark in its cutout code, so the block shader hides it near
+                    // the eye. Planet chunks only (only they get the component). The body's colour is what the picture's
+                    // is: the species' colour on this world, the cell's own (a dyed plant, a tree fruit), or — for a crop or
+                    // an authored plant — the colours of its own tile.
+                    if (recordPlants && !isTorchProp && floraTint != null && traits.PlantFamilyOf(id) >= 0)
+                    {
+                        bool ownColour = !dyed && (!floraTinted || speciesTint == Color.black);
+                        bool goesOn = worldBlock(wx, hangingPlant ? wy - 1 : wy + 1, wz).Value == id.Value;
+                        data.PlantCells.Add(new PlantCell
+                        {
+                            Local = new Vector3(x, y, z), Block = id.Value,
+                            Hash = unchecked((wx * 92837111) ^ (wy * 689287499) ^ (wz * 283923481)),
+                            Column = unchecked((wx * 668265263) ^ (wz * 1013904223)),
+                            Tint = dyed ? dye : speciesTint, Accent = dyed ? 0 : Mathf.RoundToInt(accentCode * 10f),
+                            Size = FloraScale(wx, wy, wz, 0x1, 0.35f) * plantOutlier,
+                            Lean = plantLean, Jitter = plantJitter, Sky = plantSky, Light = plantBl, Emission = emission,
+                            Flags = (byte)((hangingPlant ? PlantCell.Hanging : 0) | (propWet ? PlantCell.Aquatic : 0)
+                                | (ownColour ? PlantCell.OwnColour : 0) | (goesOn ? PlantCell.Continues : 0)),
+                        });
+                        plantCode += PlantBodies.StagedMark;
+                    }
+
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         new Vector3(x, y, z), plantCol, uv, plantSky, isTorchProp && dyed ? dye : speciesTint,
                         plantBl, plantBlDir, plantLean,
@@ -1200,10 +1312,27 @@ namespace BlocksBeyondTheStars.Client
                     float flSquash = CrossPlantScale(wx, 0, wz, 0x3, 0.20f) - 1f; // ±0.2
                     float flSizeY = Mathf.Clamp(flBase * (1f + flSquash), 0.4f, 1f);
                     float flSizeXZ = Mathf.Clamp(flBase * (1f - flSquash * 0.6f), 0.4f, 1f);
+                    // Plant bodies: a solid plant has a generated body too (PlantForms.Solid). Its plain form
+                    // stays in the mesh — it is the far picture, marked like a crossed picture, and it is the COLLIDER,
+                    // which is why the body is scaled exactly like it (width and height apart).
+                    float flCode = accentCode;
+                    if (recordPlants && floraTint != null && traits.PlantFamilyOf(id) >= 0)
+                    {
+                        int flHash = unchecked((wx * 92837111) ^ (wy * 689287499) ^ (wz * 283923481));
+                        data.PlantCells.Add(new PlantCell
+                        {
+                            Local = new Vector3(x, y, z), Block = id.Value, Hash = flHash, Column = flHash,
+                            Tint = flTint, Accent = dyed ? 0 : Mathf.RoundToInt(accentCode * 10f), Size = flSizeY, Width = flSizeXZ,
+                            Sky = flSky, Light = flBl, Emission = emission,
+                            Flags = (byte)(PlantCell.Solid | (flMode < 0.5f || flTint == Color.black ? PlantCell.OwnColour : 0)),
+                        });
+                        flCode += PlantBodies.StagedMark;
+                    }
+
                     AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         traits.SolidFloraShapeOf(id), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
                         matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY, animCode: animCode,
-                        leafCode: accentCode);
+                        leafCode: flCode);
                     continue;
                 }
 
@@ -1242,7 +1371,8 @@ namespace BlocksBeyondTheStars.Client
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir,
                         slots: designId != 0 ? null : ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas, // a painted design IS the surface
                         formCell: ShapeCode.CellOf(shapeDesc), // #1961: which block of a form over several blocks this is
-                        animCode: designId != 0 ? 0f : animCode, ownTile: uv, leafCode: transparent ? leafFlag : 0f);
+                        animCode: designId != 0 ? 0f : animCode, ownTile: uv, leafCode: transparent ? leafFlag : 0f,
+                        colourSlots: designId == 0 && !transparent); // Painted and see-through forms as today
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.
@@ -1253,12 +1383,135 @@ namespace BlocksBeyondTheStars.Client
                     {
                         var flowerUv = atlas.TileUv(potFlower.NumericId.Value);
                         Color flowerTint = floraTint != null ? floraTint(potFlower.NumericId) : Color.black;
+                        // Plant bodies: the flower in the pot is a small body too (half size, dead centre).
+                        float potCode = LeafCodePlant;
+                        if (recordPlants && floraTint != null && traits.PlantFamilyOf(potFlower.NumericId) >= 0)
+                        {
+                            int potHash = unchecked((wx * 92837111) ^ (wy * 689287499) ^ (wz * 283923481));
+                            data.PlantCells.Add(new PlantCell
+                            {
+                                Local = new Vector3(x, y + 0.4f, z), Block = potFlower.NumericId.Value, Hash = potHash, Column = potHash,
+                                Tint = flowerTint, Accent = Mathf.RoundToInt(AccentCodeAt(wx, wz) * 10f), Size = 0.5f, Sky = shSky, Light = shBl,
+                                Flags = (byte)(PlantCell.Exact | (flowerTint == Color.black ? PlantCell.OwnColour : 0)),
+                            });
+                            potCode += PlantBodies.StagedMark;
+                        }
+
                         AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                             new Vector3(x, y + 0.4f, z), new Color(0.05f, 0f, 0.9f, 0f), flowerUv, shSky, flowerTint,
-                            shBl, shBlDir, Vector2.zero, Vector2.zero, 0f, 0.5f, 0.45f, 1f);
+                            shBl, shBlDir, Vector2.zero, Vector2.zero, 0f, 0.5f, 0.45f, 1f, leafCode: potCode);
                     }
 
                     continue;
+                }
+
+                // Staged crowns (GameLook.StagedCrowns): a crown cell is RECORDED here for CrownClusters, which draws it near
+                // the camera as a cluster of small cubes with real gaps (a cell with a face toward the open a dense
+                // cluster, a cell inside the crown a twig and a few cubes); the cube path below meshes the cell's closed
+                // far picture as usual. Display only: the cell stays a leaf block. Recorded only where the clusters run
+                // (recordCrowns); on Potato, with nothing to record or form, the cell takes the plain cube path.
+                if (foliage && atlas != null && designId == 0 && GameLook.StagedCrowns && (recordCrowns || recordPlants || crownForms))
+                {
+                    bool clInner = true;
+                    float clSky = 0f;
+                    for (int clF = 0; clF < Faces.Length; clF++)
+                    {
+                        var clDir = Faces[clF];
+                        if (!traits.Has(worldBlock(wx + clDir.X, wy + clDir.Y, wz + clDir.Z), TraitFoliage))
+                        {
+                            clInner = false;
+                            clSky = Mathf.Max(clSky, Skylight(wx + clDir.X, wy + clDir.Y, wz + clDir.Z));
+                        }
+                    }
+
+                    if (clInner)
+                    {
+                        clSky = Skylight(wx, wy + 1, wz);
+                    }
+
+                    int clHash = unchecked(wx * 92837111 ^ wy * 689287499 ^ wz * 283923481);
+                    Color clTint = dyed ? dye : floraTinted ? speciesTint : Color.black;
+
+                    // Crown forms: a needle cell is a bough cut to the tree's cone, a frond cell a long frond.
+                    byte clForm = 0, clFormVariant = 0;
+                    float clYaw = 0f;
+                    if (crownForms)
+                    {
+                        CrownShapeOf(traits, worldBlock, id, wx, wy, wz, out clForm, out clFormVariant, out clYaw);
+                    }
+
+                    if (recordCrowns)
+                    {
+                        data.CrownCells.Add(new CrownCell
+                        {
+                            Local = new Vector3(x, y, z), Hash = clHash, Inner = clInner, Tint = clTint, TintMode = floraFlag,
+                            Sky = clSky, Light = BlockLightAt(wx, wy + 1, wz), LightDir = BlockLightDirAt(wx, wy + 1, wz),
+                            Tile = uv.center, Metal = matG, Emission = emission,
+                            Form = clForm, Variant = clFormVariant, Yaw = clYaw,
+                        });
+                    }
+
+                    // Crown vines: strands hang from the underside of a crown — the vines of the concept
+                    // pictures' trees. Display only: no block, no collision, nothing in the world's data. Where the
+                    // cell under a crown cell is air, about one in six grows a strand one to three cells long (as far
+                    // as the air reaches), drawn by PlantBodies near the camera as the body of the hanging kelp (a stem
+                    // with leaves), in that species' colour on this world. There is no far picture: beyond the plants'
+                    // range the strands fade out. Never under leaves a player placed: a built canopy stays as built.
+                    ushort vine = recordPlants && GameLook.CrownVines && floraTint != null && !chunk.IsEditedLocal(WorldConstants.LocalIndex(x, y, z))
+                        ? traits.VineOf() : (ushort)0;
+                    if (vine != 0 && worldBlock(wx, wy - 1, wz).IsAir)
+                    {
+                        uint vh = unchecked((uint)clHash * 2654435761u);
+                        if ((vh >> 8) % 6u == 0u)
+                        {
+                            int length = 1 + (int)((vh >> 16) % 3u);
+                            Color vineTint = floraTint(new BlockId(vine));
+                            for (int k = 1; k <= length && worldBlock(wx, wy - k, wz).IsAir; k++)
+                            {
+                                bool more = k < length && worldBlock(wx, wy - k - 1, wz).IsAir;
+                                data.PlantCells.Add(new PlantCell
+                                {
+                                    Local = new Vector3(x, y - k, z), Block = vine,
+                                    Hash = unchecked((wx * 92837111) ^ ((wy - k) * 689287499) ^ (wz * 283923481)),
+                                    Column = unchecked((wx * 668265263) ^ (wz * 1013904223)),
+                                    Tint = vineTint, Accent = 0, Size = 1f,
+                                    Sky = Skylight(wx, wy - k, wz), Light = BlockLightAt(wx, wy - k, wz), Emission = 0.25f,
+                                    // A species without a colour on this world (black = "none") wears its tile's own.
+                                    Flags = (byte)(PlantCell.Hanging | (more ? PlantCell.Continues : 0)
+                                        | (vineTint == Color.black ? PlantCell.OwnColour : 0)),
+                                });
+                            }
+                        }
+                    }
+
+                    // Crown far forms (ChunkMesher.CrownFar.cs): a needle or frond cell with its own crown form is, beyond
+                    // the clusters' range, that form's far form instead of the block shell. Its collider faces are the
+                    // shell's (the same rule as the face loop below). A cell inside the crown too: the near clusters draw
+                    // it as well, and the gaps between the outer boughs show it — on Medium and High. On Low it draws
+                    // nothing: the outer cells' forms close the crown around it, and a shell cell beside it still draws its
+                    // face toward it (CrownFarFormedAt), so no face goes missing.
+                    if (clForm != 0 && CrownFarForms.Has(clForm))
+                    {
+                        for (int cf = 0; cf < Faces.Length; cf++)
+                        {
+                            int cfx = wx + Faces[cf].X, cfy = wy + Faces[cf].Y, cfz = wz + Faces[cf].Z;
+                            if (collidable && (traits.OpensFoliageFace(worldBlock(cfx, cfy, cfz)) || ShapedNeighbourOpens(cfx, cfy, cfz))
+                                && !FormOnlyOpens(cfx, cfy, cfz))
+                            {
+                                colliderFaces[WorldConstants.LocalIndex(x, y, z)] |= (byte)(1 << cf);
+                            }
+                        }
+
+                        if (!clInner || crownFarTier == GameLook.CrownFarAll)
+                        {
+                            AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                                0, 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv, matR, matG, emission, clTint, floraFlag, clSky,
+                                BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz), leafCode: LeafCodeCrown,
+                                cluster: CrownFarFaces(clForm, clFormVariant, CrownFarYaw(clForm, clYaw, clHash)));
+                        }
+
+                        continue;
+                    }
                 }
 
                 // Per-side tiles of a plain cube (#2124): a machine keeps its picture on its FRONT and wears a casing on
@@ -1278,6 +1531,39 @@ namespace BlocksBeyondTheStars.Client
                             traits.ExposesOpaqueFace(worldBlock(wx, wy, wz + 1)),
                             traits.ExposesOpaqueFace(worldBlock(wx, wy, wz - 1)));
                     }
+                }
+
+                // Device forms, ChunkMesher.DeviceForms.cs: a device with a form is drawn from the form's boxes
+                // instead of its six cube faces (a painted design keeps the cube). Its collider faces are recorded with the
+                // cube loop's rule below — a full unit face toward each neighbour that leaves it open, a formed neighbour not
+                // counting — so the collision body is the cube of today. A device without a front turns its form toward the
+                // side the cube path would make its front (CubeFacing.DeriveFront); its tiles stay the cube's (front -1).
+                var dfInfo = deviceForms && designId == 0 && !transparent ? traits.DeviceFormOf(id) : null;
+                if (dfInfo != null)
+                {
+                    var dfCell = DeviceCellScratch();
+                    for (int df = 0; df < Faces.Length; df++)
+                    {
+                        var dd = Faces[df];
+                        int ox = wx + dd.X, oy = wy + dd.Y, oz = wz + dd.Z;
+                        bool dfOpen = traits.ExposesOpaqueFace(worldBlock(ox, oy, oz)) || ShapedNeighbourOpens(ox, oy, oz);
+                        if (dfOpen && collidable && !FormOnlyOpens(ox, oy, oz))
+                        {
+                            colliderFaces[WorldConstants.LocalIndex(x, y, z)] |= (byte)(1 << df);
+                        }
+
+                        dfCell.Set(df, dfOpen, Skylight(ox, oy, oz), BlockLightAt(ox, oy, oz), BlockLightDirAt(ox, oy, oz),
+                            dfOpen ? FaceAo(wx, wy, wz, df) : Vector4.one);
+                    }
+
+                    int dfFront = front >= 0 ? front : CubeFacing.DeriveFront(
+                        traits.ExposesOpaqueFace(worldBlock(wx + 1, wy, wz)), traits.ExposesOpaqueFace(worldBlock(wx - 1, wy, wz)),
+                        traits.ExposesOpaqueFace(worldBlock(wx, wy, wz + 1)), traits.ExposesOpaqueFace(worldBlock(wx, wy, wz - 1)));
+                    dfCell.SetCubeTiles(atlas, uv, hasCap, capUv, uvRot, cubeTiles, front);
+                    var dfTint = dyed ? dye : painted ? paint : speciesTint;
+                    AddDeviceForm(data, atlas, dfInfo, new Vector3(x, y, z), DeviceFormFaces.YawForFront(dfFront), dfCell,
+                        matR, matG, emission, floraFlag, animCode, new Vector4(leafFlag, dfTint.r, dfTint.g, dfTint.b));
+                    continue;
                 }
 
                 // Edge bevel (T0): plain opaque cubes get their exposed convex edges chamfered. Fluids, glass/
@@ -1356,6 +1642,13 @@ namespace BlocksBeyondTheStars.Client
                     // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face
                     // would otherwise be culled, so chunks with no shapes pay nothing.
                     if (!drawFace && ShapedNeighbourOpens(nx, ny, nz))
+                    {
+                        drawFace = true;
+                    }
+
+                    // Crown far forms, ChunkMesher.CrownFar.cs: a needle or frond neighbour that draws its far
+                    // form no longer fills its cell, so a crown shell cell beside it draws the face between them.
+                    if (!drawFace && foliage && crownForms && CrownFarFormedAt(traits, worldBlock, nb, nx, ny, nz))
                     {
                         drawFace = true;
                     }
@@ -1449,7 +1742,7 @@ namespace BlocksBeyondTheStars.Client
                         c0, c1, c2, c3, designId != 0 ? designRect : faceUv,
                         designId != 0 ? 0 : faceRot, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation (painted faces never rotate)
                     data.MarkRelief(verts.Count - 4, designId == 0 && !transparent ? traits.ReliefOf(id) : 0f); // #3055
-                    if (collidable)
+                    if (collidable && !FormOnlyOpens(nx, ny, nz)) // Device forms: a face drawn only toward a formed device adds no collider face
                     {
                         // Recorded as a direction bit; the greedy pass after the loop merges these into big
                         // rectangles. Uses the FULL unit face (not the bevel-inset quad the render mesh may
@@ -1563,6 +1856,13 @@ namespace BlocksBeyondTheStars.Client
                         new Vector3(x, y, z), openMask, bevSlot != 0 ? atlas.TileUv(bevSlot) : uv, matR, matG, emission, floraFlag, bevLeaf,
                         Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz));
                 }
+
+                // Vent ground: the vent's hole on the ground's top face, where that face is open.
+                if (ventHole && traits.ExposesOpaqueFace(worldBlock(wx, wy + 1, wz)))
+                {
+                    AddVentHole(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir, new Vector3(x, y, z),
+                        ventHoleUv, FaceShade(0), Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz));
+                }
             }
 
             // Flat per-face normals + bounds computed analytically here (every face owns its own
@@ -1597,7 +1897,8 @@ namespace BlocksBeyondTheStars.Client
             data.Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.ComputeConnectivity((x, y, z) =>
             {
                 var id = chunk.Get(x, y, z);
-                return traits.ExposesOpaqueFace(id) || !ShapeCode.IsCube(chunk.GetShape(x, y, z)); // a cube with a stored front (#2124) is still a cube
+                return traits.ExposesOpaqueFace(id) || !ShapeCode.IsCube(chunk.GetShape(x, y, z)) // a cube with a stored front (#2124) is still a cube
+                    || (deviceForms && traits.DeviceFormOf(id) != null); // Device forms: a formed device has gaps to look through
             });
             skylightField.End(); // the reused field must not keep this build's chunks alive
             data.Pack();
@@ -1966,13 +2267,25 @@ namespace BlocksBeyondTheStars.Client
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f,
             FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null, int formCell = 0, float animCode = 0f, Rect ownTile = default,
-            float leafCode = 0f)
+            float leafCode = 0f, List<BlockShapeGeometry.Face> cluster = null, bool colourSlots = false)
         {
-            var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace, formCell);
+            // `cluster` = a crown cluster's ready faces (BlockShapeGeometry.CrownCluster) instead of a form —
+            // display only (no collider: crowns are walked through), every cube with its own shade, tint and flutter phase.
+            var faces = cluster ?? BlockShapeGeometry.Build(shapeIndex, orientation, upFace, formCell);
             if (faces == null)
             {
                 return;
             }
+
+            // A player form may draw other faces (colour slots, soft edges) than it collides with; the
+            // collider keeps today's boxes. A painted or see-through form (`colourSlots` false) draws today's faces as well.
+            var plainFaces = cluster == null ? BlockShapeGeometry.ColliderFaces(shapeIndex, orientation, upFace, formCell, faces) : faces;
+            if (!colourSlots)
+            {
+                faces = plainFaces;
+            }
+
+            bool ownCollider = !ReferenceEquals(plainFaces, faces);
 
             // Optional per-cell shrink (#675, solid flora only — building shapes always pass 1/1): scale the
             // unit-cell face coords about the cell-FLOOR centre BEFORE emission, so normals/tangents derive
@@ -1992,6 +2305,24 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 nrm = Vector3.Cross(edge1, edge2).normalized;
                 float shade = Mathf.Clamp(0.76f + 0.24f * nrm.y, 0.5f, 1f);
                 var col = new Color(matR, matG, shade, emission);
+                if (cluster != null)
+                {
+                    // The cube's class (the face's part): the twig is dark, the leaf cubes run from light to dark; the
+                    // class rides in the gloss channel as k/255 — the vertex shader reads the flutter phase from it.
+                    int cls = (int)face.Part;
+                    bool twig = face.Part == BlockShapeGeometry.CrownTwig;
+                    float tone = twig ? 0.5f : 1.14f - 0.07f * cls;
+                    col = new Color(cls / 255f, matG, Mathf.Clamp01(shade * (twig ? 0.7f : 1f - 0.03f * cls)), emission);
+                    leaf = new Vector4(leafCode, tint.r * tone, tint.g * tone, tint.b * tone);
+                }
+
+                var faceLeaf = leaf;
+                float slotMode = tintMode;
+                if (colourSlots && face.ColourSlot > 1)
+                {
+                    ApplyColourSlot(face.ColourSlot, ref col, ref faceLeaf, ref slotMode); // (ChunkMesher.ShapeLook.cs)
+                }
+
                 Vector3 tanDir = edge2.sqrMagnitude > 1e-8f ? edge2.normalized : edge1.normalized;
                 float hand = Vector3.Dot(Vector3.Cross(nrm, tanDir), edge1) < 0f ? -1f : 1f;
                 var tan = new Vector4(tanDir.x, tanDir.y, tanDir.z, hand);
@@ -2001,8 +2332,12 @@ namespace BlocksBeyondTheStars.Client
                 // so shaped blocks append their vertices to BOTH streams with independent base indices.
                 int collBase = colliderVerts.Count;
                 int n = face.IsQuad ? 4 : 3;
+                bool collide = cluster == null && !ownCollider;
                 verts.Add(a); verts.Add(b); verts.Add(c);
-                colliderVerts.Add(a); colliderVerts.Add(b); colliderVerts.Add(c);
+                if (collide)
+                {
+                    colliderVerts.Add(a); colliderVerts.Add(b); colliderVerts.Add(c);
+                }
 
                 // #1900: every face carries the slice of the tile it covers (form-local, so it rotates with the form);
                 // a block with texture slots dresses a part's faces with another tile or a stretched region instead.
@@ -2010,7 +2345,7 @@ namespace BlocksBeyondTheStars.Client
                 uvs.Add(uvA); uvs.Add(uvB); uvs.Add(uvC);
                 // #1957: a furniture part may be dressed with ANOTHER block's tile (a slot) — such a face must not
                 // be moved onto this block's frame strip. Without slots every face shows the own tile.
-                float faceMode = tintMode;
+                float faceMode = slotMode;
                 if (animCode != 0f && (slots == null || ownTile.width <= 0f
                     || (uvA.x >= ownTile.xMin - 0.0005f && uvA.x <= ownTile.xMax + 0.0005f
                         && uvA.y >= ownTile.yMin - 0.0005f && uvA.y <= ownTile.yMax + 0.0005f)))
@@ -2021,7 +2356,11 @@ namespace BlocksBeyondTheStars.Client
                 if (face.IsQuad)
                 {
                     verts.Add(d);
-                    colliderVerts.Add(d);
+                    if (collide)
+                    {
+                        colliderVerts.Add(d);
+                    }
+
                     uvs.Add(uvD);
                 }
 
@@ -2030,18 +2369,30 @@ namespace BlocksBeyondTheStars.Client
                     colors.Add(col);
                     tangents.Add(tan);
                     skyUv.Add(new Vector2(sky, faceMode));
-                    leafUv.Add(leaf);
+                    leafUv.Add(faceLeaf);
                     blockLight.Add(bl);
                     blockLightDir.Add(blDir);
                 }
 
                 tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
-                colliderTris.Add(collBase); colliderTris.Add(collBase + 1); colliderTris.Add(collBase + 2);
+                if (collide)
+                {
+                    colliderTris.Add(collBase); colliderTris.Add(collBase + 1); colliderTris.Add(collBase + 2);
+                }
+
                 if (face.IsQuad)
                 {
                     tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
-                    colliderTris.Add(collBase); colliderTris.Add(collBase + 2); colliderTris.Add(collBase + 3);
+                    if (collide)
+                    {
+                        colliderTris.Add(collBase); colliderTris.Add(collBase + 2); colliderTris.Add(collBase + 3);
+                    }
                 }
+            }
+
+            if (ownCollider)
+            {
+                AddShapeColliderFaces(colliderVerts, colliderTris, plainFaces, cell, sizeXZ, sizeY);
             }
         }
 
@@ -2409,7 +2760,14 @@ namespace BlocksBeyondTheStars.Client
             public Color Tint;      // the species' colour on this world — used while the plant has no colour of its own
             public float TintMode;  // 1 flora; 0 for a species that keeps its authored colour (#1716)
             public int SolidShape;  // the BlockShape of a solid species (cactus, cap, crystal …); -1 = a leafy cross plant
+            public ushort Block;    // Plant bodies: the species' block id …
+            public int Family;      // … and its body family (PlantForms.FamilyOf; -1 = it has none)
         }
+
+        // Plant bodies: whether the bred plant being meshed records its parts for PlantBodies (a planet chunk
+        // that runs the near drawers), and the running hash that gives each part its own individual and turn. Per worker thread.
+        [System.ThreadStatic] private static bool _bredStage;
+        [System.ThreadStatic] private static int _bredHash;
 
         /// <summary>What one packed form (<see cref="FloraForm"/>) of a bred plant resolves to in a content set.</summary>
         private struct BredLook
@@ -2450,6 +2808,8 @@ namespace BlocksBeyondTheStars.Client
                     Tint = floraTint != null && !ownColour ? floraTint(id) : Color.black,
                     TintMode = ownColour ? 0f : 1f,
                     SolidShape = solid ? traits.SolidFloraShapeOf(id) : -1,
+                    Block = id.Value,
+                    Family = traits.PlantFamilyOf(id),
                 };
             }
 
@@ -2472,9 +2832,24 @@ namespace BlocksBeyondTheStars.Client
         {
             if (part.SolidShape < 0)
             {
+                // Plant bodies: a leafy part is the body of the species it is drawn from, in the plant's own
+                // colour and at the part's size and place; its crossed picture stays as the far picture.
+                float partCode = LeafCodePlant;
+                if (_bredStage && part.Family >= 0)
+                {
+                    int partHash = unchecked(_bredHash++ * 16777619);
+                    data.PlantCells.Add(new PlantCell
+                    {
+                        Local = cell, Block = part.Block, Hash = partHash, Column = partHash, Tint = part.Tint, Size = height,
+                        Lean = lean, Jitter = offset, Sky = sky, Light = bl, Emission = part.Emission,
+                        Flags = (byte)(PlantCell.Exact | (part.TintMode < 0.5f || part.Tint == Color.black ? PlantCell.OwnColour : 0)),
+                    });
+                    partCode += PlantBodies.StagedMark;
+                }
+
                 AddCrossPlant(data.Verts, data.OpaqueTris, data.Colors, data.Uvs, data.Tangents, data.SkyUv, data.LeafUv, data.BlockLight, data.BlockLightDir,
                     cell, new Color(part.Mat.x, part.Mat.y, 0.9f, part.Emission), part.Uv, sky, part.Tint, bl, blDir,
-                    lean, offset, spinDeg, height, width, part.TintMode + part.Anim);
+                    lean, offset, spinDeg, height, width, part.TintMode + part.Anim, leafCode: partCode);
                 return height;
             }
 
@@ -2491,9 +2866,24 @@ namespace BlocksBeyondTheStars.Client
             // 0.82 of the asked size is where the wild solid plants sit on average (see the solid flora branch).
             float sizeY = height * 0.82f;
             float sizeXZ = Mathf.Clamp(width * 0.82f, 0.25f, 1f);
+            // Plant bodies: a solid part is the body of its species too, scaled like its collider.
+            float solidCode = 0f;
+            if (_bredStage && part.Family >= 0)
+            {
+                int partHash = unchecked(_bredHash++ * 16777619);
+                data.PlantCells.Add(new PlantCell
+                {
+                    Local = cell + new Vector3(offset.x, 0f, offset.y), Block = part.Block, Hash = partHash, Column = partHash, Tint = part.Tint,
+                    Size = sizeY, Width = sizeXZ, Sky = sky, Light = bl, Emission = part.Emission,
+                    Flags = (byte)(PlantCell.Solid | (part.TintMode < 0.5f || part.Tint == Color.black ? PlantCell.OwnColour : 0)),
+                });
+                solidCode = PlantBodies.StagedMark;
+            }
+
             AddShapedBlock(data.Verts, data.OpaqueTris, colliderTris, colliderVerts, data.Colors, data.Uvs, data.Tangents, data.SkyUv, data.LeafUv, data.BlockLight, data.BlockLightDir,
                 part.SolidShape, 0, ShapeCode.UpPlusY, cell + new Vector3(offset.x, 0f, offset.y), part.Uv,
-                part.Mat.x, part.Mat.y, part.Emission, part.Tint, part.TintMode, sky, bl, blDir, sizeXZ, sizeY, animCode: part.Anim);
+                part.Mat.x, part.Mat.y, part.Emission, part.Tint, part.TintMode, sky, bl, blDir, sizeXZ, sizeY, animCode: part.Anim,
+                leafCode: solidCode);
             return sizeY;
         }
 
@@ -2534,7 +2924,11 @@ namespace BlocksBeyondTheStars.Client
                 return glowMod & 0xFFFFFF;
             }
 
-            return BlocksBeyondTheStars.Shared.Definitions.BlockLight.PackedLightOf(content?.BlockById(id));
+            // The quiet NATURAL emitters reach further (GameLook.EmitterLight).
+            // Placed lights with a small reach of their own (the festival lanterns) keep it — a room must not get brighter.
+            var def = content?.BlockById(id);
+            int packed = BlocksBeyondTheStars.Shared.Definitions.BlockLight.PackedLightOf(def);
+            return def != null && def.Category == "light" ? packed : GameLook.EmitterLight(packed);
         }
 
         /// <summary>
@@ -2855,6 +3249,7 @@ namespace BlocksBeyondTheStars.Client
             private readonly Vector2[] _material;
             private readonly sbyte[] _scatter;
             private readonly byte[] _solidFloraShape;
+            private readonly sbyte[] _plantFamily; // Plant bodies: PlantForms.FamilyOf per block id (-1 = stays a picture)
 
             public BlockTraits(GameContent content)
             {
@@ -2870,6 +3265,7 @@ namespace BlocksBeyondTheStars.Client
                 _material = new Vector2[size];
                 _scatter = new sbyte[size];
                 _solidFloraShape = new byte[size];
+                _plantFamily = new sbyte[size];
                 for (int i = 0; i < size; i++)
                 {
                     var id = new BlockId((ushort)i);
@@ -2920,6 +3316,7 @@ namespace BlocksBeyondTheStars.Client
                     _material[i] = BlockMaterialSlow(content, id);
                     _scatter[i] = (sbyte)ScatterType(key);
                     _solidFloraShape[i] = (byte)SolidFloraShape(key);
+                    _plantFamily[i] = (sbyte)(key != null ? PlantForms.FamilyOf(key) : -1);
                     if (key == "lift_gate_open")
                     {
                         SillId = i;
@@ -2946,6 +3343,7 @@ namespace BlocksBeyondTheStars.Client
             public Vector2 MaterialOf(BlockId id) => id.Value < _material.Length ? _material[id.Value] : new Vector2(0.05f, 0.0f);
             public int ScatterOf(BlockId id) => id.Value < _scatter.Length ? _scatter[id.Value] : -1;
             public int SolidFloraShapeOf(BlockId id) => id.Value < _solidFloraShape.Length ? _solidFloraShape[id.Value] : 4;
+            public int PlantFamilyOf(BlockId id) => id.Value < _plantFamily.Length ? _plantFamily[id.Value] : -1;
         }
 
         private static volatile BlockTraits _traitsSlot;
@@ -3267,6 +3665,11 @@ namespace BlocksBeyondTheStars.Client
         public Bounds ColliderBounds;
         public readonly List<Vector4> Scatter = new List<Vector4>();  // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
         public readonly List<Vector4> GrassTops = new List<Vector4>(); // #3056 carpet tops (xyz = local top centre, w = block id + skylight fraction); NOT uploaded
+        public readonly List<CrownCell> CrownCells = new List<CrownCell>(); // Staged crowns: the crown cells for CrownClusters; NOT uploaded
+        public readonly List<Vector4> ScrubTops = new List<Vector4>(); // Ground cover: open tops of bare ground that grow a dry tuft or carry pebbles (xyz = local top centre, w = block id + skylight fraction); NOT uploaded
+        public readonly List<Vector4> ScrubLight = new List<Vector4>(); // Ground cover: per ScrubTops entry, xyz = the placed light above, w = 0 a tuft / 1 pebbles; NOT uploaded
+        public readonly List<int> GrassEdges = new List<int>(); // Grass clumps: per GrassTops entry, the sides where the ground drops (bit 0 +X, 1 -X, 2 +Z, 3 -Z); NOT uploaded
+        public readonly List<PlantCell> PlantCells = new List<PlantCell>(); // Plant bodies: the small plants PlantBodies draws as bodies near the camera; NOT uploaded
 
         /// <summary>The interleaved GPU vertex buffer produced by <see cref="Pack"/> — <see cref="PackedCount"/>
         /// valid entries (the array itself is grown geometrically and reused with the pooled instance).</summary>
@@ -3347,6 +3750,11 @@ namespace BlocksBeyondTheStars.Client
                 Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); PaintTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
                 BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear(); ScatterLight.Clear(); GrassTops.Clear(); GrassLight.Clear(); ReliefRuns.Clear();
+                CrownCells.Clear();
+                GrassEdges.Clear();
+                ScrubTops.Clear();
+                ScrubLight.Clear();
+                PlantCells.Clear();
                 PackedCount = 0; // the array itself stays — it is the buffer the next build packs into
                 ColliderHash = 0;
                 Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.AllConnected;

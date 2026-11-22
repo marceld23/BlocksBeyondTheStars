@@ -336,6 +336,7 @@ namespace BlocksBeyondTheStars.Client
                     S = new[] { w, h, d },
                     C = ToolLook.Palette[box.Color],
                     G = _model.Glows(box.Color),
+                    F = HeldModelPart.FormBox, // as ToolLook.ToParts: a player's look keeps its boxes
                 });
             }
 

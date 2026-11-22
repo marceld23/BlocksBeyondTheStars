@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.Client
     /// code-built (DoorView pattern) and render-only — the server stays authoritative over what the
     /// stations DO. Decor follows <see cref="GameBootstrap.ScenePos"/> every frame (torus wrap).
     /// </summary>
-    public sealed class StationDecorView : MonoBehaviour
+    public sealed partial class StationDecorView : MonoBehaviour
     {
         public GameBootstrap Game;
         public Camera Camera;
@@ -35,6 +35,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 Rebuild();
             }
+
+            TurnPendingForms(); // the forms face their users once the blocks around them are known
         }
 
         /// <summary>Places the decor — in LateUpdate, after every Update moved what it follows (the player's scene copy, and
@@ -103,26 +105,17 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(transform, false);
                 // The station marker block fills its cell — the decor sits on top of it.
                 _decor.Add((go, new Vector3(s.X, s.Y + 1f, s.Z)));
+                QueueFormTurn(go, s); // the forms face whoever uses them
             }
         }
 
         // --- builders -------------------------------------------------------------------------
 
-        /// <summary>Console block + tilted animated screen + the holographic system map above it.</summary>
+        /// <summary>The console form with its animated screen + the holographic system map above it.</summary>
         private GameObject BuildCockpit()
         {
             var root = new GameObject("CockpitDecor");
-
-            var basePlate = Cube(root.transform, new Vector3(0f, 0.18f, 0f), new Vector3(0.85f, 0.36f, 0.45f),
-                Unlit(new Color(0.16f, 0.18f, 0.22f)));
-            basePlate.name = "ConsoleBase";
-
-            var screen = Cube(root.transform, new Vector3(0f, 0.52f, -0.05f), new Vector3(0.72f, 0.34f, 0.05f),
-                Unlit(new Color(0.30f, 0.75f, 0.95f)));
-            screen.name = "ConsoleScreen";
-            screen.transform.localRotation = Quaternion.Euler(-18f, 0f, 0f);
-            screen.GetComponent<Renderer>().sharedMaterial.renderQueue = 2000;
-            screen.AddComponent<ScreenFlicker>().Base = new Color(0.30f, 0.75f, 0.95f);
+            AddForm(root.transform, StationDecorForms.Kind.Cockpit, new Color(0.30f, 0.75f, 0.95f)); // the console body
 
             var holo = new GameObject("HoloMap");
             holo.transform.SetParent(root.transform, false);
@@ -148,19 +141,15 @@ namespace BlocksBeyondTheStars.Client
             var pulse = tank.AddComponent<GlowPulse>();
             pulse.Mat = mat;
             pulse.Base = new Color(0.45f, 0.90f, 1f, 0.30f);
+            AddForm(root.transform, StationDecorForms.Kind.Medbay, default); // plinth, collar and cap
             return root;
         }
 
-        /// <summary>A small terminal: dark base + a flickering coloured screen.</summary>
+        /// <summary>A small terminal: housing, deck and a framed flickering coloured screen.</summary>
         private GameObject BuildTerminal(Color screenColor)
         {
             var root = new GameObject("TerminalDecor");
-            Cube(root.transform, new Vector3(0f, 0.14f, 0f), new Vector3(0.55f, 0.28f, 0.35f),
-                PropTextures.MaterialFor(PropTextures.DecorHousing)); // texturable (#1956); the screen pulses its colour and stays as it is
-            var screen = Cube(root.transform, new Vector3(0f, 0.45f, 0f), new Vector3(0.5f, 0.30f, 0.05f),
-                Unlit(screenColor));
-            screen.transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
-            screen.AddComponent<ScreenFlicker>().Base = screenColor;
+            AddForm(root.transform, StationDecorForms.Kind.Terminal, screenColor);
             return root;
         }
 

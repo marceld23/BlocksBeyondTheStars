@@ -38,7 +38,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var go = new GameObject("FxKit");
-            return go.AddComponent<FxKit>();
+            var kit = go.AddComponent<FxKit>();
+            if (Instance == null)
+            {
+                Instance = kit; // edit mode (an off-screen preview): Awake has not run
+            }
+
+            return kit;
         }
 
         private void Awake()
@@ -178,19 +184,32 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Emits ONE particle of <paramref name="kind"/>. Colours are sRGB-authored (converted here).</summary>
         public static void Emit(Kind kind, Vector3 position, Vector3 velocity, float size, float life, Color color)
         {
+            if (GameLook.TexturedDebris && (kind == Kind.Debris || kind == Kind.DebrisFloat))
+            {
+                EmitDebris(kind, position, velocity, size, life, color, default); // A plain cube, its tile data cleared
+                return;
+            }
+
             var ps = Ensure().Emitter(kind);
             if (ps == null)
             {
                 return;
             }
 
+            EmitLinear(ps, kind, position, velocity, size, life, Lin(color));
+        }
+
+        /// <summary>The emission itself, with the colour already linear (the textured debris of FxKit.Debris.cs hands a
+        /// world tint straight through).</summary>
+        private static void EmitLinear(ParticleSystem ps, Kind kind, Vector3 position, Vector3 velocity, float size, float life, Color linear)
+        {
             var ep = new ParticleSystem.EmitParams
             {
                 position = position,
                 velocity = velocity,
                 startSize = size,
                 startLifetime = Mathf.Max(0.02f, life),
-                startColor = Lin(color),
+                startColor = linear,
                 applyShapeToPosition = false,
             };
             if (kind == Kind.Debris || kind == Kind.DebrisFloat)
@@ -275,7 +294,21 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(transform, false);
             var ps = go.AddComponent<ParticleSystem>();
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ConfigureModules(ps, kind, debris);
+            ConfigureRenderer(go.GetComponent<ParticleSystemRenderer>(), kind, mat);
+            if (debris)
+            {
+                ConfigureDebrisTiles(ps, go.GetComponent<ParticleSystemRenderer>()); // a tile piece per cube
+            }
 
+            ps.Play();
+            return ps;
+        }
+
+        /// <summary>The particle system's modules for a kind — budget, gravity, lifetime colour and size, the debris'
+        /// own rotation and the smoke's drag — set while it is stopped, before the renderer is configured.</summary>
+        private void ConfigureModules(ParticleSystem ps, Kind kind, bool debris)
+        {
             var main = ps.main;
             main.loop = true;
             main.playOnAwake = false;
@@ -315,10 +348,6 @@ namespace BlocksBeyondTheStars.Client
                 limit.limit = 0.6f;
                 limit.dampen = 0.08f;
             }
-
-            ConfigureRenderer(go.GetComponent<ParticleSystemRenderer>(), kind, mat);
-            ps.Play();
-            return ps;
         }
 
         /// <summary>The material a kind draws with (null when its shader is missing from the build).</summary>

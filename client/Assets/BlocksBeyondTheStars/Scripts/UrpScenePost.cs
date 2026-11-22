@@ -198,6 +198,58 @@ namespace BlocksBeyondTheStars.Client
             Instance = this;
         }
 
+        private PlayerController _focusPlayer;
+        private float _focusSeek;
+        private float _focusDistance = 80f;
+
+        /// <summary>The depth of field of the play: the view focuses on what is in the middle of the picture
+        /// (<see cref="PlayerController.FocusDistance"/>, eased: quickly onto something near, slowly back out), and the
+        /// background well behind it goes soft. A look into the distance stays sharp all over. The blur is URP's
+        /// gaussian one, which only ever softens what lies BEHIND its start — the hand and the tool at the eye stay
+        /// sharp. Returns false when the blur is to be off (Low or Potato, a light device, reduced effects,
+        /// a far look).</summary>
+        private bool DriveFocusBlur()
+        {
+            if (!GameLook.FocusBlur || ReducedEffects)
+            {
+                return false;
+            }
+
+            if (_focusPlayer == null)
+            {
+                _focusSeek -= Time.unscaledDeltaTime;
+                if (_focusSeek <= 0f)
+                {
+                    _focusSeek = 1f;
+                    _focusPlayer = FindFirstObjectByType<PlayerController>();
+                }
+
+                if (_focusPlayer == null)
+                {
+                    return false;
+                }
+            }
+
+            float target = _focusPlayer.FocusDistance(80f);
+            float rate = target < _focusDistance ? 6f : 2.2f;
+            _focusDistance = Mathf.Lerp(_focusDistance, target, 1f - Mathf.Exp(-rate * Time.unscaledDeltaTime));
+            float far = Mathf.Clamp01((_focusDistance - 22f) / 26f);
+            float strength = 1f - (far * far * (3f - (2f * far)));
+            if (strength <= 0.01f)
+            {
+                return false;
+            }
+
+            // The blur's near edge: well behind what is looked at (two and a half times the focus distance and eight
+            // metres more — while mining or building the player looks at a block at arm's length all the time, and the
+            // middle distance must stay sharp then); as the look goes far it walks away altogether.
+            float start = Mathf.Lerp(160f, (_focusDistance * 2.5f) + 8f, strength);
+            _menuBlur.gaussianStart.Override(start);
+            _menuBlur.gaussianEnd.Override(start + Mathf.Max(20f, _focusDistance * 4f));
+            _menuBlur.gaussianMaxRadius.Override(Mathf.Clamp(0.8f * GameLook.Dof, 0.3f, 1.5f));
+            return true;
+        }
+
         private void Update()
         {
             if (_menuBlur != null && Game != null)
@@ -207,9 +259,12 @@ namespace BlocksBeyondTheStars.Client
                 // near edge walks in from far away: at 0 nothing on screen is blurred, at 1 everything past arm's length.
                 _menuBlurLevel = Mathf.MoveTowards(_menuBlurLevel, open ? 1f : 0f, Time.unscaledDeltaTime * 4f);
                 bool on = _menuBlurLevel > 0.001f;
-                if (_menuBlur.active != on)
+                // While no menu is open the same blur serves as the play's depth of field (a profile holds
+                // only one DepthOfField); the menu always wins.
+                bool focus = !on && DriveFocusBlur();
+                if (_menuBlur.active != (on || focus))
                 {
-                    _menuBlur.active = on;
+                    _menuBlur.active = on || focus;
                 }
 
                 if (on)
@@ -217,6 +272,7 @@ namespace BlocksBeyondTheStars.Client
                     float t = _menuBlurLevel * _menuBlurLevel * (3f - 2f * _menuBlurLevel);
                     _menuBlur.gaussianStart.Override(Mathf.Lerp(60f, 0.4f, t));
                     _menuBlur.gaussianEnd.Override(Mathf.Lerp(120f, 6f, t));
+                    _menuBlur.gaussianMaxRadius.Override(1.2f);
                 }
             }
 
@@ -446,8 +502,12 @@ namespace BlocksBeyondTheStars.Client
 
             if (_bloom != null && !ShellMode)
             {
-                _bloom.threshold.Override(Mathf.Lerp(PlayBloomThreshold, 0.8f, glow));
-                _bloom.intensity.Override(Mathf.Lerp(PlayBloomIntensity, 0.62f, glow));
+                float bloomThreshold = Mathf.Lerp(PlayBloomThreshold, 0.8f, glow);
+                float bloomIntensity = Mathf.Lerp(PlayBloomIntensity, 0.62f, glow);
+                GameLook.Bloom(ref bloomThreshold, ref bloomIntensity, h); // a softer, wider glow outdoors
+                _bloom.threshold.Override(bloomThreshold);
+                _bloom.intensity.Override(bloomIntensity);
+                _bloom.scatter.Override(GameLook.BloomScatter(0.6f, h));
                 _bloom.tint.Override(Color.Lerp(Color.white, new Color(1f, 0.93f, 0.82f), glow * (1f - _otherSide)));
             }
 
@@ -458,6 +518,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Lamps a touch stronger at the warm end of the slider (BlockAtlas multiplies the baked block light by it).
             Shader.SetGlobalFloat(CozyLightId, ShellMode ? 1f : 1f + 0.2f * glow + 0.1f * h);
+            LookCabinLight.Publish(); // strong emitters under cover keep their tile
             ApplyExposure();
         }
 

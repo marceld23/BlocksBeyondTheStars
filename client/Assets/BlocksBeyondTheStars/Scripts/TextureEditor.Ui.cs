@@ -138,7 +138,8 @@ namespace BlocksBeyondTheStars.Client
                 RebuildList();
             }, L("ui.tex.search"), 40, 16);
 
-            var listContent = UiKit.ScrollList(card, 20f, 106f, 320f, 778f);
+            // The list gives up the card's foot to the soft tools' panel (TextureEditor.Soft.cs).
+            var listContent = UiKit.ScrollList(card, 20f, 106f, 320f, 778f - SoftPanelH);
             _rows.Clear();
             foreach (var e in _entries)
             {
@@ -156,6 +157,7 @@ namespace BlocksBeyondTheStars.Client
             _list = new PaletteListUi(Shell != null ? Shell : FindAnyObjectByType<AppShell>(), listContent, _rows);
             _list.OnSelected = OnRowPicked;
             RebuildList();
+            BuildSoftPanel(card); // soft tools and "calm when saving" (TextureEditor.Soft.cs)
         }
 
         private void RebuildList()

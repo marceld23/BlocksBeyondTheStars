@@ -145,8 +145,9 @@ namespace BlocksBeyondTheStars.Client
             FxLights.Flash(at, color, 1.8f * strength, 10f, 0.2f);
             if (mining)
             {
-                FxKit.Burst(FxKit.Kind.DebrisFloat, at, Mathf.RoundToInt(4 * strength), Vector3.zero, 0f, 2f, 6f, 0.15f, 0.35f, 0.8f, 1.4f,
-                    new Color(0.45f, 0.4f, 0.36f), new Color(0.62f, 0.56f, 0.48f));
+                // Rock chips in the rock tile.
+                FxKit.BurstDebris(FxKit.Kind.DebrisFloat, at, Mathf.RoundToInt(4 * strength), Vector3.zero, 0f, 2f, 6f, 0.15f, 0.35f, 0.8f, 1.4f,
+                    new Color(0.45f, 0.4f, 0.36f), new Color(0.62f, 0.56f, 0.48f), FxKit.DebrisLookOf("stone"), chipTexels: 16);
             }
         }
 
@@ -177,7 +178,9 @@ namespace BlocksBeyondTheStars.Client
             FxKit.Ring(at, Vector3.zero, new Color(1f, 0.8f, 0.5f), 0.5f * scale, 9f * scale, 0.55f, thickness: 0.1f, fill: 0.04f, intensity: 2.4f);
             FxKit.Burst(FxKit.Kind.Motes, at, 30, Vector3.zero, 0f, 8f * scale, 22f * scale, 0.1f, 0.2f, 0.4f, 0.9f, new Color(1f, 0.8f, 0.4f), Color.white);
             FxKit.Burst(FxKit.Kind.Smoke, at, 8, Vector3.zero, 0f, 0.5f, 2f, 1.5f * scale, 2.6f * scale, 1.2f, 2f, new Color(0.35f, 0.33f, 0.36f));
-            FxKit.Burst(FxKit.Kind.DebrisFloat, at, 10, Vector3.zero, 0f, 3f, 9f, 0.2f * scale, 0.45f * scale, 1.2f, 2f, new Color(0.3f, 0.32f, 0.36f), tint);
+            // Hull plates in the ship's colour (the plain cubes ran from grey to that colour).
+            FxKit.BurstDebris(FxKit.Kind.DebrisFloat, at, 10, Vector3.zero, 0f, 3f, 9f, 0.2f * scale, 0.45f * scale, 1.2f, 2f, new Color(0.3f, 0.32f, 0.36f), tint,
+                FxKit.DebrisLookOf("metal_panel").Times(FxKit.Lin(Color.Lerp(Color.white, tint, 0.45f))));
             FxLights.Flash(at, new Color(1f, 0.7f, 0.35f), 4f, 26f * Mathf.Max(1f, scale), 0.6f);
             if (model != null)
             {
@@ -195,12 +198,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>An asteroid breaking up: a hot crack flash, tumbling rock chunks in its colours, a dust cloud and a
         /// few ore glints (the loot reads before it drifts free).</summary>
-        public static void AsteroidBreak(Vector3 at, float size, Color rock)
+        public static void AsteroidBreak(Vector3 at, float size, Color rock, FxKit.DebrisLook rubble = default)
         {
             float s = Mathf.Clamp(size, 1f, 12f);
             FxKit.Flash(at, new Color(1f, 0.75f, 0.4f), 1.6f * s, 0.18f);
-            FxKit.Burst(FxKit.Kind.DebrisFloat, at, Mathf.RoundToInt(10 + s * 2f), Vector3.zero, 0f, 1.5f, 6f, 0.2f * s * 0.35f, 0.5f * s * 0.35f, 1.4f, 2.4f,
-                rock, Color.Lerp(rock, Color.white, 0.25f));
+            FxKit.BurstDebris(FxKit.Kind.DebrisFloat, at, Mathf.RoundToInt(10 + s * 2f), Vector3.zero, 0f, 1.5f, 6f, 0.2f * s * 0.35f, 0.5f * s * 0.35f, 1.4f, 2.4f,
+                rock, Color.Lerp(rock, Color.white, 0.25f), rubble); // with a tile, its quarters
             FxKit.Burst(FxKit.Kind.Smoke, at, 6, Vector3.zero, 0f, 0.4f, 1.6f, 0.6f * s, 1.2f * s, 1.4f, 2.4f, Color.Lerp(rock, new Color(0.8f, 0.78f, 0.74f), 0.4f));
             FxKit.Burst(FxKit.Kind.Motes, at, 10, Vector3.zero, 0f, 2f, 6f, 0.1f, 0.2f, 0.6f, 1.2f, new Color(1f, 0.85f, 0.35f), new Color(0.5f, 1f, 1f));
             FxKit.Ring(at, Vector3.zero, new Color(1f, 0.8f, 0.55f), 0.3f * s, 2.5f * s, 0.45f, thickness: 0.08f, intensity: 1.4f);

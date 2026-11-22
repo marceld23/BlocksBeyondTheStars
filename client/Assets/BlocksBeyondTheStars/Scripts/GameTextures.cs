@@ -53,7 +53,7 @@ namespace BlocksBeyondTheStars.Client
     /// <c>Resources.Load("textures/…")</c> asks here instead, so an override reaches blocks, creatures, the avatar
     /// and the menu backdrop alike. Main thread only.
     /// </summary>
-    public static class GameTextures
+    public static partial class GameTextures
     {
         /// <summary>Resource-name suffix of the extra animation frames of an official texture
         /// (<c>Resources/textures/&lt;key&gt;__anim.bytes</c>, frames 1..n back to back).</summary>
@@ -183,6 +183,22 @@ namespace BlocksBeyondTheStars.Client
 
             return new TextureFrames(frames.ToArray(), fps, TextureLayer.Official);
         }
+
+        // ---------------------------------------------------------------- where the pixels come from
+        //
+        // The bundled tiles are drawn in the calm style (CalmTileRule): the block atlas exempts a still bundled tile that
+        // wins for its key from the texture calm and gives its ground variants a mirrored form with a small tone step
+        // (BlockTextureAtlas.TryPaintFromAsset). A tile a PLAYER painted — the local pack
+        // or the world's texture layer — is shown exactly as painted: exempt from the texture calm too, its ground and
+        // plant variants only the tone step (no cracks, no speckles, never mirrored: a painted arrow stays readable), and a
+        // creature hide painted by a player skips the hide calm. How calm a painted tile should be is the painter's
+        // choice: the texture editor's "calm when saving" bakes it into the pixels. Both rules follow the layer that wins
+        // for a key (Resolve), so a bundled tile saved unchanged into the pack counts as painted.
+
+        /// <summary>True when the pixels <paramref name="key"/> shows right now were painted by a player (the local pack or
+        /// the world layer wins for it).</summary>
+        public static bool ShowsPaintedTile(string key)
+            => Resolve(key) is { } frames && frames.Layer != TextureLayer.Official;
 
         /// <summary>Declares the animation speed of an official texture (from content data). No event: this is
         /// set once while the content loads, before any atlas exists.</summary>

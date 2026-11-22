@@ -160,6 +160,7 @@ namespace BlocksBeyondTheStars.Client
             Color baseColor = mood.Tint(Rgb(c.ColorRgb)) * mood.Dim; // the plain parts below (crest, gas sac) derive from it
             NewCoat(c, mood, 1.6f, 1.4f);
             _bodyMat = _coat.Mat(CoatPart.Torso);
+            BeginCoat(c); // Fur and feathers as geometry (CreatureBuilder.Coat3d.cs)
 
             // All parts hang off a body rig (a child of the root) so the animator can undulate the whole
             // creature for swimming without disturbing the root's movement-driven facing.
@@ -250,10 +251,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             AddHoundClaws(c, legThick); // #3327: three claws on every foot (a species without claws builds none)
+            AddLabToes(c, legThick);    // Three blunt toes on every foot of a standard animal
 
             if (c.HasWings)
             {
-                AddWings(body.transform, unit * 0.9f, unit * 1.2f, unit * 0.08f,
+                // A feathered wing is longer and a little slimmer — the old slab's span is a bat's.
+                AddWings(body.transform, unit * 0.9f * (_feathered ? 1.45f : 1f), unit * 1.2f * (_feathered ? 0.92f : 1f), unit * 0.08f,
                     new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f), _coat.Mat(CoatPart.Wing),
                     Mathf.Clamp(c.WingPairs, 1, 3), hipSpan + segLen * 0.1f);
             }
@@ -322,7 +325,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Dorsal crest: a row of spiny plates along the spine, tallest at the shoulders — silhouette variety.
-            if (c.HasCrest)
+            // (A feathered species wears a feather crest on its head instead.)
+            if (c.HasCrest && !_feathered)
             {
                 var crestMat = _coat.Pattern == CoatPattern.CrestBand || _coat.Glow == GlowPattern.Tips
                     ? accentMat
@@ -384,6 +388,8 @@ namespace BlocksBeyondTheStars.Client
                 _glow.color = Rgb(c.ColorRgb);
                 _glow.shadows = LightShadows.None;
             }
+
+            FinishCoat(root, c, body.transform, unit);
 
             // Procedural limb animation (a speed-locked gait, wing flap, tail sway) + per-temperament idle
             // head gestures (graze / alert / lunge); aquatic species also undulate the body rig (swim).
@@ -924,7 +930,7 @@ namespace BlocksBeyondTheStars.Client
             anim.Init(rig);
         }
 
-        /// <summary>The worm (#2109, Marcel's finding "the sandworms have legs"): a legless slitherer — the classic box head
+        /// <summary>The worm (#2109, the sandworms had legs): a legless slitherer — the classic box head
         /// (skull, hinged jaw, eyes, optional antennae) on a low pivot at the front, and behind it a chain of
         /// <c>BodySegments</c> tapering links built with <see cref="AddTail"/> and handed to the animator AS the tail: its beat
         /// already travels link by link (each lags the one before), and a legless land crawler "undulates", so the whole body
@@ -1074,12 +1080,24 @@ namespace BlocksBeyondTheStars.Client
                     string side = w == 0 ? "WingL" : "WingR";
                     var shoulder = NewPivot(parent, row == 0 ? side : side + row,
                         new Vector3(sx * shoulderPos.x, shoulderPos.y, z));
-                    AddPartTo(shoulder, "WingInner", new Vector3(sx * inner * rowScale * 0.5f, 0f, 0f),
-                        new Vector3(inner * rowScale, thick, chord), mat);
+                    // On a feathered species the slab shrinks to the arm at the leading edge; the feathers
+                    // (CreatureBuilder.Coat3d.cs) take the rest of the wing.
+                    float armShare = _feathered ? CoatForms.ArmShare : 1f;
+                    float armZ = _feathered ? CoatForms.ArmCentre * chord : 0f;
+                    AddPartTo(shoulder, "WingInner", new Vector3(sx * inner * rowScale * 0.5f, 0f, armZ),
+                        new Vector3(inner * rowScale, thick, chord * armShare), mat);
 
                     var wrist = NewPivot(shoulder, "WingWrist", new Vector3(sx * inner * rowScale, 0f, 0f));
-                    AddPartTo(wrist, "WingOuter", new Vector3(sx * outer * rowScale * 0.5f, 0f, 0f),
-                        new Vector3(outer * rowScale, thick * 0.8f, chord * 0.82f), mat);
+                    AddPartTo(wrist, "WingOuter", new Vector3(sx * outer * rowScale * 0.5f, 0f, armZ),
+                        new Vector3(outer * rowScale, thick * 0.8f, chord * 0.82f * armShare), mat);
+                    if (_feathered)
+                    {
+                        _wingPanels.Add(new WingPanels
+                        {
+                            Shoulder = shoulder, Wrist = wrist, Inner = inner * rowScale, Outer = outer * rowScale,
+                            Chord = chord, Thick = thick, Side = sx,
+                        });
+                    }
 
                     _wings.Add(new WingRig
                     {
@@ -1472,6 +1490,7 @@ namespace BlocksBeyondTheStars.Client
             TileCube(go, PrimitiveType.Cube, scale, mat);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
+            RecordCoatPart(go, scale, mat);
             return pivot;
         }
 
@@ -2046,6 +2065,11 @@ namespace BlocksBeyondTheStars.Client
             TileCube(go, shape, scale, mat);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
+            if (shape == PrimitiveType.Cube)
+            {
+                RecordCoatPart(go, scale, mat);
+            }
+
             return go;
         }
 
@@ -2082,6 +2106,7 @@ namespace BlocksBeyondTheStars.Client
             TileCube(go, PrimitiveType.Cube, scale, mat);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
+            RecordCoatPart(go, scale, mat);
         }
 
         /// <summary>#2831: swaps a cube primitive's mesh for the tiled cube of its size (same shape and bounds, so its box
@@ -2100,8 +2125,60 @@ namespace BlocksBeyondTheStars.Client
             {
                 float metres = _coat != null ? _coat.MetresOf(mat) : TiledCube.TileMetres;
                 bool pin = _pinV || (_coat != null && _coat.Pins(mat));
-                filter.sharedMesh = TiledMesh(scale, pin, metres, _placement);
+                // The part's edges are rounded (RoundedCube) — same cube, same texture coordinates.
+                // From far away the plain tiled cube again (RoundLod): the rounding is under a pixel there.
+                var tiled = TiledMesh(scale, pin, metres, _placement);
+                if (Rounds(scale))
+                {
+                    RoundLod.Assign(filter, RoundedMesh(scale, pin, metres, _placement, GameLook.RoundShare), tiled, GameLook.RoundShare);
+                }
+                else
+                {
+                    filter.sharedMesh = tiled;
+                }
             }
+        }
+
+        /// <summary>True when a part of this size gets rounded edges — the rounding is on and the part has
+        /// a real thickness (an eyelid is built at zero height and scaled up to blink: it keeps the plain cube).</summary>
+        private static bool Rounds(Vector3 scale)
+            => GameLook.RoundShare > 0f && Mathf.Min(Mathf.Abs(scale.x), Mathf.Min(Mathf.Abs(scale.y), Mathf.Abs(scale.z))) > 0.004f;
+
+        private static readonly Dictionary<long, Mesh> RoundedMeshes = new Dictionary<long, Mesh>();
+
+        /// <summary>The rounded cube for a part of <paramref name="size"/> — one mesh per (repeats, pinning,
+        /// placement, proportions): the proportions are quantised to 1/255 of the longest side, so every animal of a
+        /// species (and most parts of a kind) share it.</summary>
+        private static Mesh RoundedMesh(Vector3 size, bool pinV, float metres, int placement, float share)
+        {
+            int rx = TiledCube.Repeats(Mathf.Abs(size.x), metres);
+            int ry = TiledCube.Repeats(Mathf.Abs(size.y), metres);
+            int rz = TiledCube.Repeats(Mathf.Abs(size.z), metres);
+            float longest = Mathf.Max(Mathf.Abs(size.x), Mathf.Max(Mathf.Abs(size.y), Mathf.Abs(size.z)));
+            int qx = Mathf.Clamp(Mathf.RoundToInt(Mathf.Abs(size.x) / longest * 255f), 1, 255);
+            int qy = Mathf.Clamp(Mathf.RoundToInt(Mathf.Abs(size.y) / longest * 255f), 1, 255);
+            int qz = Mathf.Clamp(Mathf.RoundToInt(Mathf.Abs(size.z) / longest * 255f), 1, 255);
+            long key = (uint)TiledCube.Key(rx, ry, rz, pinV, placement) | ((long)qx << 20) | ((long)qy << 28) | ((long)qz << 36)
+                       | ((long)Mathf.Clamp(Mathf.RoundToInt(share * 100f), 0, 99) << 44);
+            if (RoundedMeshes.TryGetValue(key, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            var shape = new Vector3(qx / 255f, qy / 255f, qz / 255f);
+            var verts = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var tris = new List<int>();
+            RoundedCube.Build(shape, RoundedCube.Radius(shape, share), TiledCube.Build(rx, ry, rz, pinV, placement), verts, normals, uvs, tris);
+            var mesh = new Mesh { name = "CreatureRoundCube" };
+            mesh.SetVertices(verts);
+            mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            RoundedMeshes[key] = mesh;
+            return mesh;
         }
 
         private static Color Rgb(int rgb)
@@ -2214,11 +2291,44 @@ namespace BlocksBeyondTheStars.Client
             }
 
             normalized = CoatBake.Normalize(raw); // #2860: one bright mean, one contrast for every tile
+            if (!GameTextures.ShowsPaintedTile(key))
+            {
+                CalmHide(normalized); // A hide a player painted stays as painted
+            }
             return CoatTexture(normalized, "CreatureHide");
         }
 
         /// <summary>A 64² coat texture from RGBA32 bytes: repeating, point-filtered, with mip-maps (#2860) so a fine hide
         /// calms down at a distance instead of shimmering, the pixel look kept up close.</summary>
+        /// <summary>Calmer hides: every texel of a hide tile moves a share of the way to the tile's mean
+        /// colour (<see cref="GameLook.HideCalmNow"/>; 0 = no calming) — the hide keeps its pattern at a lower
+        /// contrast, so a body reads as one soft surface instead of a busy picture. The alpha stays.</summary>
+        private static void CalmHide(byte[] rgba)
+        {
+            float calm = GameLook.HideCalmNow;
+            if (calm <= 0f || rgba == null || rgba.Length < 4)
+            {
+                return;
+            }
+
+            long r = 0, g = 0, b = 0;
+            int texels = rgba.Length / 4;
+            for (int i = 0; i < texels; i++)
+            {
+                r += rgba[i * 4];
+                g += rgba[(i * 4) + 1];
+                b += rgba[(i * 4) + 2];
+            }
+
+            float mr = r / (float)texels, mg = g / (float)texels, mb = b / (float)texels;
+            for (int i = 0; i < texels; i++)
+            {
+                rgba[i * 4] = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(rgba[i * 4], mr, calm)), 0, 255);
+                rgba[(i * 4) + 1] = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(rgba[(i * 4) + 1], mg, calm)), 0, 255);
+                rgba[(i * 4) + 2] = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(rgba[(i * 4) + 2], mb, calm)), 0, 255);
+            }
+        }
+
         private static Texture2D CoatTexture(byte[] rgba, string name)
         {
             var tex = new Texture2D(CoatMasks.Size, CoatMasks.Size, TextureFormat.RGBA32, true)
@@ -2499,6 +2609,9 @@ namespace BlocksBeyondTheStars.Client
 
             /// <summary>#2862: the species' glow pattern (None unless it glows).</summary>
             public GlowPattern Glow { get; }
+
+            /// <summary>The hide a part role wears (null without hide tiles) — the fur asks it.</summary>
+            public string HideOf(CoatPart part) => _hides.For(part);
 
             /// <summary>The repeat size of the hide a material of this coat wears (#2860).</summary>
             public float MetresOf(Material mat)

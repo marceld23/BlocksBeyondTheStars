@@ -135,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
             public int Row;            // limb row: 0 = single-row part / left limb, 1 = right limb
             public Material OrigMat;   // to restore when the painting is cleared
             public Mesh OrigMesh;      // the shared primitive cube mesh, ditto
+            public Mesh OrigSharp;     // The sharp twin of a rounded OrigMesh (RoundLod), null without one
             public int FrontChunk = -1; // #1776: the chunk the cube's +z face continues (the helmet frame's lips), −1 = solid pad
             public int Lip = LipNone;   // #1776: which chunk edge that lip extends past (see the Lip* constants)
         }
@@ -559,6 +560,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = scale;
+            RoundLabPart(go, scale); // Rounded edges, the primitive's own texture mapping
             var r = go.GetComponent<Renderer>();
             r.sharedMaterial = mat;
             r.enabled = _visible;
@@ -1774,6 +1776,7 @@ namespace BlocksBeyondTheStars.Client
             _facePlate.transform.SetParent(_head, false);
             _facePlate.transform.localPosition = new Vector3(0f, 0f, FacePlateZ);
             _facePlate.transform.localScale = new Vector3(FacePlateScale, FacePlateScale, 0.05f);
+            LabFacePlateDepth(_facePlate.transform); // Flush on the rounded head
             _faceMat = OwnLit(Color.white, null); // white tint so the face texture shows its true colours
             _facePlate.GetComponent<Renderer>().sharedMaterial = _faceMat;
             ShimmerRenderer(_facePlate.GetComponent<Renderer>()); // #2291
@@ -1813,6 +1816,8 @@ namespace BlocksBeyondTheStars.Client
                     vr.enabled = _visible && !custom; // #1776: the glass gives way to the drawn face
                 }
             }
+
+            RoundHeadForFace(custom); // A drawn face keeps the head's front flat under it
         }
 
         // ── body paint (#874) ────────────────────────────────────────────────────────────────────
@@ -1842,6 +1847,7 @@ namespace BlocksBeyondTheStars.Client
                 Row = row,
                 OrigMat = go.GetComponent<Renderer>().sharedMaterial,
                 OrigMesh = go.GetComponent<MeshFilter>().sharedMesh,
+                OrigSharp = RoundLod.SharpOf(go.GetComponent<MeshFilter>()), // Its far-stage twin, if it has one
                 FrontChunk = frontChunk,
                 Lip = lip,
             });
@@ -1895,7 +1901,8 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                seg.Go.GetComponent<MeshFilter>().sharedMesh = seg.OrigMesh;
+                // Through the far stage, so a part that shows its sharp twin right now gets the right one back.
+                RoundLod.Assign(seg.Go.GetComponent<MeshFilter>(), seg.OrigMesh, seg.OrigSharp, GameLook.AvatarRoundShare);
                 seg.Go.GetComponent<Renderer>().sharedMaterial = seg.OrigMat;
             }
 
@@ -1964,7 +1971,11 @@ namespace BlocksBeyondTheStars.Client
 
                     var mesh = BuildPaintedMesh(seg.Center, seg.Size, min, max, part, row, seg.FrontChunk, seg.Lip);
                     _paintMeshes[part].Add(mesh);
-                    seg.Go.GetComponent<MeshFilter>().sharedMesh = mesh;
+                    if (AssignPainted(seg, mesh, min, max, part, row) is { } flat) // The far stage's flat twin
+                    {
+                        _paintMeshes[part].Add(flat);
+                    }
+
                     seg.Go.GetComponent<Renderer>().sharedMaterial = _paintMats[part];
                 }
             }

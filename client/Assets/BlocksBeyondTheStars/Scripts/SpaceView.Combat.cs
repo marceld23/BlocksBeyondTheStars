@@ -631,8 +631,9 @@ namespace BlocksBeyondTheStars.Client
             FxKit.Flash(at, new Color(1f, 0.75f, 0.35f), 1f + mag, 0.12f);
             FxKit.Burst(FxKit.Kind.Motes, at, 6 + Mathf.RoundToInt(mag * 10f), Vector3.zero, 0f, 3f, 9f, 0.06f, 0.12f, 0.25f, 0.5f,
                 new Color(1f, 0.62f, 0.2f), Color.white);
-            FxKit.Burst(FxKit.Kind.DebrisFloat, at, 2 + Mathf.RoundToInt(mag * 4f), Vector3.zero, 0f, 1.5f, 4f, 0.08f, 0.16f, 0.8f, 1.2f,
-                new Color(0.4f, 0.42f, 0.46f));
+            // Bits of hull plate.
+            FxKit.BurstDebris(FxKit.Kind.DebrisFloat, at, 2 + Mathf.RoundToInt(mag * 4f), Vector3.zero, 0f, 1.5f, 4f, 0.08f, 0.16f, 0.8f, 1.2f,
+                new Color(0.4f, 0.42f, 0.46f), null, FxKit.DebrisLookOf("metal_panel"), chipTexels: 12);
             FxLights.Flash(at, new Color(1f, 0.6f, 0.25f), 1.2f + mag, 7f, 0.18f);
         }
 

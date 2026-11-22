@@ -87,6 +87,7 @@ namespace BlocksBeyondTheStars.Client
             LoadInitial(InitialVoxels, InitialName);
             var firstFocus = BuildUi();
             BuildStage();
+            AttachLookPreview(); // ShapeEditor.LookPreview.cs
             AfterStructuralChange();
             FinishFrame(firstFocus, "ui.form.tip_remove");
             if (_openedMulti)
@@ -99,6 +100,7 @@ namespace BlocksBeyondTheStars.Client
         {
             base.OnDestroy();
             Destroy(_previewMesh);
+            DestroyLookPreview();
             OnClosed?.Invoke();
         }
 

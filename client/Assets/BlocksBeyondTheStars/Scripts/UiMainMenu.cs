@@ -300,7 +300,10 @@ namespace BlocksBeyondTheStars.Client
                 }
                 // Accented like the native menu: the name gates every play action (#221); panel edges flush
                 // with the button column, content inset — see the native branch below.
-                UiHolo.AddPanel(_root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f), 14f, 1.2f, 0.8f);
+                var webNameBox = UiHolo.AddPanel(_root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f), 14f, 1.2f, 0.8f);
+                // A fresh browser has no name yet: while the field is empty the box around it carries the running light of
+                // the "Join in" button, as the native profile chip does (the panel's corner radius is 14).
+                UiNameChipMark.Attach(webNameBox.rectTransform, () => _webName, 14f);
                 UiKit.AddText(_root, bx + 16f, by, bw - 32f, 24f, _shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
                 // Capped at the server's join limit (#1368): a longer name was truncated server-side, so the settings
                 // remembered a name that was not the player's actual id.
@@ -545,6 +548,9 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(chip, 80f, 10f, w - 100f, 24f, _shell.L("ui.menu.connect_name"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.AddInput(chip, 80f, 38f, w - 100f, 46f, _natName, v => _natName = v,
                     maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
+                // A fresh install has no name yet: while the field is empty the chip's frame carries the running light of
+                // the "Join in" button, so a new player sees where to start (the card's corner radius is 18).
+                UiNameChipMark.Attach(chip as RectTransform, () => _natName, 18f);
                 _natWarn = UiKit.AddText(_root, x, y + h + 6f, w, 24f, "", 15,
                     new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleRight, FontStyle.Bold);
             }

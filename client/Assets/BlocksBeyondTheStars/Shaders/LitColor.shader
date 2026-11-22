@@ -99,7 +99,30 @@ Shader "BlocksBeyondTheStars/LitColor"
                 // world the key light, floor and fill follow the world's light (moonless night ~0.12, a cave ~0.15; Sky.Dark.cs).
                 // The glow pattern, the headlamps and the FX lights below stay on top, so a hostile in the dark stays visible.
                 float modelLight = _Sc_ModelLight > 0.0 ? _Sc_ModelLight : 1.0;
-                float3 col = _Color.rgb * tex * ((_Floor + (1.1 - _Floor) * ndl * shadow + fill) * modelLight); // peak stays 1.1 at _Floor==0.35, _Fill==0
+                float3 lit = float3(1.0, 1.0, 1.0) * (_Floor + (1.1 - _Floor) * ndl * shadow + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
+                if (_Sc_LookModel > 0.0)
+                {
+                    // In the world a model stands in the real sun — the key light comes from the sun's direction
+                    // in the sun's hue, the floor takes the sky's hue from above and the ground's from below. The floor
+                    // itself stays, so a creature in the shade is as readable as before.
+                    float sunNdl = saturate(dot(N, normalize(_Sc_LookSunDir.xyz)));
+                    float3 ambHue = lerp(_Sc_AmbGround.rgb, _Sc_AmbSky.rgb, saturate(N.y * 0.5 + 0.5)) / max(_Sc_LookSunHue.a, 1e-3);
+                    float3 labLit = ambHue * (_Floor + 0.5 * _Fill) + _Sc_LookSunHue.rgb * ((1.1 - _Floor) * sunNdl * shadow);
+                    // Rim light: a warm edge where the surface turns away from the eye, strongest looking toward the
+                    // sun — the soft outline a furry body gets against a low sun.
+                    float3 toEye = normalize(_WorldSpaceCameraPos - i.wp);
+                    float rim = pow(1.0 - saturate(dot(N, toEye)), 3.0)
+                              * (0.35 + 0.65 * saturate(dot(-toEye, normalize(_Sc_LookSunDir.xyz)) * 0.5 + 0.5));
+                    labLit += _Sc_LookSunHue.rgb * (_Sc_Look3.w * rim * (0.4 + 0.6 * shadow));
+                    // What the player holds right at the eye (the first-person hand and tool, within about a metre)
+                    // keeps most of its neutral studio light: in the world's hue a drill went dark red in front of red
+                    // leaves and could not be seen ("es ist keine Hand zu sehen", a player report of 2026-11-21). _Sc_Look2.w is
+                    // the share of the world light it still takes.
+                    float atEye = 1.0 - smoothstep(1.0, 1.6, distance(_WorldSpaceCameraPos, i.wp));
+                    lit = lerp(lit, labLit, saturate(_Sc_LookModel) * lerp(1.0, saturate(_Sc_Look2.w), atEye));
+                }
+
+                float3 col = _Color.rgb * tex * (lit * modelLight);
 
                 // #3229: the headlamps; models carry no gloss channel — a soft dielectric sheen (F0 0.04).
                 col += BbtsHeadlamps(i.wp, N, normalize(_WorldSpaceCameraPos - i.wp), _Color.rgb * tex, float3(0.04, 0.04, 0.04), 0.7);

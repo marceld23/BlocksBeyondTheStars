@@ -207,7 +207,9 @@ namespace BlocksBeyondTheStars.Client
                 if (!string.IsNullOrEmpty(_presetOverride)
                     && Enum.TryParse<QualityPreset>(_presetOverride, ignoreCase: true, out var qp))
                 {
-                    shell.Settings.Preset = qp; // the calibration is off on probe runs (AutoQualityCalibrator.Enabled)
+                    // The calibration is off on probe runs (AutoQualityCalibrator.Enabled); a preset above the platform's
+                    // limit (perfPreset=High in the browser's URL) is lowered to it (#3946).
+                    shell.Settings.Preset = ClientSettings.AllowedPreset(qp);
                 }
 
                 if (_vdOverride > 0)

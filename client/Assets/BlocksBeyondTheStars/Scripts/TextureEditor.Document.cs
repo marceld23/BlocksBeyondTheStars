@@ -50,6 +50,7 @@ namespace BlocksBeyondTheStars.Client
             public byte[][] Frames;
             public int Fps;
             public int Active;
+            public int Calm;
         }
 
         [Serializable]
@@ -59,6 +60,10 @@ namespace BlocksBeyondTheStars.Client
             public int fps;
             public int active;
             public string[] frames;
+
+            /// <summary>"Calm when saving" in percent; the frames stay the painting as painted. A draft
+            /// written before the field reads 0, and a client without it ignores the field — the draft version stays 1.</summary>
+            public int calm;
         }
 
         [Serializable]
@@ -113,7 +118,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var frames = _model.CopyFrames();
-            var data = new TextureDraft { key = _entry.Key, fps = _model.Fps, active = _model.ActiveFrame, frames = new string[frames.Length] };
+            var data = new TextureDraft { key = _entry.Key, fps = _model.Fps, active = _model.ActiveFrame, frames = new string[frames.Length], calm = _model.SaveCalm };
             for (int i = 0; i < frames.Length; i++)
             {
                 data.frames[i] = Convert.ToBase64String(frames[i]);
@@ -163,7 +168,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            pending = new PendingDraft { Entry = entry, Frames = frames, Fps = data.fps, Active = data.active };
+            pending = new PendingDraft { Entry = entry, Frames = frames, Fps = data.fps, Active = data.active, Calm = data.calm };
             return true;
         }
 
@@ -204,7 +209,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _pendingDraft = null;
-            _model.ReplaceAll(pending.Frames, pending.Fps);
+            _model.ReplaceAll(pending.Frames, pending.Fps, pending.Calm); // with "calm when saving", one step
             _model.SelectFrame(pending.Active);
             AfterChange();
         }
@@ -238,9 +243,10 @@ namespace BlocksBeyondTheStars.Client
                 return ok;
             }
 
-            ok = TexturePackFolder.Save(_entry.Key, _model.CopyFrames(), _model.Fps);
+            ok = TexturePackFolder.Save(_entry.Key, SavedFrames(), _model.Fps); // calmed as chosen
             if (ok)
             {
+                RememberCalmOriginal(); // the painting as painted, for the next opening
                 _model.MarkSaved();
                 // The world wins over the local pack (decision 2026-09-20) — say so, or "it did not work" is what
                 // the player concludes when nothing changes around them.
@@ -274,7 +280,7 @@ namespace BlocksBeyondTheStars.Client
                 _submit.OnOutcome = (text, color) => SetStatus(text, color == UiKit.Ok ? EditorStatusSeverity.Success : EditorStatusSeverity.Warning);
             }
 
-            _submit.Open(_entry.Key, _entry.Label, _model.CopyFrames(), _model.Fps, _entry.IsIcon);
+            _submit.Open(_entry.Key, _entry.Label, SavedFrames(), _model.Fps, _entry.IsIcon);
         }
 
         /// <summary>Back (header, after the shell kept the draft): the host's close.</summary>
@@ -305,7 +311,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _model.ReplaceAll(official.Frames, official.Fps);
+            _model.ReplaceAll(official.Frames, official.Fps, 0); // the original is not calmed again
             AfterChange();
             SetStatus(L("ui.tex.reset_done"), EditorStatusSeverity.Info);
         }
@@ -354,7 +360,7 @@ namespace BlocksBeyondTheStars.Client
 
             try
             {
-                var frames = _model.CopyFrames();
+                var frames = SavedFrames();
                 string dir = Path.Combine(AppPaths.Root, "texture_exports", _entry.Key);
                 Directory.CreateDirectory(dir);
                 var meta = new ExportMeta
@@ -392,7 +398,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            GUIUtility.systemCopyBuffer = ShareCode.EncodeTexture(_entry.Key, _model.CopyFrames(), _model.Fps);
+            GUIUtility.systemCopyBuffer = ShareCode.EncodeTexture(_entry.Key, SavedFrames(), _model.Fps);
             SetStatus(L("ui.tex.code_copied"), EditorStatusSeverity.Success);
         }
 
@@ -414,7 +420,7 @@ namespace BlocksBeyondTheStars.Client
                 fps = 0;
             }
 
-            _model.ReplaceAll(frames, fps);
+            _model.ReplaceAll(frames, fps, 0); // a code carries saved (already calmed) pixels
             AfterChange();
             SetStatus(string.Format(L("ui.tex.code_pasted"), key), EditorStatusSeverity.Info);
         }
@@ -449,13 +455,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var frames = _model.CopyFrames();
+            var frames = SavedFrames(); // calmed as chosen
             if (frames.Length > 1 && _entry.Block == null)
             {
                 frames = new[] { frames[0] }; // only blocks animate
             }
 
             WorldHost.Publish(_entry.Key, frames, frames.Length > 1 ? _model.Fps : 0);
+            RememberCalmOriginal();
             SetStatus(L("ui.tex.publish_sent"), EditorStatusSeverity.Success);
         }
 

@@ -277,15 +277,15 @@ namespace BlocksBeyondTheStars.Client
                     break;
 
                 case Kind.Hoe:
-                    // #1869: a long wooden shaft with a flat iron blade bent down at its far end.
-                    PartCube(holder.transform, new Vector3(0f, 0f, 0.20f), new Vector3(0.045f, 0.045f, 0.70f), new Color(0.45f, 0.30f, 0.16f), HeldMaterials.Wood); // shaft
-                    PartCube(holder.transform, new Vector3(0f, -0.07f, 0.54f), new Vector3(0.16f, 0.14f, 0.03f), tint, HeldMaterials.Metal);                     // blade
-                    break;
-
                 case Kind.Hammer:
-                    // #1869: a short handle with a heavy head across its end.
-                    PartCube(holder.transform, new Vector3(0f, 0f, 0.12f), new Vector3(0.05f, 0.05f, 0.34f), new Color(0.40f, 0.27f, 0.15f), HeldMaterials.Wood); // handle
-                    PartCube(holder.transform, new Vector3(0f, 0f, 0.30f), new Vector3(0.09f, 0.18f, 0.09f), tint, HeldMaterials.Metal);                         // head
+                    // #1869: the hoe's long shaft with its blade bent down, the hammer's short handle with its head across. The
+                    // cubes live in HeldWorkTools so the tool form rule chamfers the wooden handles like every other shaft
+                    // (#3934).
+                    foreach (var part in HeldWorkTools.Parts(kind.ToString(), ToRgb(tint)))
+                    {
+                        PartCube(holder.transform, part);
+                    }
+
                     break;
 
                 default: // Tool: the NPCs' basket, book and leash (re-tinted, #1869) — material by colour
@@ -309,7 +309,8 @@ namespace BlocksBeyondTheStars.Client
                 var go = PartCube(holder, part);
                 if (dressed)
                 {
-                    go.GetComponent<MeshFilter>().sharedMesh = mesh;
+                    // Through RoundLod: without a twin the part leaves the far stage, which would swap the tiled cube back in.
+                    RoundLod.Assign(go.GetComponent<MeshFilter>(), mesh, null, 0f);
                     go.GetComponent<MeshRenderer>().sharedMaterial = material;
                 }
             }
@@ -339,7 +340,7 @@ namespace BlocksBeyondTheStars.Client
             var renderer = blockGo.GetComponent<Renderer>();
             BlockCubeFaces.DestroyAsset(renderer.sharedMaterial); // the cube's own tinted material — the shared one replaces it
             renderer.sharedMaterial = material;
-            blockGo.GetComponent<MeshFilter>().sharedMesh = mesh;
+            RoundLod.Assign(blockGo.GetComponent<MeshFilter>(), mesh, null, 0f); // the cube is not tracked; this keeps it that way
             return true;
         }
 
@@ -543,6 +544,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(box.Position.X * mx, box.Position.Y, box.Position.Z);
             go.transform.localScale = new Vector3(box.Size.X, box.Size.Y, box.Size.Z);
+            PlayerAvatar.RoundLabPart(go, go.transform.localScale); // The avatar's own rounded edges
             var renderer = go.GetComponent<Renderer>();
             if (box.Piece == HeldHands.Piece.Cuff)
             {
@@ -559,7 +561,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             renderer.sharedMaterial = HandMaterial(Color.white, atlas); // the painting's true colours
-            go.GetComponent<MeshFilter>().sharedMesh = HandMesh(left, hand: box.Piece == HeldHands.Piece.Hand);
+            // Through RoundLod: RoundLabPart tracked the rounded box, whose far stage would swap the plain primitive back in.
+            RoundLod.Assign(go.GetComponent<MeshFilter>(), HandMesh(left, hand: box.Piece == HeldHands.Piece.Hand), null, 0f);
         }
 
         /// <summary>#2278: one glove of a held pair on an avatar's hand (third person and other players). The glove model
@@ -861,7 +864,10 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(part.Position.X, part.Position.Y, part.Position.Z);
             go.transform.localScale = new Vector3(part.Size.X, part.Size.Y, part.Size.Z);
-            go.AddComponent<MeshFilter>().sharedMesh = HeldTextures.CubeMesh(part.Size);
+            // Rounded edges, chamfered bars and plates, a drill's cone (HeldPartForms), and from far
+            // away the plain cube again (RoundLod).
+            var labMesh = HeldTextures.ToolPartMesh(part, out float labShare);
+            RoundLod.Assign(go.AddComponent<MeshFilter>(), labMesh, HeldTextures.CubeMesh(part.Size), labShare);
             go.AddComponent<MeshRenderer>().sharedMaterial =
                 HeldTextures.MaterialFor(new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow, part.Material);
             return go;

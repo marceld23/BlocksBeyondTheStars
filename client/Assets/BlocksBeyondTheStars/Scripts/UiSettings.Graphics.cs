@@ -24,10 +24,11 @@ namespace BlocksBeyondTheStars.Client
         {
             Kicker(ref y, L("ui.settings.group.picture"));
             // A hand-picked preset ends auto-calibration (#1423): PresetAuto off means the shell frame-time calibrator never
-            // overrides the player's explicit choice again.
+            // overrides the player's explicit choice again. The cycle runs over the presets this platform offers (#3946: the
+            // browser has Potato and Low only, so the row toggles between the two).
             Cycle(ref y, L("ui.settings.preset"), L("ui.settings.preset." + S.Preset.ToString().ToLowerInvariant()), dir =>
             {
-                S.Preset = (QualityPreset)Wrap((int)S.Preset + dir, 4);
+                S.Preset = ClientSettings.AllowedPreset((QualityPreset)Wrap((int)S.Preset + dir, ClientSettings.PresetCount));
                 S.PresetAuto = false;
                 S.Apply();
                 ApplyLiveWorld();

@@ -302,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
             _chunkArrays.Clear(); // #1555: a new world — the old arrays are unreachable and simply garbage
             _retiredChunkArrays.Clear();
             // Index dedicated light blocks (+ placed glow blocks) as coloured light sources for the mesher.
+            GameLook.LatchWorldTier(); // #3946: the natural emitters' reach for this world, fixed before the first chunk is indexed
             World.SetBlockLightResolver(id => ChunkMesher.BlockLightColor(Content, new BlockId(id), 0));
 
             // Procedurally generate the block texture atlas and a material that samples it
@@ -432,6 +433,7 @@ namespace BlocksBeyondTheStars.Client
                 LocationName = string.IsNullOrEmpty(m.SystemName)
                     ? m.PlanetName
                     : $"{m.SystemName} · {m.PlanetName}";
+                LocationId = m.LocationId ?? string.Empty; // generation 48: the colour harmony hashes the body's id
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
                 LoadingPlanetType = m.PlanetType;
                 _worldSeed = m.WorldSeed;
@@ -662,6 +664,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnWorldReset(BlocksBeyondTheStars.Networking.Messages.WorldReset m)
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
+            LocationId = m.LocationId ?? string.Empty; // generation 48: the colour harmony hashes the body's id
             // #2725: a docked friend's ship interior names its owner — we walk in it as a guest; every other world clears it.
             VisitingHost = m.ShipOwnerId ?? string.Empty;
             EntityClock.Reset(); // #2665: a world change may mean another server clock (a hosted world, a reconnect)
@@ -745,6 +748,7 @@ namespace BlocksBeyondTheStars.Client
             _visibilityDirty = true;
             FarView?.ResetWorld(); // #1820: the new world's info + tiles arrive after this reset
             World.Clear();
+            GameLook.LatchWorldTier(); // #3946: the new world's light index takes the emitters' reach of the current preset
             RetireAllChunkArrays(); // #3579: the old world's block arrays go back to the pool, not stay referenced until the menu
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives

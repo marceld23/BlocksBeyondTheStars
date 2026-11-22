@@ -418,6 +418,7 @@ namespace BlocksBeyondTheStars.Client
             var go = new GameObject("ShapeEditor");
             var editor = go.AddComponent<ShapeEditor>();
             editor.Game = Game;
+            editor.PreviewBlockKey = src; // The preview wears the material's tile
             editor.InitialVoxels = voxels;
             editor.InitialName = name;
             editor.Localizer = key => Game.Localizer?.Get(key) ?? key;

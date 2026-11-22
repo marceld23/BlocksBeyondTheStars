@@ -21,7 +21,9 @@ Shader "BlocksBeyondTheStars/Atmosphere"
         Tags { "RenderType" = "Background" "Queue" = "Geometry+499" "RenderPipeline" = "UniversalPipeline" }
         Cull Off
         ZWrite Off
-        Blend One One // additive — only ever brightens the sky
+        // Additive while the output alpha is 0 (only ever brightens the sky). An alpha
+        // above 0 lays the zenith colour over the sky by that share — the same pass draws the gradient and the glow.
+        Blend One OneMinusSrcAlpha
 
         Pass
         {
@@ -38,6 +40,7 @@ Shader "BlocksBeyondTheStars/Atmosphere"
             float4 _Sc_SunDir; // world-space direction TO the sun
             float4 _Sc_Sky;    // current sky colour
             float4 _Sc_Light;  // sun colour × day brightness (a>0.5 = set)
+            float4 _Sc_SkyZenith; // Rgb = the sky's colour overhead (linear), a = the gradient's strength (0 = none)
 
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 dir : TEXCOORD0; };
@@ -82,7 +85,13 @@ Shader "BlocksBeyondTheStars/Atmosphere"
 
             half4 frag(Varyings i) : SV_Target
             {
-                return half4(Scatter(normalize(i.dir)) * _Brightness, 1.0);
+                float3 d = normalize(i.dir);
+                // The sky gradient — the camera clears to the horizon's colour (the haze fades the far land
+                // into exactly that), and the zenith colour comes in with the height above the horizon. A window stays
+                // clear around the sun: its disc is drawn before this dome and must not be veiled.
+                float zenith = _Sc_SkyZenith.a * _Brightness * smoothstep(0.03, 0.85, saturate(d.y));
+                zenith *= 1.0 - pow(saturate(dot(d, normalize(_Sc_SunDir.xyz))), 12.0);
+                return half4(Scatter(d) * _Brightness + _Sc_SkyZenith.rgb * zenith, zenith);
             }
             ENDHLSL
         }

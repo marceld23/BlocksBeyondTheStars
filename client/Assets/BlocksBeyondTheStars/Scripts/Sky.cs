@@ -274,6 +274,7 @@ namespace BlocksBeyondTheStars.Client
                 UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
                 Headlamp.AllOff(); // #3229: no suit lamp (own or another player's) in the flight view
                 ResetDarkGlobals(); // #3265: the hull in the flight view keeps the studio light
+                ResetLook();
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(IndoorColorId, Color.white);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
@@ -415,7 +416,7 @@ namespace BlocksBeyondTheStars.Client
             // HEIGHT, its real-time length scales with each planet's day length on its own: a long day gets a long,
             // lazy dusk, a short day a quick one — no per-planet tuning needed. Smoothstepped into a soft ramp so
             // there's no hard edge where the band begins.
-            float twilight = spaceSky ? 0f : Mathf.Clamp01(1f - Mathf.Abs(sunHeight) / TwilightBand);
+            float twilight = spaceSky ? 0f : Mathf.Clamp01(1f - Mathf.Abs(sunHeight) / GameLook.TwilightBand(TwilightBand)); // a wider band
             twilight = twilight * twilight * (3f - 2f * twilight);
 
             // Star hue (the sun colour normalised to a pure hue, brightness removed) — reused for the daytime sky
@@ -478,6 +479,7 @@ namespace BlocksBeyondTheStars.Client
             // Sky colour: drives both the camera background and the global the lit shader samples
             // for grazing-angle environment reflections (glossy/metallic blocks).
             Color sky;
+            Color lookZenithBase = new Color(0f, 0f, 0f); // the sky before the golden-hour glow (Sky.Look.cs)
             if (spaceSky)
             {
                 // Airless body (asteroid): the sky stays space-black even on the surface.
@@ -503,6 +505,7 @@ namespace BlocksBeyondTheStars.Client
                 Color nightSky = Color.Lerp(new Color(0.03f, 0.04f, 0.09f), skyBase * 0.12f, 0.5f);
                 // #3414: under night sight the sky takes the raised day — before the weather tint below, so a sandstorm stays sandy.
                 sky = Color.Lerp(nightSky, daySky, seenDay);
+                lookZenithBase = sky;
 
                 // Golden-hour horizon glow: a warm sunset amber (star-hue biased), washed out by heavy weather.
                 // Blended over the day/night lerp so dusk and dawn read as a real colour change that lifts the sky
@@ -520,6 +523,7 @@ namespace BlocksBeyondTheStars.Client
             // background, fog) keep the sRGB-composed `sky` — Unity converts those itself.
             Shader.SetGlobalColor(SkyId, ShaderColor.Srgb(sky));
             Shader.SetGlobalColor(FogSkyId, ShaderColor.Srgb(sky)); // the haze's own copy (AtmosphereCommon)
+            PublishLook(tint, lookZenithBase, seenDay, weatherIntensity, spaceSky || constantLight); // Sky.Look.cs
 
             // #2406: looking toward a low sun, the haze warms to the star's golden-hour colour (in-scatter); strongest in
             // the twilight band, gone at night, washed out by heavy weather, and never in an airless sky.
@@ -548,9 +552,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 _sun.color = litSun; // Lit-shaded props / creatures follow the same normalised light as the blocks
                 _sun.intensity = brightness;
-                _sun.transform.rotation = Quaternion.Euler(time * 360f - 90f, 160f, 0f);
+                _sun.transform.rotation = GameLook.SunRotation(time); // tilted sun path
                 // The lit block shader reads the sun direction from this global (direction TO the sun).
                 Shader.SetGlobalVector(SunDirId, -_sun.transform.forward);
+                PublishLookSun(-_sun.transform.forward);
                 Shader.SetGlobalVector(FogSunDirId, -_sun.transform.forward);
             }
 
@@ -820,6 +825,7 @@ namespace BlocksBeyondTheStars.Client
             UrpScenePost.Instance?.SetMoodLut(null); // drop the biome mood LUT (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
             ResetDarkGlobals(); // #3265: the menu's models keep the studio light
+            ResetLook();
             Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)
             SetFog(FogOff); // distance haze off (menu/space)
             SetCloudShadow(Vector4.zero);

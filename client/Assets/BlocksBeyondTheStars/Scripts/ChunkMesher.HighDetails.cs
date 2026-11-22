@@ -22,9 +22,11 @@ namespace BlocksBeyondTheStars.Client
         /// remesh. <paramref name="skylight"/> and <paramref name="light"/> (the placed block light, display-ready) are those
         /// of the air cell above — what lights a tuft and the carpet at night next to a torch (#3120).</summary>
         private static void AddGroundDetail(ChunkMeshData data, BlockTraits traits, BlockId id, int x, int y, int z,
-            int wx, int wz, float skylight, Vector3 light, bool edited)
+            int wx, int wz, float skylight, Vector3 light, bool edited, bool underPlant = false)
         {
-            int stype = traits.ScatterOf(id);
+            // Cover under plants: under a plant only the carpet grows — no loose tuft, no dry scrub, no pebble
+            // (those would poke through the plant, and under a water plant they would be plain wrong).
+            int stype = underPlant ? -1 : traits.ScatterOf(id);
             if (stype >= 0 && GroundScatterRules.Accepts(skylight, edited))
             {
                 int sh = unchecked(wx * 374761393 + wz * 668265263 + stype * 1013904223);
@@ -41,12 +43,137 @@ namespace BlocksBeyondTheStars.Client
                 data.GrassTops.Add(new Vector4(x + 0.5f, y + 1f, z + 0.5f, id.Value + Mathf.Clamp(skylight, 0f, 0.999f)));
                 data.GrassLight.Add(light); // in lockstep with GrassTops
             }
+
+            // Ground cover: bare natural ground under the open sky grows dry tufts in loose patches and
+            // carries a few round pebbles — drawn by GrassClumps in the ground's own colour, so recorded only where the
+            // clumps run (GameLook.RecordGrassClumps).
+            int scrub = GameLook.GroundCover && GameLook.RecordGrassClumps && !underPlant ? traits.ScrubOf(id) : 0;
+            if (scrub > 0 && GroundScatterRules.Accepts(skylight, edited))
+            {
+                uint h = unchecked((uint)((wx * 83492791) ^ (wz * 19349663) ^ (id.Value * 73856093)));
+                h ^= h >> 13;
+                h *= 0x5bd1e995u;
+                h ^= h >> 15;
+                float patch = ScrubPatch(wx, wz);
+                int kind = -1;
+                if (scrub == 1 && (h & 0xFFu) < (uint)(patch * patch * 150f))
+                {
+                    kind = 0; // a dry tuft: up to six cells in ten in the heart of a patch, none between the patches
+                }
+                else if (((h >> 8) & 0xFFu) < 15u)
+                {
+                    kind = 1; // pebbles: about one cell in seventeen
+                }
+
+                if (kind >= 0)
+                {
+                    data.ScrubTops.Add(new Vector4(x + 0.5f, y + 1f, z + 0.5f, id.Value + Mathf.Clamp(skylight, 0f, 0.999f)));
+                    data.ScrubLight.Add(new Vector4(light.x, light.y, light.z, kind)); // in lockstep with ScrubTops
+                }
+            }
         }
+
+        /// <summary>Ground cover: 0..1, a smooth field seven blocks wide — where it is high the dry tufts stand
+        /// close, where it is low the ground stays bare, so they grow in patches instead of an even sprinkle.</summary>
+        private static float ScrubPatch(int wx, int wz)
+        {
+            float fx = wx / 7f, fz = wz / 7f;
+            int x0 = Mathf.FloorToInt(fx), z0 = Mathf.FloorToInt(fz);
+            float tx = fx - x0, tz = fz - z0;
+            tx = tx * tx * (3f - (2f * tx));
+            tz = tz * tz * (3f - (2f * tz));
+            float a = Mathf.Lerp(ScrubLattice(x0, z0), ScrubLattice(x0 + 1, z0), tx);
+            float b = Mathf.Lerp(ScrubLattice(x0, z0 + 1), ScrubLattice(x0 + 1, z0 + 1), tx);
+            return Mathf.Lerp(a, b, tz);
+        }
+
+        private static float ScrubLattice(int x, int z)
+        {
+            uint h = unchecked((uint)((x * 73856093) ^ (z * 19349663)));
+            h ^= h >> 13;
+            h *= 0x5bd1e995u;
+            h ^= h >> 15;
+            return (h & 0xFFFFu) / 65535f;
+        }
+
+        /// <summary>Ground cover: what a block's bare top carries — 1 = dry tufts and pebbles (soft ground),
+        /// 2 = pebbles only (rock), 0 = nothing.</summary>
+        internal static byte ScrubKindOf(string key) => key switch
+        {
+            "sand" or "dirt" or "mud" or "peat" or "ash" or "salt" => 1,
+            "stone" or "basalt" or "granite" or "sandstone" or "moss_stone" => 2,
+            _ => 0,
+        };
 
         private sealed partial class BlockTraits
         {
             private bool[] _carpet;
             private float[] _relief;
+            private byte[] _scrub;
+            private int _vine = -1;
+
+            /// <summary>Crown vines: the block whose body hangs under the crowns (the hanging kelp), 0 when
+            /// the content has none. Looked up once.</summary>
+            public ushort VineOf()
+            {
+                if (_vine < 0)
+                {
+                    // The hanging kelp's body: one stem with leaves down its length reads as a vine (the glowing thread's
+                    // two bare strands are too thin to see under a crown); the thread is the fallback.
+                    var def = Content.GetBlock("flora_hangkelp") ?? Content.GetBlock("flora_glowthread");
+                    _vine = def != null && PlantFamilyOf(def.NumericId) >= 0 ? def.NumericId.Value : 0;
+                }
+
+                return (ushort)_vine;
+            }
+
+            private byte[] _coverUnder;
+
+            /// <summary>Cover under plants: how much ground cover grows under this plant — 2 = the full grass
+            /// (a plant on a stem: stalk flower, bush on a stem, sapling, the cup bloom), 1 = low grass (leaves or blades
+            /// near the ground: rosette, tuft, strand, pitcher), 0 = none (not a plant with a body, a low cushion, a
+            /// solid or a water plant, a crystal). Built lazily like the scrub table.</summary>
+            public byte CoverUnderOf(BlockId id)
+            {
+                var table = _coverUnder ?? BuildCoverUnder();
+                return id.Value < table.Length ? table[id.Value] : (byte)0;
+            }
+
+            private byte[] BuildCoverUnder()
+            {
+                var table = new byte[_flags.Length];
+                for (int i = 0; i < table.Length; i++)
+                {
+                    table[i] = PlantFamilyOf(new BlockId((ushort)i)) switch
+                    {
+                        PlantForms.Flower or PlantForms.Bush or PlantForms.Sapling or PlantForms.Bloom => 2,
+                        PlantForms.Rosette or PlantForms.Tuft or PlantForms.Strand or PlantForms.Pitcher => 1,
+                        _ => 0,
+                    };
+                }
+
+                _coverUnder = table;
+                return table;
+            }
+
+            /// <summary>Ground cover: <see cref="ScrubKindOf"/> per block id, built lazily like the carpet table.</summary>
+            public byte ScrubOf(BlockId id)
+            {
+                var scrub = _scrub ?? BuildScrub();
+                return id.Value < scrub.Length ? scrub[id.Value] : (byte)0;
+            }
+
+            private byte[] BuildScrub()
+            {
+                var scrub = new byte[_flags.Length];
+                for (int i = 0; i < scrub.Length; i++)
+                {
+                    scrub[i] = ScrubKindOf(Content.BlockById(new BlockId((ushort)i))?.Key);
+                }
+
+                _scrub = scrub;
+                return scrub;
+            }
 
             /// <summary>#3055: the parallax relief of a block's faces (<see cref="BlockRelief"/>), built lazily like the
             /// carpet table.</summary>

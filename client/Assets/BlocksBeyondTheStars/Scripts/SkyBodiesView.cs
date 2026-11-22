@@ -366,7 +366,8 @@ namespace BlocksBeyondTheStars.Client
                 Color sunHue = SunHue();
                 var planet = Game.Content?.GetPlanet(body.PlanetType ?? string.Empty);
                 Color ground = PlanetOrbitLook.GroundColor(
-                    Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, TintFor(body.PlanetType));
+                    Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, TintFor(body.PlanetType),
+                    body.Id, Game.TerrainGeneration); // generation 48: in the world's harmony, like the baked map
                 Color tint = Color.Lerp(ground, ground * sunHue, 0.35f);
                 var mat = new Material(shader) { color = ShaderColor.Srgb(tint) };
                 Color washTint = Color.Lerp(Color.white, sunHue, 0.35f); // light star-hue wash over the real map
@@ -415,7 +416,8 @@ namespace BlocksBeyondTheStars.Client
                     dist = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
                 }
 
-                float apparent = Mathf.Clamp(250f * radius / Mathf.Max(dist, 40f), 4f, 120f);
+                float bodyScale = GameLook.BodyScale; // larger bodies in the sky
+                float apparent = Mathf.Clamp(250f * radius / Mathf.Max(dist, 40f) * bodyScale, 4f, 120f * bodyScale);
 
                 // Planetary rings (#596): attach the shared ring disc — it inherits the sphere's per-frame
                 // position/scale. Only above ~14 units apparent size; a smaller disc mips the bands to mush.

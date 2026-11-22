@@ -41,6 +41,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             // Receive the sun's real-time shadow map (URP main light).
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            // Staged crowns: the instanced variant draws the near micro-block clusters (CrownClusters.cs).
+            // Everything it adds sits behind UNITY_INSTANCING_ENABLED — the chunk meshes' variant is unchanged.
+            #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
@@ -49,6 +52,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #include "Headlamp.hlsl"    // #3229: the suit headlamps (own + other players'), with the High occupancy shadows
 
             TEXTURE2D(_MainTex);   SAMPLER(sampler_MainTex);
+            #include "PlantFar.hlsl" // The plants' far pictures baked from their bodies
+            // Calm tiles: one texel per atlas slot — 1 = the texture calm applies to that tile, 0 = the tile is
+            // calm by design and keeps its pattern (BlockTextureAtlas.Look.cs publishes it; read with the atlas' sampler).
+            TEXTURE2D(_Sc_LookTileMask);
             TEXTURE2D(_NormalTex); SAMPLER(sampler_NormalTex);
             TEXTURE2D(_HeightTex); SAMPLER(sampler_HeightTex); // #3055: per-texel height (1 = surface), High only
 
@@ -64,6 +71,37 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             float4 _Sc_Sky;
             float  _Sc_Indoor;
             float4 _Sc_FloraTint;
+            // Cabin light (LookCabinLight.cs): the brightest a white texel of a strong emitter under cover may get
+            // (linear, before tone mapping); 0 = no limit.
+            float  _Sc_LookCabin;
+
+            // A ceiling of lamps burnt out to one white area — a lamp face reached ~4.5 (emission 3 ×
+            // albedo + its own block light + the fill) and the bloom spread the excess over its dark rim and the panels
+            // between. Under cover (skylight at or below the shade floor) a strong emitter's face is scaled as a whole by
+            // a soft knee on its brightest possible texel (emission + block light + fill on white), so the face keeps its
+            // own contrast (lens and rim) and the bloom only gets a glow. Faces under open sky, weak emitters (ores,
+            // crystals below 0.45) and every non-emitting face are untouched; a torch keeps its flicker (the knee reads
+            // the steady emission).
+            float3 BbtsLookCabinLimit(float3 col, float emission, float3 blockLight, float sky)
+            {
+                float cap = _Sc_LookCabin;
+                if (cap <= 0.0 || emission <= 0.45)
+                {
+                    return col;
+                }
+
+                float weight = smoothstep(0.45, 0.7, emission) * saturate((1.0 - sky) / (1.0 - BBTS_SHADE_FLOOR));
+                float peak = 3.0 * emission + 2.0 * max(blockLight.r, max(blockLight.g, blockLight.b)) + 0.5;
+                float knee = 0.6 * cap;
+                if (weight <= 0.0 || peak <= knee)
+                {
+                    return col;
+                }
+
+                float over = peak - knee;
+                float limited = knee + over / (1.0 + over / (cap - knee));
+                return col * lerp(1.0, limited / peak, weight);
+            }
 
             // SRP Batcher (#573): the per-MATERIAL properties (the Properties block above) live here and
             // nowhere else, with the same layout in every pass — the ShadowCaster below repeats it. The _Sc_*
@@ -72,6 +110,16 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             CBUFFER_START(UnityPerMaterial)
                 float _LeafCutoff;
             CBUFFER_END
+
+            // Staged crowns: what a chunk-mesh vertex carries per crown CELL comes per instance here.
+            #if defined(UNITY_INSTANCING_ENABLED)
+            UNITY_INSTANCING_BUFFER_START(BbtsCrownProps)
+                UNITY_DEFINE_INSTANCED_PROP(float4, _CcTile)     // xy = the leaf tile's centre (atlas UV), z = emission, w = metal
+                UNITY_DEFINE_INSTANCED_PROP(float4, _CcTint)     // rgb = species tint or dye (black = the world's flora hue), a = tint mode
+                UNITY_DEFINE_INSTANCED_PROP(float4, _CcLight)    // rgb = placed block light, a = skylight
+                UNITY_DEFINE_INSTANCED_PROP(float4, _CcLightDir) // xyz = the block light's dominant direction
+            UNITY_INSTANCING_BUFFER_END(BbtsCrownProps)
+            #endif
 
             struct Attributes
             {
@@ -84,6 +132,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 bl : TEXCOORD3;   // propagated coloured block-light (placed lights illuminate)
                 float3 blDir : TEXCOORD4; // dominant block-light direction (toward source); 0 = none
                 float4 color : COLOR;    // r=gloss, g=metal, b=face AO, a=emission
+                #if defined(UNITY_INSTANCING_ENABLED)
+                float3 cube : TEXCOORD5; // The middle of the small cube this vertex belongs to (cluster-local)
+                #endif
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct Varyings
@@ -123,12 +175,51 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             Varyings vert(Attributes v)
             {
                 Varyings o = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(v);
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    // Staged crowns: a near cluster. The cell's tile, tint, light and material come from the
+                    // instance, the cube's tone and class from the shared mesh; a cube right at the eye shrinks away.
+                    float4 ccTile = UNITY_ACCESS_INSTANCED_PROP(BbtsCrownProps, _CcTile);
+                    float4 ccTint = UNITY_ACCESS_INSTANCED_PROP(BbtsCrownProps, _CcTint);
+                    float4 ccLight = UNITY_ACCESS_INSTANCED_PROP(BbtsCrownProps, _CcLight);
+                    float4 ccLightDir = UNITY_ACCESS_INSTANCED_PROP(BbtsCrownProps, _CcLightDir);
+                    v.uv = ccTile.xy;
+                    // Leaf picture: the leaf tile runs across the cubes of the cell — every face shows the part
+                    // of the tile that lies where the face lies in its cell, seen along the face's normal. In world axes,
+                    // so the picture does not turn with the cluster and runs on from cell to cell; from the mesh position
+                    // before the shrink below, so it does not swim on a cube that shrinks away.
+                    if (_Sc_LookLeaf.x > 0.0)
+                    {
+                        float3 inCell = mul((float3x3)GetObjectToWorldMatrix(), v.positionOS.xyz) + 0.5;
+                        float3 faceAxis = abs(TransformObjectToWorldNormal(v.normal.xyz));
+                        float2 inTile = faceAxis.y > 0.5 ? inCell.xz : faceAxis.x > 0.5 ? inCell.zy : inCell.xy;
+                        v.uv = (floor(ccTile.xy * 32.0) + clamp(inTile, 0.01, 0.99)) / 32.0;
+                    }
+
+                    v.sky = float2(ccLight.a, ccTint.a);
+                    v.leaf.yzw *= ccTint.rgb;
+                    v.bl = ccLight.rgb;
+                    v.blDir = ccLightDir.xyz;
+                    v.color.g = ccTile.w;
+                    v.color.a = ccTile.z;
+                    float ccScale = BbtsCrownCubeScale(TransformObjectToWorld(v.cube), _WorldSpaceCameraPos);
+                    v.positionOS.xyz = lerp(v.cube, v.positionOS.xyz, ccScale);
+                #endif
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
                 float tintMode;
                 o.uv = BbtsAnimatedUv(v.uv, v.sky.y, tintMode);
                 // #2397: leaves and plants sway in the wind (the tile's v = 0 root … 1 tip for a plant quad).
                 // #2519: torches and lanterns stand rigid, sheltered plants stand still (BbtsBlockSway).
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0));
+                // The small cubes of a micro-block crown rock in the wind — not the closed far cubes of staged crowns.
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
+                #else
+                    if (_Sc_Look2.y < 2.5)
+                    {
+                        wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
+                    }
+                #endif
                 o.positionCS = TransformWorldToHClip(wp);
                 o.wn = TransformObjectToWorldNormal(v.normal.xyz);
                 o.wt = float4(TransformObjectToWorldDir(v.tangent.xyz), v.tangent.w);
@@ -212,6 +303,56 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 return SAMPLE_TEXTURECUBE_LOD(_Sc_RoomCube, sampler_Sc_RoomCube, dir, rough * _Sc_RoomMax.w).rgb;
             }
 
+            // A closed crown face drawn as rows of small round puffs — every puff a shade of its own (a hash of
+            // the puff and its block), every other row shifted by half a puff, dark between them, and a dome-like tilt
+            // of the normal so the light models each one. A stand-in for real small bodies: it shows how a closed,
+            // chunky crown reads next to the airy leaf cutout. Returns x = the shade, yz = the tangent-space tilt.
+            float3 BbtsCrownPuffs(float2 uv, float3 wp, float3 wn)
+            {
+                float3 block = floor(wp - normalize(wn) * 0.5);
+                float2 g = frac(uv * 32.0) * 3.0;
+                g.x += 0.5 * step(0.5, frac(floor(g.y) * 0.5 + BbtsHash3(block)));
+                float2 cell = floor(g);
+                float2 f = g - cell - 0.5;
+                float h = BbtsHash3(float3(cell, 1.0) + block * 3.7);
+                float r2 = dot(f, f) * 4.0; // 0 at the puff's centre, 1 at its cell's edge, 2 in the corner
+                float shade = lerp(0.84, 1.12, h) * lerp(1.0, 0.60, smoothstep(0.55, 1.25, r2));
+                return float3(shade, f * (1.5 * saturate(1.0 - r2 * 0.35)));
+            }
+
+            // Staged crowns: the far picture of a crown cell — the closed cube face painted as 4 × 4 small
+            // cubes (25 cm, between the real ones' 12.5 and 37.5 cm) in the micro blocks' range of tones, about one in
+            // seven a dark gap. A stand-in for the real cluster beyond its range, where a cube is a few pixels wide.
+            // Returns the shade.
+            float BbtsCrownFar(float2 uv, float3 wp, float3 wn)
+            {
+                float3 n = normalize(wn);
+                float3 block = floor(wp - n * 0.5);
+                float2 cell = floor(frac(uv * 32.0) * 4.0);
+                float h = BbtsHash3(float3(cell, dot(abs(n), float3(1.0, 2.0, 3.0))) + block * 3.7);
+                return h < 0.14 ? 0.5 : lerp(0.74, 1.1, frac(h * 7.31));
+            }
+
+            // Soft blocks — every block face reads as a stone of its own: its border rounds off toward the
+            // neighbour (a tilt of the normal within the outer `_Sc_Look3.x` of the tile) and a dark joint runs along
+            // it. Each edge has its own strength from a hash of the two cells it lies between — both faces that share
+            // the edge get the same value, and about a third of the joints all but vanish, so flat ground reads as
+            // slabs of several sizes instead of a grid. Nothing in the mesh or the data changes.
+            // Returns xy = the tangent-space tilt, z = the joint's shade (1 = none).
+            float3 BbtsSoftBlock(float2 uv, float3 wp, float3 gN, float3 T, float3 B)
+            {
+                float2 t = frac(uv * 32.0);
+                float2 side = step(0.5, t) * 2.0 - 1.0; // the nearer edge on each axis: -1 the low one, +1 the high one
+                float2 d = min(t, 1.0 - t);
+                float3 cell = floor(wp - gN * 0.5);
+                float hu = BbtsHash3(cell * 2.0 + round(T) * side.x);
+                float hv = BbtsHash3(cell * 2.0 + round(B) * side.y);
+                float2 edge = float2(hu < 0.3 ? 0.08 : lerp(0.55, 1.0, hu), hv < 0.3 ? 0.08 : lerp(0.55, 1.0, hv));
+                float2 k = saturate(1.0 - d / max(_Sc_Look3.x, 0.01)) * edge;
+                float joint = max(smoothstep(0.62, 1.0, k.x), smoothstep(0.62, 1.0, k.y));
+                return float3(side * k * k * 0.9, 1.0 - _Sc_Look3.y * joint);
+            }
+
             half4 frag(Varyings i) : SV_Target
             {
                 // Explicit gradients from the mesh UV: the parallax offset below must not change the mip selection.
@@ -228,12 +369,65 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 }
 
                 float4 texel = SAMPLE_TEXTURE2D_GRAD(_MainTex, sampler_MainTex, uv, dUx, dUy);
-                if (i.leaf.x > 0.5)
+                // Plant far pictures: a crossed picture whose plant has a body shows the body's baked outline.
+                float2 farUv, farCell;
+                bool farPicture = BbtsPlantFarUv(uv, i.leaf.x, farUv, farCell);
+                if (farPicture)
+                {
+                    texel = SAMPLE_TEXTURE2D_GRAD(_Sc_LookPlantFar, sampler_MainTex, farUv, BbtsPlantFarGrad(dUx), BbtsPlantFarGrad(dUy));
+                }
+
+                // A closed tree crown keeps its faces whole (no leaf holes) and wears small cubes instead.
+                bool closedCrown = _Sc_Look2.y > 0.5 && i.leaf.x > 0.5 && i.leaf.x < 1.5;
+                if (i.leaf.x > 0.5 && !closedCrown)
                 {
                     clip(texel.a - _LeafCutoff);
                 }
 
-                if (soft > 0.001)
+                // Staged crowns: the screen-door cross-fade at the end of the near range — a pixel shows the
+                // near cluster or the far cube, never both (BbtsCrownNearShare / BbtsIgn in AtmosphereCommon).
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    clip(BbtsCrownNearShare(i.wp, _WorldSpaceCameraPos) - BbtsIgn(i.positionCS.xy) - 0.0001);
+                #else
+                    bool farCrown = closedCrown && _Sc_Look2.y > 2.5;
+                    if (farCrown)
+                    {
+                        clip(BbtsIgn(i.positionCS.xy) - BbtsCrownNearShare(i.wp, _WorldSpaceCameraPos));
+                    }
+
+                    // Plant bodies: a plant with a body shows its crossed picture beyond the bodies' range only.
+                    if (BbtsStagedPlant(i.leaf.x))
+                    {
+                        clip(BbtsIgn(i.positionCS.xy) - BbtsPlantNearShare(i.wp, _WorldSpaceCameraPos));
+                    }
+                #endif
+
+                // Calm surfaces — the #3461 fade toward the tile's average colour, here on every natural face at
+                // any distance (BbtsLookCalm). The relief and the normal map keep their detail: the light draws the grain.
+                // A calm tile is left alone by the look's calm (its slot's mask texel is 0); the haze's own softening
+                // (`soft`) still reaches it.
+                float labCalm = BbtsLookCalm(i.skyl.y, i.leaf.x, i.mat);
+                if (labCalm > 0.001)
+                {
+                    labCalm *= SAMPLE_TEXTURE2D_LOD(_Sc_LookTileMask, sampler_MainTex, (floor(uv * 32.0) + 0.5) / 32.0, 0).r;
+                }
+
+                float colourSoft = closedCrown ? 1.0 : max(soft, labCalm);
+                // Leaf picture: the small cubes of a near cluster show the leaf tile at a share of its strength
+                // (_Sc_LookLeaf.x) instead of the tile's mean alone. A cube stays whole: where the tile has a hole — the
+                // gap between two leaves — the mean colour stands, a little darker. The picture fades out with distance,
+                // where a leaf is smaller than a pixel and its pattern would only shimmer.
+                float leafGap = 1.0;
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    if (_Sc_LookLeaf.x > 0.0)
+                    {
+                        float leafShare = _Sc_LookLeaf.x * (1.0 - smoothstep(_Sc_LookLeaf.y, _Sc_LookLeaf.z, distance(_WorldSpaceCameraPos, i.wp)));
+                        float leafSolid = step(_LeafCutoff, texel.a);
+                        colourSoft = max(soft, 1.0 - leafShare * leafSolid);
+                        leafGap = 1.0 - _Sc_LookLeaf.w * leafShare * (1.0 - leafSolid);
+                    }
+                #endif
+                if (colourSoft > 0.001)
                 {
                     // #3461: fade toward the tile's average colour instead of a coarser mip: the point-filtered mips would
                     // only move their hard bands closer, and the cutout leaves would lose coverage. The atlas holds 32 × 32
@@ -242,10 +436,32 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     // cutout tile's holes are black (the alpha bake cuts a dark ground), so its mean is divided by its
                     // alpha to get the leaves' own colour. The alpha stays untouched — distant trees keep their leaves.
                     float2 cellUv = (floor(uv * 32.0) + 0.5) / 32.0;
-                    float4 mean = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, cellUv, _Sc_DistSoft.w);
+                    float4 mean = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, cellUv, max(_Sc_DistSoft.w, _Sc_Look2.x));
+                    if (farPicture) // The far picture's own mean (its atlas ignores the presets' mip limit)
+                    {
+                        mean = SAMPLE_TEXTURE2D_LOD(_Sc_LookPlantFar, sampler_MainTex, (farCell + 0.5) / max(_Sc_LookPlantFarInfo.xy, float2(1.0, 1.0)), _Sc_LookPlantFarInfo.w);
+                    }
+
                     float3 meanRgb = i.leaf.x > 0.5 ? saturate(mean.rgb / max(mean.a, 0.25)) : mean.rgb;
-                    texel.rgb = lerp(texel.rgb, meanRgb, soft);
+                    texel.rgb = lerp(texel.rgb, meanRgb, colourSoft);
                 }
+
+                texel.rgb *= leafGap;
+                float3 puff = float3(1.0, 0.0, 0.0);
+                if (closedCrown && _Sc_Look2.y < 1.5)
+                {
+                    // Crown mode B: painted puffs. Mode C (micro blocks) has real small cubes — the mesher gave each its
+                    // own shade and tint, the face itself stays flat.
+                    puff = BbtsCrownPuffs(i.uv, i.wp, i.wn);
+                    texel.rgb *= puff.x;
+                }
+
+                #if !defined(UNITY_INSTANCING_ENABLED)
+                    if (farCrown)
+                    {
+                        texel.rgb *= BbtsCrownFar(i.uv, i.wp, i.wn); // staged crowns: the far picture's painted cubes
+                    }
+                #endif
 
                 float3 albedo = texel.rgb;
                 if (i.skyl.y > 4.5)
@@ -292,9 +508,33 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 T = normalize(i.wt.xyz);
                 float3 B = normalize(cross(gN, T) * i.wt.w);
                 float4 nrm = SAMPLE_TEXTURE2D_GRAD(_NormalTex, sampler_NormalTex, uv, dUx, dUy);
+                if (farPicture)
+                {
+                    nrm = float4(0.5, 0.5, 1.0, 1.0); // The old tile's relief does not belong to the baked outline
+                }
+
                 float3 tn = nrm.xyz * 2.0 - 1.0;
                 tn.xy *= 1.0 - soft; // #3461: the relief light calms with the texture detail inside the haze
+                // A closed crown takes its puffs' tilt instead of the leaf tile's relief; every other opaque
+                // face gets the soft block's rounded border and joint (BbtsSoftBlock) on top of its own relief.
+                float jointShade = 1.0;
+                if (closedCrown)
+                {
+                    tn.xy = puff.yz;
+                }
+                else if (_Sc_Look3.x > 0.0 && i.leaf.x < 0.5)
+                {
+                    float3 softBlock = BbtsSoftBlock(i.uv, i.wp, gN, T, B);
+                    tn.xy += softBlock.xy;
+                    jointShade = softBlock.z;
+                }
+
                 float3 N = normalize(tn.x * T + tn.y * B + tn.z * gN);
+                // Fine grain on natural faces (the tile gives the colour, the grain the surface).
+                if (_Sc_Look3.z > 0.0)
+                {
+                    albedo *= BbtsLookGrain(i.wp - gN * 0.01, _Sc_Look3.z * BbtsLookNatural(i.skyl.y, i.mat), distance(_WorldSpaceCameraPos, i.wp));
+                }
 
                 float3 L = normalize(_Sc_SunDir.xyz);
                 float3 V = normalize(_WorldSpaceCameraPos - i.wp);
@@ -323,7 +563,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
                 // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
-                float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, nrm.a, 0.6);
+                float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, closedCrown ? 1.0 : nrm.a, 0.6) * jointShade;
                 // #1457 (open sky 0.70 → 0.78), #1611 (sealed end 0.26 → 0.32), #3265: the sky ambient ramp of AtmosphereCommon —
                 // unchanged from the shade floor up, almost nothing in a sealed cave or tunnel (0.02), where the flat dark
                 // floor below, the lamps and the torches are what is left. Dark, never pitch black.
@@ -337,7 +577,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // day, amber in the evening; white on a station and wherever nothing set it).
                 float3 indoorCol = BbtsIndoorColor();
                 float indoorShare = _Sc_Indoor * (1.0 - sky);
-                float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + BbtsDarkFloor() * lerp(float3(1, 1, 1), indoorCol, saturate(indoorShare))) * faceAo;
+                // BbtsWorldLight is the plain light * (amb + 0.5 * ndl * sunOpen * shadow) at an amount of 0.
+                float3 col = albedo * (BbtsWorldLight(light, amb, ndl * sunOpen * shadow, gN) + BbtsDarkFloor() * lerp(float3(1, 1, 1), indoorCol, saturate(indoorShare))) * faceAo;
                 col += albedo * indoorCol * (indoorShare * 0.5) * faceAo;
 
                 // Night/atmosphere ambient floor: a faint cool fill on open-sky faces, strongest when the sun
@@ -370,12 +611,20 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // not as painted cubes. Skylit faces only; the shadow map keeps a shaded crown dark.
                 // #2519: a torch or lantern (cutout code 2) is a cutout, not a leaf — no sun glowing through it.
                 bool rigidProp = i.leaf.x > 1.5 && i.leaf.x < 2.5;
-                bool translucent = !rigidProp && (i.leaf.x > 0.5 || (i.skyl.y > 0.5 && i.skyl.y < 1.5));
+                bool translucent = !rigidProp && !closedCrown && (i.leaf.x > 0.5 || (i.skyl.y > 0.5 && i.skyl.y < 1.5));
                 if (translucent)
                 {
                     float back = pow(saturate(dot(-V, L)), 3.0);
                     float wrap = saturate(dot(N, L) * 0.5 + 0.5);
                     col += albedo * light * (back * 0.45 + wrap * 0.12) * sunOpen * shadow * sky;
+                }
+
+                // Rim light — a closed crown's puffs catch a warm edge where they turn away from the eye,
+                // strongest looking toward the sun.
+                if (closedCrown && _Sc_Look3.w > 0.0)
+                {
+                    float rim = pow(1.0 - saturate(dot(N, V)), 3.0) * (0.35 + 0.65 * saturate(dot(-V, L) * 0.5 + 0.5));
+                    col += albedo * light * (_Sc_Look3.w * rim) * sunOpen * sky;
                 }
 
                 // Environment reflection of the sky colour, roughness-aware: metals reflect strongly (tinted by
@@ -475,6 +724,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // VFX overhaul (#2152): muzzle flashes, plasma bolts and explosions light the terrain (8 FX lights).
                 col += BbtsFxLights(i.wp, N, albedo);
 
+                // Cabin light: a strong emitter's face under cover keeps its tile instead of burning out.
+                col = BbtsLookCabinLimit(col, i.mat.a, bl, sky);
+
                 // The shared haze (AtmosphereCommon, #2393/#2406): distance veil + height fog toward the sky colour,
                 // warmed toward the sun. Blends in shader space so it only tints distant terrain — it never darkens
                 // the frame like a full-screen pass. The mesher skylight keeps caves clear of the height fog.
@@ -515,6 +767,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             HLSLPROGRAM
             #pragma vertex shadowVert
             #pragma fragment shadowFrag
+            #pragma multi_compile_instancing // Staged crowns: the near clusters cast the near shadows
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             #include "AtmosphereCommon.hlsl" // #2397: the shadow follows the swaying leaves
@@ -528,15 +781,26 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
             float3 _LightDirection; // set by URP while rendering the shadow map (a global, not a material property)
 
-            struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; };
-            struct SVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
+            struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; float4 color : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct SVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float cut : TEXCOORD1; float3 wp : TEXCOORD2; }; // cut = the cutout code, wp = the world position
 
             SVary shadowVert(SAttr v)
             {
                 SVary o;
+                UNITY_SETUP_INSTANCE_ID(v);
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
                 float tintMode = fmod(v.sky.y, 16.0);
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0)); // #2519: same sway as the forward pass
+                // … and the same flutter (the near clusters of staged crowns only, as in the forward pass)
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
+                #else
+                    if (_Sc_Look2.y < 2.5)
+                    {
+                        wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
+                    }
+                #endif
+                o.wp = wp;
                 float3 wn = TransformObjectToWorldNormal(v.normal);
                 float4 cs = TransformWorldToHClip(ApplyShadowBias(wp, wn, _LightDirection));
                 #if UNITY_REVERSED_Z
@@ -546,13 +810,47 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 #endif
                 o.positionCS = cs;
                 o.uv = v.uv;
+                o.cut = v.leaf.x;
                 return o;
             }
+
+            #include "PlantFar.hlsl" // A far picture casts the baked outline's shadow
 
             half4 shadowFrag(SVary i) : SV_Target
             {
                 float a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a;
-                clip(a - _LeafCutoff); // opaque tiles (a=1) always pass; foliage holes clip
+                // Plant far pictures: explicit gradients taken outside the branch (WebGPU allows no implicit
+                // derivatives in non-uniform control flow).
+                float2 farDx = BbtsPlantFarGrad(ddx(i.uv)), farDy = BbtsPlantFarGrad(ddy(i.uv));
+                float2 farUv, farCell;
+                if (BbtsPlantFarUv(i.uv, i.cut, farUv, farCell))
+                {
+                    a = SAMPLE_TEXTURE2D_GRAD(_Sc_LookPlantFar, sampler_MainTex, farUv, farDx, farDy).a;
+                }
+
+                if (!(_Sc_Look2.y > 0.5 && i.cut > 0.5 && i.cut < 1.5)) // A closed crown casts a whole shadow
+                {
+                    clip(a - _LeafCutoff); // opaque tiles (a=1) always pass; foliage holes clip
+                }
+
+                // Staged crowns: one of the two pictures casts — the near cluster up to the clusters' shadow
+                // range (_Sc_LookEye.w, at most the middle of the cross-fade), the far cube beyond it. No dither
+                // here: this pass renders from the sun's view.
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    clip(_Sc_LookEye.w - distance(i.wp, _Sc_LookEye.xyz));
+                #else
+                    if (_Sc_Look2.y > 2.5 && i.cut > 0.5 && i.cut < 1.5)
+                    {
+                        clip(distance(i.wp, _Sc_LookEye.xyz) - _Sc_LookEye.w);
+                    }
+
+                    // Plant bodies: near the eye the body casts the plant's shadow, beyond it the picture.
+                    if (BbtsStagedPlant(i.cut))
+                    {
+                        clip(distance(i.wp, _Sc_LookEye.xyz) - _Sc_LookPlant.z);
+                    }
+                #endif
+
                 return 0;
             }
             ENDHLSL
@@ -571,6 +869,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             HLSLPROGRAM
             #pragma vertex depthVert
             #pragma fragment depthFrag
+            #pragma multi_compile_instancing // Staged crowns: the near clusters are in the depth prepass too
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "AtmosphereCommon.hlsl" // #2397: the depth prepass follows the swaying leaves too
 
@@ -581,24 +880,79 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float _LeafCutoff;
             CBUFFER_END
 
-            struct DAttr { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; };
-            struct DVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
+            struct DAttr
+            {
+                float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; float4 color : COLOR;
+                #if defined(UNITY_INSTANCING_ENABLED)
+                float3 cube : TEXCOORD5; // The middle of the small cube this vertex belongs to (cluster-local)
+                #endif
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+            struct DVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float cut : TEXCOORD1; float3 wp : TEXCOORD2; }; // cut = the cutout code, wp = the world position
 
             DVary depthVert(DAttr v)
             {
                 DVary o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    // Staged crowns: the same shrink right at the eye as in the forward pass.
+                    float ccScale = BbtsCrownCubeScale(TransformObjectToWorld(v.cube), _WorldSpaceCameraPos);
+                    v.positionOS.xyz = lerp(v.cube, v.positionOS.xyz, ccScale);
+                #endif
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
                 float tintMode = fmod(v.sky.y, 16.0);
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0)); // #2519: same sway as the forward pass
+                // … and the same flutter (the near clusters of staged crowns only, as in the forward pass)
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
+                #else
+                    if (_Sc_Look2.y < 2.5)
+                    {
+                        wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
+                    }
+                #endif
+                o.wp = wp;
                 o.positionCS = TransformWorldToHClip(wp);
                 o.uv = v.uv;
+                o.cut = v.leaf.x;
                 return o;
             }
+
+            #include "PlantFar.hlsl" // The depth prepass must cut the same outline as the forward pass
 
             half4 depthFrag(DVary i) : SV_Target
             {
                 float a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a;
-                clip(a - _LeafCutoff); // foliage holes stay holes in the depth buffer too
+                // Plant far pictures: explicit gradients taken outside the branch (WebGPU allows no implicit
+                // derivatives in non-uniform control flow).
+                float2 farDx = BbtsPlantFarGrad(ddx(i.uv)), farDy = BbtsPlantFarGrad(ddy(i.uv));
+                float2 farUv, farCell;
+                if (BbtsPlantFarUv(i.uv, i.cut, farUv, farCell))
+                {
+                    a = SAMPLE_TEXTURE2D_GRAD(_Sc_LookPlantFar, sampler_MainTex, farUv, farDx, farDy).a;
+                }
+
+                if (!(_Sc_Look2.y > 0.5 && i.cut > 0.5 && i.cut < 1.5)) // A closed crown has no holes in the depth either
+                {
+                    clip(a - _LeafCutoff); // foliage holes stay holes in the depth buffer too
+                }
+
+                // Staged crowns: the same screen-door cross-fade as the forward pass, pixel for pixel.
+                #if defined(UNITY_INSTANCING_ENABLED)
+                    clip(BbtsCrownNearShare(i.wp, _WorldSpaceCameraPos) - BbtsIgn(i.positionCS.xy) - 0.0001);
+                #else
+                    if (_Sc_Look2.y > 2.5 && i.cut > 0.5 && i.cut < 1.5)
+                    {
+                        clip(BbtsIgn(i.positionCS.xy) - BbtsCrownNearShare(i.wp, _WorldSpaceCameraPos));
+                    }
+
+                    // Plant bodies: the same cross-fade as the forward pass, pixel for pixel.
+                    if (BbtsStagedPlant(i.cut))
+                    {
+                        clip(BbtsIgn(i.positionCS.xy) - BbtsPlantNearShare(i.wp, _WorldSpaceCameraPos));
+                    }
+                #endif
+
                 return 0;
             }
             ENDHLSL

@@ -328,8 +328,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 // A front the structure editor stored wins over the walls (#2260).
                 Assert.That(BlockCubeFaces.EditorFront(content, id, CubeFacing.Pack(BlockCubeFaces.FacePlusX), true, true, true, false),
                     Is.EqualTo(BlockCubeFaces.FacePlusX));
-                // A block without a front has none.
-                Assert.That(BlockCubeFaces.EditorFront(content, Id(content, "crate"), 0, true, true, true, false), Is.EqualTo(-1));
+                // A block without a front has none (the heal tank's form is alike on all four sides).
+                Assert.That(BlockCubeFaces.EditorFront(content, Id(content, "heal_tank"), 0, true, true, true, false), Is.EqualTo(-1));
 
                 // And that front gets the picture: the open +Z face, not the one against the wall.
                 var uvs = new Rect[BlockCubeFaces.FaceCount];

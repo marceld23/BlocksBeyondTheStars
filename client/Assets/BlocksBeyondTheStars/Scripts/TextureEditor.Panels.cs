@@ -55,6 +55,7 @@ namespace BlocksBeyondTheStars.Client
             previewGo.transform.SetParent(card, false);
             UiKit.Place(previewGo, PickerX, py + 30f, PreviewSize, PreviewSize);
             previewGo.AddComponent<RawImage>().texture = _preview.Target;
+            _preview.AddLookButtons(card, PickerX, py + 30f, PreviewSize, PreviewSize, L);
 
             var tiledGo = new GameObject("Tiled", typeof(RectTransform));
             tiledGo.transform.SetParent(card, false);

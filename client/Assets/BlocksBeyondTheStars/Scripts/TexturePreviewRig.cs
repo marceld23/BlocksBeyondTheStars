@@ -17,7 +17,7 @@ namespace BlocksBeyondTheStars.Client
     /// cards. It samples the editor's standalone 64×64 texture, so a brush stroke shows at once and the big block
     /// atlas is never touched while painting.
     /// </summary>
-    internal sealed class TexturePreviewRig
+    internal sealed partial class TexturePreviewRig
     {
         private const int Resolution = 384;
 
@@ -69,6 +69,7 @@ namespace BlocksBeyondTheStars.Client
             _camera.farClipPlane = 20f;
             camGo.transform.localPosition = new Vector3(2.4f, 1.9f, -2.4f);
             camGo.transform.LookAt(_root.transform.position + new Vector3(0f, 0.15f, 0f));
+            AttachLook(tile); // TexturePreviewRig.Look.cs
         }
 
         public RenderTexture Target { get; }
@@ -82,6 +83,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _spin.Rotate(0f, (SpinSpeed * dt) + steer, 0f, Space.Self);
             }
+
+            _wall?.Tick(_tile); // the block wall follows the brush
         }
 
         /// <summary>Rebuilds the model for another texture.</summary>
@@ -110,10 +113,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _filter.sharedMesh = _mesh;
+            ShowLook(entry, content); // the block wall instead, where it applies
         }
 
         public void Destroy()
         {
+            DestroyLook();
+
             if (_mesh != null)
             {
                 EditorSceneKit.Discard(_mesh);

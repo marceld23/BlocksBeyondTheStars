@@ -356,7 +356,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // shading; mode 2 lays static rainbow bands across the world (by position, never animated).
                     // `wtint` stays in scope: the screen-space block below composites the BED through the water
                     // and tints the depths, and both must follow the world's colour or a sandy shallow sea reads
-                    // as sand with a faint hue and a deep one as the classic blue (Marcel's playtest 2026-09-11).
+                    // as sand with a faint hue and a deep one as the classic blue (seen in a playtest, 2026-09-11).
                     float3 wtint = float3(1.0, 1.0, 1.0);
                     if (_Sc_WaterMode > 0.5)
                     {
@@ -373,6 +373,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                     float mode = i.water.x;
                     float t = _Time.y;
+                    float foamKeep = 0.0; // How much of the surface is foam — the clear shallows leave that opaque
                     if (mode > 3.5)
                     {
                         // Waterfall flank: a bright sheet of streaks racing straight DOWN the face. Procedural on
@@ -433,6 +434,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                             float f = saturate(foam * surge * (0.6 + 0.6 * cell));
                             col = lerp(col, light * float3(0.97, 0.99, 1.0), f * 0.85);
                             alpha = saturate(alpha + f * 0.45);
+                            foamKeep = max(foamKeep, f * 0.45);
                         }
 
                         // Calm basin: a barely-there slow shimmer for whatever weight is left.
@@ -459,6 +461,19 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
                     float vertical = column * max(abs(Vw.y), 0.08); // floor keeps near-horizontal rays finite
                     float depth01 = saturate(vertical / 16.0);
+                    // Clear shallows: `lab` is their amount, and every term it scales falls away at 0. Seen
+                    // from above only: under water this branch draws the surface from below, where the "bed" is the
+                    // world above it.
+                    float lab = _Sc_Underwater.x > 0.5 ? 0.0 : saturate(_Sc_LookWater.x);
+                    float shallow = 1.0 - saturate(vertical / 3.5); // 1 at the waterline … 0 from 3.5 m of water
+                    if (lab > 0.0)
+                    {
+                        // The water's own colour in the shallows: a light turquoise (the world's water colour where it
+                        // has one) instead of the tile's deep blue — a lagoon, not a pond.
+                        float3 aquaBody = _Sc_WaterMode > 0.5 ? wtint * 0.9 : float3(0.22, 0.72, 0.70);
+                        col = lerp(col, light * aquaBody, lab * shallow * 0.55);
+                    }
+
                     // The deep tint follows the world's water colour (#1758); classic worlds keep the blue depths.
                     float3 deepTint = _Sc_WaterMode > 0.5 ? wtint * 0.18 : float3(0.03, 0.10, 0.16);
                     col = lerp(col, col * 0.6 + light * deepTint, depth01 * 0.45); // gentler, lighter deep tint
@@ -469,6 +484,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                         float ef = edge * (0.6 + 0.4 * sin(t * 3.1 + (i.wp.x + i.wp.z) * 3.7));
                         col = lerp(col, light * float3(0.96, 0.99, 1.0), saturate(ef) * 0.7);
                         alpha = saturate(alpha + saturate(ef) * 0.5);
+                        foamKeep = max(foamKeep, saturate(ef) * 0.5);
                     }
 
                     // Refraction: composite the bed ourselves from the opaque texture, sampled at a wave-distorted
@@ -479,6 +495,23 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                                         cos(i.wp.z * 1.2 + t * 1.3) + sin(i.wp.x * 0.7 - t * 0.9));
                     float refr = 0.018 * (1.0 - depth01); // shallow distorts the visible bed; deep hides it anyway
                     float3 bed = SampleSceneColor(screenUV + wob * refr);
+                    if (lab > 0.0)
+                    {
+                        // The bed seen through clear water: a turquoise cast that sets in over the first metre (the
+                        // world's own water colour where it has one), and the sun's dancing web of light on it while
+                        // the water is shallow and sunlit.
+                        float3 aqua = _Sc_WaterMode > 0.5
+                            ? wtint / max(max(wtint.r, wtint.g), max(wtint.b, 0.05)) : float3(0.55, 1.0, 0.95);
+                        bed *= lerp(float3(1.0, 1.0, 1.0), lerp(float3(1.0, 1.0, 1.0), aqua, 0.6), lab * saturate(vertical / 0.8));
+                        float3 bedWp = i.wp + Vw * column;
+                        float2 cuv = bedWp.xz * 0.11;
+                        float ca = SAMPLE_TEXTURE2D_LOD(_Sc_CloudNoise, sampler_Sc_CloudNoise, cuv + float2(t * 0.03, t * 0.021), 0).r;
+                        float cb = SAMPLE_TEXTURE2D_LOD(_Sc_CloudNoise, sampler_Sc_CloudNoise, cuv * 1.7 - float2(t * 0.027, -t * 0.019), 0).r;
+                        float web = saturate(ca * cb * 4.0 - 0.55);
+                        web = web * web * shallow * saturate(ndl * 1.5) * shadow * saturate(i.sky * 2.0);
+                        bed += bed * sunLight * (web * 0.9 * _Sc_LookWater.y * lab);
+                    }
+
                     // #2411: haze the water's OWN colour here, before the composite. The bed arrives through the opaque
                     // copy already hazed by the opaque pass, and so does every SSR hit below, so the old pass over the
                     // finished composite veiled shallow water twice — the sea was the haziest surface in the frame.
@@ -486,7 +519,11 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float4 hz = BbtsHaze(i.wp, i.sky, hazeHeightScale); // #3265: the real skylight; #3271: colour in one pass
                     float haze = hz.a;
                     col = lerp(col, hz.rgb, haze);
-                    col = lerp(bed, col, saturate(alpha));
+                    // In the shallows the surface hides far less of the bed (30 % of the tile's own cover at
+                    // the waterline) — but for the foam, which stays.
+                    float cover = saturate(alpha);
+                    cover = lerp(cover, max(cover * lerp(1.0, 0.3, shallow), foamKeep), lab);
+                    col = lerp(bed, col, cover);
                     // #1758: the bed is seen THROUGH coloured water — recolour the composite as well, else the
                     // refracted sand wins over the tint and rainbow water looks like a sandy sea with a hue.
                     if (_Sc_WaterMode > 0.5)
@@ -502,7 +539,10 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // the surface that should (the sea), never matte walls.
                     // Stronger wave perturbation on the reflection ray breaks the mirror into a soft, watery
                     // reflection instead of a hard pixel-perfect one. (Vw declared above for the depth measure.)
-                    float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.12);
+                    // Fine ripples on top of the swell, so the mirror and the sun's path break into glitter.
+                    float2 fine = float2(sin(i.wp.x * 6.1 + i.wp.z * 2.3 + t * 2.7) + sin(i.wp.z * 7.3 - t * 3.1),
+                                         cos(i.wp.z * 5.7 - i.wp.x * 2.9 + t * 2.3) + sin(i.wp.x * 6.7 + t * 2.9));
+                    float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.12 + float3(fine.x, 0.0, fine.y) * (0.035 * lab));
                     float3 Rw = reflect(Vw, rn);
                     // Keep the reflection a sheen, not a mirror, so you can see INTO the water: low base sheen and
                     // a capped grazing maximum let the depth/bed colour read through. #2413: 0.6 × 0.5 = 30 % sky
@@ -548,6 +588,10 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // Glint capped well below the old x4 blow-out: it should sparkle, not white out the bed below.
                     float sunSpec = min(pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 1.5, 1.5);
                     reflCol += sunLight * BbtsSkyLightScale(i.sky) * sunSpec * (1.0 - haze); // the glint fades with the veil (#3265: and in a cave)
+                    // A broad path of small sparkles toward the sun, each flashing for a moment.
+                    float twinkle = smoothstep(0.6, 0.95, 0.5 + 0.5 * sin(i.wp.x * 9.0 + t * 4.0) * sin(i.wp.z * 8.0 - t * 3.3));
+                    float glitter = pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 36.0) * twinkle;
+                    reflCol += sunLight * BbtsSkyLightScale(i.sky) * (glitter * 1.6 * _Sc_LookWater.z * lab) * (1.0 - haze);
                     reflCol += BbtsHeadlampMirror(i.wp, Rw) * (1.0 - haze); // #3229: a lamp shining across the lake mirrors in it
                     col = lerp(col, reflCol, saturate(fres) * 0.5); // #2413
 

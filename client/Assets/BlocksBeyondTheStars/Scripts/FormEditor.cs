@@ -141,6 +141,7 @@ namespace BlocksBeyondTheStars.Client
             EditorSceneKit.Discard(_previewTile);
             EditorSceneKit.Discard(_previewMesh);
             EditorSceneKit.Discard(_previewMaterial);
+            DestroyLookPreview();
             foreach (var row in _materialRows)
             {
                 EditorSceneKit.Discard(row.Icon); // cut out of the shared atlas for this list only
@@ -465,7 +466,7 @@ namespace BlocksBeyondTheStars.Client
                     Color c;
                     if (_model.Get(x, _model.Layer, z))
                     {
-                        c = UiKit.Cyan;
+                        c = ShapeSlotPalette.CanvasColour(_model.ValueAt(x, _model.Layer, z));
                     }
                     else if (_model.Layer > 0 && _model.Get(x, _model.Layer - 1, z))
                     {
@@ -504,6 +505,7 @@ namespace BlocksBeyondTheStars.Client
             model.GetComponent<MeshRenderer>().sharedMaterial = _previewMaterial;
 
             AddPreviewCamera(target, "FormEditorCam", 40f);
+            AttachLookPreview();
             ApplyMaterial();
         }
 
@@ -530,6 +532,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _materialLabel.text = label;
             }
+
+            MarkLookPreviewDirty(); // The look preview carries material and dye in its mesh
         }
 
         /// <summary>Rebuilds the preview from the SAME merged boxes the world mesher draws — also for a form that
@@ -565,6 +569,7 @@ namespace BlocksBeyondTheStars.Client
             _previewMesh.RecalculateNormals();
             _previewMesh.RecalculateBounds();
             _previewFilter.sharedMesh = _previewMesh;
+            ApplyLookPreview(); // The block-shader form in its place while the look shows
 
             // Centre the footprint on the turntable and frame it, whatever its size.
             var size = new Vector3(_model.Width, _model.Height, _model.Length);

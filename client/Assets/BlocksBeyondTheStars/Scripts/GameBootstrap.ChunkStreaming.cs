@@ -1263,6 +1263,7 @@ namespace BlocksBeyondTheStars.Client
             // Nearest chunks build first; chunks past the budget stay queued for the next frames.
             PromoteDeferredDirty(); // #1529
             PromoteWaterReachDirty(); // #1903
+            RemeshOnLookTierChange(); // #3946: a preset change altered what the mesher emits (GameBootstrap.LookTier.cs)
             if (_dirty.Count > 0)
             {
                 _dirtyScratch.Clear();

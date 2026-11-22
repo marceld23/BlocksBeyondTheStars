@@ -64,6 +64,14 @@ namespace BlocksBeyondTheStars.Client
         /// replaces the any-hue roll (<c>FloraTints.For</c> with a planet). Null = the classic roll.</summary>
         private PlanetType _floraPlanet;
 
+        /// <summary>The colour harmony of the world the flora colours were built for (terrain generation 48): the plants'
+        /// hues answer the world's sky. <see cref="WorldHarmony.None"/> on every older world — its colours stay the
+        /// classic rolls.</summary>
+        private WorldHarmony _floraHarmony;
+
+        /// <summary>The active world's colour harmony, for the views that colour its plant life themselves.</summary>
+        public WorldHarmony FloraHarmony => _floraHarmony;
+
         /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location + the world's
         /// <paramref name="planetType"/>, so every client agrees). Chunks meshed afterwards pick them up via the tint resolver.</summary>
         private void RebuildFloraTints(string planetType)
@@ -74,6 +82,32 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _floraPlanet = Content.GetPlanet(planetType ?? string.Empty);
+            _floraHarmony = WorldHarmony.For(_worldSeed, LocationId, _floraPlanet, TerrainGeneration);
+            var map = BuildFloraTintMap();
+            _floraTintByBlock = map;
+            ChunkMesher.LinearColorSpace = QualitySettings.activeColorSpace == ColorSpace.Linear; // main thread: the mesher may run on a worker
+            ChunkMesher.GroveCircumference = Circumference; // #2856: the grove colour drift wraps with this world's seams
+            RebuildPlantLights();
+
+            // #2835: the ground-scatter tufts take the world's grass-tuft colour (ScatterLit), like the grass billboards.
+            var grassTuft = Content.GetBlock("flora_grasstuft");
+            Shader.SetGlobalVector(GrassTintId, grassTuft != null && map.TryGetValue(grassTuft.NumericId.Value, out var grass)
+                ? new Vector4(grass.r, grass.g, grass.b, 1f) : Vector4.zero);
+            ApplyFloraLooks();
+            ApplyMeadowPalette(); // #3056: the High preset's meadow flowers bloom in this world's floral colours
+
+            // Plant bodies: the world rolls every species' form, and its wood colour is the stems' and twigs'.
+            if (GameLook.PlantBodies)
+            {
+                var (wr, wg, wb) = BlocksBeyondTheStars.Shared.World.FloraTints.ForWood(_worldSeed, LocationName);
+                PlantBodies.UseWorld(Content, _worldSeed, LocationName, ShaderColor.Srgb(new Color(wr, wg, wb)));
+            }
+        }
+
+        /// <summary>The flora colour of every tinted block on this world (shader-ready), keyed by block id: the step of
+        /// <see cref="RebuildFloraTints"/> that rolls them, after the world's planet type and harmony are set.</summary>
+        private System.Collections.Generic.Dictionary<ushort, Color> BuildFloraTintMap()
+        {
             var map = new System.Collections.Generic.Dictionary<ushort, Color>();
             foreach (var def in Content.Blocks.Values)
             {
@@ -102,23 +136,14 @@ namespace BlocksBeyondTheStars.Client
 
                 var (r, g, b) = isWood
                     ? BlocksBeyondTheStars.Shared.World.FloraTints.ForWood(_worldSeed, LocationName, def.Key)
-                    : BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key, _floraPlanet);
+                    : BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key, _floraPlanet, _floraHarmony);
+
                 // The mesher writes these into TEXCOORD2 and the block shader multiplies them raw —
                 // convert the sRGB-authored hue at this boundary (no-op in Gamma space).
                 map[def.NumericId.Value] = ShaderColor.Srgb(new Color(r, g, b));
             }
 
-            _floraTintByBlock = map;
-            ChunkMesher.LinearColorSpace = QualitySettings.activeColorSpace == ColorSpace.Linear; // main thread: the mesher may run on a worker
-            ChunkMesher.GroveCircumference = Circumference; // #2856: the grove colour drift wraps with this world's seams
-            RebuildPlantLights();
-
-            // #2835: the ground-scatter tufts take the world's grass-tuft colour (ScatterLit), like the grass billboards.
-            var grassTuft = Content.GetBlock("flora_grasstuft");
-            Shader.SetGlobalVector(GrassTintId, grassTuft != null && map.TryGetValue(grassTuft.NumericId.Value, out var grass)
-                ? new Vector4(grass.r, grass.g, grass.b, 1f) : Vector4.zero);
-            ApplyFloraLooks();
-            ApplyMeadowPalette(); // #3056: the High preset's meadow flowers bloom in this world's floral colours
+            return map;
         }
 
         private static readonly int GrassTintId = Shader.PropertyToID("_Sc_GrassTint");
@@ -189,7 +214,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (Content.GetBlock(sp.Key) is { } glower && PlantGlowLight.TakesWorldColour(sp, glower))
                 {
-                    lightById[glower.NumericId.Value] = PlantGlowLight.PackedFor(_worldSeed, LocationName, glower, _floraPlanet);
+                    lightById[glower.NumericId.Value] = PlantGlowLight.PackedFor(_worldSeed, LocationName, glower, _floraPlanet, _floraHarmony);
                     continue;
                 }
 
@@ -204,7 +229,7 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    lightById[def.NumericId.Value] = FloraTints.ToRgb24(FloraTints.For(_worldSeed, LocationName, sp.Key, _floraPlanet), sp.Light);
+                    lightById[def.NumericId.Value] = FloraTints.ToRgb24(FloraTints.For(_worldSeed, LocationName, sp.Key, _floraPlanet, _floraHarmony), sp.Light);
                 }
             }
 
@@ -234,6 +259,10 @@ namespace BlocksBeyondTheStars.Client
         /// planet hue") when unknown.</summary>
         private Color FloraTintFor(BlockId id)
             => _floraTintByBlock != null && _floraTintByBlock.TryGetValue(id.Value, out var c) ? c : Color.black;
+
+        /// <summary>Textured debris: the colour this world gives a tinted block (linear; black = none of its
+        /// own) — what the mesher writes on its faces, for the debris of that block.</summary>
+        public Color WorldTintOf(BlockId id) => FloraTintFor(id);
 
         /// <summary>Latest day/night + weather + sun colour (World systems).</summary>
         public WorldEnvironment Environment { get; private set; }

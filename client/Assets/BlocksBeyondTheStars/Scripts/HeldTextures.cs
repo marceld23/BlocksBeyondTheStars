@@ -138,6 +138,133 @@ namespace BlocksBeyondTheStars.Client
             return mesh;
         }
 
+        // ---------------------------------------------------------------- Rounded tool parts (#3934)
+
+        private static readonly Dictionary<(int X, int Y, int Z, int Share), Mesh> RoundMeshes = new Dictionary<(int X, int Y, int Z, int Share), Mesh>();
+
+        /// <summary>The mesh of a held part <paramref name="size"/> metres big: the tiled unit cube
+        /// (<see cref="CubeMesh"/>) — or the same cube with rounded edges
+        /// (<see cref="GameLook.ToolRoundShare"/> of its thinnest side). The rounded mesh keeps the cube's tiling and is
+        /// still a unit cube the part's transform scales, so the hand's measuring and the muzzle are unchanged; it is
+        /// built for the part's own proportions (an even radius needs a different amount on each axis of a scaled cube)
+        /// and shared by every part of that size. A part thinner than 6 mm stays sharp: there is nothing to round.</summary>
+        public static Mesh PartMesh(System.Numerics.Vector3 size)
+        {
+            float share = GameLook.ToolRoundShare;
+            var abs = new Vector3(Mathf.Abs(size.X), Mathf.Abs(size.Y), Mathf.Abs(size.Z));
+            if (share <= 0f || Mathf.Min(abs.x, Mathf.Min(abs.y, abs.z)) < 0.006f)
+            {
+                return CubeMesh(size);
+            }
+
+            // Half a millimetre is finer than any tool part is authored.
+            var key = (Mathf.RoundToInt(abs.x * 2000f), Mathf.RoundToInt(abs.y * 2000f), Mathf.RoundToInt(abs.z * 2000f), Mathf.RoundToInt(share * 1000f));
+            if (RoundMeshes.TryGetValue(key, out var mesh) && mesh != null)
+            {
+                return mesh;
+            }
+
+            var bucket = HeldMaterialRules.UvBucket(size);
+            var cube = HeldMaterialRules.BuildCube(bucket.X, bucket.Y, bucket.Z);
+
+            // RoundedCube reads a face as: corner, the corner along u, the corner along v, the far one. The held cube lists
+            // its four corners around the face (…, the far one, the corner along v), so the last two swap.
+            var positions = new float[24 * 3];
+            var normals = new float[24 * 3];
+            var uvs = new float[24 * 2];
+            for (int face = 0; face < 6; face++)
+            {
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    int from = (face * 4) + (corner == 2 ? 3 : corner == 3 ? 2 : corner), to = (face * 4) + corner;
+                    positions[to * 3] = cube.Positions[from].X;
+                    positions[(to * 3) + 1] = cube.Positions[from].Y;
+                    positions[(to * 3) + 2] = cube.Positions[from].Z;
+                    normals[to * 3] = cube.Normals[from].X;
+                    normals[(to * 3) + 1] = cube.Normals[from].Y;
+                    normals[(to * 3) + 2] = cube.Normals[from].Z;
+                    uvs[to * 2] = cube.Uvs[from].X;
+                    uvs[(to * 2) + 1] = cube.Uvs[from].Y;
+                }
+            }
+
+            var flat = new TiledCube.Data(positions, normals, uvs, cube.Triangles);
+            var verts = new List<Vector3>();
+            var norms = new List<Vector3>();
+            var coords = new List<Vector2>();
+            var tris = new List<int>();
+            RoundedCube.Build(abs, RoundedCube.Radius(abs, share), flat, verts, norms, coords, tris);
+            mesh = new Mesh { name = "HeldPart round" };
+            mesh.SetVertices(verts);
+            mesh.SetNormals(norms);
+            mesh.SetUVs(0, coords);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            RoundMeshes[key] = mesh;
+            return mesh;
+        }
+
+        // ---------------------------------------------------------------- Chamfered parts and the cone (#3934)
+
+        private static readonly Dictionary<(int X, int Y, int Z, HeldPartForm Form, int Axis, int Tip, int Cut), Mesh> FormMeshes =
+            new Dictionary<(int X, int Y, int Z, HeldPartForm Form, int Axis, int Tip, int Cut), Mesh>();
+
+        /// <summary>The mesh of a held tool part and the far stage's share for it (<see cref="RoundLod.Assign"/>): the form
+        /// it is shown as (<see cref="HeldPartForms.Shown"/> under <see cref="GameLook.ToolFormsMode"/>) — a box keeps
+        /// <see cref="PartMesh"/> and <see cref="GameLook.ToolRoundShare"/>; a chamfered part or a cone gets
+        /// its own unit mesh (<see cref="FormMesh"/>) and the share whose corner gap matches its cut
+        /// (<see cref="HeldPartForms.LodShare"/>).</summary>
+        public static Mesh ToolPartMesh(HeldItemShapes.Part part, out float share)
+        {
+            var form = HeldPartForms.Shown(part, GameLook.ToolFormsMode);
+            if (form == HeldPartForm.Box)
+            {
+                share = GameLook.ToolRoundShare;
+                return PartMesh(part.Size);
+            }
+
+            share = HeldPartForms.LodShare(part, form, GameLook.ToolChamferShare, GameLook.ToolRoundShare);
+            return FormMesh(part, form);
+        }
+
+        /// <summary>The chamfered (<see cref="HeldFormMeshes.BuildChamfer"/>, cut by <see cref="GameLook.ToolChamferShare"/>)
+        /// or cone (<see cref="HeldFormMeshes.BuildCone"/>) unit mesh of <paramref name="part"/>, built for its own
+        /// proportions and shared by every part of that size, form, axis and tip.</summary>
+        public static Mesh FormMesh(HeldItemShapes.Part part, HeldPartForm form)
+        {
+            float cut = GameLook.ToolChamferShare;
+            var abs = new Vector3(Mathf.Abs(part.Size.X), Mathf.Abs(part.Size.Y), Mathf.Abs(part.Size.Z));
+            int tip = form == HeldPartForm.Cone ? part.Tip : 1;
+            var key = (Mathf.RoundToInt(abs.x * 2000f), Mathf.RoundToInt(abs.y * 2000f), Mathf.RoundToInt(abs.z * 2000f), form, part.Axis, tip,
+                form == HeldPartForm.Chamfer ? Mathf.RoundToInt(cut * 1000f) : 0);
+            if (FormMeshes.TryGetValue(key, out var mesh) && mesh != null)
+            {
+                return mesh;
+            }
+
+            var built = form == HeldPartForm.Cone
+                ? HeldFormMeshes.BuildCone(part.Size, part.Axis, tip)
+                : HeldFormMeshes.BuildChamfer(part.Size, part.Axis, cut);
+            var verts = new Vector3[built.Positions.Length];
+            var normals = new Vector3[built.Normals.Length];
+            var uvs = new Vector2[built.Uvs.Length];
+            for (int i = 0; i < verts.Length; i++)
+            {
+                verts[i] = new Vector3(built.Positions[i].X, built.Positions[i].Y, built.Positions[i].Z);
+                normals[i] = new Vector3(built.Normals[i].X, built.Normals[i].Y, built.Normals[i].Z);
+                uvs[i] = new Vector2(built.Uvs[i].X, built.Uvs[i].Y);
+            }
+
+            mesh = new Mesh { name = form == HeldPartForm.Cone ? "HeldPart cone" : "HeldPart chamfer" };
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = built.Triangles;
+            mesh.RecalculateBounds();
+            FormMeshes[key] = mesh;
+            return mesh;
+        }
+
         // The material's texture, read once (and again when a layer changes it); null while no layer has the tile.
         private static Texture2D TextureOf(string material)
         {
@@ -228,6 +355,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Meshes.Clear();
+            foreach (var mesh in FormMeshes.Values)
+            {
+                BlockCubeFaces.DestroyAsset(mesh);
+            }
+
+            FormMeshes.Clear();
         }
     }
 }
