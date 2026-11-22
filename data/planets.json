@@ -1001,7 +1001,7 @@
   // red sky with black clouds, lava in the deepest gorges and basins (no water, so lava is the sea), sharp needles, no plants, few
   // animals, rare ores — and the Ignivermis, his red-and-black sandworm (three of them) that hunts the animals on the dunes.
   {
-    "key": "arena_nigra", "minTerrainGeneration": 17, "exotic": true, "oncePerGalaxy": true, "fixedName": "Arena Nigra", "floraTheme": "desert", "baseTemperature": 58, "nameKey": "planet.arena_nigra.name", "atmosphereHeight": 200, "cloudColor": 1315860, "cloudDensity": 0.55, "mist": 0.6, "skyColor": 12071454,
+    "key": "arena_nigra", "minTerrainGeneration": 17, "colourMood": "gloomy", "exotic": true, "oncePerGalaxy": true, "fixedName": "Arena Nigra", "floraTheme": "desert", "baseTemperature": 58, "nameKey": "planet.arena_nigra.name", "atmosphereHeight": 200, "cloudColor": 1315860, "cloudDensity": 0.55, "mist": 0.6, "skyColor": 12071454,
     "terrainTags": ["volcanic", "hoodoos", "inselbergs", "wind"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "dunes", "terrainStyles": ["dunes", "spires", "canyons", "badlands"],
     "surfaceBlock": "black_sand", "subSurfaceBlock": "basalt", "deepBlock": "basalt", "surfaceDepth": 3, "caveThreshold": 0.8, "dataCacheRarity": 0.0012,

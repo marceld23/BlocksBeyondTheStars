@@ -153,7 +153,7 @@ public sealed partial class GameServer
         session.ShipInteriorSettleUntil = _uptime + ShipInteriorSettleSeconds;
         session.Streaming.SentChunks.Clear();
 
-        Send(session, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false });
+        Send(session, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false, LocationId = session.CurrentLocationId });
         SendLandedShips(session); // the ship object itself — the world is void apart from it — BEFORE the position (#1450)
         SendPlayerState(session);
         Send(session, new RespawnNotice { X = session.State.Position.X, Y = session.State.Position.Y, Z = session.State.Position.Z, Reason = "@srv.misc.stepped_inside" });

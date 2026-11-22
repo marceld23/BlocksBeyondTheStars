@@ -197,6 +197,7 @@ public sealed class CubeFacingTests : IDisposable
             p.State.Yaw = 90f; // looking along +X
             p.State.Inventory.Add("gaming_monitor", 4, 64);
             p.State.Inventory.Add("crate", 4, 64);
+            p.State.Inventory.Add("metal_panel", 4, 64);
 
             // Toward: the screen looks back at the player, i.e. toward −X.
             var screen = new Vector3i(3, 64, 0);
@@ -213,12 +214,19 @@ public sealed class CubeFacingTests : IDisposable
             server.PlaceBlock(p.State.PlayerId, turned.X, turned.Y, turned.Z, "gaming_monitor", yaw: 2);
             Assert.Equal(4, CubeFacing.FrontOf(server.World.GetShape(turned))); // as if looking −Z: the screen looks +Z
 
-            // A block without a front stays descriptor 0 — nothing about ordinary blocks changes.
+            // A crate remembers its front too: its form (the skids under it) turns to the player who placed it.
             var box = new Vector3i(3, 64, -3);
             ClearAround(server, box);
             server.PlaceBlock(p.State.PlayerId, box.X, box.Y, box.Z, "crate");
             Assert.Equal(_content.GetBlock("crate")!.NumericId.Value, server.World.GetBlock(box).Value);
-            Assert.Equal(0, server.World.GetShape(box));
+            Assert.Equal(3, CubeFacing.FrontOf(server.World.GetShape(box))); // −X, back at the player
+
+            // A block without a front stays descriptor 0 — nothing about ordinary blocks changes.
+            var plain = new Vector3i(0, 64, -3);
+            ClearAround(server, plain);
+            server.PlaceBlock(p.State.PlayerId, plain.X, plain.Y, plain.Z, "metal_panel");
+            Assert.Equal(_content.GetBlock("metal_panel")!.NumericId.Value, server.World.GetBlock(plain).Value);
+            Assert.Equal(0, server.World.GetShape(plain));
         }
     }
 

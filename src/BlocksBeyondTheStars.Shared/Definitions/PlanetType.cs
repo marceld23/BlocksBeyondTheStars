@@ -215,6 +215,12 @@ public sealed class PlanetType
     /// saved: a change recolours every world of the type on its next load.</summary>
     public List<string> FloraPalette { get; set; } = new();
 
+    /// <summary>The colour harmony (terrain generation 48): the mood of this type's worlds, by name (JSON <c>colourMood</c>:
+    /// <c>"balanced"</c>, <c>"vivid"</c>, <c>"pastel"</c>, <c>"earthy"</c> or <c>"gloomy"</c> — <c>WorldMood</c>). Empty = every
+    /// world rolls its own (<c>WorldHarmony.MoodOf</c>). The mood sets how saturated and how bright a world's rolled sky,
+    /// clouds, mist, water and plants are; authored colours stay as authored. Purely visual, nothing is saved.</summary>
+    public string ColourMood { get; set; } = string.Empty;
+
     /// <summary>#3423: the plants keep their colours all year (JSON <c>evergreenFlora</c>): the seasons still come and go
     /// (warmth, growth), but autumn does not turn the leaves amber and red and winter does not pale them — the client's season
     /// look (<c>SeasonLook.Target</c>). Soaniri, whose singing plants stay light blue and light green.</summary>

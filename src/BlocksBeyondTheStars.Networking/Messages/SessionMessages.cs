@@ -154,6 +154,11 @@ public sealed class JoinAccepted
     /// neither the pause menu's button nor the chat command, and a typed <c>/admin</c> keeps its old meaning (the admin
     /// help). Appended contractless field.</summary>
     public bool AdminCallSupported { get; set; }
+
+    /// <summary>The id of the body the player is on (the colour harmony, terrain generation 48): the client builds the
+    /// world's <c>WorldHarmony</c> from it — the plants' hues answer the sky, and the sky is rolled from the body's id, not
+    /// from its display name. Appended contractless field: an older server leaves it empty.</summary>
+    public string LocationId { get; set; } = string.Empty;
 }
 
 public sealed class JoinRejected
@@ -218,6 +223,10 @@ public sealed class WorldReset
     /// <summary>#2723: the player id of the host when the receiver is loaded into a FOREIGN ship interior as a docking
     /// guest; empty in the own ship interior and on every other world. Additive — an older server never sets it.</summary>
     public string ShipOwnerId { get; set; } = string.Empty;
+
+    /// <summary>The id of the world whose stream follows (the colour harmony, terrain generation 48) — see
+    /// <see cref="JoinAccepted.LocationId"/>. Appended contractless field: an older server leaves it empty.</summary>
+    public string LocationId { get; set; } = string.Empty;
 }
 
 /// <summary>The player's current vitals are respawning at the ship heal-tank (Medbay).</summary>

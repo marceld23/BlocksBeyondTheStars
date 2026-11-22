@@ -40,6 +40,8 @@ public sealed class TextureTilesTests
     [InlineData("energy_fence", TextureAlphaMode.Cutout)]           // #3085: see-through gaps between its beams
     [InlineData("lift_gate", TextureAlphaMode.Cutout)]              // #3174: the lift gate's grid, the same way
     [InlineData("lift_gate_open", TextureAlphaMode.Cutout)]         // … and its open frame (rails only)
+    [InlineData("geyser_hole", TextureAlphaMode.Cutout)]            // the vent's ring, a decal over the ground beside it
+    [InlineData("geyser_vent", TextureAlphaMode.Opaque)]            // … cut out of the opaque vent tile
     [InlineData("energy_gate", TextureAlphaMode.Opaque)]            // the gate stays a membrane (transparent shader)
     [InlineData("face_energy_fence_top", TextureAlphaMode.Opaque)]  // the fence's emitter rail on top is solid
     [InlineData("creature_fur", TextureAlphaMode.Free)]

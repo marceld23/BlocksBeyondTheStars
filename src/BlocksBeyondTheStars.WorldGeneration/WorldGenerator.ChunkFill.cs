@@ -896,17 +896,18 @@ public sealed partial class WorldGenerator
             // A generation-3 landmark paint likewise hosts its own flora (reeds on peat, lichen on a frost
             // ridge's stone, ember blooms on a lava flow's basalt) — never on an older world. Generation 11: altitude
             // snow and ice host their own flora too (frost flowers on a snow cap).
-            var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ,
-                beachHere || paintedHost || FrozenFloraHost(surfaceId, snowId, iceId) ? surfaceId : (BlockId?)null);
-            int fy = seabedY + 1;
-            int fly = fy - origin.Y;
             // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
             // sparse open ground) + the per-biome density, so undergrowth gathers into thickets instead
             // of an even sprinkle — and the same forest the trees cluster in is also carpeted with plants.
+            // Generation 48: the plants also stand in groups (WorldGenerator.FloraGroupsGen48.cs).
+            var floraId = GroupedSurfaceFlora(planet, biome, floraDensity, seed, worldX, worldZ,
+                beachHere || paintedHost || FrozenFloraHost(surfaceId, snowId, iceId) ? surfaceId : (BlockId?)null,
+                out double localFloraDensity);
+            int fy = seabedY + 1;
+            int fly = fy - origin.Y;
             // The cold factor (#476) thins growth toward the snow line and stops it at the ice — except, from
             // generation 11, for the cold-adapted species, which grow on far into the frost.
-            double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ)
-                * SurfaceFloraColdFactor(calib, surfaceY, floraId);
+            localFloraDensity *= SurfaceFloraColdFactor(calib, surfaceY, floraId);
             if (beachHere)
             {
                 localFloraDensity *= 0.35; // beaches read best mostly bare
@@ -934,9 +935,8 @@ public sealed partial class WorldGenerator
         // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
         if (flora && islandTop != int.MinValue)
         {
-            var isleFlora = FloraForSurface(planet, biome, seed, worldX, worldZ);
+            var isleFlora = GroupedSurfaceFlora(planet, biome, floraDensity, seed, worldX, worldZ, null, out double isleDensity);
             int ify = islandTop + 1 - origin.Y;
-            double isleDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
             if (!isleFlora.IsAir && ify >= 0 && ify < WorldConstants.ChunkSize
                 && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < isleDensity)
             {
@@ -961,8 +961,7 @@ public sealed partial class WorldGenerator
                     continue;
                 }
 
-                var bandFlora = FloraForSurface(planet, biome, seed, worldX, worldZ);
-                double bandDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
+                var bandFlora = GroupedSurfaceFlora(planet, biome, floraDensity, seed, worldX, worldZ, null, out double bandDensity);
                 if (!bandFlora.IsAir
                     && Noise.Value01(seed + 9004, WorldConstants.WrapX(worldX, _circumference), 11 + b, Wz(worldZ)) < bandDensity)
                 {

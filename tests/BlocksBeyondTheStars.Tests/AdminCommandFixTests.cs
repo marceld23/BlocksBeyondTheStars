@@ -376,6 +376,81 @@ public sealed class AdminCommandFixTests : IDisposable
         }
     }
 
+    /// <summary>Positions round the whole world, on a few latitudes: enough to cross biomes with different offsets.</summary>
+    private static IEnumerable<Vector3f> SamplePositions(int circumference)
+    {
+        for (int x = 0; x < circumference; x += 97)
+        {
+            for (int z = -400; z <= 400; z += 200)
+            {
+                yield return new Vector3f(x, 80, z);
+            }
+        }
+    }
+
+    [Fact]
+    public void SetWeather_HoldsAtEveryPosition_NotOnlyWhereTheBiomeLeavesIt()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("setweather_everywhere", t, out var repo, c => c.StartPlanet = "varied");
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+            var positions = SamplePositions(server.World.Circumference).ToList();
+
+            // The world's OWN rain differs from place to place (drier and wetter biomes) — the shifts a forced state
+            // must not be subject to: in a biome one step drier "rain" read "clouds", and nothing fell on the admin.
+            server.SetWeatherForTest("rain");
+            Assert.Contains(positions, p => server.WeatherAtForTest(p).State != "rain");
+
+            foreach (string key in new[] { "rain", "storm", "clear" })
+            {
+                var sent = Run(server, t, admin, "set_weather", key);
+
+                Assert.True(server.WeatherSimForTest.Pinned);
+                Assert.All(positions, p => Assert.Equal(key, server.WeatherAtForTest(p).State));
+
+                // The sky answers the command, not the next heartbeat.
+                var env = Assert.Single(sent.Where(s => s.Conn == admin.ConnectionId).Select(s => s.Msg).OfType<WorldEnvironment>());
+                Assert.Equal(key, env.Weather);
+                Assert.Equal(key == "clear", env.Precipitation == "none"); // something falls where the admin stands
+            }
+        }
+    }
+
+    [Fact]
+    public void AForcedStateForTheWholeWorld_HoldsFiveMinutes_AndEndsWithItsEpisode()
+    {
+        var sim = new WeatherSim(seed: 11);
+        var ctx = new WeatherContext { AtmosphereDensity = 0.5 };
+        sim.Start(ctx);
+
+        sim.Force("storm", everywhere: true);
+        Assert.True(sim.Pinned);
+
+        // Still the full storm just before the hold ends ...
+        for (double clock = 0; clock < WeatherSim.PinnedHoldSeconds - 1; clock += 0.5)
+        {
+            sim.Advance(0.5, ctx);
+        }
+
+        Assert.Equal("storm", sim.State);
+        Assert.True(sim.Pinned);
+        Assert.Equal(sim.Peak, sim.Intensity, 3);
+
+        // ... and once its episode is over the sky is the world's own again, shifts and all.
+        for (double clock = 0; clock < 60 && sim.Pinned; clock += 0.5)
+        {
+            sim.Advance(0.5, ctx);
+        }
+
+        Assert.False(sim.Pinned);
+
+        // The test seam keeps the world's own behaviour: a forced state that the biomes still shift.
+        sim.Force("rain");
+        Assert.False(sim.Pinned);
+    }
+
     [Fact]
     public void TheWeatherAlias_IsACommandWord_NotAWireKey()
     {

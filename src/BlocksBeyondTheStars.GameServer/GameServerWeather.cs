@@ -290,7 +290,8 @@ public sealed partial class GameServer
         // #3269: the world's mist — amount (air density folded in), colour, wispiness, fog frequency and the cloud band. One
         // pure function shared with the client, so the orbit view can show any body's mist without being on it.
         _worlds.Active.Mist = MistProfiles.For(_meta.Seed, _world.LocationId, planet, _atmosphereDensity, airless,
-            MeasuredAltitudes(planet, airless)); // #3272: the visible band against the world's real relief
+            MeasuredAltitudes(planet, airless), // #3272: the visible band against the world's real relief
+            _meta.Description.TerrainGeneration); // generation 48: a tinted mist answers the sky
 
         // #2173: a body of an occupied system already carries its AMBIENT weather — the world ADOPTS that sim
         // (the same object: this world ticks it while loaded, the ambient table while not), so the storm seen
@@ -686,8 +687,10 @@ public sealed partial class GameServer
 
     /// <summary>The star colour of <paramref name="system"/> (#3123): dealt per galaxy from the world seed and the system
     /// index (<see cref="StarColors"/>), the same value for the star map, the planet sky and the ship interior. A location
-    /// outside the galaxy (null) still gets a star of this world.</summary>
-    internal int StarColorOf(StarSystem? system) => StarColors.ForSystem(_meta.Seed, system?.Id, system?.Name);
+    /// outside the galaxy (null) still gets a star of this world. From generation 48 the galaxy holds one red and one blue
+    /// sun for sure and rarely more, never in the start system (<see cref="WorldDescription.RareStarsGeneration"/>).</summary>
+    internal int StarColorOf(StarSystem? system) => StarColors.ForSystem(_meta.Seed, system?.Id, system?.Name,
+        _meta.Description.TerrainGeneration, _meta.Description.StarSystemCount, StartSystemId);
 
     // The world's flora base hue moved to Shared.World.FloraTints.ForWorld (#1716); the sky hue and the cloud
     // tint moved to Shared.World.AtmosphereTints (#2170).

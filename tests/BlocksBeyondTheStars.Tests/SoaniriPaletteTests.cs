@@ -215,7 +215,7 @@ public sealed class SoaniriPaletteTests
             Assert.Equal(FloraTints.For(42, "Somewhere", sp.Key), FloraTints.For(42, "Somewhere", sp.Key, null));
         }
 
-        int gen = WorldDescription.CurrentTerrainGeneration;
+        int gen = WorldDescription.ColourHarmonyGeneration - 1; // from the harmony's generation the base hue answers the sky (WorldHarmonyTests)
         Assert.Equal(FloraTints.ForWorld(42, "Somewhere", gen), FloraTints.ForWorld(42, "Somewhere", gen, meadow));
         var vine = Shipped.Value.Blocks.Values.First(b => b.LightColor is int l && (l & 0xFFFFFF) != 0 && b.Key.StartsWith("flora_", StringComparison.Ordinal));
         Assert.Equal(PlantGlowLight.PackedFor(42, "Somewhere", vine), PlantGlowLight.PackedFor(42, "Somewhere", vine, meadow));

@@ -259,15 +259,6 @@ public sealed partial class WorldGenerator
             return pool[0];
         }
 
-        // Theme weights: preferred species count more, so a patch is most likely one of the biome's signature
-        // plants. Total is small (pools are a handful of species) so recomputing per column is cheap.
-        int total = 0;
-        for (int i = 0; i < pool.Length; i++)
-        {
-            total += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
-                ? SurfacePickWeight(biome.Theme, tag) : 1;
-        }
-
         // A low-frequency patch field selects WITHIN the weighted distribution; nearby columns share a value,
         // so the chosen species changes only at patch boundaries (coherent fields, not per-cell noise).
         double t = FbmT(seed + 9101, worldX, worldZ, 18.0, octaves: 2);
@@ -284,6 +275,21 @@ public sealed partial class WorldGenerator
             }
         }
 
+        return PickSurfaceSpecies(pool, biome.Theme, t);
+    }
+
+    /// <summary>The species at <paramref name="t"/> (in [0, 1)) within a surface pool's theme-weighted distribution: preferred
+    /// species count more, so a patch is most likely one of the biome's signature plants. The pool is a handful of species, so
+    /// summing the weights per column is cheap.</summary>
+    private BlockId PickSurfaceSpecies(BlockId[] pool, FloraThemes.Theme theme, double t)
+    {
+        int total = 0;
+        for (int i = 0; i < pool.Length; i++)
+        {
+            total += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
+                ? SurfacePickWeight(theme, tag) : 1;
+        }
+
         int target = (int)(t * total);
         if (target >= total)
         {
@@ -294,7 +300,7 @@ public sealed partial class WorldGenerator
         for (int i = 0; i < pool.Length; i++)
         {
             acc += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
-                ? SurfacePickWeight(biome.Theme, tag) : 1;
+                ? SurfacePickWeight(theme, tag) : 1;
             if (target < acc)
             {
                 return pool[i];
@@ -339,9 +345,17 @@ public sealed partial class WorldGenerator
     /// patch leaves some bare ground.</summary>
     private double LocalFloraDensity(PlanetType planet, BiomeResolved biome, double baseDensity, long seed, int wx, int wz)
     {
-        double d = baseDensity * biome.FloraMul * biome.Theme.DensityMul * VegetationRichness(planet, seed, wx, wz);
-        return d > 0.95 ? 0.95 : d;
+        double d = RawFloraDensity(planet, biome, baseDensity, seed, wx, wz);
+        return d > FloraDensityCap ? FloraDensityCap : d;
     }
+
+    /// <summary>The highest per-column surface-flora density: even the lushest patch leaves some bare ground.</summary>
+    private const double FloraDensityCap = 0.95;
+
+    /// <summary>The per-column surface-flora density before the cap: the world/biome base × the biome's and theme's density
+    /// × the vegetation richness.</summary>
+    private double RawFloraDensity(PlanetType planet, BiomeResolved biome, double baseDensity, long seed, int wx, int wz)
+        => baseDensity * biome.FloraMul * biome.Theme.DensityMul * VegetationRichness(planet, seed, wx, wz);
 
     /// <summary>0.45..2.2 vegetation-richness multiplier per column. Couples undergrowth to the SAME forest
     /// mask the trees cluster in (so woods get a carpeted floor, not bare ground under the trunks) plus an

@@ -255,6 +255,7 @@ public static class ToolLook
                 S = new[] { w, h, d },
                 C = Palette[box.Color],
                 G = (glowMask & (1 << box.Color)) != 0,
+                F = HeldModelPart.FormBox, // a player's voxels stay boxes: the client's automatic forms are for official models
             });
         }
 

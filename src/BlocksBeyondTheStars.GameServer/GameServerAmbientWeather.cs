@@ -242,7 +242,7 @@ public sealed partial class GameServer
                 Precip = sim.Precip,
                 WindSpeed = sim.WindSpeed,
                 WindDirection = sim.WindDirection,
-                Dynamic = loaded is null || loaded.PlanetWeatherMode == "dynamic",
+                Dynamic = (loaded is null || loaded.PlanetWeatherMode == "dynamic") && !sim.Pinned, // forced: the same everywhere
                 TimeOfDay = (float)(loaded?.DayFraction ?? InitialDayFraction),
                 ClockRunning = loaded is not null,
                 Fronts = fronts,
@@ -344,7 +344,8 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>A live sim reduced to the projection's episode.</summary>
+    /// <summary>A live sim reduced to the projection's episode. A state an admin forced for the whole world
+    /// (<see cref="WeatherSim.Pinned"/>) is projected like a fixed one: no position shifts it.</summary>
     private static WeatherEpisode EpisodeOf(WeatherSim sim, bool dynamic)
-        => new(sim.State, sim.LadderSeverity, sim.LadderFloor, sim.LadderCeiling, sim.Peak, sim.Intensity, dynamic);
+        => new(sim.State, sim.LadderSeverity, sim.LadderFloor, sim.LadderCeiling, sim.Peak, sim.Intensity, dynamic && !sim.Pinned);
 }

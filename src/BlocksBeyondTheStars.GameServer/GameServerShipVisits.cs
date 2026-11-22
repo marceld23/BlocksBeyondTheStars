@@ -226,7 +226,7 @@ public sealed partial class GameServer
         guest.ShipInteriorSettleUntil = _uptime + ShipInteriorSettleSeconds; // …even one from the own interior, at the same coordinates
         guest.Streaming.SentChunks.Clear();
 
-        Send(guest, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false, ShipOwnerId = hostId });
+        Send(guest, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false, ShipOwnerId = hostId, LocationId = guest.CurrentLocationId });
         SendLandedShips(guest); // the host's hull — the world is void apart from it — BEFORE the position (#1450)
         SendPlayerState(guest);
         Send(guest, new RespawnNotice { X = guest.State.Position.X, Y = guest.State.Position.Y, Z = guest.State.Position.Z, Reason = arrived });

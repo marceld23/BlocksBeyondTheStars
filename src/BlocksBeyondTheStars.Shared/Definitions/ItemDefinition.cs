@@ -347,6 +347,22 @@ public sealed class HeldModelPart
     /// guesses it from the colour and the glow. Cosmetic only; a part with an unknown material is still drawn.</summary>
     public string? M { get; set; }
 
+    /// <summary>The <see cref="F"/> of a part that stays a plain box.</summary>
+    public const string FormBox = "box";
+
+    /// <summary>The <see cref="F"/> of a part with flattened (45°) long edges: a bar along its longest side, or a plate
+    /// cut about its thinnest side.</summary>
+    public const string FormChamfer = "chamfer";
+
+    /// <summary>The <see cref="F"/> of a part drawn as a cone narrowing along its longest side (a drill's bit).</summary>
+    public const string FormCone = "cone";
+
+    /// <summary>The form the client draws the box as (#3934): <see cref="FormBox"/>, <see cref="FormChamfer"/>
+    /// or <see cref="FormCone"/>. Null (or a word the client does not know) = the client decides from the box's proportions
+    /// for an official model, and keeps the box for a player's own look. Cosmetic only: the part keeps its box for
+    /// everything else, and a part with an unknown form is still drawn.</summary>
+    public string? F { get; set; }
+
     /// <summary>A part the game can draw: three finite numbers each, a sane size, a colour it can read.</summary>
     public bool IsValid()
     {

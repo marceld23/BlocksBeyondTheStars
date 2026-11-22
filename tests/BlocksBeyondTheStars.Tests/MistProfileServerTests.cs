@@ -62,7 +62,8 @@ public sealed class MistProfileServerTests : IDisposable
         // #3272: the visible band is placed against the world's measured relief (the generator's calibration).
         server.World.ApplyGeneratorMode();
         var terrain = server.World.Generator.SurfaceAltitudes(server.World.Planet);
-        var expected = MistProfiles.For(1, server.ActiveLocationId, planet, server.AtmosphereDensity, airless: false, terrain);
+        var expected = MistProfiles.For(1, server.ActiveLocationId, planet, server.AtmosphereDensity, airless: false, terrain,
+            WorldDescription.CurrentTerrainGeneration); // a fresh save: its tinted mist answers the sky (generation 48)
         Assert.True(expected.Amount > 0f, "a jungle world breeds mist");
         Assert.Equal(expected.Amount, env.MistAmount);
         Assert.Equal(expected.ColorRgb, env.MistColor);

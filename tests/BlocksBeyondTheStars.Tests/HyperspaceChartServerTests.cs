@@ -71,14 +71,20 @@ public sealed class HyperspaceChartServerTests : IDisposable
         var here = map.Systems.Single(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId));
         Assert.Equal(env!.SunColor, here.StarColor);
         var system = server.Galaxy.Systems.Single(s => s.Id == here.Id);
-        Assert.Equal(StarColors.ForSystem(config.Seed, system.Id, system.Name), here.StarColor); // dealt by seed + index
+        // The player stands in the start system: its sun is never the galaxy's red or blue one.
+        Assert.Equal(
+            StarColors.ForSystem(config.Seed, system.Id, system.Name, WorldDescription.CurrentTerrainGeneration,
+                config.World.StarSystemCount, system.Id),
+            here.StarColor); // from seed + index, by the rule of the world's generation
+        Assert.False(StarColorsTests.IsRed(here.StarColor) || StarColorsTests.IsBlue(here.StarColor));
     }
 
     [Fact]
-    public void StarMap_OfATwelveSystemGalaxy_ShowsThreeBlueAndThreeRedStars()
+    public void StarMap_OfATwelveSystemGalaxy_ShowsItsPromisedRedAndBlueSun_AndFewMore()
     {
         // #3123: rolled per system name, one twelve-system galaxy in 400 had no blue or red star at all — a playtest
-        // explored all twelve and met only white and yellow suns. The classes are dealt per galaxy now.
+        // explored all twelve and met only white and yellow suns. Generation 48: every galaxy holds one red and one
+        // blue sun for sure, and only rarely a further one.
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "deal"));
         var link = new LoopbackLink();
         using var st = new LoopbackServerTransport(link);
@@ -107,8 +113,15 @@ public sealed class HyperspaceChartServerTests : IDisposable
 
         Assert.NotNull(map);
         Assert.Equal(12, map!.Systems.Length);
-        Assert.Equal(3, map.Systems.Count(s => StarColorsTests.IsCool(s.StarColor)));
-        Assert.Equal(3, map.Systems.Count(s => StarColorsTests.IsWarm(s.StarColor)));
+        string homeId = map.Systems.Single(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId)).Id;
+        var (red, blue) = StarColors.PromisedSuns(config.Seed, 12, int.Parse(homeId.Substring(3), System.Globalization.CultureInfo.InvariantCulture));
+        Assert.False(StarColorsTests.IsRed(map.Systems.Single(s => s.Id == homeId).StarColor));
+        Assert.False(StarColorsTests.IsBlue(map.Systems.Single(s => s.Id == homeId).StarColor));
+        Assert.True(StarColorsTests.IsRed(map.Systems.Single(s => s.Id == "sys" + red).StarColor));
+        Assert.True(StarColorsTests.IsBlue(map.Systems.Single(s => s.Id == "sys" + blue).StarColor));
+        Assert.InRange(map.Systems.Count(s => StarColorsTests.IsRed(s.StarColor)), 1, 2);
+        Assert.InRange(map.Systems.Count(s => StarColorsTests.IsBlue(s.StarColor)), 1, 2);
+        Assert.DoesNotContain(map.Systems, s => StarColorsTests.IsCool(s.StarColor) && !StarColorsTests.IsBlue(s.StarColor)); // no blue-white
     }
 
     [Fact]
