@@ -54,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
     /// stored opaque. A block tile therefore cannot leave this editor as an x-ray.
     /// </para>
     /// </summary>
-    public sealed class PixelCanvasModel
+    public sealed partial class PixelCanvasModel
     {
         public const int Size = TextureTiles.Size;
 
@@ -70,9 +70,11 @@ namespace BlocksBeyondTheStars.Client
             public byte[][] Frames = Array.Empty<byte[]>();
             public int Fps;
             public int Active;
+            public int SaveCalm; // "calm when saving" is part of the work, so it undoes with it
         }
 
-        /// <summary>Two snapshots are the same state when speed and pixels agree (the frame on show is not a change).</summary>
+        /// <summary>Two snapshots are the same state when speed, "calm when saving" and pixels agree (the frame on show is not
+        /// a change).</summary>
         private sealed class SnapshotComparer : IEqualityComparer<Snapshot>
         {
             public static readonly SnapshotComparer Instance = new SnapshotComparer();
@@ -84,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
                     return true;
                 }
 
-                if (a == null || b == null || a.Fps != b.Fps || a.Frames.Length != b.Frames.Length)
+                if (a == null || b == null || a.Fps != b.Fps || a.SaveCalm != b.SaveCalm || a.Frames.Length != b.Frames.Length)
                 {
                     return false;
                 }
@@ -165,6 +167,8 @@ namespace BlocksBeyondTheStars.Client
 
             Fps = _frames.Count > 1 ? (TextureTiles.IsValidAnimation(_frames.Count, fps) ? fps : 8) : 0;
             ActiveFrame = 0;
+            SaveCalm = 0;
+            EndSoftStroke();
             _history.Reset();
         }
 
@@ -223,20 +227,20 @@ namespace BlocksBeyondTheStars.Client
 
         private void Plot(int x, int y, TexelColor c)
         {
-            SetRaw(x, y, c);
+            SetPaint(x, y, c);
             if (MirrorX)
             {
-                SetRaw(Size - 1 - x, y, c);
+                SetPaint(Size - 1 - x, y, c);
             }
 
             if (MirrorY)
             {
-                SetRaw(x, Size - 1 - y, c);
+                SetPaint(x, Size - 1 - y, c);
             }
 
             if (MirrorX && MirrorY)
             {
-                SetRaw(Size - 1 - x, Size - 1 - y, c);
+                SetPaint(Size - 1 - x, Size - 1 - y, c);
             }
         }
 
@@ -293,7 +297,7 @@ namespace BlocksBeyondTheStars.Client
                 frames[i] = (byte[])_frames[i].Clone();
             }
 
-            return new Snapshot { Frames = frames, Fps = Fps, Active = ActiveFrame };
+            return new Snapshot { Frames = frames, Fps = Fps, Active = ActiveFrame, SaveCalm = SaveCalm };
         }
 
         private void Restore(Snapshot s)
@@ -306,6 +310,8 @@ namespace BlocksBeyondTheStars.Client
 
             Fps = s.Fps;
             ActiveFrame = Math.Min(s.Active, _frames.Count - 1);
+            SaveCalm = s.SaveCalm;
+            EndSoftStroke();
         }
 
         private void Single(Action change)
@@ -412,6 +418,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (LuminanceOnly)
+            {
+                FillLuminance(x, y, c, everywhere); // The region takes the brightness, keeps its hues
+                return;
+            }
+
             Single(() =>
             {
                 if (everywhere)
@@ -459,7 +471,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     for (int x = 0; x < Size; x++)
                     {
-                        SetRaw(x, y, c);
+                        SetPaint(x, y, c);
                     }
                 }
             });
@@ -552,19 +564,22 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Single(() =>
-            {
-                _frames.Clear();
-                foreach (var f in frames)
-                {
-                    var copy = (byte[])f.Clone();
-                    TextureTiles.EnforceAlpha(copy, AlphaMode);
-                    _frames.Add(copy);
-                }
+            Single(() => PutFrames(frames, fps));
+        }
 
-                Fps = _frames.Count > 1 ? (TextureTiles.IsValidAnimation(_frames.Count, fps) ? fps : 8) : 0;
-                ActiveFrame = Math.Min(ActiveFrame, _frames.Count - 1);
-            });
+        /// <summary>The body of <see cref="ReplaceAll(IReadOnlyList{byte[]}, int)"/>, inside an open step.</summary>
+        private void PutFrames(IReadOnlyList<byte[]> frames, int fps)
+        {
+            _frames.Clear();
+            foreach (var f in frames)
+            {
+                var copy = (byte[])f.Clone();
+                TextureTiles.EnforceAlpha(copy, AlphaMode);
+                _frames.Add(copy);
+            }
+
+            Fps = _frames.Count > 1 ? (TextureTiles.IsValidAnimation(_frames.Count, fps) ? fps : 8) : 0;
+            ActiveFrame = Math.Min(ActiveFrame, _frames.Count - 1);
         }
 
         // ---------------------------------------------------------------- frames

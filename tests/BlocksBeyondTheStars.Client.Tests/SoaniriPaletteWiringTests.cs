@@ -56,11 +56,11 @@ public sealed class SoaniriPaletteWiringTests
         Assert.Equal(2, CountOf(boot, "RebuildFloraTints(m.PlanetType);")); // the join and every world change
         string env = Script("GameBootstrap.Environment.cs");
         Assert.Contains("_floraPlanet = Content.GetPlanet(planetType ?? string.Empty);", env);
-        Assert.Contains("FloraTints.For(_worldSeed, LocationName, def.Key, _floraPlanet)", env);
-        Assert.Contains("PlantGlowLight.PackedFor(_worldSeed, LocationName, glower, _floraPlanet)", env);
-        Assert.Contains("FloraTints.For(_worldSeed, LocationName, sp.Key, _floraPlanet)", env);
-        Assert.Contains("\"tree_leaves\", planet); // #3423", Script("FarTerrainView.cs"));
-        Assert.Contains("FloraKeyFor(planet.SurfaceBlock), planet); // #3423", Script("PlanetOrbitLook.cs"));
+        Assert.Contains("FloraTints.For(_worldSeed, LocationName, def.Key, _floraPlanet, _floraHarmony)", env);
+        Assert.Contains("PlantGlowLight.PackedFor(_worldSeed, LocationName, glower, _floraPlanet, _floraHarmony)", env);
+        Assert.Contains("FloraTints.For(_worldSeed, LocationName, sp.Key, _floraPlanet, _floraHarmony)", env);
+        Assert.Contains("\"tree_leaves\", planet, Game.FloraHarmony); // #3423", Script("FarTerrainView.cs"));
+        Assert.Contains("FloraKeyFor(planet.SurfaceBlock), planet, harmony); // #3423", Script("PlanetOrbitLook.cs"));
     }
 
     [Fact]
