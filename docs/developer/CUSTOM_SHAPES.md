@@ -21,8 +21,11 @@ before reaching for anything cleverer.
 
 - A micro-voxel grid, **8×8×8** (default) or **4×4×4**, one lowercase hex char per cell, row-major with x
   fastest then z then y. Self-describing by **length**: 512 or 64 chars, no version byte.
-- `'0'` = empty, anything else = filled. Values `2..f` are accepted-but-equivalent today, reserved for a
-  later per-micro-cell tint — a form authored by a newer client must not fail validation on an older server.
+- `'0'` = empty, anything else = filled. For the server, validation, the box budget and collision every non-zero
+  value is the same. Since 2026-11-22 the client reads the value as a **colour slot** — `1` main, `2` second, `3`
+  accent, `4` dark, `5` glow, `6..f` as main — and merges the cells per slot for drawing only
+  (`Client.Core/Forms/ShapeColourSlots.cs`, `ShapeColourSlotRule.cs`; [LOOK.md](LOOK.md) §13). An older client draws such
+  a form in one colour; a form authored by a newer client never fails validation on an older server.
 - `IsValidVoxels` additionally rejects the two degenerate cases: an **empty** grid is nothing, a **full**
   grid is a cube. Neither may burn a registry slot.
 
@@ -159,6 +162,13 @@ top picture of a front cube is turned (`CubeFacing.TopUvTurns`) so it reads upri
 holds the data (every object block declares `tileKind`, a picture cube dresses its other faces, every tile key
 resolves, face tiles are bundled and opaque); `CubeFacingTests` holds the mapping, placement, drop and the
 watcher's eye.
+
+**Devices drawn as forms (2026-11-22).** Many devices are now drawn as a form inside their cube (a client-side table of
+boxes in this format's 8³ raster, `Client.Core/DeviceFormTable.cs`; [LOOK.md](LOOK.md) §12). They stay cubes for every
+rule here — `ShapeCode.IsCube`, collision, culling of their own faces, the drop — and the form turns with the same front:
+the stored one, or the derived one for descriptor 0. Five formed devices gained `"facing": "toward"` for it (#3936): the
+workbench, `crate`, `wood_crate`, `transport_crate` and the thumper, whose top picture now turns with the front; formed
+devices that look the same from all four sides store nothing. A neighbour's face toward such a device is drawn, as toward a player form.
 
 **Outside the world (#2744).** Every other place that draws a block as a cube wears the same faces, through
 `BlockCubeFaces` (client): the mesher's per-face lookup restated for one cube — own tile, cap tile, the

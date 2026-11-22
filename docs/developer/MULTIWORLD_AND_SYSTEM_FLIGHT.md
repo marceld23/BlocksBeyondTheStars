@@ -121,6 +121,12 @@ them**; between systems you hyperjump. This combines two originally separate ide
   pick on the same ramp. The star map, the planet sky (`InitWeather`) and the ship interior all call
   `GameServer.StarColorOf(system)`. Rolled from the name hash per system, one twelve-system galaxy in 400 had no blue or
   red star at all — a playtest explored all twelve and met only white and yellow suns.
+  *Generation 48 and later* (`WorldDescription.RareStarsGeneration`, the generation-aware `StarColors.ForSystem` overload) replace
+  the dealt blocks, because they still promised neither a real red nor a real blue sun: two of the systems the galaxy
+  starts with (`WorldDescription.StarSystemCount`), other than the start system, are picked from the seed as the red and
+  the blue sun (`StarColors.PromisedSuns`); every other system except the start system has a small chance
+  (`StarColors.RareShare`) of a further red or blue one; all others are ordinary suns from white to orange. The start
+  system — the light of a player's first hours — always has an ordinary sun. Older worlds keep the dealt blocks exactly.
   *The star's colour in flight and in the cabin:* a jump in flight sends no `WorldEnvironment` — the environment keeps
   describing the world last landed on — so the flight view (its star billboard, the lens flare and the light on the
   ship) reads the colour of the star map's current system (`FlightStar`, Client.Core, #3075). Walking inside the
