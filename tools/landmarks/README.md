@@ -18,12 +18,14 @@ the result without Unity. Python 3.10+, standard library only.
 | `shipgeom.py` | pure ship geometry: cross-sections, the loft, `Hull` (inside / shell / surface queries), tubes along curves |
 | `civ.py` | `CivDesign` — the CIVILIZATION template toolkit (see [Civilizations](#civilizations)): air pockets as diving bells, `prop` markers, murals, pieces in any of the 24 orientations |
 | `_sps_tower_parts.py`, `sps_tower_*.py` | the SPS GUIDE TOWER ruins (#3893, [docs/developer/SPS_TOWERS.md](../../docs/developer/SPS_TOWERS.md)): `TowerDesign` — a `Design` that writes to `data/sps_towers/`, draws the mast through a mapping (standing, leaning, lying, folded over) and knows the tower markers (`sps_console`, `sps_lamp`, `sps_tank`, `sps_guard_post`) — and one script per ruin |
-| `<key>.py` | one script per landmark, with a `build()` that returns its `Design` (or a list; `civ_*.py` return `CivDesign`s) |
+| `_earth.py`, `earth_*.py` | the EARTH landmarks (#3982): `earth_design()` (the pin-only header every one carries, intact and protected unless it is a ruin), `ladder_shaft()` (a ship's `lift_shaft` for a landmark), railings, square rings, light rings; eight scripts writing twelve `earth_*` templates (see [LANDMARKS.md](../../docs/developer/LANDMARKS.md) §7) |
+| `<key>.py` | one script per landmark, with a `build()` that returns its `Design` (or a list; `civ_*.py` return `CivDesign`s); a script that writes several templates lists their keys in `KEYS` |
 
 ```bash
 uv run --no-project python tools/landmarks/leaning_tower.py          # build one landmark -> data/landmarks/leaning_tower.json
 uv run --no-project python tools/gen_landmarks.py                    # the three samples + every tools/landmarks/<key>.py
-uv run --no-project python tools/gen_landmarks.py leaning_tower      # only these keys
+uv run --no-project python tools/gen_landmarks.py leaning_tower      # only these keys (a script's key, or a template key a script lists in KEYS)
+uv run --no-project python tools/gen_landmarks.py earth_tokyo_tower  # one template of earth_lattice_tower.py
 uv run --no-project python tools/landmarks/preview.py leaning_tower --cut y=40 --cut z=12
 uv run --no-project python tools/landmarks/selftest.py               # 28 checks, exit code 1 on a failure
 uvx ruff check tools/landmarks
