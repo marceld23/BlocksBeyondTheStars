@@ -279,6 +279,270 @@
    "peak": -6.4,
    "sha256": "6e9ecb0457d024ebd3ea68670ca7dd15308abee553490102209c305f26682b25"
   },
+  "animal_cat_hiss_a": {
+   "class": "creature",
+   "level": -10.8,
+   "peak": -1.0,
+   "sha256": "8a2cb8fe35bff3c7f906104822bc17b8df6b3d6b836e504d98dbb518cf2a4ba0"
+  },
+  "animal_cat_hiss_b": {
+   "class": "creature",
+   "level": -11.4,
+   "peak": -0.3,
+   "sha256": "36d11d8b90b750f550400700d87484d89b3a65bc61b49ebb38e5af2d6e45ab34"
+  },
+  "animal_cat_meow_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -1.4,
+   "sha256": "e55fec8a87db4a4f9d69636db943c0b34cbd25821c5c655b5150da380d4bbd77"
+  },
+  "animal_cat_meow_b": {
+   "class": "creature",
+   "level": -10.8,
+   "peak": -2.0,
+   "sha256": "09b635f589326d490d1eef1c040276b77c392a0a7104f2f9248dc723829217a9"
+  },
+  "animal_cat_purr_a": {
+   "class": "creature",
+   "level": -11.2,
+   "peak": 1.6,
+   "sha256": "f51f6118deee8e84f525848a481e09b3be488706bd8eeba230ac92b861f31db5"
+  },
+  "animal_cat_purr_b": {
+   "class": "creature",
+   "level": -11.0,
+   "peak": 1.5,
+   "sha256": "f9a4d304208367eb66fa47fcaf1189ebb500337cc337869594562887d874604c"
+  },
+  "animal_chicken_cluck_a": {
+   "class": "creature",
+   "level": -12.9,
+   "peak": -1.3,
+   "sha256": "c66bdb828ab32f4b2fce2ec7cdadfe6eff72b76ccbab3d0f81628b8dad3d0fdb"
+  },
+  "animal_chicken_cluck_b": {
+   "class": "creature",
+   "level": -12.4,
+   "peak": -1.2,
+   "sha256": "4255d2697c09152448ccd5eff224666e8eb9ec3b0ce3bfb7d4ec468d5489a39c"
+  },
+  "animal_chicken_crow_a": {
+   "class": "creature",
+   "level": -10.4,
+   "peak": -4.2,
+   "sha256": "9441511325fd9415ceaaa4910f032f8c439ebe6751a3f42ed2066b96e2f81511"
+  },
+  "animal_chicken_crow_b": {
+   "class": "creature",
+   "level": -9.8,
+   "peak": -3.4,
+   "sha256": "1076625088b307628b06f32e96ac319acb37bbd816035ca47a170f421c8f5fe2"
+  },
+  "animal_cow_moo_a": {
+   "class": "creature",
+   "level": -10.4,
+   "peak": -0.3,
+   "sha256": "2181a33642b47e840f494851ccbd1734e4eacd7ff022a6dc23f09e6f6a0d1feb"
+  },
+  "animal_cow_moo_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -1.0,
+   "sha256": "28b0442792817d8b8536f22264274401fa2463cfe041831148495350298acb84"
+  },
+  "animal_dog_bark_a": {
+   "class": "creature",
+   "level": -11.5,
+   "peak": -1.4,
+   "sha256": "9123dc61d14285fe5d342515ae2f49e3d2dbbf73b14ea1048b9e62c7047e9b0c"
+  },
+  "animal_dog_bark_b": {
+   "class": "creature",
+   "level": -11.4,
+   "peak": 1.5,
+   "sha256": "22d2c50f7f391eb650100b1ed58944097e83b6b12b003de93b8ce45ed73d1cb3"
+  },
+  "animal_dog_growl_a": {
+   "class": "creature",
+   "level": -10.7,
+   "peak": 1.0,
+   "sha256": "ba44dec11eb83db1dc3457a49d02aea53326db60f1c1089d66da92c815c01990"
+  },
+  "animal_dog_growl_b": {
+   "class": "creature",
+   "level": -10.3,
+   "peak": 0.8,
+   "sha256": "6073cd8e9a11e4dcd398bf44fd7d408dc98b85742a44032e42e916fefc2aabef"
+  },
+  "animal_dog_whine_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 1.2,
+   "sha256": "b4021946b802ec1a849a844d15d1c3330765268034ba4e009489c9f3705d4e41"
+  },
+  "animal_dog_whine_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 0.7,
+   "sha256": "44fd3f6a361e780e30ae47e0013eb06f7f65166dd310f38f49cb798b0e98c405"
+  },
+  "animal_dolphin_click_a": {
+   "class": "creature",
+   "level": -11.4,
+   "peak": -1.3,
+   "sha256": "f9084f8ad455bc3def4677cecb5fcef9febc67b266f5147f60f3eaee3a941537"
+  },
+  "animal_dolphin_click_b": {
+   "class": "creature",
+   "level": -11.5,
+   "peak": 1.9,
+   "sha256": "96843b8686bf9858a53a71c7e7e1de3205ce4d89de9855c137ed888c95918d71"
+  },
+  "animal_dolphin_whistle_a": {
+   "class": "creature",
+   "level": -8.8,
+   "peak": -6.2,
+   "sha256": "897140679710c298202c1e972c009d65421d067b95f4084e520c26266192a9b1"
+  },
+  "animal_dolphin_whistle_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 1.5,
+   "sha256": "1e5345f7b53a5c56e038f18413ef28b013ca41502184f507e2c6330bf00e737e"
+  },
+  "animal_eagle_scream_a": {
+   "class": "creature",
+   "level": -10.6,
+   "peak": -3.5,
+   "sha256": "5e2682005188941376b5bc7e7397ca9d34d6166e4fe6686b57dde3fe093de97a"
+  },
+  "animal_eagle_scream_b": {
+   "class": "creature",
+   "level": -11.1,
+   "peak": -4.1,
+   "sha256": "b772492edc7944e76621955217c051c772b979470c571367ddfff1183dd99a7a"
+  },
+  "animal_elephant_rumble_a": {
+   "class": "creature",
+   "level": -10.7,
+   "peak": 1.3,
+   "sha256": "2c44ac7a76bc752fb49a3a981b30a6d9d17e870a7f2544e0a6718f332414b449"
+  },
+  "animal_elephant_rumble_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 1.0,
+   "sha256": "270308aeecb1302ae17ac7ed8ac843b0e1a13bf85e522723f8d3e6dfbcbf9a4d"
+  },
+  "animal_elephant_trumpet_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -1.1,
+   "sha256": "510463cfde676d45aad0e5f967176554d36b5cf3616619d9a38913a8703ba109"
+  },
+  "animal_elephant_trumpet_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -1.1,
+   "sha256": "3d6893ab23c2261b8d0f86b50b4d6cd8b36c85803fc94e33312ce0ffb12b8ae3"
+  },
+  "animal_monkey_call_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 1.2,
+   "sha256": "5342f8869476975c32d456d5fcf26a8f76a69d79892d15b542f5e4054fccc4df"
+  },
+  "animal_monkey_call_b": {
+   "class": "creature",
+   "level": -10.2,
+   "peak": -1.1,
+   "sha256": "1e43ed24fa96d7760f9d0ffa48c8730183e087e5211945eac8fb4dce6891d17f"
+  },
+  "animal_monkey_screech_a": {
+   "class": "creature",
+   "level": -11.3,
+   "peak": -5.3,
+   "sha256": "b86acfd399755c60c041ee541bbc1b0a94c3269432929e619447afa3f3aeaaed"
+  },
+  "animal_monkey_screech_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -1.8,
+   "sha256": "2af70dce5e6788206bb07be44539012c69f173c54f51022c851abe8c673bcb82"
+  },
+  "animal_parrot_squawk_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 1.1,
+   "sha256": "3189404e411da3df75208e662a5083aece6f2bffe2e60fcf29ca5d026cd77c5c"
+  },
+  "animal_parrot_squawk_b": {
+   "class": "creature",
+   "level": -11.4,
+   "peak": -1.2,
+   "sha256": "7df3e773196063147aa5090e75ddf2e350da0619b9316da0168867146eb04246"
+  },
+  "animal_parrot_whistle_a": {
+   "class": "creature",
+   "level": -9.7,
+   "peak": -1.4,
+   "sha256": "4511c51dd313dd752eb8911f53dc774c0428723ef75ea4c1123c601d8e598ec8"
+  },
+  "animal_parrot_whistle_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -0.6,
+   "sha256": "dbe3d02c6119feda77700afb13aa08eaea27d7e2b26ee7a8f0ea87809515f787"
+  },
+  "animal_rabbit_squeak_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 0.5,
+   "sha256": "ac3ee9864aa11e760134e83f24997ecb3db9ff45e7567d5cc8582900a15ab2b2"
+  },
+  "animal_rabbit_squeak_b": {
+   "class": "creature",
+   "level": -12.6,
+   "peak": -1.2,
+   "sha256": "6f17684b3f2e58842c1ea1d5b97628ff2ef64c65ea05ce3539b79487a866351f"
+  },
+  "animal_rabbit_thump_a": {
+   "class": "creature",
+   "level": -12.2,
+   "peak": -1.2,
+   "sha256": "024d2f7a37986633f2b01b221c5851bde2e12db11e73a22355569a2d890270af"
+  },
+  "animal_rabbit_thump_b": {
+   "class": "creature",
+   "level": -11.9,
+   "peak": -0.8,
+   "sha256": "4d037781bac5a0b4c4539bc989b46b57522a68380fc0a397183cf6246200abad"
+  },
+  "animal_sheep_baa_a": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": 0.6,
+   "sha256": "79eb69af9fbafbddba99611f22e64720696dc66b2302325c19dda88b2cceba32"
+  },
+  "animal_sheep_baa_b": {
+   "class": "creature",
+   "level": -10.1,
+   "peak": -3.3,
+   "sha256": "e5890765b625467dd0d2209ed41814963d2aa2098206e31100983554160d6d8c"
+  },
+  "animal_whale_song_a": {
+   "class": "creature",
+   "level": -10.6,
+   "peak": -4.1,
+   "sha256": "c655178f0cdd9591039885a0e5f2674ab2edf6b264ebd18547145935e04a146f"
+  },
+  "animal_whale_song_b": {
+   "class": "creature",
+   "level": -10.5,
+   "peak": -2.3,
+   "sha256": "b6e58b7b69af8bd37128e53477f4e16608b133964f50fbdb94dc185aadc59abd"
+  },
   "anomaly_hum": {
    "class": "machine",
    "level": -18.5,
