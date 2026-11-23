@@ -161,9 +161,12 @@ public static class MistProfiles
     /// <summary>The mist profile of one world. <paramref name="atmosphereDensity"/> is that world's 0..1 air thickness (the
     /// server's per-world value; thicker air breeds more mist), <paramref name="airless"/> whether it has no air weather
     /// (an airless body or a space-sky surface). Airless, space-sky and void worlds get <see cref="MistProfile.None"/>; the gas
-    /// worlds a dense mist that never fully burns off (the type's <see cref="PlanetType.MistFloor"/>) and no cloud band.</summary>
+    /// worlds a dense mist that never fully burns off (the type's <see cref="PlanetType.MistFloor"/>) and no cloud band.
+    /// <paramref name="terrainGeneration"/> is the SAVE's generation: from
+    /// <see cref="WorldDescription.ColourHarmonyGeneration"/> a tinted mist takes a hue beside the sky's
+    /// (<see cref="WorldHarmony.Mist"/>); a caller that leaves it out gets the classic colour of every older world.</summary>
     public static MistProfile For(long worldSeed, string? locationId, PlanetType? planet, double atmosphereDensity, bool airless,
-        TerrainAltitudes? terrain = null)
+        TerrainAltitudes? terrain = null, int terrainGeneration = 0)
     {
         if (airless || planet is { IsAirless: true } || planet is { SpaceSky: true } || planet is { Void: true })
         {
@@ -174,7 +177,7 @@ public static class MistProfiles
         var (baseY, topY) = CloudBand(worldSeed, locationId, planet, airless: false, terrain);
         return new MistProfile(
             amount,
-            ColorOf(worldSeed, locationId, planet),
+            ColorOf(worldSeed, locationId, planet, terrainGeneration),
             WispinessOf(worldSeed, locationId, planet),
             FogFrequencyOf(worldSeed, locationId, amount),
             baseY,
@@ -293,8 +296,9 @@ public static class MistProfiles
 
     /// <summary>The mist colour (0xRRGGBB): the type's authored <see cref="PlanetType.MistColor"/>, else
     /// <see cref="WhiteShare"/> of the worlds white or light grey (cool or warm) and the rest a clear tint from the type's
-    /// family palette. Always at least <see cref="MinLuma"/> light.</summary>
-    private static int ColorOf(long worldSeed, string? locationId, PlanetType? planet)
+    /// family palette. Always at least <see cref="MinLuma"/> light. In the colour harmony (generation 48) a rolled tint keeps
+    /// its family's saturation and brightness and takes its hue from the sky; an authored colour and a white mist stay.</summary>
+    private static int ColorOf(long worldSeed, string? locationId, PlanetType? planet, int terrainGeneration)
     {
         if (planet is { MistColor: > 0 })
         {
@@ -302,6 +306,12 @@ public static class MistProfiles
             return Lift(((authored >> 16) & 0xFF) / 255f, ((authored >> 8) & 0xFF) / 255f, (authored & 0xFF) / 255f);
         }
 
+        return WorldHarmony.For(worldSeed, locationId, planet, terrainGeneration).Mist(RolledColorOf(worldSeed, locationId, planet));
+    }
+
+    /// <summary>The classic per-world mist colour roll: white or light grey, or a tint from the type's family palette.</summary>
+    private static int RolledColorOf(long worldSeed, string? locationId, PlanetType? planet)
+    {
         ulong shade = Word64(worldSeed, locationId, ShadeSalt);
         float u1 = (shade & 0xFFFF) / 65535f;
         float u2 = ((shade >> 16) & 0xFFFF) / 65535f;
@@ -398,7 +408,7 @@ public static class MistProfiles
     }
 
     /// <summary>Blends a colour toward white until its luma reaches <see cref="MinLuma"/> (the hue stays), then packs it.</summary>
-    private static int Lift(float r, float g, float b)
+    internal static int Lift(float r, float g, float b)
     {
         float luma = 0.299f * r + 0.587f * g + 0.114f * b;
         if (luma < MinLuma)

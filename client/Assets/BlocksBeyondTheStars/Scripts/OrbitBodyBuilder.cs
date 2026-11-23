@@ -159,7 +159,7 @@ namespace BlocksBeyondTheStars.Client
         /// and a lush world reads in ITS vegetation colour. Falls back to the legacy palette when the type is unknown (the old
         /// hardcoded map mis-coloured every newer planet type).</summary>
         public static (Color Tint, string Tex) FlatLook(GameContent content, BlockTextureAtlas atlas, long worldSeed, string planetType,
-            string floraKey)
+            string floraKey, string bodyId = null, int terrainGeneration = 0)
         {
             var legacy = LegacyLook(planetType);
             var planet = content?.GetPlanet(planetType ?? string.Empty);
@@ -173,7 +173,7 @@ namespace BlocksBeyondTheStars.Client
                 return (new Color(0.96f, 0.9f, 0.84f), "gas"); // #2112: the banded cloud tops are the whole face of a gas giant
             }
 
-            Color ground = PlanetOrbitLook.GroundColor(content, atlas, worldSeed, floraKey, planetType, legacy.Tint);
+            Color ground = PlanetOrbitLook.GroundColor(content, atlas, worldSeed, floraKey, planetType, legacy.Tint, bodyId, terrainGeneration);
             // Partial cast only: the surface texture already carries the ground colour — full multiplication would
             // double-saturate and darken the sphere.
             return (Color.Lerp(Color.white, ground, 0.55f), planet.SurfaceBlock);
@@ -184,7 +184,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material SurfaceMaterial(OrbitBodySpec spec, Body body, Vector3 sunDir, List<Object> owned,
             System.Action<Body> onMap)
         {
-            var look = FlatLook(spec.Content, spec.Atlas, spec.WorldSeed, spec.PlanetType, spec.FloraKey);
+            var look = FlatLook(spec.Content, spec.Atlas, spec.WorldSeed, spec.PlanetType, spec.FloraKey, spec.Key, spec.Generation); // generation 48: in the world's harmony
             Color bodyTint = Color.Lerp(look.Tint, look.Tint * spec.SunHue, 0.35f);
             var flatTex = LoadTex(look.Tex);
             var mat = LitPhase(bodyTint, sunDir, flatTex, new Vector2(3f, 2f));

@@ -9,7 +9,7 @@ chat/admin commands. This is a living document.
 > localized — English, German, French and Spanish are complete, further community translations such as
 > Italian are in progress.)
 
-Last updated: 2026-10-04.
+Last updated: 2026-11-22.
 
 > **Parents and teachers:** what the game contains, who your child can meet online and which switches you
 > hold are summarised on the [parents page](PARENTS.md) ([Deutsch](PARENTS.de.md)).
@@ -22,8 +22,9 @@ Last updated: 2026-10-04.
   or `BlocksBeyondTheStars.exe` directly. **Linux:** `./BlocksBeyondTheStars.Launcher.Console` (shows a loading splash
   window — on a desktop without X it prints "Loading..." to the terminal — then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
   **The main menu** (#3663): your **player name** sits in the box at the top right — every way into the game uses it,
-  so type it once. On the left, the big **Continue** button starts the world you played last (it names the world, its
-  mode and when you played it, with a small picture of where you left off); under it **Singleplayer**, **Multiplayer** and **Editors**, and a small row with
+  so type it once. While the name is still empty (after a new install) a running light circles that box, like the one
+  on **Join in**; it goes with your first letter. On the left, the big **Continue** button starts the world you played
+  last (it names the world, its mode and when you played it, with a small picture of where you left off); under it **Singleplayer**, **Multiplayer** and **Editors**, and a small row with
   **Settings**, **Credits** and **Quit**. On the right, **What's new?** shows the newest update (*Read more* opens the
   full notes) and, when a festival is near, the festival card. Every menu screen works the same way: **Back** is at the
   top left (or press **Esc** / pad **B**), the filled button is the next step.
@@ -658,11 +659,13 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Quality preset (Settings → Graphics)
 
-- **Potato · Low · Medium · High** — how much the graphics may cost. You can pick any of them at any time; the game
-  never locks one.
+- **Potato · Low · Medium · High** — how much the graphics may cost. On the desktop client you can pick any of them at
+  any time. **In the browser only Potato and Low are offered** (the row toggles between the two): a browser tab shares
+  a weak graphics chip with the page, and a higher preset saved earlier is lowered to Low when the game loads.
 - **Automatic on a new install:** the game picks the preset itself until you choose one by hand. The desktop client
   starts on **Medium**, the browser and tablets on **Low**. Each start it watches how smoothly the menu runs and moves
-  one step at most: down when even the menu struggles, up to **Medium** when there is room. **High** comes only after
+  one step at most: down when even the menu struggles, up to **Medium** when there is room (in the browser never
+  above Low). **High** comes only after
   the game has measured about half a minute of real play on Medium with room to spare. It then switches at the **next start**,
   never while you play. A laptop running on battery does not step up.
 - **Your choice wins:** once you pick a preset yourself, the game never changes it again. A game you already had keeps
@@ -715,8 +718,10 @@ separate unlock; admins can still disable it through server world rules.
   - A thin, softly shimmering blue frame marks the block you aim at — exactly the one a click would mine or fill — and
     turns orange while you mine it. *Reduce flashes* or *Reduced effects* keep it still.
   - Cracks spread over the block as it weakens.
-  - Chips in the block's own colour fly off the face you work.
-  - The block splits into little cubes, and the resource flies to you as a glowing gem.
+  - Chips with a bit of the block's own texture fly off the face you work.
+  - The block splits into little cubes that show its texture — small pieces for a plant, a crystal, a torch or a
+    lantern, full-size ones for earth and stone; pieces of a glowing block still glow — and the resource flies to you as
+    a glowing gem. Where you picked a plant that grows back, a small version of it grows in its place.
   - Each drill has its own sparks; the mining beam is a real beam that makes the block glow white-hot.
 - **Scanning.**
   - The terrain scanner sends a wave rolling over the ground. Ores light up as glowing ghost cubes *through the
@@ -794,6 +799,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
   frozen worlds, reddish dust on the red deserts) and darkens at night. The clouds pick up speed and thicken or
   thin out over a few seconds when the weather changes, instead of jumping.
 - **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
+- **Drops on your visor**: out in the open, beads of water gather and run down your visor in **rain** and **sleet**,
+  thinner in a **drizzle**, and green in **acid rain**; they dry off when it stops. Snow, hail, ash and sand leave none.
+  The rain streaks and the lightning grow with your screen's resolution, so they look the same on a very sharp screen.
 - **Shooting stars** cross the night sky now and then (often in a meteor shower); very rarely a distant ship blinks by.
 - **Underwater haze and light patterns**: under water the view closes in to a few metres in the water's colour,
   sunlight dances on the sea floor, and bubbles rise past your visor. All of it — and the water's tint over the screen —
@@ -865,6 +873,43 @@ only says "Only on the High graphics level". Each detail has its own switch (all
   players).
 
 The **Far view** row gains its **2048** step on High too (see *View distance and far view* above).
+
+### The look of the world (what each quality preset shows)
+
+The game's look has no switch of its own; the **quality preset** decides how much of it you get.
+
+- **On every preset and in the browser:** the sun stands lower at noon, so the sides of blocks get sun all day; shadows
+  take the colour of the sky, the sky is a gradient with a soft glow around the sun, evenings are golden for longer, and
+  the sun and moons in the sky are larger. Animals, players and NPCs stand in the world's real sunlight. The textures are
+  calmer, and every block face has softly rounded borders with a fine joint, so a floor reads as stone slabs instead of
+  a grid. Grass blocks show earth on their sides with the grass hanging over the edge. Clouds are heaps of round billows
+  lit by the sun. Lava, crystals and glowing plants tint the haze near them.
+  Devices have a body inside their block (§5 *Craftable block shapes*), the cockpit desk and the terminals aboard are
+  bodies too and face the pilot and the side you stand on, and the ceiling lamps aboard are separate bright lamps
+  instead of one white glare. Butterflies, beetles, fish and the other small creatures are small bodies with beating
+  wings.
+- **On Medium and High (desktop client):** near you, grass grows as dense clumps of blades, bare sand and earth carry dry
+  tufts and pebbles, and grass also grows under the plants; small plants are small bodies that sway in the wind (farther
+  away they are pictures with the same outline); tree crowns are clusters of small cubes with gaps and leaves, conifers
+  are cones of boughs under a spire and palms have long fronds; strands hang from the crowns; animals have rounded
+  edges, wear fur and feathers and have toes; shallow water is clear, with the bed and the sun's light on it; the edges
+  of devices and of your own forms are softened; lava, crystals and glowing plants light their surroundings farther.
+  The view focuses on what is in the middle of the picture, and the background well behind it goes soft (a look into
+  the distance stays sharp; off with **Reduced effects**). **High** reaches farther than Medium and adds ten more low
+  clouds.
+- **On Low:** tree crowns are closed blocks with a painted cube pattern, conifers and palms keep a simple form of their
+  outline, small plants are pictures — on the desktop with the outline of their bodies — and animals keep their plain
+  boxes. Players, NPCs and held tools have rounded edges; barrels and handles are flattened, drill bits are cones.
+- **On Potato:** as on Low, but conifers and palms are plain leaf blocks, plants keep their painted pictures, and
+  players, NPCs and tools are plain boxes. A change to or from Potato shows on figures and tools at the next start.
+- **In the browser** (Low or Potato) you get what that preset gets; the plants keep their painted pictures there.
+- **Changing the preset while you play** rebuilds the blocks around you when the change crosses Low; how
+  far lava and crystals shine changes at the next world you enter.
+- **World colours (worlds created since generation 48):** every new world rolls a colour mood — balanced, vivid,
+  pastel, earthy or gloomy, chosen to suit the kind of planet — and its plants, clouds, mist and water answer the colour
+  of its sky. Plants grow in groups with clearings between them. Arena Nigra is always gloomy. Older worlds keep their
+  colours and plants.
+- **Textures you painted** (your own pack or a world's) are always shown exactly as painted.
 
 ### Cosiness and home (Settings → Graphics → Cosiness)
 
@@ -4415,9 +4460,10 @@ controls line at the bottom leaves out the quick-bar keys.
   while already flying (system chart, Hyperspace tab) still warps straight away.
 - **Every star has its own colour** — blue, white, yellow, orange or red — and so does its light: in flight, through
   the windows of your ship's cabin, and on its worlds, where it tints the sky, the clouds and the whole landscape. The
-  star's colour is also the dot on the Hyperspace chart. Every galaxy has its blue and its red stars: of every four
-  systems one shines blue, one orange or red, and two white or yellow. Under a **red dwarf** a world is a little dimmer
-  and glows red.
+  star's colour is also the dot on the Hyperspace chart. In a galaxy created since generation 48 most suns are white,
+  yellow or orange, and **one red sun and one blue sun** are hidden among the systems the galaxy starts with — never in
+  your start system — and now and then a system has another red or blue one. In older galaxies one of every four systems
+  shines blue, one orange or red, and two white or yellow. Under a **red** sun a world is a little dimmer and glows red.
 - Jumping to **another star system** requires a fitted **`jump_generator`** module — or a **wormhole**, if the
   system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
@@ -5223,6 +5269,16 @@ look up: what a mix does follows from what goes in, and the same things always g
   Eye are the exception: their eye looks the way you are looking. While you hold such a block, the preview shows an
   **arrow** on the side that will be the front; press **R** (**Shift+R** backwards) to turn it before you place it.
   Mining the block gives back the normal item.
+- **Devices have a body inside their block.** The workbench is a worktop on legs, the forge a brick body with a fire
+  niche and a chimney, the tanks a base, a glowing column and a lid, desks and terminals a body with a key deck and a
+  screen, machines a housing on feet, crates stand on skids — 25 devices and 3 crates in all. The block still takes the
+  **whole cell**: you bump into, mine, aim at and build against the full cube, exactly as before, and the server sees no
+  difference. A device with a front **keeps the direction you placed it in** — now also the workbench, the crates and
+  the thumper, whose top picture turns with it — so building next to it later never turns it; devices that look the
+  same from every side need no front. Devices placed before this update, and those in ships, villages and stations,
+  keep choosing their side from their open neighbours. Devices you reshaped or painted keep your form. On **Medium** and
+  **High** (desktop) every body has slightly softened edges. Crystal Net
+  parts, stalls, drills and the station and ship cores stay cubes.
 - **Auto follows your crosshair:** when a cell has no floor under it, the shape leans on **the wall face you
   actually clicked** instead of whichever neighbouring wall the game finds first. Building on a floor still
   keeps the shape upright, so extending a floor sideways lays the next block flat as before.
@@ -5250,7 +5306,21 @@ look up: what a mix does follows from what goes in, and the same things always g
   Crafting menu's Forms tab, where they craft out of **any material** — the same arch in wood, stone or
   metal — free 1:1 like every built-in form. Carrying the tool is what unlocks that section.
 - **Detail budget:** the editor shows how many boxes your form needs (e.g. "12 / 48"). Beyond the limit the
-  form is refused — it keeps a wall of self-made forms affordable to draw and to walk into.
+  form is refused — it keeps a wall of self-made forms affordable to draw and to walk into. With colour slots (below)
+  the line counts the larger of the two numbers the form needs.
+- **Colour slots:** the **Colour slot** palette beside the canvas paints cells in one of five slots; the canvas shows
+  them in colour. The slots are only paint: the form walks and collides as one shape, and a player with an older
+  version of the game sees it in one colour. The colours always come from the block the form is made of and its dye:
+  - **Main** — the block as it is.
+  - **Second** — a lighter step of the block's colour.
+  - **Accent** — on a dyed block the opposite colour of the dye; on an undyed block a shiny metal inlay.
+  - **Dark** — a darker step of the block's colour.
+  - **Glow** — these cells glow in the block's colour.
+- **Soft edges:** on the **Medium** and **High** graphics presets (desktop) the outer edges of a form are slightly
+  chamfered, like the edges of ordinary blocks; where the form touches the edge of its block the edge stays sharp, so
+  forms side by side join up. Painted and see-through forms keep sharp edges. On Low, Potato and in the browser all edges
+  are sharp. The 3-D preview shows the form with its block's texture and the world's light (**As in the world**) or
+  plainly (**Pixels only**).
 - **Sharing:** aim the shaping tool at a block **somebody else shaped** and their form opens in your editor,
   ready to save with their name on it. You can also stamp a form onto a **Form Stencil** (`shape_stencil`)
   and hand that over — right-clicking a stamped stencil adds the form to the receiver's library — or copy a
@@ -5279,6 +5349,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   Designer** is the same screen; there your changes stay on the designer's figure until **Save** makes them yours.
   The **Figure** tab holds the body colours (← and → step through them), the gear preview and, in the menu, your
   figure's name and the export.
+- **The figure as the world shows it** — the turning figure stands in the same light as in a world and has the same
+  rounded edges, so a colour looks the same in the main menu and on a planet. **As in the world / Pixels only** switches
+  to the flat studio view (the same switch as in the texture and form editors; it holds until you close the game).
 - **Voice** (an idea of Justus) — on the **Figure** tab, beside the colours: how your figure sounds when it breathes
   out after a run, strains on a wall, puffs on a jump, grunts at a hit or falls. Two sliders in steps of ten:
   **Pitch** from low to high and **Age** from young to old. **Low · Middle · High** set the pitch with one click, and
@@ -5467,16 +5540,37 @@ outer hull.
 - **Texture Editor.** Every texture of the game on a 64×64 pixel canvas: block tiles, the picture tiles of
   furniture (bed, campfire — with the areas each face uses drawn in), plants, torches, creature hides, avatar
   fabrics, the leaves and frames of **doors**, the parts of **factory machines** and, in **icon mode**, the item
-  icons. A block texture with several frames **plays in the world** — a campfire can really flicker. Brush, eraser, fill, pipette, line, rectangle, brush size,
-  mirror symmetry, flip / shift / brightness, undo and redo, up to eight **animation frames**, a 3-D preview on
-  the real shape and a 3×3 view that shows how a tile repeats. The drawing tools sit under the canvas, three to a
-  row (the frame buttons under the frames); undo / redo, flip, shift and the colour adjustments sit beside the
-  colour picker. **Save** ("for this block in your worlds") puts the texture into *your*
-  texture pack (a folder next to your settings; PNG files you can also edit in any paint program — *Open
-  folder* / *Reload folder*); **Remove mine** brings the shipped one back (after asking); **hold "Before"** to compare;
-  **Copy / Paste code** shares a texture as text. A block tile can never get a hole — the editor fills it, so
-  nobody can paint themselves an X-ray view. The editor also opens **inside a world** (Character tab →
-  *Textures*), where a **world admin** additionally gets **Publish for everyone** / **Take back**.
+  icons. A block texture with several frames **plays in the world** — a campfire can really flicker.
+  - **The tool bar** (the middle card, under the canvas): **Brush (B)**, **Fill (G)**, **Pick (I)**, **Eraser (E)**,
+    **Line (L)** and **Box (R)**; below them one row with the **brush size**, **Symmetry ↔ / ↕** (paint mirrored as you
+    draw) and **Flip ↔ / ↕** (mirror the whole picture), and one row to **shift** the picture in four directions and
+    adjust its **Light**, **Contrast** and **Colour**. The frame column holds **+ Frame**, **− Frame**, the frame steps,
+    **Speed**, **Play**, **Parts** (the areas each face of a furniture picture uses) and **Fill everything**. Up to eight
+    **animation frames**. Keys: **X** swaps the two colours, **[** and **]** change the brush size, **Alt+click** picks a
+    colour, the **right mouse button** erases; undo and redo are in the header bar (see the frame of every editor above).
+  - **Soft tools** (the box at the bottom of the left card): a **Soft brush (S)** that paints with a soft edge blending
+    into what is there (right button: erase softly), a **Smoothing (M)** brush, **Smooth all**, **Calm all** (every colour
+    a quarter of the way toward the picture's average — press again for more), **Make seamless** (bends the brightness
+    near the edges so the tile repeats without a visible line; the status line says how strong the seam was before and
+    is now) and **Brightness only** — for the textures the world colours itself (plants, leaves, bark): the canvas shows
+    grey and you paint only light and dark. Every action is one undo step.
+  - **Calm when saving** (0–100 % in steps of ten, in the same box): at 0 % your texture goes into the game exactly as
+    painted. Above 0 % the saved texture is made that much calmer; your painting itself stays as it is on your computer,
+    and the editor brings it back when you open that texture again (as long as the game still shows the version you
+    saved). In the world, a texture you painted is shown as painted: the game never calms or mirrors it on its own —
+    the three variants of a ground block only differ a little in brightness.
+  - **The preview shows what the world shows.** A block tile stands as a **wall of 3 × 3 blocks** built and lit like the
+    world — the ground blocks in the variants and turns the world uses, with relief and soft edges — and follows your
+    brush as you paint. A plant shows as three crossed pictures; for a texture the world colours, **World colour n of
+    3** steps through three example colours. **As in the world / Pixels only** switches between that view and the bare
+    pixels; the choice holds for every editor until you close the game. The **Tiled 3×3** view still shows how a tile
+    repeats, and the 3-D preview the real shape of furniture.
+  - **Save** ("for this block in your worlds") puts the texture into *your*
+    texture pack (a folder next to your settings; PNG files you can also edit in any paint program — *Open
+    folder* / *Reload folder*); **Remove mine** brings the shipped one back (after asking); **hold "Before"** to compare;
+    **Copy / Paste code** shares a texture as text. A block tile can never get a hole — the editor fills it, so
+    nobody can paint themselves an X-ray view. The editor also opens **inside a world** (Character tab →
+    *Textures*), where a **world admin** additionally gets **Publish for everyone** / **Take back**.
   - **World textures:** what an admin publishes is shown to everyone in that world and **wins over your own
     pack** there. Two switches in the Character tab are yours alone: *Use my textures* and *Show this world's
     textures* — the second one is the way out if you do not like what a world shows. The world option *World
@@ -5498,7 +5592,10 @@ outer hull.
   the world a form takes the material you make it from), and the editor remembers it. The *Size in blocks* steppers make a form span **several blocks** (up to
   3 × 3 × 3, at most eight); the canvas then shows the whole form from above with neighbouring blocks shaded
   differently, and the budget line counts the most detailed block. It writes the same *My forms* library the
-  shaping tool reads, so everything appears in the world as before.
+  shaping tool reads, so everything appears in the world as before. The **Colour slot** palette (Main · Second ·
+  Accent · Dark · Glow) paints parts of a form in other shades of its block — see *Designing your own forms* (§5) for
+  what each slot does. The turntable shows the form with its material's real texture, lit like the world, and with the
+  soft edges the world gives it; **As in the world / Pixels only** switches to the plain view.
 - **My Tools.** Give your drill, pistol, blade, scanner or gadget (binoculars, camera, medkit …) **a look of your own**: a small coloured voxel model
   from fifteen colours, each of which can glow. The look belongs to **you**, not to the tool — everyone sees
   it in your hand from the next time you enter a world, it changes nothing about what the tool does, and a
@@ -5989,7 +6086,7 @@ confirmation is the brief HUD toast.
 | `/landmark list` · `/landmark key` | List the landmarks of the game · stand one a few steps in front of you, whatever the planet's own roll said — a ruin comes out different every time (worlds of generation 37 or newer) |
 | `/giantwreck list` · `/giantwreck key` | List the giant ships of the game (with their size) · lay that ship's wreck six blocks in front of you, whatever the planet's own roll said — a new wreck every time, on any world's ground (not on a gas giant, not in space) |
 | `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
-| `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
+| `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`). It arrives at once and holds **everywhere on the planet for five minutes** at full strength, whatever the biome or the height; then the world's own weather takes over again. What falls still follows the world: `rain` is snow on a frozen world and a sandstorm on a dry desert |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/giant guardian` | Lay a **guardian giant that can wake** about 30 blocks in front of you (its feet toward you) on fairly flat, dry ground — a new one each time, for testing the boss fight; `/tp giant` takes you to the giants of this world |
 | `/spstower list` · `/spstower key [post\|nopost]` | List the guide-tower ruins of the game · lay that ruin in front of you, with or without its guard post (worlds of generation 47 and later); `/tp tower [n]` takes you to the towers of this world |

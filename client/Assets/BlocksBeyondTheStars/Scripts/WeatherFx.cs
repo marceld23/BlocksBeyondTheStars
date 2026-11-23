@@ -21,6 +21,11 @@ namespace BlocksBeyondTheStars.Client
         /// haze (<c>Sky.Mist</c>) and the bubbles (<see cref="AtmosphereProbe"/>) do.</summary>
         public Camera Camera;
 
+        /// <summary>The overlay is drawn in screen pixels and was sized on a 1080-line screen: on a 4K display its beads,
+        /// streaks and bolt were half as big and easy to miss. Everything sized in pixels below is multiplied by this
+        /// (never under 1, so a small window keeps what it had).</summary>
+        private static float PixelScale => Mathf.Max(1f, Screen.height / 1080f);
+
         private const int Max = 140;
         private readonly float[] _x = new float[Max];
         private readonly float[] _phase = new float[Max];
@@ -56,6 +61,8 @@ namespace BlocksBeyondTheStars.Client
         private bool _dropInit;
         private float _wet;            // smoothed 0..1 rain-on-glass presence
         private Texture2D _dropTex;    // lazily built droplet bead (Resources PNG, else procedural)
+        private Texture2D _acidDropTex; // the same bead in the green of acid rain
+        private bool _acidBeads;       // the beads on the glass are from acid rain
         private readonly System.Random _dropRng = new System.Random(317);
 
         // Lightning bolt (B8): a brief jagged streak drawn with the flash.
@@ -269,15 +276,15 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>
-        /// Advances the rain-on-glass beads. Gated to genuine <c>rain</c> precipitation only — never the "lava
-        /// rain" ashfall, nor snow/hail/sandstorm. Beads cling for a spell, then run down the screen and respawn.
+        /// Advances the rain-on-glass beads. Gated to what falls as a liquid — rain, sleet, acid rain (green beads) and,
+        /// more thinly, a drizzle (Marcel 2026-11-22: acid rain, then "niesel und schneeregen können gerne auch tropfen
+        /// haben") — never the "lava rain" ashfall, nor snow/hail/sandstorm. Beads cling for a spell, then run down the
+        /// screen and respawn.
         /// </summary>
         private void UpdateDroplets()
         {
             var env = Game.Environment;
-            string precip = env.Precipitation ?? "none";
-            float target = precip == "rain" ? Mathf.Clamp01(0.4f + env.Intensity * 0.6f) : 0f;
-            _wet = Mathf.MoveTowards(_wet, target, Time.deltaTime * 0.7f);
+            _wet = Mathf.MoveTowards(_wet, WetTarget(env), Time.deltaTime * 0.7f);
             if (_wet <= 0.005f)
             {
                 return; // dry → nothing to simulate
@@ -328,6 +335,22 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>How wet the glass should be right now (0 = dry): rain, sleet and acid rain in full, a drizzle more
+        /// thinly, nothing else. Also notes whether the beads are acid rain's — kept while they dry off afterwards.</summary>
+        private float WetTarget(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env)
+        {
+            string precip = env.Precipitation ?? "none";
+            float target = precip is "rain" or "sleet" or "acid" ? Mathf.Clamp01(0.4f + env.Intensity * 0.6f)
+                : precip == "drizzle" ? Mathf.Clamp01(0.25f + env.Intensity * 0.5f)
+                : 0f;
+            if (target > 0f)
+            {
+                _acidBeads = precip == "acid";
+            }
+
+            return target;
+        }
+
         /// <summary>Resets a droplet to a fresh clinging bead at a random spot in the upper screen.</summary>
         private void RespawnDrop(int i, float sitBias)
         {
@@ -344,8 +367,18 @@ namespace BlocksBeyondTheStars.Client
         /// mostly-transparent glass bead procedurally: faint body, a soft dark rim and a bright top highlight —
         /// reads as a water drop on the display without needing a scene-refraction shader.
         /// </summary>
-        private Texture2D DropletTexture()
+        private Texture2D DropletTexture(bool acid)
         {
+            if (acid)
+            {
+                if (_acidDropTex == null)
+                {
+                    _acidDropTex = BuildDroplet(new Color(0.48f, 0.74f, 0.33f), new Color(0.95f, 1f, 0.85f));
+                }
+
+                return _acidDropTex;
+            }
+
             if (_dropTex != null)
             {
                 return _dropTex;
@@ -357,6 +390,15 @@ namespace BlocksBeyondTheStars.Client
                 return _dropTex;
             }
 
+            _dropTex = BuildDroplet(new Color(0.55f, 0.62f, 0.72f), Color.white); // cool, slightly blue water
+            return _dropTex;
+        }
+
+        /// <summary>The procedural bead in <paramref name="water"/> with its highlight in <paramref name="shine"/>: the
+        /// cool blue of rain with a white highlight, or — for acid rain — the green of the falling acid drops, as much
+        /// darker than them as the water bead is against the rain.</summary>
+        private static Texture2D BuildDroplet(Color water, Color shine)
+        {
             const int N = 64;
             var tex = new Texture2D(N, N, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
             var px = new Color32[N * N];
@@ -378,19 +420,15 @@ namespace BlocksBeyondTheStars.Client
                     // Highlight toward the upper-left (light from above), a small bright spot.
                     float hl = Mathf.Clamp01(1f - new Vector2(nx + 0.32f, ny - 0.36f).magnitude * 2.6f) * 0.7f;
                     float a = Mathf.Clamp01(body + rim + hl);
-                    // Cool, slightly blue water with a white highlight; rim leans dark.
-                    float white = hl;
-                    byte r = (byte)(Mathf.Lerp(0.55f, 1f, white) * 255f);
-                    byte g = (byte)(Mathf.Lerp(0.62f, 1f, white) * 255f);
-                    byte b = (byte)(Mathf.Lerp(0.72f, 1f, white) * 255f);
-                    px[y * N + x] = new Color32(r, g, b, (byte)(a * 255f));
+                    // The water's colour with the highlight on top; the rim leans dark.
+                    var colour = Color.Lerp(water, shine, hl);
+                    px[y * N + x] = new Color32((byte)(colour.r * 255f), (byte)(colour.g * 255f), (byte)(colour.b * 255f), (byte)(a * 255f));
                 }
             }
 
             tex.SetPixels32(px);
             tex.Apply();
-            _dropTex = tex;
-            return _dropTex;
+            return tex;
         }
 
         private enum EyeIn { Air, Water, Gas, DenseGas, Ressaw, RedFluid }
@@ -577,7 +615,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 GUI.depth = 10;
                 var prevDrop = GUI.color;
-                var tex = DropletTexture();
+                // In rain the beads are as they always were — sized in screen pixels, faint glass (Marcel 2026-11-22: "die
+                // waren bei regen vorher gut"). Acid rain beads the same way, in the acid's green.
+                var tex = DropletTexture(_acidBeads);
                 float w = Screen.width, h = Screen.height;
                 for (int i = 0; i < Drops; i++)
                 {
@@ -586,7 +626,9 @@ namespace BlocksBeyondTheStars.Client
                     if (_dtrail[i] > 0.002f)
                     {
                         float tp = _dtrail[i] * h;
-                        GUI.color = WaterColours.Blend(new Color(0.6f, 0.7f, 0.85f, a * 0.22f), Game.Environment, 0.7f, Time.time); // #1758
+                        GUI.color = _acidBeads
+                            ? new Color(0.62f, 0.95f, 0.42f, a * 0.22f)
+                            : WaterColours.Blend(new Color(0.6f, 0.7f, 0.85f, a * 0.22f), Game.Environment, 0.7f, Time.time); // #1758
                         GUI.DrawTexture(new Rect(x - s * 0.18f, y - tp, s * 0.36f, tp), Texture2D.whiteTexture);
                     }
 
@@ -642,13 +684,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     int count = Mathf.RoundToInt(Max * Mathf.Clamp01(0.45f + strength * 0.55f));
                     float speedBoost = env.Weather == "storm" ? 1.5f : 1f;
-                    float slant = env.Weather == "storm" ? 12f : 5f;
+                    float px = PixelScale;
+                    float slant = (env.Weather == "storm" ? 12f : 5f) * px;
                     GUI.color = WaterColours.Blend(new Color(0.62f, 0.78f, 1f, 0.42f), env, 0.75f, t); // #1758: rain in the world's water colour
                     for (int i = 0; i < count; i++)
                     {
                         float y = ((_phase[i] + t * _speed[i] * speedBoost) % 1f) * (h + 40f) - 20f;
                         float x = _x[i] * w + Mathf.Sin(t + i) * slant;
-                        GUI.DrawTexture(new Rect(x, y, 2f, _len[i] * speedBoost), Texture2D.whiteTexture);
+                        GUI.DrawTexture(new Rect(x, y, 2f * px, _len[i] * speedBoost * px), Texture2D.whiteTexture);
                     }
                 }
             }
@@ -671,7 +714,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A brief jagged white bolt from the top of the screen down to mid-screen (B8).</summary>
         private void DrawBolt()
         {
-            float w = Screen.width, h = Screen.height;
+            float w = Screen.width, h = Screen.height, px = PixelScale;
             float alpha = Mathf.Clamp01(_boltTimer / 0.18f) * (FxKit.ReduceFlashes ? 0.5f : 1f); // #2807: a dimmer streak
             int segs = _boltJitter.Length;
             float segH = (h * 0.6f) / segs;
@@ -689,9 +732,9 @@ namespace BlocksBeyondTheStars.Client
                     float sx = Mathf.Lerp(prevX, nextX, f);
                     float sy = Mathf.Lerp(prevY, nextY, f);
                     GUI.color = new Color(1f, 1f, 1f, alpha);                       // hot core
-                    GUI.DrawTexture(new Rect(sx - 1.5f, sy, 3f, segH / steps + 1f), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(sx - 1.5f * px, sy, 3f * px, segH / steps + 1f), Texture2D.whiteTexture);
                     GUI.color = new Color(0.7f, 0.85f, 1f, alpha * 0.5f);            // soft glow
-                    GUI.DrawTexture(new Rect(sx - 4f, sy, 8f, segH / steps + 1f), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(sx - 4f * px, sy, 8f * px, segH / steps + 1f), Texture2D.whiteTexture);
                 }
 
                 prevX = nextX;

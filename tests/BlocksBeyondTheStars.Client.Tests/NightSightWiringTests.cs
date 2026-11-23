@@ -87,7 +87,8 @@ public sealed class NightSightWiringTests
         string sky = Script("Sky.cs");
         Assert.Contains("_sun.intensity = brightness;", sky);
         Assert.Contains("float brightness = constantLight ? stationDim : Mathf.Lerp(0.35f, 1f, dayLit);", sky);
-        Assert.Contains("_sun.transform.rotation = Quaternion.Euler(time * 360f - 90f, 160f, 0f);", sky);
+        // The sun's turn (on the look's tilted arc) is a function of the real day fraction alone.
+        Assert.Matches(new Regex(@"_sun\.transform\.rotation = [A-Za-z_.]+\(time\);", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)), sky);
         Assert.Contains("public float DayFraction => _time;", sky);
     }
 

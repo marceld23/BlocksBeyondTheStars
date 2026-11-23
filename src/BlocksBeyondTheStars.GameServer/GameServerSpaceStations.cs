@@ -613,7 +613,7 @@ public sealed partial class GameServer
 
         Send(session, new SpaceClosed { Reason = "@srv.station.docked", ShipDisabled = false });
         // #1856: the station's own system, so the client labels "System · Station" and keys the sun colour right.
-        Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = LocationNamesFor(stationLoc).System, Hyperjump = false });
+        Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = LocationNamesFor(stationLoc).System, Hyperjump = false, LocationId = session.CurrentLocationId });
         SendPlayerState(session);
         SendEnvironment(session);
         SendInventory(session);
@@ -879,7 +879,7 @@ public sealed partial class GameServer
     private void SendReturnWorldSnapshot(PlayerSession session, string planetType)
     {
         var (systemName, planetName) = ActiveLocationNames();
-        Send(session, new WorldReset { PlanetType = planetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
+        Send(session, new WorldReset { PlanetType = planetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false, LocationId = session.CurrentLocationId });
         SendPlayerState(session);
         SendLandedShips(session); // the return world's parked ship objects
         SendShipPlacement(session);

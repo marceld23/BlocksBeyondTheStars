@@ -111,6 +111,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             d.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Normalize(d.FarViewBlocks, ClientSettings.FarViewLightDevice);
+            d.Preset = ClientSettings.AllowedPreset(d.Preset); // #3946: already Low in the browser; the rule holds it there
             return d;
         }
 

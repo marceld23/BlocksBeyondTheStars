@@ -35,7 +35,7 @@ public sealed class SpsTowerTemplateTests
     public void TheKind_ComesWithGeneration47_AndTheFileEqualsTheDefaults()
     {
         Assert.Equal(47, WorldDescription.SkyLightsGeneration);
-        Assert.Equal(WorldDescription.SkyLightsGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.CurrentTerrainGeneration >= WorldDescription.SkyLightsGeneration); // 48: the colour harmony
 
         var rule = StructureTypeRules.Defaults.Get(StructureTypeRules.SpsTower);
         Assert.Equal("sps_tower", rule.Kind);

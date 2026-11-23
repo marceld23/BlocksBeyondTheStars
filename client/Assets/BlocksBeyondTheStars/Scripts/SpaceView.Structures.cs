@@ -105,7 +105,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 var colors = Game?.Views.Mining != null ? Game.Views.Mining.BlockColors(block) : new[] { new Color(0.5f, 0.45f, 0.4f) };
                 var toEye = _root != null ? (_root.transform.TransformPoint(_evaPos) - at).normalized : Vector3.up;
-                FxKit.Burst(FxKit.Kind.DebrisFloat, at + toEye * 0.5f, 3, toEye, 70f, 1f, 3f, 0.05f, 0.1f, 0.8f, 1.3f, colors[0], colors[colors.Length - 1]);
+                // The chips show a small square of the block's tile (a hull or a rock in its own colours).
+                FxKit.BurstDebris(FxKit.Kind.DebrisFloat, at + toEye * 0.5f, 3, toEye, 70f, 1f, 3f, 0.05f, 0.1f, 0.8f, 1.3f, colors[0], colors[colors.Length - 1],
+                    FxKit.DebrisLookOf(block), chipTexels: 8);
                 FxKit.Burst(FxKit.Kind.Motes, at + toEye * 0.5f, 3, toEye, 60f, 1.5f, 4f, 0.04f, 0.07f, 0.2f, 0.4f, new Color(1f, 0.8f, 0.5f));
             }
         }
@@ -143,7 +145,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 var colors = Game?.Views.Mining != null ? Game.Views.Mining.BlockColors(old) : new[] { new Color(0.5f, 0.45f, 0.4f) };
                 float s = m.StructureId == _shipStructureId ? FlightShipScale : 1f;
-                FxKit.Burst(FxKit.Kind.DebrisFloat, at, 6, Vector3.zero, 0f, 0.8f, 2.6f, 0.2f * s, 0.34f * s, 1f, 1.6f, colors[0], colors[colors.Length - 1]);
+                // The chunks show the quarters of the block's tile
+                // … and small for a small thing (a potted plant, a torch), as on a planet.
+                float small = GameLook.DebrisSizeNow * (GameLook.SmallDebris && Game?.Content != null ? ChunkMesher.DebrisFit(Game.Content, old).Size : 1f);
+                FxKit.BurstDebris(FxKit.Kind.DebrisFloat, at, 6, Vector3.zero, 0f, 0.8f, 2.6f, 0.2f * s * small, 0.34f * s * small, 1f, 1.6f, colors[0], colors[colors.Length - 1],
+                    FxKit.DebrisLookOf(old), part: Mathf.Clamp(small * 1.25f, 0.25f, 1f));
                 FxKit.Burst(FxKit.Kind.Smoke, at, 2, Vector3.zero, 0f, 0.2f, 0.8f, 0.4f * s, 0.7f * s, 0.8f, 1.2f, Color.Lerp(colors[0], Color.white, 0.3f));
                 FxKit.Flash(at, Color.Lerp(colors[0], Color.white, 0.6f), 1.1f * s, 0.12f);
             }
@@ -400,7 +406,22 @@ namespace BlocksBeyondTheStars.Client
                             b.Encapsulate(rs[i].bounds);
                         }
 
-                        SpaceFx.AsteroidBreak(b.center, b.size.magnitude * 0.5f, new Color(0.5f, 0.44f, 0.38f));
+                        // The rubble wears the tile of what the body was built of (any cell left; else rock).
+                        var rubble = BlockId.Air;
+                        if (vs.Cells != null)
+                        {
+                            foreach (var cell in vs.Cells)
+                            {
+                                if (!cell.Value.IsAir)
+                                {
+                                    rubble = cell.Value;
+                                    break;
+                                }
+                            }
+                        }
+
+                        SpaceFx.AsteroidBreak(b.center, b.size.magnitude * 0.5f, new Color(0.5f, 0.44f, 0.38f),
+                            rubble.IsAir ? FxKit.DebrisLookOf("stone") : FxKit.DebrisLookOf(rubble));
                     }
                 }
             }

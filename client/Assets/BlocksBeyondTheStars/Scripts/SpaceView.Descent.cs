@@ -236,7 +236,7 @@ namespace BlocksBeyondTheStars.Client
             double time = !double.IsNaN(_descentPadTime) ? _descentPadTime
                 : known ? PlanetWeatherVisuals.TimeOfDay(Game, weather, look.Planet) : 0.5;
             int mist = BlocksBeyondTheStars.Shared.World.MistProfiles.For(Game != null ? Game.WorldSeed : 0L, look.Key, look.Planet, 1.0,
-                airless: false).ColorRgb; // the colour does not depend on the air's density
+                airless: false, terrainGeneration: Game != null ? Game.TerrainGeneration : 0).ColorRgb; // the colour does not depend on the air's density
             int sun = (Mathf.RoundToInt(Mathf.Clamp01(_sunColor.r) * 255f) << 16) | (Mathf.RoundToInt(Mathf.Clamp01(_sunColor.g) * 255f) << 8)
                       | Mathf.RoundToInt(Mathf.Clamp01(_sunColor.b) * 255f);
             var (cloud, sky) = CoverLook.For(look.Atmosphere, mist, sun, CoverLook.DayOf(time), known ? weather.State : null);

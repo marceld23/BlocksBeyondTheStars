@@ -290,7 +290,7 @@ public sealed partial class GameServer
         session.Streaming.SentChunks.Clear();
 
         var (systemName, planetName) = ActiveLocationNames();
-        Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
+        Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false, LocationId = session.CurrentLocationId });
         Send(session, new RespawnNotice
         {
             X = p.Position.X,

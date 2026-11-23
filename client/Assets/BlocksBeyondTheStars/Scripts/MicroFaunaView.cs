@@ -466,8 +466,26 @@ namespace BlocksBeyondTheStars.Client
             c.SizeScale = Random.Range(0.75f, 1.35f) * (Random.value < 0.02f ? 1.5f : 1f);
             c.Tint = TintFor(kind);
 
-            BuildQuad(c);
-            c.Mr.sharedMaterial = kind.Glow ? _matGlow : _matAlpha;
+            // A small body in place of the sprite, for every kind that is one (the lights stay sprites).
+            var bodyMaterial = GameLook.CritterBodiesOn && CritterBodies.Has(kind) ? CritterBodies.Material() : null;
+            c.Body = bodyMaterial != null;
+            if (c.Body)
+            {
+                if (c.Mesh == null)
+                {
+                    c.Mesh = new Mesh { name = "critter_body" };
+                    c.Mf.sharedMesh = c.Mesh;
+                }
+
+                CritterBodies.Fill(c.Mesh, kind, c.Tint, c.FlapPhase);
+                c.Mr.sharedMaterial = bodyMaterial;
+            }
+            else
+            {
+                BuildQuad(c);
+                c.Mr.sharedMaterial = kind.Glow ? _matGlow : _matAlpha;
+            }
+
             c.Go.SetActive(true);
             _alive.Add(c);
         }
@@ -764,6 +782,23 @@ namespace BlocksBeyondTheStars.Client
         {
             Vector3 sp = Game.ScenePos(c.WorldPos.x, c.WorldPos.y, c.WorldPos.z);
             c.Go.transform.position = sp;
+            if (c.Body)
+            {
+                // A body points the way it moves (its heading turns smoothly, so does the body) and keeps its
+                // own size; its wings and tail move in the shader.
+                c.Go.transform.rotation = Quaternion.LookRotation(Heading(c), Vector3.up);
+                float bodySize = c.Kind.Size * 2f * c.SizeScale * CritterBodies.Scale;
+                c.Go.transform.localScale = new Vector3(bodySize, bodySize, bodySize);
+                if (c.Kind.Motion == CritterMotion.Crawl || c.Kind.Motion == CritterMotion.Hop)
+                {
+                    // A crawler's place is the middle of its sprite, 12 cm over the ground; a body stands on its legs
+                    // (they end 0.14 of its size under its middle).
+                    c.Go.transform.position = sp + (Vector3.up * ((0.14f * bodySize) - (CrawlSurfaceY - 1f)));
+                }
+
+                return;
+            }
+
             c.Go.transform.rotation = Quaternion.LookRotation(sp - camPos, camUp);
 
             float size = c.Kind.Size * 2f * c.SizeScale;
@@ -1064,6 +1099,7 @@ namespace BlocksBeyondTheStars.Client
             public float SizeScale;    // per-individual size multiplier (~0.75..1.35, rare giants)
             public float VertVel;      // vertical velocity while a hopper is mid-arc
             public bool Airborne;      // hopper state: mid-hop vs sitting
+            public bool Body;          // Drawn as a small body (CritterBodies), not as a sprite
         }
     }
 }

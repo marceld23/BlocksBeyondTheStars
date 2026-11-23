@@ -58,7 +58,11 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/FxTunnel",
             "BlocksBeyondTheStars/FxCrack",
             "BlocksBeyondTheStars/FxOutline", // #2556: the blue selection frame on the aimed block (MiningFx)
+            "BlocksBeyondTheStars/GrassClump",   // Grass as dense clumps of blades (GrassClumps)
             "BlocksBeyondTheStars/GrassShell",   // #3056: the High preset's grass carpet (GrassShells)
+            "BlocksBeyondTheStars/PlantBody",    // Small plants as bodies (PlantBodies)
+            "BlocksBeyondTheStars/CreatureCoat", // Fur and feathers as geometry (CoatForms)
+            "BlocksBeyondTheStars/CritterBody",  // The micro-fauna as small bodies (CritterBodies)
             "BlocksBeyondTheStars/HeatHaze",
             "BlocksBeyondTheStars/LitColor",
             "BlocksBeyondTheStars/MeadowFlower", // #3056: the High preset's meadow flowers (GrassShells.Flowers)

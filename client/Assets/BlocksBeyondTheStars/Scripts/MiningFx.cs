@@ -291,8 +291,9 @@ namespace BlocksBeyondTheStars.Client
         {
             var center = new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f);
             var point = FacePoint(center, face, 0.32f);
-            var colors = BlockColors(Game?.World != null ? Game.World.GetBlock(cell.x, cell.y, cell.z) : default);
-            DrillAt(look, point, face, muzzle, colors);
+            var block = Game?.World != null ? Game.World.GetBlock(cell.x, cell.y, cell.z) : default;
+            var colors = BlockColors(block);
+            DrillAt(look, point, face, muzzle, colors, DebrisLook(block));
             if (drill && look.Is("mining_beam"))
             {
                 _heatUntil = Time.time + 0.35f;
@@ -305,16 +306,18 @@ namespace BlocksBeyondTheStars.Client
             var dir = facePoint - muzzle;
             var face = dir.sqrMagnitude > 1e-4f ? -dir.normalized : Vector3.up;
             var cellCenter = facePoint - face * 0.5f;
-            var colors = BlockColors(Game?.World != null
+            var block = Game?.World != null
                 ? Game.World.GetBlock(Mathf.FloorToInt(cellCenter.x), Mathf.FloorToInt(cellCenter.y), Mathf.FloorToInt(cellCenter.z))
-                : default);
+                : default;
+            var colors = BlockColors(block);
+            var debris = DebrisLook(block);
             for (int i = 0; i < 3; i++)
             {
-                DrillAt(look, FacePoint(cellCenter, face, 0.32f), face, muzzle, colors);
+                DrillAt(look, FacePoint(cellCenter, face, 0.32f), face, muzzle, colors, debris);
             }
         }
 
-        private static void DrillAt(FxLook look, Vector3 point, Vector3 face, Vector3 muzzle, Color[] colors)
+        private static void DrillAt(FxLook look, Vector3 point, Vector3 face, Vector3 muzzle, Color[] colors, FxKit.DebrisLook debris)
         {
             var chipColor = colors[Random.Range(0, colors.Length)];
             switch (look.Style)
@@ -326,36 +329,38 @@ namespace BlocksBeyondTheStars.Client
                     FxKit.Flash(point, look.Color2, 0.35f, 0.08f);
                     FxKit.Burst(FxKit.Kind.Sparks, point, 3, face, 60f, 2f, 5.5f, 0.03f, 0.05f, 0.2f, 0.4f, look.Color, look.Color2);
                     FxLights.Flash(point + face * 0.4f, look.Color, 1.2f, 4.5f, 0.12f);
-                    Chip(point, face, chipColor);
+                    Chip(point, face, chipColor, debris);
                     break;
                 }
 
                 case "drill_hot":
                     FxKit.Burst(FxKit.Kind.Sparks, point, 4, face, 65f, 2.5f, 6f, 0.03f, 0.05f, 0.25f, 0.45f, look.Color, look.Color2);
-                    Chip(point, face, chipColor);
+                    Chip(point, face, chipColor, debris);
                     break;
                 case "drill_crystal":
                     FxKit.Burst(FxKit.Kind.Sparks, point, 2, face, 60f, 2f, 5f, 0.03f, 0.045f, 0.2f, 0.35f, look.Color);
                     FxKit.Burst(FxKit.Kind.Motes, point, 3, face, 80f, 0.5f, 1.6f, 0.03f, 0.06f, 0.35f, 0.7f, look.Color2, look.Color);
-                    Chip(point, face, chipColor);
+                    Chip(point, face, chipColor, debris);
                     break;
                 case "hand":
                     FxKit.Burst(FxKit.Kind.Dust, point, 2, face, 60f, 0.4f, 1.2f, 0.1f, 0.2f, 0.35f, 0.7f, Color.Lerp(chipColor, Color.white, 0.15f));
-                    Chip(point, face, chipColor);
+                    Chip(point, face, chipColor, debris);
                     break;
                 default: // "drill" and anything else: grit, a spark, a chip
                     FxKit.Burst(FxKit.Kind.Dust, point, 1, face, 50f, 0.4f, 1.1f, 0.1f, 0.18f, 0.3f, 0.6f, Color.Lerp(chipColor, Color.white, 0.15f));
                     FxKit.Burst(FxKit.Kind.Sparks, point, 1, face, 60f, 2f, 4.5f, 0.025f, 0.04f, 0.15f, 0.3f, look.Color2);
-                    Chip(point, face, chipColor);
+                    Chip(point, face, chipColor, debris);
                     break;
             }
         }
 
-        private static void Chip(Vector3 point, Vector3 face, Color color)
+        /// <summary>One chip off a face. With a tile (<paramref name="debris"/>) it shows a small random square
+        /// of it instead of the plain <paramref name="color"/>.</summary>
+        private static void Chip(Vector3 point, Vector3 face, Color color, FxKit.DebrisLook debris)
         {
             var tangent = Vector3.Cross(face, Random.onUnitSphere).normalized;
             var vel = face * Random.Range(1.4f, 3f) + tangent * Random.Range(0.3f, 1.4f) + Vector3.up * Random.Range(0.6f, 1.6f);
-            FxKit.Emit(FxKit.Kind.Debris, point + face * 0.03f, vel, Random.Range(0.05f, 0.09f), Random.Range(0.55f, 0.85f), color);
+            FxKit.EmitDebris(FxKit.Kind.Debris, point + face * 0.03f, vel, Random.Range(0.05f, 0.09f), Random.Range(0.55f, 0.85f), color, debris.Chip());
         }
 
         /// <summary>A random point on the face of the block at <paramref name="center"/> facing <paramref name="face"/>.</summary>
@@ -398,7 +403,7 @@ namespace BlocksBeyondTheStars.Client
             bool full = _breaksThisFrame <= 6;
             if (newId.Value == 0 && oldId.Value != 0)
             {
-                Break(center, BlockColors(oldId), full);
+                Break(center, BlockColors(oldId), DebrisLook(oldId), DebrisFit(oldId), full);
             }
             else if (newId.Value != 0 && oldId.Value == 0 && full)
             {
@@ -426,7 +431,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The break: a glow flash, the block's 2×2×2 split cubes tumbling out, a dust puff in its colour.</summary>
-        private static void Break(Vector3 center, Color[] colors, bool full)
+        private static void Break(Vector3 center, Color[] colors, FxKit.DebrisLook debris, (float Size, float Spread, float Lift) fit, bool full)
         {
             var main = colors[0];
             FxKit.Burst(FxKit.Kind.Dust, center, full ? 6 : 2, Vector3.up, 80f, 0.6f, 1.8f, 0.18f, 0.34f, 0.45f, 0.9f, Color.Lerp(main, Color.white, 0.2f));
@@ -437,18 +442,25 @@ namespace BlocksBeyondTheStars.Client
 
             FxKit.Flash(center, Color.Lerp(main, Color.white, 0.6f), 1.3f, 0.12f);
             int n = Mathf.Max(4, FxKit.Scaled(8));
+            // A small thing (a plant, a crystal, a torch) breaks into small pieces that start where it stood,
+            // and a smaller piece shows a smaller part of its quarter of the tile. A full block: 1, 1, 0 — the classic.
+            float small = fit.Size;
+            float part = Mathf.Clamp(small * 1.25f, 0.25f, 1f);
+            var lift = Vector3.up * fit.Lift;
             for (int i = 0; i < n; i++)
             {
                 var octant = new Vector3((i & 1) == 0 ? -0.25f : 0.25f, (i & 2) == 0 ? -0.25f : 0.25f, (i & 4) == 0 ? -0.25f : 0.25f);
                 var vel = octant.normalized * Random.Range(1.6f, 2.8f) + Vector3.up * Random.Range(1.8f, 3f);
-                FxKit.Emit(FxKit.Kind.Debris, center + octant, vel, Random.Range(0.3f, 0.44f), Random.Range(0.55f, 0.8f), colors[i % colors.Length]);
+                // With a tile every cube shows the quarter of it that its eighth of the block carried.
+                FxKit.EmitDebris(FxKit.Kind.Debris, center + (octant * fit.Spread) + lift, vel, Random.Range(0.3f, 0.44f) * small, Random.Range(0.55f, 0.8f), colors[i % colors.Length],
+                    debris.Piece(i).Part(part));
             }
 
             if (FxKit.Rich)
             {
                 for (int i = 0; i < 6; i++)
                 {
-                    Chip(center + Random.insideUnitSphere * 0.3f, Random.onUnitSphere, colors[Random.Range(0, colors.Length)]);
+                    Chip(center + Random.insideUnitSphere * 0.3f, Random.onUnitSphere, colors[Random.Range(0, colors.Length)], debris);
                 }
             }
         }
@@ -564,6 +576,64 @@ namespace BlocksBeyondTheStars.Client
 
             _blockColors[id.Value] = result;
             return result;
+        }
+
+        private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
+
+        /// <summary>Debris sizes: how the pieces of a broken world block are sized and where they start
+        /// (<see cref="ChunkMesher.DebrisFit"/>); 1, 1, 0 — whole-block pieces — where small debris is off.</summary>
+        private (float Size, float Spread, float Lift) DebrisFit(BlockId id)
+        {
+            var fit = GameLook.SmallDebris && Game?.Content != null ? ChunkMesher.DebrisFit(Game.Content, id) : (1f, 1f, 0f);
+            return (fit.Item1 * GameLook.DebrisSizeNow, fit.Item2, fit.Item3);
+        }
+
+        /// <summary>Textured debris: what the debris of a world block shows — its tile, and for a block the
+        /// world colours (a wild plant, a tinted crown, a trunk) the colour its faces wore: the species' colour on this
+        /// world, or the world's flora hue where a plant has none of its own. Default (no tile) where textured debris is off.</summary>
+        public FxKit.DebrisLook DebrisLook(BlockId id)
+        {
+            var look = FxKit.DebrisLookOf(id);
+            if (!look.Textured || Game?.Content == null)
+            {
+                return look;
+            }
+
+            int mode = ChunkMesher.WorldTintMode(Game.Content, id);
+            Color tint = mode != 0 ? Game.WorldTintOf(id) : Color.black;
+            bool none = tint.r + tint.g + tint.b <= 0.01f;
+
+            // A plant that stands as a body (near the camera, on Medium and High) is drawn in plain colours, not with
+            // its tile: its pieces wear the body's colours. The tile — the old crossed picture, with its dark twigs
+            // and ground — made dark cubes that matched nothing. Where plants are still pictures (Low, Potato, the browser) the pieces keep the tile.
+            if (GameLook.SmallDebris && GameLook.PlantRangeNow > 0f
+                && PlantBodies.TryBodyColours(id, tint, mode != 1 || none, out var bodyMain, out var bodySecond))
+            {
+                return FxKit.DebrisLook.InColours(bodyMain, bodySecond, ChunkMesher.EmissionFor(Game.Content, id)); // a glowing plant's pieces glow
+            }
+
+            if (mode == 0)
+            {
+                return look;
+            }
+
+            if (mode == 1)
+            {
+                // The block shader recolours flora only where the world has a flora hue (not on a station).
+                Color world = Shader.GetGlobalColor(FloraTintId);
+                if (world.a <= 0.5f)
+                {
+                    return look;
+                }
+
+                tint = none ? world : tint;
+            }
+            else if (none)
+            {
+                return look; // bark without a world colour keeps its tile's own
+            }
+
+            return look.Tinted(mode, tint);
         }
 
         /// <summary>A canonical block cell as the scene cell nearest the player (<see cref="GameBootstrap.ScenePos"/>);

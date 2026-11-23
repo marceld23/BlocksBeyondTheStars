@@ -264,8 +264,39 @@ public sealed class WorldDescription
     /// #3680 the fallen guardian giants, the abandoned beds: a ruin's and a wreck's beds look like today's bed and
     /// work as none, the lively places: a settlement's own colour and shells, street furniture, lamps that shine, a
     /// landmark, stations with a purpose and a colour, #3893 the sky-lights: the ruins of the Scout and Pioneer Service's
-    /// guide towers on inhabited worlds).</summary>
-    public const int CurrentTerrainGeneration = SkyLightsGeneration;
+    /// guide towers on inhabited worlds, the colour harmony: a world's plants, clouds, mist and water answer its sky, the flora
+    /// groups: the small surface plants stand in clumps with open ground between them).</summary>
+    public const int CurrentTerrainGeneration = ColourHarmonyGeneration;
+
+    /// <summary>The generation of the flora groups (#3931, the scatter rules): in a world of this generation
+    /// or later the small surface plants (one flower, tuft or bush above the ground) no longer sprinkle evenly but stand in
+    /// groups — a jittered grid of group centres about eight blocks apart, a cell holding a group more often away from the
+    /// mid-scale clearings, each group a ragged disc of about two to four blocks radius that is densely planted and mostly of
+    /// one species, with only a stray plant on the ground between. Each group is wrapped in a ring out to one and a half times
+    /// its radius: on lush ground, what the density cap cuts off inside a group goes into its ring, so the clump grows larger
+    /// instead of the meadow between the clumps filling up. The plants per area stay what they were (the group factor
+    /// averages one; the richness mask, biome, beach and cold factors multiply on top as before). Every input is a stateless
+    /// hash of the seed and the wrapped column, and the rule is gated on this generation (<c>WorldGenerator.FloraGroupsGen48</c>),
+    /// so every older generation keeps its chunks bit for bit. Shares generation 48 with the colour harmony.</summary>
+    public const int GroupedFloraGeneration = 48;
+
+    /// <summary>The generation of the rare red and blue suns (<see cref="StarColors"/>): in a world of this generation or
+    /// later every galaxy holds at least one red sun and at least one blue sun among the systems it starts with, a
+    /// further one only rarely (<see cref="StarColors.RareShare"/> per system and colour), and ordinary suns from white to
+    /// orange everywhere else — always in the start system, which never carries a red or a blue sun. Older worlds keep the dealt blocks (one bluish, one orange-to-red, two calm suns in every
+    /// four systems), so no existing world's sun changes colour. Colours only, derived at runtime from the seed. Shares
+    /// generation 48 with the colour harmony.</summary>
+    public const int RareStarsGeneration = 48;
+
+    /// <summary>The generation of the colour harmony (<see cref="WorldHarmony"/>): in a world of this generation or later the
+    /// sky stays the anchor and the other per-world colours answer it — the tree crowns take one hue beside, a third away
+    /// from or opposite the sky's, every other wild plant species one of three hues around the crowns', and a tinted cloud
+    /// deck, a tinted mist, tinted water and the plants' base hue sit next to the sky's. Colours only, computed at runtime
+    /// from the seed: the harmony itself changes no block (the flora groups of the same generation,
+    /// <see cref="GroupedFloraGeneration"/>, do move the surface plants), and every older world keeps each of its colours
+    /// exactly (the rule is gated on the SAVE's generation in <see cref="FloraTints"/>, <see cref="AtmosphereTints"/>,
+    /// <see cref="MistProfiles"/> and <see cref="FluidTints"/>).</summary>
+    public const int ColourHarmonyGeneration = 48;
 
     /// <summary>The generation of the sky-lights (#3893, docs/developer/SPS_TOWERS.md): a body stamped for the first time in
     /// a world of this generation or later may carry the ruin of a Scout and Pioneer Service guide tower (<c>sps_tower</c> in

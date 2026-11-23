@@ -9,8 +9,12 @@ somebody painted by hand in the game's texture editor lives ONLY as its .bytes. 
 out/ would silently put an old AI image back over it — on the one machine that has out/, long after the painter's
 pull request was merged.
 
-texture_provenance.json records the hand-made ones: key -> "hand:<author>". Everything not listed is "ai". The
-bundlers ask `guard()` before they write a tile and skip a hand-made one unless --force is given.
+texture_provenance.json records every tile that exists ONLY as its .bytes: key -> "hand:<who> (<how>)". <who> is a
+player's nickname (a painted submission), "procedural" (drawn by a script, no model) or "calm-tiles" (the calm tile set
+of 2026-11, made with an image model and scripts whose raw images are not in out/, see tools/ai-assets/calm_tiles). The
+prefix is historical: it means "never re-bundle over it", not "painted by hand" (the game ships no hand-painted tiles
+apart from player submissions). Everything not listed is "ai". The bundlers ask `guard()` before they write a tile and
+skip a listed one unless --force is given.
 
 Plain stdlib; imported by bundle_textures.py, bake_leaf_alpha.py, bundle_fire.py and tools/merge_texture.py.
 """
@@ -58,7 +62,7 @@ def guard(key: str, force: bool, data: dict | None = None) -> bool:
     """True when a generator may write the tile `key`. Prints why when it may not."""
     who = origin(key, data)
     if who.startswith(HAND) and not force:
-        print(f"skip {key}: hand-painted ({who[len(HAND):]}) — it exists only as its .bytes; "
+        print(f"skip {key}: {who[len(HAND):]} — it exists only as its .bytes; "
               f"pass --force to overwrite it")
         return False
     return True

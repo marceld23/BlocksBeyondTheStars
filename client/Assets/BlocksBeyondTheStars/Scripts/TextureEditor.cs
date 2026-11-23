@@ -38,7 +38,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Called when the player leaves the editor (the host destroys the component's object).</summary>
         public Action OnClose;
 
-        private enum Tool { Brush, Eraser, Fill, Pipette, Line, Rectangle }
+        private enum Tool { Brush, Eraser, Fill, Pipette, Line, Rectangle, SoftBrush, Smooth } // the last two: TextureEditor.Soft.cs
 
         private const int Tile = TextureTiles.Size;
         private const float CanvasPx = 640f;
@@ -148,6 +148,7 @@ namespace BlocksBeyondTheStars.Client
             else if (current != null)
             {
                 _model.Load(current.Frames, current.Fps, mode);
+                RestoreCalmOriginal(entry, current, mode); // a painting saved calmed reopens as painted
             }
             else if (entry.Block != null && _atlas != null)
             {
@@ -418,7 +419,7 @@ namespace BlocksBeyondTheStars.Client
                     _lastY = input.Y;
                     break;
 
-                default: // brush / eraser
+                default: // brush / eraser (and the soft brush and the smoothing brush)
                     StrokeTo(input.X, input.Y, color, down);
                     break;
             }
@@ -427,6 +428,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The brush and the eraser: a gap-free run from the last cell, ONE undo step per stroke.</summary>
         private void StrokeTo(int x, int y, TexelColor color, bool down)
         {
+            if (_tool == Tool.SoftBrush || _tool == Tool.Smooth)
+            {
+                SoftStrokeTo(x, y, color, down); // TextureEditor.Soft.cs
+                return;
+            }
+
             if (down || !_stroking)
             {
                 _model.BeginEdit();
@@ -517,6 +524,8 @@ namespace BlocksBeyondTheStars.Client
             else if (Input.GetKeyDown(KeyCode.I)) SetTool(Tool.Pipette);
             else if (Input.GetKeyDown(KeyCode.L)) SetTool(Tool.Line);
             else if (Input.GetKeyDown(KeyCode.R)) SetTool(Tool.Rectangle);
+            else if (Input.GetKeyDown(KeyCode.S)) SetTool(Tool.SoftBrush);
+            else if (Input.GetKeyDown(KeyCode.M)) SetTool(Tool.Smooth);
             else if (Input.GetKeyDown(KeyCode.X)) SwapColors();
             else if (Input.GetKeyDown(KeyCode.LeftBracket)) SetBrushSize(_brushSize - 1);
             else if (Input.GetKeyDown(KeyCode.RightBracket)) SetBrushSize(_brushSize + 1);
@@ -538,7 +547,7 @@ namespace BlocksBeyondTheStars.Client
 
             _playClock -= step;
             _playFrame = (_playFrame + 1) % _model.FrameCount;
-            Upload(_tex, _model.Frames[_playFrame]); // the canvas, the tiled view and the 3-D model all play
+            Upload(_tex, _model.ShownFrame(_playFrame)); // the canvas, the tiled view and the 3-D model all play (as saved: with its calm)
         }
 
         // ---------------------------------------------------------------- model → textures
@@ -574,6 +583,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             RefreshBadges();
+            RefreshSoftPanel(); // the calm value and "brightness only" follow the open texture
         }
 
         private void UploadActiveFrame()
@@ -583,7 +593,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Upload(_tex, _model.Frames[_playing ? Mathf.Min(_playFrame, _model.FrameCount - 1) : _model.ActiveFrame]);
+            // As it will be saved ("calm when saving" applied, grey in "brightness only"); the model's own frame else.
+            Upload(_tex, _model.ShownFrame(_playing ? Mathf.Min(_playFrame, _model.FrameCount - 1) : _model.ActiveFrame));
         }
 
         private static void Upload(Texture2D tex, byte[] raw)
@@ -628,7 +639,8 @@ namespace BlocksBeyondTheStars.Client
         {
             _tool = tool;
             _dragShape = false;
-            _toolBar?.Select(Array.IndexOf(BarTools, tool));
+            _toolBar?.Select(Array.IndexOf(BarTools, tool)); // -1 (none lit) for a soft tool
+            RefreshSoftPanel(); // the soft tools' buttons show the choice
         }
 
         private void SetBrushSize(int size)

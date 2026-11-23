@@ -1013,6 +1013,7 @@ namespace BlocksBeyondTheStars.Client
             _preview = go.AddComponent<AvatarPreviewRig>();
             // Slot 1: the Character tab keeps its own rig alive behind this screen, and two rigs sharing a
             // parking spot would each film both figures.
+            _preview.WorldLook = true; // The figure in the look's light
             _preview.EnsureBuilt(state.Skin, state.Torso, state.Arms, state.Legs, slot: 1);
             _preview.FullTurntable = true; // a painted back has to come round to be judged
             _preview.SetActive(true);
@@ -1023,6 +1024,7 @@ namespace BlocksBeyondTheStars.Client
             var img = imgGo.AddComponent<RawImage>();
             img.texture = _preview.Texture;
             img.raycastTarget = false;
+            _preview.AddLookToggle(panel, x, y, 267f, 400f, L);
         }
 
         /// <summary>Pushes the host's stored appearance plus the UNCOMMITTED canvas onto the preview figure.

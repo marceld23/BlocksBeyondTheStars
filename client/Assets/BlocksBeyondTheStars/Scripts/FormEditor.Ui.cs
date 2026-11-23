@@ -143,6 +143,7 @@ namespace BlocksBeyondTheStars.Client
 
             var tools = BuildToolSwitch(card, Inset, ToolRowY, 380f);
             _gridButton = TierButton(card, Inset + 380f + RowGap, ToolRowY, 200f, RowH, L("ui.shape.custom.grid_toggle"), ToggleGrid);
+            BuildSlotPalette(card, Inset + 580f + (2f * RowGap), ToolRowY, CentreRowW - 580f - (2f * RowGap)); // FormEditor.Slots.cs
             BuildHelperRows(card);
             _budgetLabel = UiKit.AddText(card, Inset, BudgetY, CentreRowW, 24f, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
             _problemLabel = UiKit.AddText(card, Inset, BudgetY + 26f, CentreRowW, 40f, string.Empty, 15, UiKit.Warn, TextAnchor.UpperLeft);
@@ -185,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
             view.transform.SetParent(card, false);
             UiKit.Place(view, Inset, 48f, viewW, viewW);
             PreviewView = view.AddComponent<RawImage>();
+            LookPreview.AddToggle(card, Inset, 48f, viewW, viewW, L); // "as in the world" / "pixels only"
             BuildMaterialAndDye(card, Inset + viewW + 20f, RightW - Inset - (Inset + viewW + 20f));
             BuildFootprint(card, w);
             BuildNameAndMore(card, w);

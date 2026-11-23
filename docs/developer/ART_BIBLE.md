@@ -11,16 +11,22 @@ verifiable. Related: [PROFESSIONAL_LOOK_GAP_ANALYSIS.md](PROFESSIONAL_LOOK_GAP_A
 > cinematic sci-fi lighting, glowing technology, atmospheric planets and clean holographic UI.**
 
 Stylized voxel sci-fi: **blocky stays, cheap doesn't.** Readable and friendly over photoreal
-(father-son audience); "schick" through light, materials, atmosphere and feedback — never through
-geometric detail.
+(father-son audience); "schick" through light, materials, atmosphere and feedback — and geometric detail only
+inside a block's cell (rule 1).
 
 ## 2. Hard style rules
 
 1. **Block-based forms.** Large shapes are voxels; detail comes from texture (seams, rivets,
-   grain), per-block PBR params (gloss/metal/emission) and the Sobel-derived normal atlas — not
-   from extra geometry.
-2. **No photorealism, no cheap pixel look.** 64×64 tiles, point-filtered, with per-pixel grain and
-   darkened tile edges (`BlockTextureAtlas.PaintTile`).
+   grain), per-block PBR params (gloss/metal/emission) and the Sobel-derived normal atlas. Small geometry stays
+   **inside a block's cell** and never changes what the block is (collision, mining, data): the game look of 2026-11-22
+   adds plant bodies, micro-block crowns, grass clumps, fur and feathers on the desktop presets that can carry them, and
+   devices drawn as forms inside their cube ([LOOK.md](LOOK.md)).
+2. **No photorealism, no cheap pixel look.** 64×64 tiles, point-filtered, in the **calm style** since 2026-11-22: soft
+   forms with a deliberately weak pattern, while the light draws the grain — relief, fine grain and the soft border and joint
+   of every block face ([LOOK.md](LOOK.md) §3–§4). Tiles the atlas paints in code (`BlockTextureAtlas.PaintTile`) and
+   animated tiles are calmed toward their mean colour so they sit with the redrawn set. A tile that becomes a piece of a larger built object
+   shows no whole object and no seam per block; a tile used on a formed device keeps its pattern on the micro-cube raster
+   (one eighth of a block = 8 texels) or has no motif — a picture of a whole object belongs only on a whole face.
 3. **Glass is milky/frosted, never clear** — base `(0.82, 0.91, 0.95)`, you can tell it's glass
    (`BlockTextureAtlas.BaseColor`, project rule). The one deliberate exception is the rarer, blueprint-gated
    **`glass_clear`** (#1274) for cockpit canopies and observation domes: a faint look-through pane the
@@ -34,12 +40,16 @@ geometric detail.
    the one sanctioned exception.
 7. **Preset-gated effects.** Anything expensive scales over Potato/Low/Medium/High; comfort
    effects honour `ReducedEffects` (and `UiKit.ReducedMotion`), camera motion honours
-   `CameraMotion`.
+   `CameraMotion`. Desktop High may go beyond what the browser can, Potato must run on slow devices, the browser build
+   stays, and every visual feature names what High, Medium, Low/Potato and the browser get
+   ([ADR 0021](adr/0021-graphics-tiers-desktop-high-potato-browser.md)).
 8. **Bodies are jointed cubes.** Anything alive — the player avatar, remote players, NPCs, creatures
    — is built from cuboids on pivots and animated procedurally: limbs bend at a knee/elbow, feet are
    flat soles that stay level, soft parts (tails, tentacles, necks, trunks) are chains that lag the
    body. No skinned meshes, no imported clips, no Mecanim. Joints are cubes too — a sphere joint
-   would read as a different material language. See [CREATURE_RIG.md](CREATURE_RIG.md).
+   would read as a different material language. See [CREATURE_RIG.md](CREATURE_RIG.md). Since 2026-11-22 the cuboids
+   have rounded edges near the camera (avatars and tools on every preset but Potato, creatures on desktop Medium/High)
+   and show their plain cube farther out; fur and feathers are geometry on the standard build ([LOOK.md](LOOK.md) §7–§8).
 
 ## 3. Color palette
 
@@ -63,11 +73,16 @@ Space Black `(0.01, 0.01, 0.03)` (airless sky).
 
 Every planet type owns a mood — sky + fog follow the system **sun colour** (a red star tints its
 worlds; the star ramp runs blue → blue-white → white → sun-like → yellow → orange → red-orange → red dwarf, its classes
-dealt per galaxy so every four systems hold one cool, one warm and two calm stars (`StarColors`, #3123/#3124), folded
+dealt per galaxy so every four systems hold one cool, one warm and two calm stars (`StarColors`, #3123/#3124) — from
+generation 48 on one promised red and one promised blue sun per galaxy, never the start system's, and ordinary suns
+otherwise ([MULTIWORLD_AND_SYSTEM_FLIGHT.md](MULTIWORLD_AND_SYSTEM_FLIGHT.md)) — folded
 0.65 into the grade, 0.4 into the day sky and 10 % into the clouds by day (#3125)), the grade comes from
 `Sky.GradeFor` (tint × saturation × contrast), clouds from
 `planets.json` (`cloudColor`, `cloudDensity`), flora from the per-world random hue
-(`FloraTints`, deterministic from seed + location + species):
+(`FloraTints`, deterministic from seed + location + species). **From generation 48 the sky is the anchor of a world's
+colours** (`WorldHarmony`): crowns, plant species, tinted clouds, tinted mist and clean water answer the sky's hue, and a
+mood per world (balanced, vivid, pastel, earthy, gloomy) and a scheme drawn per planet kind set how strong and how
+varied they are ([LOOK.md](LOOK.md) §2):
 
 | Biome | Grade tint | Sat | Contrast | Mood |
 |---|---|---|---|---|
@@ -95,7 +110,8 @@ New planet types: add data (`planets.json`) + a `GradeFor` entry; never hardcode
 - **Art rules for new flora tiles.** Billboards are one side-view plant on pure black (`ON_BLACK` in
   `gen_textures.py`), cut by the dark-ground bake and rooted on the bottom edge. Crowns are dense canopies edge to edge.
   Leaves are drawn green (the planet recolours them). Blossoms and berries are bright and saturated, so the accent
-  finds them.
+  finds them. Since 2026-11-22 every bundled tile is in the calm style; how a new or changed tile is brought into it is
+  in [tools/ai-assets/calm_tiles/README.md](../../tools/ai-assets/calm_tiles/README.md).
 - **Tree slots and the leaf pool (#2851, #2855, 2026-10-20).** From generation 29 a planet's tree kinds are built from
   three leaf slots (`tree_leaves`, `tree_leaves_b`, `tree_leaves_c`) that share ONE pool of crown tiles (24 leaf shapes +
   the two slot tiles); `FloraLooks.TextureKeysForGroup` gives the three slots three different tiles on every world, and
@@ -135,10 +151,10 @@ From the room-identity pass (`GameServerSpaceStructure.PaintStationAccents` + de
 
 | Room | Floor accent | Light/decor |
 |---|---|---|
-| Medbay | `medbay_panel` (white/blue, medical cross) | pulsing translucent heal-tank |
-| Cockpit | `lab_panel` (cool tech blue) | console + animated screen + holo system map |
-| Lab | `lab_panel` | green flickering terminal |
-| Ship console | `lab_panel` | cyan flickering terminal |
+| Medbay | `medbay_panel` (white/blue, medical cross) | pulsing translucent heal-tank on a base with collar and cap |
+| Cockpit | `lab_panel` (cool tech blue) | desk with key decks and a tilted animated screen, facing the pilot + holo system map |
+| Lab | `lab_panel` | green flickering terminal, facing the side you stand on |
+| Ship console | `lab_panel` | cyan flickering terminal, facing the side you stand on |
 | Cargo | `cargo_floor` (amber/black hazard stripes) | — |
 | Workshop | `engine_panel` (dark + orange corners) | periodic spark bursts |
 | Quarters | `metal_panel` (dark, calm) | warm-white ceiling lamp |
@@ -148,16 +164,20 @@ From the room-identity pass (`GameServerSpaceStructure.PaintStationAccents` + de
 Ceiling lamps (`PlaceInteriorLights`, #776/#2816): the rooms a crew **lives** in — quarters, medbay, workshop,
 cargo — get a `light_white` dyed warm white (`FFD8A8`), the rooms it **works** in — cockpit, console — keep the plain
 cool `light_white`. Warm light belongs to home and rest, cyan to interface and flight. Electric light glows steadily;
-only flame-coloured light (torch, lantern, campfire) breathes.
+only flame-coloured light (torch, lantern, campfire) breathes. Since 2026-11-22 a strongly glowing face under a roof is
+capped in brightness (the cabin light limit, [LOOK.md](LOOK.md) §15), so a lamp reads as a lamp, not as a white sheet.
+The station decor's housing (desk, terminals) is light sheet metal, not dark.
 
 Ship/tech blocks keep **aligned seams** — they are excluded from the natural-block variant/rotation
 system (`BlockTextureAtlas.VariantKeys` whitelist is natural blocks only).
 
 ## 6. Light & post
 
-- ACES tonemapping (Neutral on an LDR buffer — WebGL Low and Potato), bloom threshold 0.9 / intensity 0.5,
-  vignette 0.18 base (`UrpScenePost`; was 0.26 until #1457). Contrast: the neutral world sits at +3 on top of the
-  biome contrast (#2803 — until then a hidden +6 kept the world at 9–20).
+- ACES tonemapping (Neutral on an LDR buffer — WebGL Low and Potato), bloom threshold 0.9 / intensity 0.5 as the
+  base — outdoors the game look lowers the threshold and makes the glow stronger and wider, aboard (the cosy "home"
+  share) the base values hold (`GameLook.cs`, [LOOK.md](LOOK.md) §1) —, vignette 0.18 base (`UrpScenePost`; was 0.26
+  until #1457). Contrast: the neutral world sits at +3 on top of the biome contrast (#2803 — until then a hidden +6
+  kept the world at 9–20).
 - Emission is the sci-fi signature: lights, strips, lava veins, glow flora, ores, force fields,
   console screens — bloom catches them; **every important tech object carries one glowing detail.** Glowing
   plants and mushrooms breathe slowly (one breath every ~6 s, #2822); crystals, ores and machines stay steady.
@@ -189,7 +209,8 @@ Cosy comes from safety and softness, not from painting the world orange:
   Biomes keep their identity because the outdoor share stays small.
 - **Never darker.** The warmer white balance is exposure-compensated; the one deliberate dimming is resting in bed.
 - **Not on the slider:** vignette (reserved for meaning), film grain, chromatic aberration, lens distortion, depth of
-  field while exploring.
+  field. The play's depth of field is a part of the game look of its own (desktop Medium/High, off with *Reduced
+  effects*; it blurs only what lies well behind the focus and never a look into the distance — [LOOK.md](LOOK.md) §1).
 
 ## 7. Feedback ("juice") rules
 

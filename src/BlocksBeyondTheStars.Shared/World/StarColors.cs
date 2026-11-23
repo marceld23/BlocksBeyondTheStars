@@ -15,6 +15,10 @@ namespace BlocksBeyondTheStars.Shared.World;
 /// and yellow suns. A star depends on nothing but the world seed and its system index, so a galaxy that grows at the
 /// frontier keeps its colours.
 /// </para>
+/// <para>
+/// Worlds of <see cref="WorldDescription.RareStarsGeneration"/> and later replace the dealt blocks: one red and one blue
+/// sun for sure, rarely a further one, ordinary suns otherwise (see the five-argument <c>ForSystem</c>).
+/// </para>
 /// Pure functions, netstandard2.1 — cosmetic only, nothing is saved: a change recolours every world on its next start.
 /// </summary>
 public static class StarColors
@@ -80,6 +84,123 @@ public static class StarColors
         return Shade(cls, star);
     }
 
+    // --- The rare red and blue suns (worlds of WorldDescription.RareStarsGeneration and later) ---
+    //
+    // The dealt blocks above make every fourth sun bluish and every fourth orange to red, and still promise neither a
+    // real red nor a real blue one: the warm card may be orange, the cool one blue-white. The rule for new worlds:
+    // every galaxy holds at least ONE red sun and at least ONE blue sun, and rarely more — and never in the start
+    // system, whose sun is the light of a player's first hours and of every screenshot of home. So two of the
+    // systems the galaxy starts with, other than the start system, are picked from the seed, one red and one blue;
+    // every other system but the start system carries a further red or blue sun with a small chance; all the rest
+    // are ordinary suns from white to orange.
+
+    /// <summary>The chance of every other system to carry a further red sun, and the same chance for a further blue one.
+    /// At 2 % about one twelve-system galaxy in six starts with a second red sun.</summary>
+    public const double RareShare = 0.02;
+
+    /// <summary>How far a red or blue sun may blend toward its neighbouring anchor: less than an ordinary star
+    /// (<see cref="MaxBlend"/>), so the red one stays red and the blue one blue.</summary>
+    private const double SpecialBlend = 0.2;
+
+    private const int BlueAnchor = 0;
+    private const int RedAnchor = 7;
+
+    // The ordinary suns: white, sun-like (the most common), yellow, and now and then an orange one.
+    private static readonly int[] OrdinaryAnchors = { 2, 3, 3, 3, 4, 4, 5 };
+
+    private enum StarKind
+    {
+        Ordinary,
+        Red,
+        Blue,
+    }
+
+    /// <summary>The packed RGB of a system's star in a world of <paramref name="terrainGeneration"/>. A world older than
+    /// <see cref="WorldDescription.RareStarsGeneration"/> keeps the dealt blocks of <see cref="ForSystem(long, string?, string?)"/>
+    /// exactly. A newer one holds one red and one blue sun among the <paramref name="startSystemCount"/> systems the
+    /// galaxy starts with (<c>WorldDescription.StarSystemCount</c>), a rare further one anywhere, and ordinary suns
+    /// otherwise — and the start system <paramref name="homeSystemId"/> (the system of the save's start body) always an
+    /// ordinary one. A star still depends on nothing but the seed, its index, that start count and the start system,
+    /// none of which change, so a galaxy that grows at the frontier keeps its colours.</summary>
+    public static int ForSystem(long worldSeed, string? systemId, string? systemName, int terrainGeneration, int startSystemCount,
+        string? homeSystemId = null)
+    {
+        if (terrainGeneration < WorldDescription.RareStarsGeneration)
+        {
+            return ForSystem(worldSeed, systemId, systemName);
+        }
+
+        int index = ProceduralIndex(systemId);
+        ulong star = index >= 0
+            ? StableHashing.Mixed("star:" + index.ToString(CultureInfo.InvariantCulture), worldSeed)
+            : StableHashing.Mixed("star-name:" + (systemName ?? string.Empty), worldSeed);
+        return KindOf(worldSeed, index, star, startSystemCount, ProceduralIndex(homeSystemId)) switch
+        {
+            StarKind.Red => Special(RedAnchor, RedAnchor - 1, star),
+            StarKind.Blue => Special(BlueAnchor, BlueAnchor + 1, star),
+            _ => ShadeOf(OrdinaryAnchors, star, MaxBlend),
+        };
+    }
+
+    /// <summary>The indices of the galaxy's promised red and blue sun: two different systems among those it starts
+    /// with, neither of them the start system <paramref name="homeIndex"/> (-1 = none known). A galaxy too small to
+    /// hold both beside its start system gets the missing ones with its first frontier systems.</summary>
+    public static (int Red, int Blue) PromisedSuns(long worldSeed, int startSystemCount, int homeIndex = -1)
+    {
+        // The candidates are the indices 0..span-1 without the start system; the span grows until two are left.
+        int span = System.Math.Max(2, startSystemCount);
+        bool homeInside = homeIndex >= 0 && homeIndex < span;
+        if (homeInside && span < 3)
+        {
+            span = 3;
+        }
+
+        homeInside = homeIndex >= 0 && homeIndex < span;
+        int candidates = homeInside ? span - 1 : span;
+        int red = StableHashing.Index(StableHashing.Mixed("star-red", worldSeed), candidates);
+        int blue = StableHashing.Index(StableHashing.Mixed("star-blue", worldSeed), candidates - 1);
+        if (blue >= red)
+        {
+            blue++;
+        }
+
+        // A candidate's rank becomes its index by stepping over the start system.
+        return (homeInside && red >= homeIndex ? red + 1 : red, homeInside && blue >= homeIndex ? blue + 1 : blue);
+    }
+
+    private static StarKind KindOf(long worldSeed, int index, ulong star, int startSystemCount, int homeIndex)
+    {
+        if (index >= 0)
+        {
+            if (index == homeIndex)
+            {
+                return StarKind.Ordinary; // home: never a red or a blue sun, not even a rare one
+            }
+
+            var (red, blue) = PromisedSuns(worldSeed, startSystemCount, homeIndex);
+            if (index == red)
+            {
+                return StarKind.Red;
+            }
+
+            if (index == blue)
+            {
+                return StarKind.Blue;
+            }
+        }
+
+        // Every other system, a system outside the procedural range (the Guardian finale) and a location outside the
+        // galaxy: a further red or blue sun now and then.
+        double roll = StableHashing.Unit(StableHashing.Mix64(star ^ RareSalt));
+        return roll < RareShare ? StarKind.Red : roll >= 1.0 - RareShare ? StarKind.Blue : StarKind.Ordinary;
+    }
+
+    private const ulong RareSalt = 0x4E21_0000_5A17_0003UL;
+
+    /// <summary>A red or blue sun: its anchor, blended a little toward the one neighbour of its own colour.</summary>
+    private static int Special(int anchor, int neighbour, ulong star)
+        => LerpRgb(Ramp[anchor], Ramp[neighbour], StableHashing.Unit(StableHashing.Mix64(star ^ BlendSalt)) * SpecialBlend);
+
     /// <summary>The index <c>i</c> of a procedural system id <c>sys{i}</c>, or -1.</summary>
     private static int ProceduralIndex(string? systemId)
     {
@@ -117,6 +238,13 @@ public static class StarColors
             _ => CalmAnchors,
         };
 
+        return ShadeOf(anchors, star, MaxBlend);
+    }
+
+    /// <summary>A weighted pick of <paramref name="anchors"/> (a contiguous run of the ramp), blended up to
+    /// <paramref name="maxBlend"/> toward a neighbouring anchor of the same run.</summary>
+    private static int ShadeOf(int[] anchors, ulong star, double maxBlend)
+    {
         int lo = int.MaxValue, hi = int.MinValue;
         foreach (int a in anchors)
         {
@@ -132,7 +260,7 @@ public static class StarColors
             neighbour = anchor == lo ? anchor + 1 : anchor - 1;
         }
 
-        return LerpRgb(Ramp[anchor], Ramp[neighbour], StableHashing.Unit(blend) * MaxBlend);
+        return LerpRgb(Ramp[anchor], Ramp[neighbour], StableHashing.Unit(blend) * maxBlend);
     }
 
     private static int LerpRgb(int a, int b, double t)

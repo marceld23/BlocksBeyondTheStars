@@ -2174,7 +2174,12 @@ The acid damage of `ApplyWeatherToPlayer` is keyed on the PRECIPITATION now (`ac
 the permanent storm burns like acid rain (the client draws lightning and plays thunder for acid too). The new event
 `toxic_storm` (Violent, 0.7–1.0, wind 0.75–1.0, acid) is gated `ctx.Toxic ? 0.6 : 0` in `EventWeight`, so every world
 class with unbreathable air gets it, rarer than acid rain, and a type raises it in data (`toxic_world` 1.0 default,
-Toxica-Maxima 2.0). `/setweather` (#2065) forces `WeatherSim.Force` now instead of writing a dead field.
+Toxica-Maxima 2.0). `/setweather` (#2065) forces `WeatherSim.Force` now instead of writing a dead field. Since
+2026-11-22 it forces with `everywhere: true`: the state is `WeatherSim.Pinned`, which `GameServerAmbientWeather`
+(`EpisodeOf`, the system weather message) treats like a fixed weather — no biome, front or cloud-line shift — so the
+weather holds at every position of the world, at full strength for `WeatherSim.PinnedHoldSeconds` (five minutes),
+reaches the clients at once, and then the world's own weather runs on. Before, a forced `rain` turned to `clouds` in
+every biome that sits a step drier. The test seam `SetWeatherForTest` still shifts like the world.
 
 **Contaminated fauna + eye colour (#2069).** `CreatureSpecies.EyeRgb` (0 = classic) is rolled by `ApplyEyeColour` as
 the FINAL draw of `MakeSpecies` on a generation-15 world (60 % classic, else amber / blue / black / violet / red — a
@@ -4077,3 +4082,54 @@ was visited before the feature records a skip. Because the tower is stamped befo
 and the chests, those keep clear of its footprint on a new world, exactly as they keep clear of a landmark.
 
 **Tests.** `SpsTowerTemplateTests`, `SpsTowerStampTests`.
+
+## 63. Generation 48 — colour harmony, grouped flora, the promised red and blue suns (2026-11-22)
+
+**Why.** A world rolled its sky, cloud deck, valley mist, water tint and plant hues as five independent picks, so the
+colours of a world met by chance, and many worlds looked alike. Plants stood evenly spread instead of in groups with
+clearings. And the dealt star blocks (#3123/#3124) made every fourth sun bluish and every fourth orange to red, but
+promised neither a real red nor a real blue sun. All three came with the game look ([LOOK.md](LOOK.md) §2).
+
+**The gate.** `WorldDescription.ColourHarmonyGeneration`, `GroupedFloraGeneration` and `RareStarsGeneration` are all
+48 = `CurrentTerrainGeneration`. The save version stays 18 (no block changes).
+
+**What a new world generates differently.**
+
+- **Colours** (`Shared/World/WorldHarmony.cs`, `WorldPalettes.cs`): the sky is the anchor. Tree crowns take one hue per
+  world in a fixed relation to the sky's (neighbour, a third of the circle, or the opposite); every other species takes
+  a hue from the world's scheme (`Triad`, `Monochrome`, `Rainbow`); the world's mood (`WorldMood`: balanced, vivid,
+  pastel, earthy, gloomy) sets the saturation and brightness bands — gloomy also dims and greys the sky, darkens the
+  cloud deck and turns the mist almost grey. The planet kind comes from the type's data (`MistProfiles.FamilyOf`: cold,
+  hot/volcanic, toxic, exotic, lush, dry, general) and brings its own sky anchors and chances for moods and schemes. A
+  type may pin its mood (`PlanetType.ColourMood`, `colourMood` in `data/planets.json`; `arena_nigra` is `gloomy`).
+  Tinted clouds sit beside the sky's hue (`AtmosphereTints.Harmonised`, the old keep-apart rule applied after), tinted
+  mist on the other side, clean water follows the sky inside a sea-green-to-indigo arc so it is never mistaken for poison
+  water. Authored skies with their clouds, fixed mists, fixed palettes, fixed and rainbow water, poison water, wood,
+  white clouds and white mist stay as authored; void types (ship cabins, station decks) get no harmony. Wired through
+  `AtmosphereTints.SkyRgb` / `CloudRgb`, `MistProfiles.For`, `FluidTints.ForWorld`, `FloraTints.For` / `ForWorld`,
+  `PlantGlowLight.PackedFor`; the server's `GameServerWeather.cs` (mist) and `GameServerBio.cs` (cloned plants) and the
+  client's planet map, flight view and landing cover read the same functions with the world's generation.
+  `JoinAccepted.LocationId` and `WorldReset.LocationId` (appended, an older server leaves them empty) tell the client
+  the id the plant colours are keyed on.
+- **Grouped flora** (`WorldGenerator.FloraGroupsGen48.cs`; `WorldGenerator.Flora.cs` split out `PickSurfaceSpecies`,
+  `RawFloraDensity`, `FloraDensityCap`; the three surface callers in `WorldGenerator.ChunkFill.cs` — ground, island
+  tops, band tops — call `GroupedSurfaceFlora`). Fields of a few blocks hold at most one group; its chance follows a
+  clearing pattern (rare in a clearing, likely in dense growth); a group is a frayed disc of a few blocks' radius with
+  a raised density, a ring around it takes what the cap cuts off inside, the free ground gets less, so the amount of
+  plants per world stays about the same. Most columns of a group grow the group's species (from the pool of their own
+  ground, with the same theme weights). The beach and cold factors apply on top as before. A hash of the seed and the
+  wrapped column, no trigonometry, no allocation per column. Later passes (leaf litter, fruit, driftwood, scrap,
+  boulders) fill only empty cells, so single cells of those move too. The grass tufts on landing-pad islands
+  (`WorldGenerator.cs`) are not grouped. Very densely planted types (flower fields) change little: their groups sit at
+  the cap.
+- **Suns** (`Shared/World/StarColors.cs`, the generation-aware `ForSystem` overload, `PromisedSuns`, `RareShare`): one red and one
+  blue sun among the systems the galaxy starts with, never the start system; a small chance of a further red or blue
+  sun in every other system except the start system; ordinary suns from white to orange otherwise. Details in
+  [MULTIWORLD_AND_SYSTEM_FLIGHT.md](MULTIWORLD_AND_SYSTEM_FLIGHT.md).
+
+**What moves in an older world: nothing.** Below generation 48 every colour, every plant and every star is computed by
+the old code paths bit for bit (the harmony functions return the old colour when the generation is older; the flora
+groups are not called).
+
+**Tests.** `WorldHarmonyTests`, `FloraGroupsTests`, `StarColorsTests`, `HyperspaceChartServerTests`, and the adjusted
+`SoaniriPaletteTests`, `FloraTests`, `MistProfileServerTests`, `SpsTowerTemplateTests`.

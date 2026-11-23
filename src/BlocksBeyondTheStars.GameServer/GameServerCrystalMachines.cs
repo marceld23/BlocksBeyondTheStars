@@ -116,7 +116,7 @@ public sealed partial class GameServer
 
     // ------------------------------------------------------------------------------------------------------
     // Matter link (#2054): a sender beams one stack from the crate beside it into the crate beside its paired
-    // receiver — anywhere on this world, no conduit between them. Free per shot (Marcel's decision); the pace
+    // receiver — anywhere on this world, no conduit between them. Free per shot; the pace
     // is the cap.
     // ------------------------------------------------------------------------------------------------------
 

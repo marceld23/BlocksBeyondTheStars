@@ -53,6 +53,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Friendly current location ("System · Planet") for the HUD.</summary>
         public string LocationName { get; private set; } = string.Empty;
+
+        /// <summary>The id of the body we are on ("sys0-p1"; the join and every world reset carry it) — what the per-world
+        /// colours that hash the body's id are built from (the colour harmony, terrain generation 48). Empty from an
+        /// older server.</summary>
+        public string LocationId { get; private set; } = string.Empty;
         public string StationName { get; private set; } = string.Empty; // non-empty while boarded on a station
         public string CurrentStationId { get; private set; } = string.Empty; // id of the boarded station (for in-station rename)
 

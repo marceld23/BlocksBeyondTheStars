@@ -54,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var part in sword.HeldModel)
             {
-                parts.Add(new HeldModelPart { P = part.P, S = part.S, G = part.G, M = part.M, C = part.M == "energy" ? SwapRedBlue(part.C) : part.C });
+                parts.Add(new HeldModelPart { P = part.P, S = part.S, G = part.G, M = part.M, F = part.F, C = part.M == "energy" ? SwapRedBlue(part.C) : part.C });
             }
 
             return parts;

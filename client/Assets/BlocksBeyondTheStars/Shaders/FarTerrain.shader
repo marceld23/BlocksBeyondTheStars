@@ -128,7 +128,7 @@ Shader "BlocksBeyondTheStars/FarTerrain"
                 float3 N = normalize(i.wn);
                 float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz))) * BbtsCloudShade(i.wp); // #2394: cloud shadows reach the horizon
                 // Open sky everywhere out there: the block shader's sky-lit ambient + half-weight direct sun.
-                float3 col = albedo * (light * (0.78 + 0.5 * ndl) + 0.05);
+                float3 col = albedo * (BbtsWorldLight(light, 0.78, ndl, N) + 0.05); // Classic = light * (0.78 + 0.5 * ndl)
                 float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
                 col += albedo * float3(0.10, 0.13, 0.20) * nightFloor;
                 col += albedo * lava * 2.0; // lava seas glow

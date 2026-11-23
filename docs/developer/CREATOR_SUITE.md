@@ -26,6 +26,13 @@ In the WORLD nothing changed for the player: the shaping tool, its small editor 
 | Local | the player's pack, `AppPaths.Root/texture_overrides/` (`TexturePackFolder`: PNG or a PNG strip per key, `textures.json` for the speed, `icons/` for item icons) | official |
 | World | what an admin of the running world published | local **and** official — *the world wins* (decision 2026-09-20) |
 
+Since 2026-11-22 the official layer is the calm redrawn tile set of the game look ([LOOK.md](LOOK.md) §3). A tile from
+the local or the world layer is a **painted** tile: the atlas exempts its slot from the look's calming mask
+(`BlockTextureAtlas.CalmTiles.cs` with the rule in `Client.Core/Textures/CalmTileRule.cs`,
+`GameTextures.ShowsPaintedTile`), and its ground and plant variants get only a small
+brightness step — never mirrored, never cracked, a plant keeps its painted outline — so the world shows it as painted.
+The same holds for face tiles, shaped blocks, animated tiles and painted creature hides.
+
 Two per-player switches (`ClientSettings.UseTexturePack`, `ShowWorldTextures`) turn the upper layers off; the
 second one is the safety valve against an unsuitable world texture. Every loader goes through
 `GameTextures.TileBytes` / `LoadTileTexture`; a change raises `GameTextures.Changed` with the affected keys,
@@ -34,7 +41,8 @@ icon caches dropped) — no chunk has to re-mesh.
 
 **The alpha rule** lives once, in `Shared/Textures/TextureTiles.cs`, and is applied by the loader, the editor's
 canvas model, the server and the client's world-texture inbox: a block tile is **opaque** (nobody paints
-themselves an X-ray view), plants/leaves/fire/torch and the energy fence's gaps (#3085) are **cutout**, creature/avatar/microfauna tiles are
+themselves an X-ray view), plants/leaves/fire/torch and the energy fence's gaps (#3085) are **cutout**,
+creature/avatar/microfauna tiles are
 **free**. Tiles are 64×64 RGBA32, rows bottom-up, up to 8 frames at 2/4/8/12 fps.
 
 **Atlas bands** (`Client.Core/Textures/AtlasBands.cs`): slots 0–399 = blocks by numeric id
@@ -50,12 +58,34 @@ non-block tiles under `Resources/textures`, and the item icons — never a devel
 cards. Hosts: `AppShell.OpenTextureEditor` (menu) and `GameMenu.OpenTextureEditor` (in a world, with
 `ITextureEditorWorldHost` for publish / take back).
 
+**The tool bar** (2026-11-22): the middle card holds Brush (B), Fill (G), Pick (I), Eraser (E), Line (L), Box (R); a
+row with brush size, symmetry ↔ / ↕ and flip ↔ / ↕; a row with shift in four directions, light, contrast and colour;
+the frame column with + / − frame, frame steps, speed, play, parts and fill everything. X swaps the colours, `[` / `]`
+change the brush size, Alt+click picks, the right button erases.
+
+**Soft tools and "calm when saving"** (`TextureEditor.Soft.cs`, `TextureEditor.Calm.cs`; the rules Unity-free in
+`Client.Core/Textures/TileFilters.cs`, `SeamFft.cs`, `PixelCanvasModel.Soft.cs`): soft brush (S), smoothing brush (M),
+smooth all, calm all (a quarter toward the mean per press), make seamless (the method of `tools/ai-assets/heal_seams.py`
+without its grid alignment; alpha untouched; reports the seam before and after) and *brightness only* for the tiles the
+world tints (plants, leaves, bark — the canvas shows grey). Each is one undo step. *Calm when saving* (0–100 %) never
+touches the canvas model: what is saved, published, exported and submitted is the calmed copy. The draft carries the
+value (older drafts read 0); because saving clears the draft, the original is kept in
+`AppPaths.Root/texture_originals/<key>.json` — local only, never sent — and is reopened when the game still
+shows exactly that saved version.
+
+**Previews that show what the world shows** (`LookPreview.cs`, `LookPreviewLight.cs`, `LookBlockWall.cs`,
+`LookPreviewAtlas.cs`, `TexturePreviewRig.Look.cs`, cells in `Client.Core/Textures/LookPreviewCells.cs`): a block tile
+as a 3×3 wall from the real chunk mesher and block shader, a plant tile as three crossed pictures with a *World colour n
+of 3* button for tinted tiles; one *As in the world / Pixels only* toggle for every editor and the session. The light
+of the look is set per preview camera and restored after it. Details and tiers: [LOOK.md](LOOK.md) §16.
+
 **Icon mode:** an item icon opens on the same 64×64 canvas — read back through the GPU
 (`Graphics.Blit` → `ReadPixels`), because the build's icons are not CPU-readable and come in every size — with
 free alpha and exactly one frame; saved to the pack's `icons/` folder, exported / submitted as kind `icon`.
 
 **Pipeline safety (#1953):** `tools/ai-assets/texture_provenance.json` records who made a tile (`hand:<nick>`);
-the generator scripts refuse to overwrite a hand-painted key and need `--only` for bulk modes.
+the generator scripts refuse to overwrite a hand-painted key and need `--only` for bulk modes. The calm tile set of
+2026-11-22 and how to rebuild a tile of it: [tools/ai-assets/calm_tiles/README.md](../../tools/ai-assets/calm_tiles/README.md).
 `tools/merge_texture.py` adopts an export bundle by **copying bytes** (no image library, no `out/` folder, no
 API key), `tools/merge_material.py` adds a new block material.
 
@@ -98,7 +128,8 @@ is cleared with the world (the atlas is shared with the menu).
 The one-byte tag space was full (243 used). Tag **254** now means "a two-byte id follows" (`NetCodec.ExtendedTag`,
 ids from 256). An older peer reads tag 254 as an unknown tag, `NetCodec.Decode` returns null and the message
 is dropped — exactly what happens to any message a peer does not know — so there is **no protocol bump**: an
-old client on a new server simply sees no world textures and no tool looks. The golden list in `NetCodecTests` covers both ranges. 256–259 world
+old client on a new server simply sees no world textures and no tool looks. The golden list in `NetCodecTests` covers
+both ranges. 256–259 world
 textures, 260–261 tool looks.
 
 ## 5. Forms: the menu editor (#1960) and forms over several blocks (#1961)
@@ -129,10 +160,20 @@ via plain blocks; stencils stay 1:1). Not on ships/stations (a player form becom
 Client: mesher + geometry cache keyed by cell, ghost draws every block upright, the icon is the silhouette of
 the whole form, the in-world `ShapeEditor` stays one-block and points to the menu editor.
 
+**Colour slots and soft edges (2026-11-22).** Both form editors carry a five-button slot palette (`ShapeSlotPalette.cs`,
+`ShapeEditor.Slots.cs`, `FormEditor.Slots.cs`): the cell value is the slot — 1 main, 2 second, 3 accent, 4 dark, 5 glow
+(higher values read as main) — and `FormCanvasModel` keeps it through paint, mirror, shift, load, save and undo. The
+canvas shows the slots in colour; the budget line counts the larger of the slot-merged and the slot-blind box count.
+Format, server and wire are unchanged (every non-zero value is "filled" there), so an older client shows the form in one
+colour. The previews (`LookShapePreview.cs`, `ShapeEditor.LookPreview.cs`, `FormEditor.LookPreview.cs`) draw the form
+with its block's tile in the block shader — the in-world editor with the crafting window's material, stone without one.
+What the slots and the chamfer do in the world: [LOOK.md](LOOK.md) §13.
+
 ## 6. Tool models as data (#1962) and player tool looks (#1963)
 
 `ItemDefinition.HeldModel` (`data/items.json`, `heldModel`): boxes `{ p:[x,y,z], s:[w,h,d], c:"#rrggbb"|"tint",
-g?:true }`, ≤ 32, validated (`HeldModelPart.IsValid`). The eleven tools that had a look of their own in code
+g?:true, f?:"box"|"chamfer"|"cone" }`, ≤ 32, validated (`HeldModelPart.IsValid`); `f` only changes how the client draws
+the box ([HELD_ITEMS.md](HELD_ITEMS.md) "Part forms"). The eleven tools that had a look of their own in code
 carry it as data; `HeldItemShapes` keeps only the model every item of a KIND falls back to. `HeldItem` resolves
 through `ModelResolver`, draws glowing parts fully lit and shares one material per (colour, glow).
 
@@ -160,7 +201,8 @@ colours, face and every painted part in one frame (`GameBootstrap`), so the burs
 2 s window let only the face through and the other players never saw the body paint (#2425). The long-run rate is
 still one saved-and-relayed change per 2 s. `SetAppearanceIntent`/`SetFaceIntent`/`SetBodyPaintIntent`/
 `SetToolLookIntent` are on the paused allow-list (`PausedMayHandle`): a player joining while the host alone holds
-the world sends them in the join's poll, before the next tick lifts the hold. Client: `ToolLookEditor` (a `LayerCanvasEditor`, §5) over `ToolLookCanvasModel` (tested); looks ride `GameMenu`'s paced appearance
+the world sends them in the join's poll, before the next tick lifts the hold. Client: `ToolLookEditor` (a
+`LayerCanvasEditor`, §5) over `ToolLookCanvasModel` (tested); looks ride `GameMenu`'s paced appearance
 queue after the join; `RemotePlayers` validates arriving looks again.
 
 ## 7. Reports and submissions (#1964–#1966)
@@ -189,7 +231,8 @@ cell cursor with repeat, A/X/Y act, the d-pad's up/down is a gated layer/frame s
 Unity-free models carry the rules: `PixelCanvasModelTests`, `FormCanvasModelTests`, `ToolLookCanvasModelTests`,
 `LayerCanvasModelsTests` (both models behind the `ILayerCanvas` surface the editor base drives),
 `WorldTextureInboxTests`, `TextureSubmissionTests`, `PadCanvasLogicTests`, `AtlasSlotAllocatorTests`,
-`HeldItemShapesTests` (Client.Tests); `TextureTilesTests`, `WorldTextureTests`, `MultiCellFormTests`,
+`HeldItemShapesTests`, `TileFiltersTests`, `PixelCanvasSoftToolsTests`, `LookPreviewCellsTests`,
+`ShapeColourSlotsTests`, `ShapeChamferTests` (Client.Tests); `TextureTilesTests`, `WorldTextureTests`, `MultiCellFormTests`,
 `ToolLookTests`, `ReportHostTextureSubmissionTests`, `NetCodecTests` (Tests). PR CI never compiles
 `client/Assets` — a **local Unity build** is part of every change there.
 

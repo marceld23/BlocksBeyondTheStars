@@ -26,6 +26,105 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946) — ✅ 2026-11-22, PR #3949 (⚠ **frame cost not measured on any preset, never run in a browser build** — #3947, must be checked before the next release; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
+
+The game gets the look of its four concept pictures, in one package: the old look is gone, there is no switch and no
+setting; the quality preset decides how much of it a player gets. How every part works, its files, what High, Medium,
+Low/Potato and the browser get, and its limits: [docs/developer/LOOK.md](docs/developer/LOOK.md). The tier rule it
+follows: [ADR 0021](docs/developer/adr/0021-graphics-tiers-desktop-high-potato-browser.md). Player side:
+[USER_MANUAL.md](docs/user/USER_MANUAL.md) §4 *The look of the world*, §5 *Craftable block shapes* / *Designing your own
+forms* / *Appearance*, §6 Editors.
+
+- **Light and sky (#3927)** (every tier): the sun's arc leans so it stands lower at noon, sky-coloured ambient with a
+  ground bounce, a sky gradient with a halo round the sun, a wider golden hour, larger sky bodies, models in the real sun,
+  a stronger outdoor bloom (aboard as before), haze tinted by nearby natural lights; the longer reach of the light of lava
+  and crystals and depth of field in play on Medium/High.
+- **Calm tiles (#3929)** (every tier): the 583 bundled tiles are replaced by a calm set in `Resources/textures` (no
+  second tile folder; 487 redrawn with an image model, 80 generated forms coloured by script, 3 generated device tiles,
+  13 drawn by script — [tools/ai-assets/calm_tiles/README.md](tools/ai-assets/calm_tiles/README.md)); only the
+  `creature_pattern_*` and `creature_horn_*` masks stay; tiles painted in code and animated tiles are calmed through a
+  per-slot mask (`CalmTileRule`, `BlockTextureAtlas.CalmTiles.cs`); ground variants of redrawn tiles are mirrored
+  with a small brightness step; **tiles a player painted (pack or world) stay exactly as painted**. Soft block edges and
+  joints, fine grain, the grass sod on the sides of grass, gills under giant mushroom caps, geysers that wear the ground
+  beside them.
+- **Plants, grass and crowns (#3930, #3931, #3932)** (desktop Medium/High near the camera): grass clumps, ground cover on
+  bare ground and under plants, plants as small bodies with a far picture baked from the body (also the school club's
+  plants), crystals as cut stones, vines under crowns, micro-block crowns with a leaf picture, conifers as cones of boughs
+  and palms with fronds, and far forms of both. On Low the mesher records none of the near cells; Low draws closed crowns,
+  needle and palm far forms on the outer crown cells plus the spire, and (on the desktop) the baked plant far pictures.
+  Potato draws needle and palm crowns as the plain leaf-block shell and keeps the crossed tile pictures.
+- **Creatures and figures (#3933, #3934):** fur, feathers, toes and rounded boxes on desktop Medium/High; calmer hides;
+  the smallest creatures as small bodies (every tier); rounded avatars and tools, chamfered barrels and handles, cone
+  drill bits on every tier but Potato (plain boxes there, fixed for the run), a far stage that swaps rounded parts for
+  plain cubes.
+- **Presets (#3946):** the browser offers only Potato and Low (`PresetLimit`; a stored higher preset is lowered, the
+  calibration never steps above Low); `GameLook.Tiers.cs` decides what each preset meshes and builds; a preset change that
+  crosses Low remeshes the loaded chunks; the emitter reach is fixed per world.
+- **Effects (#3935):** textured debris sized to the block, glowing pieces of glowing blocks, a regrowing plant shown
+  as a small version of itself, billowy clouds (ten more low ones on desktop High), clear shallow water on Medium/High.
+- **Devices as forms inside their cube (#3936)** (25 devices, 3 crates; every tier, soft edges on all 28 on
+  Medium/High): collision, mining, aiming and the server stay the cube; the workbench, the three crates and the thumper
+  now store the direction they were placed in (`"facing": "toward"`, their top picture turns with it), like the devices
+  that had a front already; new material tiles whose pattern sits on the micro-cube raster. **Ship station decor (#3937)**
+  as forms with a light housing (`devform_metal_light`, the figures' base light): the cockpit desk faces against the
+  ship's nose, terminals a side you can stand on. **The cabin light limit (#3938):** lamps aboard no longer wash out
+  white.
+- **Editors (#3939, #3940, #3941):** the texture editor's soft tools (soft brush, smoothing, smooth all, calm all,
+  make seamless, brightness only) and *Calm when saving*; previews that show what the world shows (a 3×3 block wall, world colours, *As in the world
+  / Pixels only*) in the texture, avatar and form editors; five colour slots for player forms and soft form edges on
+  desktop Medium/High (format, server and wire unchanged).
+- **World generation 48** (new worlds only; older worlds bit for bit unchanged): colour harmony with the sky as anchor,
+  five moods and three schemes drawn per planet kind (Arena Nigra pinned gloomy), grouped flora with clearings at about
+  the same amount of plants, and **one promised red and one promised blue sun per galaxy, never in the start system**,
+  rarely a further one (#3928, #3942). `JoinAccepted.LocationId` and `WorldReset.LocationId` appended. See
+  [WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §63.
+- **Main-game fixes in the same package:** `/setweather` now holds everywhere on the planet for five minutes at full
+  strength (#3943; a forced `rain` turned to `clouds` in every drier biome); rain beads on the visor also in sleet,
+  drizzle (thinner) and acid rain (green), rain streaks and lightning scale with the screen's resolution (#3944); a
+  running light round the empty player-name box (#3945) in the main menu (desktop and browser menu). The grass
+  carpet's flicker on High is much reduced (the carpet is kept out of the SSAO; not entirely gone, accepted as it is).
+- **Tests** (targeted, CI runs the full suite): `DeviceFormsTests`, `DeviceFormSoftTests`, `StationDecorFormsTests`,
+  `StationDecorFacingTests`, `CrownFarFormsTests`, `PlantFarBakeTests`, `HeldPartFormsTests`, `TileFiltersTests`,
+  `PixelCanvasSoftToolsTests`, `LookPreviewCellsTests`, `ShapeColourSlotsTests`, `ShapeChamferTests` (Client.Tests);
+  `WorldHarmonyTests`, `FloraGroupsTests`, `StarColorsTests`, `AdminCommandFixTests` and the adjusted flora, mist, palette
+  and chart tests (Tests).
+- **Docs:** LOOK.md (new), ADR 0021 (new; ADR 0015 §3 marked as narrowed), ART_BIBLE, ADVANCED_GRAPHICS, CREATOR_SUITE,
+  CUSTOM_SHAPES, HELD_ITEMS, MULTIWORLD_AND_SYSTEM_FLIGHT, WORLD_GENERATION §63, USER_MANUAL, the docs index, README.
+- ⚠ **Not measured, never in a browser:** no frame time was taken on any preset after the look was complete, and no
+  browser build has run it (the block shader reads one texture more — the plants' far atlas — and the browser limits
+  textures per shader). Open issue #3947 (stays open after the merge), release-blocking — see the backlog item below.
+- ⚠ **Playtest:** a NEW world (generation 48) on High, Medium, Low and Potato: noon and evening light, a meadow, a
+  conifer and a palm forest near and far, plants at the end of their range, a furry herd, the star map (one red, one blue
+  sun, neither at home), a gloomy world, Arena Nigra; aboard: the cockpit desk faces the pilot, the terminals face the
+  room, the lamps; place a workbench and a crate, build beside them (they keep their direction); switch the preset
+  across Low in a loaded world (the chunks remesh); the browser build on Low and Potato; the texture editor's soft
+  tools and *Calm when saving*, a painted ground tile in the world (as painted); a form with all five colour slots, dyed
+  and undyed; `/setweather rain` in several biomes, acid rain on the visor.
+- **Open (backlog):**
+  - ★ **#3947: check the look in a browser build and measure the frame cost on all four presets before the next
+    release** (the
+    same worlds on High, Medium, Low, Potato; the browser on WebGPU and WebGL 2; compare the mean brightness of capture
+    pairs against the rule "never darker");
+  - round primitives (cylinders, spheres) inside player forms — needs a format extension with server validation and a
+    design of its own;
+  - new furniture blocks (shelf, planter, window frame …) — new blocks shift the block ids (save version bump), plus
+    recipes, icons and texts; deliberately left out of this package;
+  - the far conifer costs about 2.6× the triangles of its block shell on Medium/High (computed; Low draws only the outer
+    cells, Potato the shell); review the chunk visibility check for far crown forms reaching over a chunk border;
+  - flower fields show hardly any plant groups (their groups sit at the density cap; groups there would need fewer plants);
+  - coat meshes are never freed (memory over long sessions with many worlds); a preset change does not rebuild the felt
+    density of animals already built;
+  - debris does not reproduce dyed cells, painted hulls, the biome looks or ground variants;
+  - under the calm tiles, undyed second/accent and all glow cells of a player form keep the full tile pattern beside calmed
+    main cells; the form previews' *Pixels only* shows one colour;
+  - editor previews: leaves as the cut-out picture (not a cube crown), plants as crossed pictures (not bodies), the new
+    buttons are not reachable with a gamepad;
+  - devices as forms: light and shadow still treat them as full cubes, marks on their sides float in front of recessed
+    parts;
+  - plants in ships and stations are still the old pictures and forms; the planet behind a station window
+    (`StationBackdrop`) still uses the old plant colour; the grey tint of fog weather is not harmonised;
+  - `held_darkmetal` and `held_plastic` keep a faint seam.
+
 ### 🧒 Justus's reports of 2026-11-21 (evening): the moon launch, the pause menu on Space, the blue swim, swimming like an arrow, a cooler boost — #3919–#3925 — ✅ 2026-11-21 (client + shared + one server layout rule; no protocol bump, no save change)
 
 Six reports and one Test Pilot note from one evening's play (v2026.11.26), all found in the code and fixed.
@@ -17548,6 +17647,14 @@ not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/deve
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
+
+### ★ Before the next release: the game look in a browser build, and its frame cost on all four presets — #3947 (2026-11-22)
+The game look shipped in one package (see the entry "🎨 The game look" at the top, and
+[docs/developer/LOOK.md](docs/developer/LOOK.md) "Not measured yet") without a frame-time measurement on High, Medium,
+Low or Potato and without ever running in a browser build. Build WebGL (WebGPU and the WebGL 2 fallback) and look at it
+in a real browser — the block shader reads one texture more (the plants' far atlas) and the browser limits textures per
+shader — and take frame times on the same worlds on all four presets (a dense forest, a meadow, a furry herd, the ship).
+Release-blocking. The look's other open items are listed in that entry.
 
 ### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't (#588, 2026-07-29, branch fix/menu-dialog-opacity)
 **Report:** "Some dialogs are see-through (e.g. the world-options dialog), others black out the menu behind

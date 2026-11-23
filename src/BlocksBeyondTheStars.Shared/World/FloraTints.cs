@@ -41,15 +41,36 @@ public static class FloraTints
         return Jittered(palette[(int)(h % (ulong)palette.Count)], h);
     }
 
+    /// <summary>The colour harmony (<see cref="WorldHarmony"/>, generation 48): the species' colour in its world's harmony —
+    /// the tinted tree crowns (<see cref="TreeFoliage.IsTinted"/>) take the crowns' hue, every other species a hue of the
+    /// world's scheme by its key, in the saturation and brightness of the world's mood (the species' own per-world rolls,
+    /// the same hash as the classic colour, place it inside the mood's bands). A type with a
+    /// <see cref="PlanetType.FloraPalette"/> keeps its authored colours, and <see cref="WorldHarmony.None"/> (every older
+    /// world) returns the classic colour bit for bit. <paramref name="locationKey"/> stays the display name the species
+    /// roll always hashed; the harmony is built from the body's id (<see cref="WorldHarmony.For"/>).</summary>
+    public static (float R, float G, float B) For(long worldSeed, string locationKey, string blockKey, PlanetType? planet, WorldHarmony harmony)
+    {
+        if (!harmony.Active || PaletteOf(planet).Count > 0)
+        {
+            return For(worldSeed, locationKey, blockKey, planet);
+        }
+
+        ulong h = Hash($"{worldSeed}|{locationKey}|flora-tint|{blockKey}");
+        return harmony.Species(blockKey, TreeFoliage.IsTinted(blockKey), ((h >> 12) % 1000UL) / 1000f, ((h >> 24) % 1000UL) / 1000f);
+    }
+
     /// <summary>#3423: <see cref="ForWorld(long, string, int)"/> on a world of <paramref name="planet"/>'s type — with a
     /// <see cref="PlanetType.FloraPalette"/> the world's base flora hue is one of its colours too (the block shader's fallback
-    /// and the micro-fauna's colour stay in the planet's palette).</summary>
+    /// and the micro-fauna's colour stay in the planet's palette). From <see cref="WorldDescription.ColourHarmonyGeneration"/>
+    /// a world without a palette takes the hue of its tree crowns (<see cref="WorldHarmony.FloraBase"/>); the three-argument
+    /// overload stays the classic roll.</summary>
     public static int ForWorld(long worldSeed, string? locationKey, int terrainGeneration, PlanetType? planet)
     {
         var palette = PaletteOf(planet);
         if (palette.Count == 0)
         {
-            return ForWorld(worldSeed, locationKey, terrainGeneration);
+            return WorldHarmony.For(worldSeed, locationKey, planet, terrainGeneration)
+                .FloraBase(ForWorld(worldSeed, locationKey, terrainGeneration));
         }
 
         ulong h = Hash($"{worldSeed}|{locationKey}|flora-world");

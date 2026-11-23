@@ -92,8 +92,9 @@ public sealed class CoverLookTests
         var planet = Content.GetPlanet(here.PlanetType!)!;
         var orbit = OrbitLook.For(planet, join.WorldSeed, here.Id, join.TerrainGeneration);
         Assert.True(orbit.HasAir);
-        int mist = MistProfiles.For(join.WorldSeed, here.Id, planet, 1.0, airless: false).ColorRgb;
+        int mist = MistProfiles.For(join.WorldSeed, here.Id, planet, 1.0, airless: false, terrainGeneration: join.TerrainGeneration).ColorRgb;
         Assert.Equal(env!.MistColor, mist);
+        Assert.Equal(here.Id, join.LocationId); // generation 48: the join names the body, the client builds its colour harmony from it
 
         foreach (float day in new[] { 0f, 0.3f, 0.7f, 1f })
         {

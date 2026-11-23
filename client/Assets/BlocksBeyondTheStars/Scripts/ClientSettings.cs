@@ -1116,6 +1116,7 @@ namespace BlocksBeyondTheStars.Client
             // #1820: resolve the far view — an unset value (every install from before, and a fresh one) takes the
             // platform default; anything else snaps to a supported step.
             settings.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Normalize(settings.FarViewBlocks, FarViewLightDevice);
+            bool presetLowered = settings.LowerPresetToPlatform(); // #3946: the browser offers Potato and Low only
 
             bool tokenChanged = false;
             if (string.IsNullOrEmpty(settings.PlayerToken))
@@ -1132,9 +1133,9 @@ namespace BlocksBeyondTheStars.Client
                 tokenChanged = true;
             }
 
-            if (recovering || tokenChanged)
+            if (recovering || tokenChanged || presetLowered)
             {
-                settings.Save(); // persist the recovered state / claim secret right away so it survives a crash
+                settings.Save(); // persist the recovered state / claim secret / lowered preset right away
             }
             else
             {
@@ -1251,12 +1252,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Applies engine-owned settings. View distance feeds <see cref="GameBootstrap"/>; audio buses land later.</summary>
         public void Apply()
         {
+            Preset = AllowedPreset(Preset); // #3946: whoever set it (a capture override, a URL), never above the platform's limit
             ApplyWindowMode();
             AudioListener.volume = Mathf.Clamp01(MasterVolume); // master bus (M26)
             ApplyFeel(); // reduced motion, the input toggles, the story text and the palette (ClientSettings.Feel.cs)
             UiKit.SetUserScale(UiScale);          // HUD canvases + the IMGUI leftovers follow the UI-scale setting
             FxKit.Configure(Preset, ReducedEffects, ScreenShake, ReduceFlashes, CameraMotion); // #2152: effect density + comfort
             HighDetails.Configure(this); // #3066: the desktop-class extras of the High preset
+            GameLook.ConfigureTier(Preset); // what of the look this preset meshes and builds (GameLook.Tiers.cs)
             GroundScatter.Enabled = GroundDetails; // #3121: the grass tufts, live
 
             int levels = QualitySettings.names != null ? QualitySettings.names.Length : 0;

@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// so a shaped block textures, tints and lights exactly like a cube. Winding matches the cube faces
     /// (CCW seen from outside: normal = cross(B-A, D-A)), so the back-face-culling atlas shader shows them.
     /// </summary>
-    internal static class BlockShapeGeometry
+    internal static partial class BlockShapeGeometry
     {
         /// <summary>One outward-facing polygon — a quad (4 corners) or a triangle (3). Corners are CCW from
         /// outside; the mesher emits tris (0,1,2)[,(0,2,3)].</summary>
@@ -44,12 +44,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             private Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d, bool quad, Vector2 ua, Vector2 ub, Vector2 uc, Vector2 ud,
-                bool hasUv, ShapePart part, FaceSide side)
+                bool hasUv, ShapePart part, FaceSide side, int colourSlot = 0)
             {
                 A = a; B = b; C = c; D = d; IsQuad = quad;
                 UvA = ua; UvB = ub; UvC = uc; UvD = ud; HasUv = hasUv;
                 Part = part; Side = side;
+                ColourSlot = colourSlot;
             }
+
+            /// <summary>A player form's polygon (quad or triangle) with its tile fractions and the colour
+            /// slot of its micro cell (<see cref="ShapeColourSlots"/>).</summary>
+            public Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d, bool quad, Vector2 ua, Vector2 ub, Vector2 uc, Vector2 ud, int colourSlot)
+                : this(a, b, c, quad ? d : default, quad, ua, ub, uc, quad ? ud : default, true, ShapePart.Body, FaceSide.Top, colourSlot)
+            {
+            }
+
+            /// <summary>The colour slot of a player form's face — 0 for everything else (and 1, main, draws
+            /// like 0). The chunk mesher turns it into vertex values (<see cref="ShapeColourSlotRule"/>).</summary>
+            public readonly int ColourSlot;
 
             /// <summary>The outward normal (not normalised) — the same winding rule the mesher shades with.</summary>
             public Vector3 Normal => Vector3.Cross(B - A, (IsQuad ? D : C) - A);
@@ -66,7 +78,7 @@ namespace BlocksBeyondTheStars.Client
                 var side = axis == 1 ? (n.y >= 0f ? FaceSide.Top : FaceSide.Bottom) : FaceSide.Side;
                 if (HasUv)
                 {
-                    return new Face(A, B, C, D, IsQuad, UvA, UvB, UvC, UvD, true, part, side);
+                    return new Face(A, B, C, D, IsQuad, UvA, UvB, UvC, UvD, true, part, side, ColourSlot);
                 }
 
                 Vector2 P(Vector3 p) => axis == 1 ? new Vector2(p.x, p.z) : axis == 0 ? new Vector2(p.z, p.y) : new Vector2(p.x, p.y);
@@ -86,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
             /// <summary>The same face with every corner moved through <paramref name="move"/> — the texture
             /// coordinates, part and side ride along, so a rotated form keeps its surface mapping.</summary>
             public Face Map(System.Func<Vector3, Vector3> move)
-                => new Face(move(A), move(B), move(C), IsQuad ? move(D) : default, IsQuad, UvA, UvB, UvC, UvD, HasUv, Part, Side);
+                => new Face(move(A), move(B), move(C), IsQuad ? move(D) : default, IsQuad, UvA, UvB, UvC, UvD, HasUv, Part, Side, ColourSlot);
         }
 
         /// <summary>Builds the polygons for a shape index (see <see cref="BlockShape"/>), oriented by a yaw
@@ -99,18 +111,18 @@ namespace BlocksBeyondTheStars.Client
             // Built once per (form, yaw, up-face) and then shared: the mesher asks for this on every shaped
             // cell of every remesh, and a player-designed form can be dozens of boxes. Callers must treat the
             // returned list as read-only (nothing has ever mutated it).
-            int cacheKey = ((cell & 0xF) << 11) | (shapeIndex << 5) | ((upFace & 7) << 2) | (orientation & 3);
+            int cacheKey = CacheKey(shapeIndex, orientation, upFace, cell, out bool soft); // + the soft-edge bit
             if (_faceCache.TryGetValue(cacheKey, out var cached))
             {
                 return cached;
             }
 
-            var built = BuildUncached(shapeIndex, orientation, upFace, cell);
+            var built = BuildUncached(shapeIndex, orientation, upFace, cell, soft);
             _faceCache[cacheKey] = built;
             return built;
         }
 
-        private static List<Face> BuildUncached(int shapeIndex, int orientation, int upFace, int cell)
+        private static List<Face> BuildUncached(int shapeIndex, int orientation, int upFace, int cell, bool soft)
         {
             var faces = new List<Face>();
             if (ShapeCode.IsCustomShape(shapeIndex))
@@ -132,10 +144,7 @@ namespace BlocksBeyondTheStars.Client
                     return null;
                 }
 
-                foreach (var box in CustomShape.Merge(cellVoxels))
-                {
-                    MicroBox(faces, box);
-                }
+                AddCustomLookFaces(faces, cellVoxels, soft); // colour slots and soft edges (BlockShapeGeometry.ShapeLook.cs)
             }
             else
             {
@@ -195,6 +204,180 @@ namespace BlocksBeyondTheStars.Client
             return faces;
         }
 
+        // --- Tree crowns out of micro blocks ---
+        //
+        // A crown cell drawn as a handful of small cubes on the 8-grid (12.5 cm) with real gaps between them, instead of
+        // a cube face with a leaf picture. Pure display: the world keeps "leaf block", the mesher picks one of these
+        // clusters per cell from the cell's position. Outer cells (a face toward the open) get a dense cluster, inner
+        // cells a twig and a few cubes — light falls through the crown, and the inside costs little.
+        // The face's ShapePart carries no furniture meaning here: it is the cube's CLASS (0..5: shade, tint and the phase
+        // of its wind flutter; Rim = the twig), which ChunkMesher.AddShapedBlock reads for a cluster.
+
+        public const int CrownOuterVariants = 12;
+        public const int CrownInnerVariants = 6;
+        public const ShapePart CrownTwig = ShapePart.Rim;
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, List<Face>> _crownCache = new();
+
+        /// <summary>The faces of one crown cluster (read-only, cached): <paramref name="variant"/> of the outer or the
+        /// inner set, turned by <paramref name="yaw"/> quarter turns.</summary>
+        public static List<Face> CrownCluster(int variant, bool inner, int yaw)
+        {
+            int key = (inner ? 1 << 16 : 0) | ((variant & 0xFF) << 2) | (yaw & 3);
+            return _crownCache.GetOrAdd(key, _ => BuildCrownCluster(variant, inner, yaw));
+        }
+
+        private static List<Face> BuildCrownCluster(int variant, bool inner, int yaw)
+        {
+            var rng = new System.Random(unchecked(variant * 7919 + (inner ? 104729 : 0) + 17));
+            var faces = new List<Face>();
+            const float V = 1f / 8f;
+
+            // The twig: two thin bars through the middle of the cell, one of them upright in half the variants.
+            int axis = rng.Next(3);
+            for (int bar = 0; bar < 2; bar++)
+            {
+                int a = (axis + bar) % 3;
+                int from = rng.Next(0, 3), to = rng.Next(5, 9);
+                float lo = 3.5f * V, hi = 4.5f * V;
+                Vector3 min = new Vector3(lo, lo, lo), max = new Vector3(hi, hi, hi);
+                min[a] = from * V;
+                max[a] = to * V;
+                Box(faces, min.x, min.y, min.z, max.x, max.y, max.z, CrownTwig);
+            }
+
+            int cubes = inner ? 3 + rng.Next(2) : 12 + rng.Next(5);
+            for (int i = 0; i < cubes; i++)
+            {
+                int roll = rng.Next(100);
+                int size = roll < 30 ? 3 : roll < 85 ? 2 : 1; // 37.5 cm, 25 cm, 12.5 cm
+                int x = rng.Next(0, 9 - size), y = rng.Next(0, 9 - size), z = rng.Next(0, 9 - size);
+                Box(faces, x * V, y * V, z * V, (x + size) * V, (y + size) * V, (z + size) * V, (ShapePart)(i % 6));
+            }
+
+            if ((yaw & 3) != 0)
+            {
+                for (int i = 0; i < faces.Count; i++)
+                {
+                    faces[i] = faces[i].Map(p => Yaw(p, yaw));
+                }
+            }
+
+            return faces;
+        }
+
+        // --- Crown forms per leaf kind ---
+        //
+        // The cube clusters above suit a broad-leaved crown. A conifer and a palm read by their OUTLINE: boughs that
+        // slope down and outward in tiers under a pointed tip, long fronds that arch away from the trunk. These forms
+        // are built toward +X in the cell's 0..1 box (the instance is turned so +X points away from the tree's axis,
+        // ChunkMesher.CrownForms.cs) and may reach beyond the cell. Boxes only; a face's ShapePart is the box's class,
+        // as in the clusters (0..5: shade, tone and flutter phase; Rim = the dark twig).
+
+        public const int CrownFormLeaf = 0;          // a cube cluster (CrownCluster)
+        public const int CrownFormNeedleBough = 1;   // variants 0..2: the bough's reach — short, medium, long
+        public const int CrownFormNeedleTip = 2;     // the spire on the tree's axis
+        public const int CrownFormFrond = 3;         // variant 0: a level piece the frond goes on after; 1: its drooping end
+        public const int CrownFormFrondRosette = 4;  // the palm's heart: short fronds all round
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, List<Face>> _crownFormCache = new();
+
+        /// <summary>The faces of one crown form (read-only, cached), built toward +X.</summary>
+        public static List<Face> CrownForm(int form, int variant)
+            => _crownFormCache.GetOrAdd((form << 8) | (variant & 0xFF), _ => BuildCrownForm(form, variant));
+
+        private static List<Face> BuildCrownForm(int form, int variant)
+        {
+            var f = new List<Face>();
+            switch (form)
+            {
+                case CrownFormNeedleBough: NeedleBough(f, variant <= 0 ? 0.5f : variant == 1 ? 0.85f : 1.2f); break;
+                case CrownFormNeedleTip: NeedleTip(f); break;
+                case CrownFormFrond: Frond(f, variant != 0); break;
+                case CrownFormFrondRosette: FrondRosette(f); break;
+            }
+
+            return f;
+        }
+
+        /// <summary>A conifer's bough: three flat steps that sink as they run outward to <paramref name="reach"/> (cells,
+        /// may pass the cell's edge), a tip that hangs lowest, tufts under both edges, a crest at the trunk that meets
+        /// the tier above, and the dark branch underneath.</summary>
+        private static void NeedleBough(List<Face> f, float reach)
+        {
+            const int Steps = 3;
+            float top = 0.80f;
+            for (int i = 0; i < Steps; i++)
+            {
+                float x0 = (reach * i / Steps) - 0.03f, x1 = (reach * (i + 1) / Steps) + 0.05f;
+                float thick = 0.26f - (0.03f * i), half = 0.40f - (0.07f * i);
+                Box(f, x0, top - thick, 0.5f - half, x1, top, 0.5f + half, (ShapePart)i);
+                float xm = (x0 + x1) * 0.5f, under = top - thick;
+                Box(f, xm - 0.09f, under - 0.13f, 0.5f - half - 0.03f, xm + 0.07f, under + 0.02f, 0.5f - half + 0.13f, (ShapePart)((i + 3) % 6));
+                Box(f, xm - 0.05f, under - 0.11f, 0.5f + half - 0.13f, xm + 0.11f, under + 0.02f, 0.5f + half + 0.03f, (ShapePart)((i + 4) % 6));
+                top -= 0.20f;
+            }
+
+            Box(f, reach - 0.03f, top - 0.12f, 0.36f, reach + 0.16f, top + 0.10f, 0.64f, (ShapePart)3);
+            Box(f, -0.03f, 0.76f, 0.28f, 0.12f + (0.14f * reach), 1.0f, 0.72f, (ShapePart)4);
+            Box(f, 0f, 0.47f, 0.46f, Mathf.Min(reach, 0.9f) * 0.8f, 0.55f, 0.54f, CrownTwig);
+        }
+
+        /// <summary>A conifer's spire: five boxes that narrow to a point a third of a cell above the cell.</summary>
+        private static void NeedleTip(List<Face> f)
+        {
+            Box(f, 0.14f, 0.00f, 0.14f, 0.86f, 0.30f, 0.86f, (ShapePart)0);
+            Box(f, 0.24f, 0.26f, 0.24f, 0.76f, 0.56f, 0.76f, (ShapePart)1);
+            Box(f, 0.33f, 0.52f, 0.33f, 0.67f, 0.82f, 0.67f, (ShapePart)2);
+            Box(f, 0.41f, 0.78f, 0.41f, 0.59f, 1.10f, 0.59f, (ShapePart)3);
+            Box(f, 0.46f, 1.06f, 0.46f, 0.54f, 1.32f, 0.54f, (ShapePart)4);
+        }
+
+        /// <summary>A palm frond: a rib in four pieces with two pairs of leaflets each, like a feather. A piece the frond
+        /// goes on after stays level and ends at the cell's edge; its end (<paramref name="tip"/>) droops and reaches a
+        /// third of a cell further, its leaflets shorter toward the point.</summary>
+        private static void Frond(List<Face> f, bool tip)
+        {
+            float length = tip ? 1.36f : 1.04f;
+            for (int i = 0; i < 4; i++)
+            {
+                float y = tip ? (i == 0 ? 0.60f : i == 1 ? 0.54f : i == 2 ? 0.40f : 0.22f) : (i == 0 || i == 3 ? 0.58f : 0.60f);
+                float x0 = (length * i / 4f) - 0.04f, x1 = (length * (i + 1) / 4f) + 0.03f;
+                Box(f, x0, y - 0.05f, 0.455f, x1, y + 0.05f, 0.545f, (ShapePart)(i % 3));
+                for (int k = 0; k < 2; k++)
+                {
+                    float lx = x0 + ((x1 - x0) * (0.18f + (0.5f * k)));
+                    float len = (tip ? 0.34f - (0.06f * i) : 0.36f) - (0.02f * k);
+                    float ly = y - 0.03f;
+                    Box(f, lx, ly - 0.035f, 0.455f - len, lx + 0.10f, ly + 0.015f, 0.455f, (ShapePart)((i + k + 2) % 6));
+                    Box(f, lx + 0.03f, ly - 0.035f, 0.545f, lx + 0.13f, ly + 0.015f, 0.545f + len, (ShapePart)((i + k + 4) % 6));
+                }
+            }
+        }
+
+        /// <summary>The palm's heart, above the trunk's top: a bud and six short fronds that rise as they spread.</summary>
+        private static void FrondRosette(List<Face> f)
+        {
+            Box(f, 0.38f, 0f, 0.38f, 0.62f, 0.42f, 0.62f, (ShapePart)1);
+            var spoke = new List<Face>();
+            Box(spoke, 0.55f, 0.36f, 0.455f, 0.95f, 0.46f, 0.545f, (ShapePart)0);
+            Box(spoke, 0.90f, 0.44f, 0.46f, 1.28f, 0.54f, 0.54f, (ShapePart)2);
+            Box(spoke, 0.66f, 0.38f, 0.215f, 0.76f, 0.43f, 0.455f, (ShapePart)3);
+            Box(spoke, 0.69f, 0.38f, 0.545f, 0.79f, 0.43f, 0.785f, (ShapePart)4);
+            Box(spoke, 1.00f, 0.46f, 0.26f, 1.10f, 0.51f, 0.46f, (ShapePart)5);
+            Box(spoke, 1.03f, 0.46f, 0.54f, 1.13f, 0.51f, 0.74f, (ShapePart)0);
+            for (int a = 0; a < 6; a++)
+            {
+                float angle = (30f + (60f * a)) * Mathf.Deg2Rad;
+                float cos = Mathf.Cos(angle), sin = Mathf.Sin(angle);
+                foreach (var face in spoke)
+                {
+                    f.Add(face.Map(p => new Vector3(0.5f + ((p.x - 0.5f) * cos) - ((p.z - 0.5f) * sin), p.y,
+                        0.5f + ((p.x - 0.5f) * sin) + ((p.z - 0.5f) * cos))));
+                }
+            }
+        }
+
         // --- Player-designed forms (#844) ---
         //
         // The registry lives here as an IMMUTABLE snapshot published wholesale from the main thread, because
@@ -210,6 +393,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _customVoxels = snapshot ?? new Dictionary<int, string>();
             _faceCache.Clear();
+            _colliderCache.Clear(); // (BlockShapeGeometry.ShapeLook.cs)
         }
 
         /// <summary>The registered bitmap of a player form, from the published snapshot — for callers that need
@@ -223,6 +407,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _customVoxels = new Dictionary<int, string>();
             _faceCache.Clear();
+            _colliderCache.Clear();
         }
 
         /// <summary>One merged micro box of a player-designed form, with REAL per-vertex UVs: each face shows

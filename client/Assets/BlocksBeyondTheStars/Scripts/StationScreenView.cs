@@ -159,7 +159,10 @@ namespace BlocksBeyondTheStars.Client
                 _panels[key] = panel;
             }
 
-            float off = 0.5f + PanelOff + (PanelThick / 2f);
+            // Device forms: the data cache is a pedestal — a column one eighth of a block narrower than the cube between a
+            // foot and a top plate. The panel hangs on the column's face, framed by the two plates, instead of floating
+            // 14 cm in front of it.
+            float off = 0.5f + PanelOff + (PanelThick / 2f) - 0.125f;
             var at = Game.ScenePos(cell.x + 0.5f + (Sides[side].X * off), cell.y + 0.5f, cell.z + 0.5f + (Sides[side].Z * off));
             panel.transform.position = at;
         }

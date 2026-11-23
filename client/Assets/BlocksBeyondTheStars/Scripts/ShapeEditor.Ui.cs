@@ -114,6 +114,7 @@ namespace BlocksBeyondTheStars.Client
             view.transform.SetParent(card, false);
             UiKit.Place(view, Inset, 48f, w, 480f);
             PreviewView = view.AddComponent<RawImage>();
+            LookPreview.AddToggle(card, Inset, 48f, w, 480f, L); // "as in the world" / "pixels only"
 
             Kicker(card, Inset, 548f, w, "ui.shape.custom.name");
             _nameInput = UiKit.AddInput(card, Inset, 576f, w, RowH, _name, v =>
@@ -125,6 +126,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 TierButton(card, Inset, 636f, w, RowH, L(CraftLabelKey), Craft, ButtonTier.Secondary);
             }
+
+            BuildSlotPalette(card, Inset, 700f, w); // ShapeEditor.Slots.cs
         }
 
         protected override void RefreshLabels()
@@ -178,7 +181,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 for (int x = 0; x < _model.SizeX; x++)
                 {
-                    Color c = _model.Get(x, _model.Layer, z) ? UiKit.Cyan
+                    Color c = _model.Get(x, _model.Layer, z) ? ShapeSlotPalette.CanvasColour(_model.ValueAt(x, _model.Layer, z)) // the slot's colour
                         : _model.Layer > 0 && _model.Get(x, _model.Layer - 1, z) ? below
                         : FacePalette.EditorBackground;
                     Tex.SetPixel(x, z, c); // texture row 0 is the BOTTOM: grid z 0 is the near edge, drawn at the bottom
@@ -216,6 +219,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Destroy(_previewMesh);
+            _previewMesh = null;
+            if (TryLookPreview())
+            {
+                return; // the form with its block's tile and the block shader (ShapeEditor.LookPreview.cs)
+            }
+
             _previewMesh = EditorVoxelPreview.CustomShapeMesh(_model.CellBitmaps()[0].Bitmap);
             var material = EditorVoxelPreview.PreviewMaterial();
             if (_previewMesh == null || material == null)

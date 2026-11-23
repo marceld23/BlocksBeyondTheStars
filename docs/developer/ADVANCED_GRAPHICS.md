@@ -242,6 +242,15 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     slab that came in, one 16³ brick re-read per frame; the opacity per block id comes from the mesher's trait table,
     `ChunkMesher.LampOcclusion.cs`). The lit shaders march from the surface toward each lamp (≤ 32 jittered taps,
     ~0.7 m apart) and dim it by what they cross. Own switch; only while a lamp is lit.
+- **The game look** (2026-11-22, one package, no switch): a tilted sun arc, sky-coloured ambient with a ground bounce, a
+  sky gradient, models in the real sun, a stronger outdoor bloom, glowing haze and depth of field in play; the calm tile
+  set and soft block edges; grass clumps, plants as bodies with a baked far picture, micro-block crowns with crown forms;
+  fur, feathers and rounded boxes on creatures, rounded and chamfered avatars and tools; textured debris, billowy clouds,
+  clear shallows; devices as forms inside their cube, ship station decor, the cabin light limit; previews in the
+  editors that show what the world shows; and, with world generation 48, the colour harmony, grouped flora and the
+  promised red and blue suns. How each part works, its files and its tiers: [LOOK.md](LOOK.md); the tier rule:
+  [ADR 0021](adr/0021-graphics-tiers-desktop-high-potato-browser.md). **Not measured on any preset and never run in a
+  browser build yet** (#3947, open in TODO.md). The browser offers only Potato and Low since #3946.
 
 ### The suit headlamp (#3229–#3234)
 
@@ -529,7 +538,7 @@ preview cameras (their `_Sc_Fog` is off).
 Ordered by impact ÷ effort. These are the next polish milestones; each is preset-gated.
 
 - **Shell texturing beyond grass:** the grass carpet shipped with the High details (#3056); fur on furred creatures
-  (we already generate `creature_fur.bytes`) and short turf on mossy rocks / flora are still open.
+  shipped as geometry with the game look ([LOOK.md](LOOK.md) §7); short turf on mossy rocks / flora is still open.
 - **Parallax on shaped blocks:** POM shipped for cube faces (#3055); ramps, domes and cones need UVs that follow
   their tangents first.
 - **Sky / atmosphere:** denser per-system nebula skybox, Rayleigh-ish atmospheric scattering (horizon glow +

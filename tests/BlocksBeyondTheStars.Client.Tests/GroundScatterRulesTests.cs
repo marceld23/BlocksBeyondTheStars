@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
@@ -75,7 +76,10 @@ public sealed class GroundScatterRulesTests
     {
         Assert.Contains("m.ShapeIndex, m.ShapeData, m.EditRuns);", Script("GameBootstrap.ChunkStreaming.cs"));
         Assert.Contains("copy.CopyEditsFrom(src);", Script("GameBootstrap.ChunkStreaming.cs")); // the worker's chunk copy
-        Assert.Contains("chunk.IsEditedLocal(WorldConstants.LocalIndex(x, y, z)));", Script("ChunkMesher.cs"));
+        // The mesher hands the cell's edit flag to the ground detail (whatever else the call carries).
+        var editFlag = new Regex(@"AddGroundDetail\(data, [^;]*chunk\.IsEditedLocal\(WorldConstants\.LocalIndex\(x, y, z\)\)[^;]*\);",
+            RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        Assert.Matches(editFlag, Script("ChunkMesher.cs"));
         Assert.Contains("GroundScatterRules.Accepts(skylight, edited)", Script("ChunkMesher.HighDetails.cs"));
         Assert.DoesNotContain("ScatterMinSkylight", Script("ChunkMesher.HighDetails.cs"));
     }

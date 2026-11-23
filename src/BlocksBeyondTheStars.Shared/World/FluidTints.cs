@@ -57,7 +57,9 @@ public static class FluidTints
     /// <paramref name="terrainGeneration"/> is the SAVE's generation: the colour is computed at runtime, not baked
     /// into the world, so without this gate an old save would change colour the day its type opted in. Below
     /// <see cref="WorldDescription.AuthoredContentGeneration"/> every world keeps the classic blue. <paramref name="toxicWater"/>
-    /// (#2027, the world's rolled trait): an "auto" world then picks from the poison palette; fixed tints stay fixed.</summary>
+    /// (#2027, the world's rolled trait): an "auto" world then picks from the poison palette; fixed tints stay fixed.
+    /// From <see cref="WorldDescription.ColourHarmonyGeneration"/> the "auto" pick of clean water takes almost the sky's hue
+    /// (<see cref="WorldHarmony.Water"/>); poison water keeps its warning colours, a fixed tint and the rainbow stay.</summary>
     public static (int Rgb, Mode Mode) ForWorld(long worldSeed, string? locationKey, PlanetType? planet, int terrainGeneration, bool toxicWater = false)
     {
         string spec = planet?.WaterTint?.Trim() ?? string.Empty;
@@ -121,7 +123,7 @@ public static class FluidTints
         int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
         int Jit(int shift) => (int)((mix >> shift) & 0x1F) - 16; // -16..+15
         int rgb = (Clamp8(r + Jit(3)) << 16) | (Clamp8(g + Jit(8)) << 8) | Clamp8(b + Jit(13));
-        return (rgb, Mode.Tint);
+        return (toxicWater ? rgb : WorldHarmony.For(worldSeed, locationKey, planet, terrainGeneration).Water(rgb), Mode.Tint);
     }
 
     /// <summary>Salt of the generation-26 "auto" water roll (#2692).</summary>

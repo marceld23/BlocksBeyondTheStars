@@ -83,15 +83,40 @@ namespace BlocksBeyondTheStars.Client
 
         public void MarkSaved() => _history.MarkSaved();
 
+        /// <summary>The cell value a filled stroke writes — 1 (main) by default, 2..5 the colour slots of
+        /// <see cref="ShapeColourSlots"/>. The model keeps every value 1..15 it loads, so a form round-trips unchanged.</summary>
+        public int PaintValue
+        {
+            get => _paintValue;
+            set => _paintValue = Math.Max(1, Math.Min(15, value));
+        }
+
+        private int _paintValue = 1;
+
+        /// <summary>When true the box count (<see cref="BoxesOfCell"/>, and with it the
+        /// <see cref="FormProblem.TooDetailed"/> check) also counts the per-slot boxes the client will draw.</summary>
+        public bool CountSlotBoxes { get; set; }
+
         // ---------------------------------------------------------------- reading
 
         public bool Get(int x, int y, int z)
             => x >= 0 && y >= 0 && z >= 0 && x < SizeX && y < SizeY && z < SizeZ && _v[Index(x, y, z)] != 0;
 
+        /// <summary>The stored value of a micro cell: 0 empty, 1 main, 2..15 the colour slot values; 0 outside.</summary>
+        public int ValueAt(int x, int y, int z)
+            => x >= 0 && y >= 0 && z >= 0 && x < SizeX && y < SizeY && z < SizeZ ? _v[Index(x, y, z)] : 0;
+
         private int Index(int x, int y, int z) => (((y * SizeZ) + z) * SizeX) + x;
 
-        /// <summary>Boxes the given block needs after merging — what the budget line shows.</summary>
-        public int BoxesOfCell(int cell) => CustomShape.Merge(CellBitmap(cell)).Count;
+        /// <summary>Boxes the given block needs after merging — what the budget line shows. With
+        /// <see cref="CountSlotBoxes"/> the larger of the value-blind count (the server's budget) and the per-slot count (what
+        /// is drawn).</summary>
+        public int BoxesOfCell(int cell)
+        {
+            string bitmap = CellBitmap(cell);
+            int plain = CustomShape.Merge(bitmap).Count;
+            return CountSlotBoxes && ShapeColourSlots.HasSlots(bitmap) ? Math.Max(plain, ShapeColourSlots.Merge(bitmap).Count) : plain;
+        }
 
         /// <summary>The most boxes any block of the form needs.</summary>
         public int MaxBoxesUsed()
@@ -136,13 +161,13 @@ namespace BlocksBeyondTheStars.Client
             for (int c = 0; c < Cells; c++)
             {
                 string bitmap = CellBitmap(c);
-                if (bitmap.IndexOf('1') < 0)
+                if (bitmap.Replace("0", string.Empty).Length == 0)
                 {
                     cell = c;
                     return FormProblem.EmptyCell;
                 }
 
-                if (CustomShape.Merge(bitmap).Count > CustomShape.MaxBoxes)
+                if (BoxesOfCell(c) > CustomShape.MaxBoxes)
                 {
                     cell = c;
                     return FormProblem.TooDetailed;
@@ -199,7 +224,7 @@ namespace BlocksBeyondTheStars.Client
                     for (int x = 0; x < Grid; x++)
                     {
                         chars[CustomShape.IndexOf(x, y, z, Grid)] =
-                            _v[Index((cx * Grid) + x, (cy * Grid) + y, (cz * Grid) + z)] != 0 ? '1' : '0';
+                            ShapeColourSlots.CharOf(_v[Index((cx * Grid) + x, (cy * Grid) + y, (cz * Grid) + z)]);
                     }
                 }
             }
@@ -230,9 +255,11 @@ namespace BlocksBeyondTheStars.Client
                     {
                         for (int x = 0; x < grid; x++)
                         {
-                            if (bitmap[CustomShape.IndexOf(x, y, z, grid)] != '0')
+                            // The value is kept (an older form holds only 0 and 1)
+                            int value = ShapeColourSlots.ValueOf(bitmap[CustomShape.IndexOf(x, y, z, grid)]);
+                            if (value != 0)
                             {
-                                _v[Index((cx * grid) + x, (cy * grid) + y, (cz * grid) + z)] = 1;
+                                _v[Index((cx * grid) + x, (cy * grid) + y, (cz * grid) + z)] = (byte)value;
                             }
                         }
                     }
@@ -287,7 +314,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int i = Index(x, Layer, z);
-            byte value = filled ? (byte)1 : (byte)0;
+            byte value = filled ? (byte)PaintValue : (byte)0;
             if (_v[i] == value)
             {
                 return false;
@@ -339,7 +366,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 for (int x = 0; x < SizeX; x++)
                 {
-                    _v[Index(x, Layer, z)] = 1;
+                    _v[Index(x, Layer, z)] = (byte)PaintValue;
                 }
             }
         });
@@ -361,7 +388,7 @@ namespace BlocksBeyondTheStars.Client
                         int sz = alongX ? z : SizeZ - 1 - z;
                         if (source[Index(sx, y, sz)] != 0)
                         {
-                            _v[Index(x, y, z)] = 1;
+                            _v[Index(x, y, z)] = source[Index(sx, y, sz)];
                         }
                     }
                 }
@@ -382,7 +409,7 @@ namespace BlocksBeyondTheStars.Client
                         int tx = x + dx, ty = y + dy, tz = z + dz;
                         if (source[Index(x, y, z)] != 0 && tx >= 0 && ty >= 0 && tz >= 0 && tx < SizeX && ty < SizeY && tz < SizeZ)
                         {
-                            _v[Index(tx, ty, tz)] = 1;
+                            _v[Index(tx, ty, tz)] = source[Index(x, y, z)];
                         }
                     }
                 }
@@ -450,7 +477,7 @@ namespace BlocksBeyondTheStars.Client
                         int sx = x * oldGrid / grid, sy = y * oldGrid / grid, sz = z * oldGrid / grid;
                         if (before.Get(sx, sy, sz))
                         {
-                            _v[Index(x, y, z)] = 1;
+                            _v[Index(x, y, z)] = before.Value(sx, sy, sz);
                         }
                     }
                 }
@@ -518,7 +545,7 @@ namespace BlocksBeyondTheStars.Client
             var chars = new char[_v.Length];
             for (int i = 0; i < _v.Length; i++)
             {
-                chars[i] = _v[i] != 0 ? '1' : '0';
+                chars[i] = ShapeColourSlots.CharOf(_v[i]); // a draft keeps the colour slots
             }
 
             return string.Join(",", Width, Height, Length, Grid) + ":" + new string(chars);
@@ -576,12 +603,13 @@ namespace BlocksBeyondTheStars.Client
             voxels = new byte[bits.Length];
             for (int i = 0; i < bits.Length; i++)
             {
-                if (bits[i] != '0' && bits[i] != '1')
+                int value = ShapeColourSlots.ValueOf(bits[i]);
+                if (value == 0 && bits[i] != '0')
                 {
                     return false;
                 }
 
-                voxels[i] = bits[i] == '1' ? (byte)1 : (byte)0;
+                voxels[i] = (byte)value;
             }
 
             return true;
@@ -612,10 +640,12 @@ namespace BlocksBeyondTheStars.Client
 
             public byte[] Voxels { get; }
 
-            public bool Get(int x, int y, int z)
+            public bool Get(int x, int y, int z) => Value(x, y, z) != 0;
+
+            public byte Value(int x, int y, int z)
             {
                 int sx = Width * Grid, sy = Height * Grid, sz = Length * Grid;
-                return x >= 0 && y >= 0 && z >= 0 && x < sx && y < sy && z < sz && Voxels[(((y * sz) + z) * sx) + x] != 0;
+                return x >= 0 && y >= 0 && z >= 0 && x < sx && y < sy && z < sz ? Voxels[(((y * sz) + z) * sx) + x] : (byte)0;
             }
         }
 

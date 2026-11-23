@@ -41,12 +41,23 @@ namespace BlocksBeyondTheStars.Client
             /// <summary>A part; <paramref name="material"/> is one of <see cref="HeldMaterials.All"/>, and anything else
             /// (null included) is guessed from the colour and the glow (<see cref="HeldMaterialRules.Infer"/>, #2836).</summary>
             public Part(Vector3 position, Vector3 size, Rgb color, bool glow = false, string? material = null)
+                : this(position, size, color, glow, material, HeldPartForm.Box, 2, 1)
+            {
+            }
+
+            /// <summary>A part drawn as <paramref name="form"/> (<see cref="HeldPartForms"/>):
+            /// <paramref name="axis"/> (0 = x, 1 = y, 2 = z) is the axis the chamfered edges run along, or the cone's axis;
+            /// <paramref name="tip"/> (+1 or −1) the side of that axis the cone narrows toward.</summary>
+            public Part(Vector3 position, Vector3 size, Rgb color, bool glow, string? material, HeldPartForm form, int axis, int tip)
             {
                 Position = position;
                 Size = size;
                 Color = color;
                 Glow = glow;
                 Material = HeldMaterialRules.Resolve(material, color, glow);
+                Form = form;
+                Axis = axis is >= 0 and <= 2 ? axis : 2;
+                Tip = tip < 0 ? -1 : 1;
             }
 
             public Vector3 Position { get; }
@@ -61,6 +72,21 @@ namespace BlocksBeyondTheStars.Client
             /// <summary>What the part is made of (#2836): always one of <see cref="HeldMaterials.All"/> — the surface
             /// texture the client lays over <see cref="Color"/>.</summary>
             public string Material { get; }
+
+            /// <summary>What the part is drawn as: the box, a box with chamfered edges, or a cone.
+            /// Its size and centre stay the box's — the hand's measuring and the muzzle read the box.</summary>
+            public HeldPartForm Form { get; }
+
+            /// <summary>The axis (0 = x, 1 = y, 2 = z) a <see cref="HeldPartForm.Chamfer"/>'s cut edges run along, or a
+            /// <see cref="HeldPartForm.Cone"/>'s axis.</summary>
+            public int Axis { get; }
+
+            /// <summary>The side (+1 / −1) of <see cref="Axis"/> a cone narrows toward.</summary>
+            public int Tip { get; }
+
+            /// <summary>This part drawn as <paramref name="form"/> about <paramref name="axis"/>.</summary>
+            public Part WithForm(HeldPartForm form, int axis, int tip)
+                => new Part(Position, Size, Color, Glow, Material, form, axis, tip);
         }
 
         private static readonly Rgb Metal = new Rgb(0.55f, 0.58f, 0.64f);
@@ -81,6 +107,8 @@ namespace BlocksBeyondTheStars.Client
         /// data, or a player's tool look — and wins when it holds at least one drawable part; otherwise the kind's
         /// model is used. <paramref name="tint"/> is the kind's colour, which a part asks for with <c>"tint"</c>.
         /// A gadget's kind model is the compact emitter every gadget showed before #2837 gave each its own model.
+        /// Every part that does not name its form gets one by <see cref="HeldPartForms.Automatic"/> —
+        /// a player's own look names <c>box</c> on every part (<c>ToolLook.ToParts</c>), so it keeps its boxes.
         /// </summary>
         public static List<Part>? Parts(string kind, Rgb tint, IReadOnlyList<HeldModelPart>? model = null)
         {
@@ -89,13 +117,14 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
-            var own = FromModel(model, tint);
+            var decided = new List<bool>();
+            var own = FromModel(model, tint, decided);
             if (own.Count > 0)
             {
-                return own;
+                return HeldPartForms.Automatic(kind, own, decided);
             }
 
-            return kind switch
+            var standard = kind switch
             {
                 "Drill" or HeldStances.PickKind => new List<Part> // a pick always has a model of its own; a player's empty look falls back here
                 {
@@ -129,6 +158,7 @@ namespace BlocksBeyondTheStars.Client
                     P(0f, -0.12f, 0.02f, 0.07f, 0.16f, 0.08f, Dark), // #2799: the handle the fist closes on
                 },
             };
+            return HeldPartForms.Automatic(kind, standard, null);
         }
 
         /// <summary>The kind name (<c>HeldItem.Kind</c>) of the woodcutter's axe (#2647) — an NPC tool, not an item.</summary>
@@ -158,19 +188,19 @@ namespace BlocksBeyondTheStars.Client
             if (kind == AxeKind)
             {
                 var edge = new Rgb(Lighter(tint.R), Lighter(tint.G), Lighter(tint.B));
-                return new List<Part>
+                return HeldPartForms.Automatic(kind, new List<Part>
                 {
                     P(0f, 0f, 0.16f, 0.05f, 0.05f, 0.50f, ToolWood),  // handle
                     P(0f, -0.02f, 0.37f, 0.06f, 0.10f, 0.09f, tint),  // the eye around the handle's end
                     P(0f, -0.11f, 0.37f, 0.035f, 0.10f, 0.15f, tint), // the blade, flaring out along the handle
                     P(0f, -0.17f, 0.37f, 0.03f, 0.02f, 0.17f, edge),  // the bright cutting edge
                     P(0f, 0.05f, 0.37f, 0.05f, 0.04f, 0.06f, tint),   // the poll
-                };
+                }, null);
             }
 
             if (kind == BowKind)
             {
-                return new List<Part>
+                return HeldPartForms.Automatic(kind, new List<Part>
                 {
                     P(0f, 0f, 0.02f, 0.05f, 0.06f, 0.12f, BowGrip),      // the grip in the hand
                     P(0f, 0.015f, 0.18f, 0.04f, 0.04f, 0.20f, tint),     // upper limb
@@ -178,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
                     P(0f, 0.015f, -0.14f, 0.04f, 0.04f, 0.20f, tint),    // lower limb
                     P(0f, 0.05f, -0.30f, 0.035f, 0.035f, 0.14f, tint),   // lower limb's tip
                     P(0f, 0.075f, 0.02f, 0.012f, 0.012f, 0.78f, BowString, HeldMaterials.Leather), // the string (sinew), tip to tip
-                };
+                }, null);
             }
 
             return null;
@@ -187,8 +217,13 @@ namespace BlocksBeyondTheStars.Client
         private static float Lighter(float c) => c + ((1f - c) * 0.45f);
 
         /// <summary>Turns model data into parts, dropping what cannot be drawn and everything past
-        /// <see cref="HeldModelPart.MaxParts"/> — a model from a content pack or another player is not trusted.</summary>
-        public static List<Part> FromModel(IReadOnlyList<HeldModelPart>? model, Rgb tint)
+        /// <see cref="HeldModelPart.MaxParts"/> — a model from a content pack or another player is not trusted. A part that
+        /// names its form (<see cref="HeldModelPart.F"/>) gets it (<see cref="HeldPartForms.Explicit"/>); every other part
+        /// is a box here — <see cref="Parts"/> runs the automatic rule over those.</summary>
+        public static List<Part> FromModel(IReadOnlyList<HeldModelPart>? model, Rgb tint) => FromModel(model, tint, null);
+
+        // As above; per kept part, whether it named a form the client knows (into decided, when given).
+        private static List<Part> FromModel(IReadOnlyList<HeldModelPart>? model, Rgb tint, List<bool>? decided)
         {
             var parts = new List<Part>();
             if (model == null)
@@ -214,7 +249,10 @@ namespace BlocksBeyondTheStars.Client
                     color = new Rgb(r, g, b);
                 }
 
-                parts.Add(new Part(new Vector3(m.P[0], m.P[1], m.P[2]), new Vector3(m.S[0], m.S[1], m.S[2]), color, m.G, m.M));
+                var part = new Part(new Vector3(m.P[0], m.P[1], m.P[2]), new Vector3(m.S[0], m.S[1], m.S[2]), color, m.G, m.M);
+                bool named = HeldPartForms.TryExplicit(part, m.F, out var formed);
+                parts.Add(named ? formed : part);
+                decided?.Add(named);
             }
 
             return parts;
@@ -233,14 +271,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>
         /// Mirrors parts across the holder's x = 0 plane (#2278): a right glove becomes the left one. Only the x of each
         /// centre flips — sizes, colours and glow stay — because every part is an axis-aligned box: no negative scale, so
-        /// no inside-out faces. Mirroring twice gives the parts back.
+        /// no inside-out faces. Mirroring twice gives the parts back. A part keeps its form; a cone along x turns its tip
+        /// to the other side.
         /// </summary>
         public static List<Part> Mirror(IReadOnlyList<Part> parts)
         {
             var mirrored = new List<Part>(parts.Count);
             foreach (var p in parts)
             {
-                mirrored.Add(new Part(new Vector3(-p.Position.X, p.Position.Y, p.Position.Z), p.Size, p.Color, p.Glow, p.Material));
+                int tip = p.Form == HeldPartForm.Cone && p.Axis == 0 ? -p.Tip : p.Tip;
+                mirrored.Add(new Part(new Vector3(-p.Position.X, p.Position.Y, p.Position.Z), p.Size, p.Color, p.Glow, p.Material,
+                    p.Form, p.Axis, tip));
             }
 
             return mirrored;

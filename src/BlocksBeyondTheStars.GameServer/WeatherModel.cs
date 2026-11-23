@@ -177,6 +177,15 @@ public sealed class WeatherSim
     /// rain, no fog — only the vacuum-safe events run there.</summary>
     public int LadderCeiling { get; set; } = WeatherCatalog.MaxSeverity;
 
+    /// <summary>How long a state forced for the whole world holds at full strength before it fades (seconds) — long
+    /// enough to look at the weather that was asked for.</summary>
+    public const double PinnedHoldSeconds = 300;
+
+    /// <summary>True while a state forced by an admin holds: it is the weather at EVERY position of the world — no biome
+    /// offset, no front, no summit step, no ladder band — until its episode ends. Without it "/setweather rain" read
+    /// "clouds" in every biome that sits one step drier, so nothing fell where the admin stood.</summary>
+    public bool Pinned { get; private set; }
+
     /// <summary>Live fronts drifting across this world.</summary>
     public List<WeatherFront> Fronts { get; } = new();
 
@@ -210,6 +219,7 @@ public sealed class WeatherSim
         SeasonPeriodDays = other.SeasonPeriodDays;
         SeasonAmplitude = other.SeasonAmplitude;
         Volatility = other.Volatility;
+        Pinned = other.Pinned;
         _windTarget = other._windTarget;
         foreach (var f in other.Fronts)
         {
@@ -302,6 +312,7 @@ public sealed class WeatherSim
             LadderSeverity = def.Severity;
         }
 
+        Pinned = false; // a forced state ends with its episode: the sky is the world's own again
         Elapsed = 0;
         Duration = Math.Clamp(_rng.Range(def.DurLo, def.DurHi) / Math.Max(0.35, Volatility), 12, 260);
 
@@ -596,8 +607,10 @@ public sealed class WeatherSim
         return result;
     }
 
-    /// <summary>Test/admin seam: forces a state, keeping the ladder position consistent.</summary>
-    public void Force(string key)
+    /// <summary>Test/admin seam: forces a state, keeping the ladder position consistent. With
+    /// <paramref name="everywhere"/> the state is <see cref="Pinned"/>: it holds at every position of the world, and
+    /// for <see cref="PinnedHoldSeconds"/> at full strength — what an admin who types "/setweather rain" asks for.</summary>
+    public void Force(string key, bool everywhere = false)
     {
         var def = WeatherCatalog.Find(key) ?? WeatherCatalog.Ladder[0];
         State = def.Key;
@@ -613,6 +626,14 @@ public sealed class WeatherSim
         Intensity = Peak;
         Duration = Math.Max(90, def.DurHi);
         Elapsed = Duration * 0.5;
+        Pinned = everywhere;
+        if (everywhere)
+        {
+            // The plateau lasts the hold, then the usual decay: the episode's second half is hold + decay.
+            Duration = (PinnedHoldSeconds + DecayMaxSeconds) * 2;
+            Elapsed = Duration * 0.5;
+        }
+
         Precip = def.Precip.Length > 0 ? def.Precip[0] : "none";
         _windTarget = (def.WindLo + def.WindHi) * 0.5f;
         WindSpeed = _windTarget;

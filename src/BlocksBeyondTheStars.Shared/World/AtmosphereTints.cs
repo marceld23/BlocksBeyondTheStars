@@ -67,52 +67,87 @@ public static class AtmosphereTints
     /// <summary>The daytime sky hue (0xRRGGBB) of one world: the type's authored sky (#2063) when it names one,
     /// else a seeded pick from the blue-dominant palette. Only worlds with an atmosphere show it.
     /// <paramref name="terrainGeneration"/> is the SAVE's generation (#2692): below
-    /// <see cref="WorldDescription.HashVarietyGeneration"/> the classic location hash, from it the mixed one.</summary>
+    /// <see cref="WorldDescription.HashVarietyGeneration"/> the classic location hash, from it the mixed one. From
+    /// <see cref="WorldDescription.ColourHarmonyGeneration"/> the pick comes from the sky colours that fit the planet's
+    /// kind (<see cref="WorldPalettes.SkiesOf"/>, by <see cref="MistProfiles.FamilyOf"/> — eight to fifteen per kind, the
+    /// blues no longer every second world) and wears the world's mood (<see cref="WorldHarmony.Sky"/>: stronger, paler,
+    /// muted or dim) — the anchor every other colour of the world answers.</summary>
     public static int SkyRgb(long worldSeed, string? locationId, PlanetType? planet, int terrainGeneration)
-        => planet is { SkyColor: > 0 }
-            ? planet.SkyColor
-            : SkyHue(HasMixedTints(terrainGeneration)
-                ? MixedWord(worldSeed, locationId, SkySalt)
-                : unchecked((uint)(StableHash(locationId) ^ (int)worldSeed)));
+    {
+        if (planet is { SkyColor: > 0 })
+        {
+            return planet.SkyColor;
+        }
+
+        if (terrainGeneration >= WorldDescription.ColourHarmonyGeneration)
+        {
+            return WorldHarmony.Sky(
+                PaletteHue(WorldPalettes.SkiesOf(MistProfiles.FamilyOf(planet)), MixedWord(worldSeed, locationId, SkySalt)),
+                WorldHarmony.MoodOf(worldSeed, locationId, planet));
+        }
+
+        return SkyHue(HasMixedTints(terrainGeneration)
+            ? MixedWord(worldSeed, locationId, SkySalt)
+            : unchecked((uint)(StableHash(locationId) ^ (int)worldSeed)));
+    }
 
     /// <summary>The cloud tint (0xRRGGBB) of one world: the type's base cloud colour with a small per-world jitter,
     /// pushed apart in brightness when it drifted too close to <paramref name="skyRgb"/> (that world's
     /// <see cref="SkyRgb"/>), so clouds always read against their sky. <paramref name="terrainGeneration"/> as in
-    /// <see cref="SkyRgb"/>.</summary>
+    /// <see cref="SkyRgb"/>. From <see cref="WorldDescription.ColourHarmonyGeneration"/> a tinted deck sits beside the
+    /// sky's hue (<see cref="Harmonised"/>) — unless the type authors its sky, whose clouds were painted against it.</summary>
     public static int CloudRgb(long worldSeed, string? locationId, PlanetType? planet, int skyRgb, int terrainGeneration)
-        => CloudTint(
+    {
+        int classic = CloudTint(
             planet?.CloudColor ?? DefaultCloudRgb,
             skyRgb,
             HasMixedTints(terrainGeneration)
                 ? MixedWord(worldSeed, locationId, CloudSalt)
                 : unchecked((uint)((StableHash(locationId) ^ (int)worldSeed) ^ 0x5F356495)));
+        return terrainGeneration >= WorldDescription.ColourHarmonyGeneration && planet is not { SkyColor: > 0 }
+            ? Harmonised(classic, skyRgb, WorldHarmony.Around(worldSeed, locationId, skyRgb, planet))
+            : classic;
+    }
+
+    /// <summary>A cloud tint in a world's colour harmony: its hue set beside the sky's (<see cref="WorldHarmony.Cloud"/>;
+    /// a white or grey deck stays as it is, a gloomy world wears a dark deck), then the contrast guarantee once more — the
+    /// change may have brought the tint close to <paramref name="skyRgb"/>.</summary>
+    public static int Harmonised(int cloudRgb, int skyRgb, WorldHarmony harmony)
+    {
+        int turned = harmony.Cloud(cloudRgb);
+        return turned == cloudRgb ? cloudRgb : KeptApart(turned, skyRgb);
+    }
 
     /// <summary>A deterministic sky hue from a hash: a weighted palette pick plus a small per-channel jitter.</summary>
-    public static int SkyHue(uint h)
+    public static int SkyHue(uint h) => PaletteHue(SkyPalette, h);
+
+    /// <summary>A weighted pick from <paramref name="palette"/> by <paramref name="h"/>, plus a small per-channel jitter
+    /// read from the same word.</summary>
+    private static int PaletteHue(IReadOnlyList<(int Rgb, int Weight)> palette, uint h)
     {
         int total = 0;
-        foreach (var (_, w) in SkyPalette)
+        foreach (var (_, w) in palette)
         {
             total += w;
         }
 
         int roll = (int)(h % (uint)total);
         int i = 0;
-        for (; i < SkyPalette.Length; i++)
+        for (; i < palette.Count; i++)
         {
-            roll -= SkyPalette[i].Weight;
+            roll -= palette[i].Weight;
             if (roll < 0)
             {
                 break;
             }
         }
 
-        if (i >= SkyPalette.Length)
+        if (i >= palette.Count)
         {
-            i = SkyPalette.Length - 1;
+            i = palette.Count - 1;
         }
 
-        int anchor = SkyPalette[i].Rgb;
+        int anchor = palette[i].Rgb;
         int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
         int Jit(int shift) => (int)((h >> shift) & 0x1F) - 16; // -16..+15
         return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
@@ -129,7 +164,14 @@ public static class AtmosphereTints
         r = Clamp8b(r + Jit(2));
         g = Clamp8b(g + Jit(7));
         b = Clamp8b(b + Jit(12));
+        return KeptApart((r << 16) | (g << 8) | b, skyRgb);
+    }
 
+    /// <summary>The contrast guarantee of <see cref="CloudTint"/>: a tint within ~64 RGB units of
+    /// <paramref name="skyRgb"/> has its brightness pushed apart (lighter over a dark sky, greyer under a bright one).</summary>
+    public static int KeptApart(int cloudRgb, int skyRgb)
+    {
+        int r = (cloudRgb >> 16) & 0xFF, g = (cloudRgb >> 8) & 0xFF, b = cloudRgb & 0xFF;
         int sr = (skyRgb >> 16) & 0xFF, sg = (skyRgb >> 8) & 0xFF, sb = skyRgb & 0xFF;
         int dr = r - sr, dg = g - sg, db = b - sb;
         if (dr * dr + dg * dg + db * db < 64 * 64)

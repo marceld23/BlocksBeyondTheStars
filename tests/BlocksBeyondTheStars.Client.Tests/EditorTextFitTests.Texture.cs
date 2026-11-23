@@ -68,6 +68,18 @@ public sealed partial class EditorTextFitTests
         FitLine("TextureEditor steppers (96)", 96f, 13, 16, "ui.tex.light", "ui.tex.contrast", "ui.tex.colourfulness"),
         TextureConfirmations(),
         FitLine("TextureEditor reset confirm button (266)", 266f, 16, 22, "ui.tex.reset_yes"),
+        // #3939: the soft tools' panel at the left card's foot (TextureEditor.Soft.cs) — a kicker, six buttons
+        // two to a row (156×44), the "calm when saving" label (320) over a ‹ value › cycle (320 − 2 × 44 − 8), the tooltips
+        // (UiTooltip: 380 less 2 × 12 padding, body at 17 px) and three status lines.
+        FitLine("TextureEditor soft tools kicker (upper case)", 320f * KickerShare, 13, 16, "ui.tex.soft.title"),
+        Button("TextureEditor soft tools (156×44)", 156f, 44f, "ui.tex.soft.brush", "ui.tex.soft.smooth", "ui.tex.soft.smooth_all",
+            "ui.tex.soft.calm_all", "ui.tex.soft.seamless", "ui.tex.soft.luma"),
+        FitLine("TextureEditor calm-when-saving label (320)", 320f, 13, 16, "ui.tex.soft.save_calm"),
+        Label("TextureEditor calm-when-saving value (224)", 224f, 16, "ui.tex.soft.percent") with { Sample = "100" },
+        Wrap("TextureEditor soft tools tooltips (356, 17 px)", 356f, 5, 17, "ui.tex.soft.*_tip"),
+        Wrap("TextureEditor soft tools status (shell status bar, 1140 wide, 2 lines)", 1140f, 2, 16, "ui.tex.soft.seamless_done",
+            "ui.tex.soft.luma_on", "ui.tex.soft.luma_not_tinted") with
+        { Sample = "88.8" },
         // The shell's Save subline (EditorShellLayout: SaveW 230 + SublineReach 120, 16 px) of every paint and shape editor.
         FitLine("Paint / shape editors Save subline (350)", 350f, 16, 16, "ui.editor.save_sub.texture", "ui.editor.save_sub.avatar",
             "ui.editor.save_sub.appearance", "ui.editor.save_sub.paint", "ui.editor.save_sub.form", "ui.editor.save_sub.tool_looks",

@@ -1177,7 +1177,7 @@ public sealed partial class GameServer
             BroadcastShipTransit(session, body.Id, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent (item 38)
         }
 
-        Send(session, new WorldReset { PlanetType = body.PlanetType!, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump });
+        Send(session, new WorldReset { PlanetType = body.PlanetType!, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump, LocationId = session.CurrentLocationId });
         // The parked ship objects and the ground go out BEFORE the position (#1450): the client settles the
         // moment it knows where it is, and the deck it is meant to stand on has to exist by then — with the
         // ship arriving after the snap, the terrain under the pad answered the ground check and the player
@@ -2891,7 +2891,7 @@ public sealed partial class GameServer
         session.Streaming.SentChunks.Clear();
 
         var (systemName, planetName) = ActiveLocationNames();
-        Send(session, new WorldReset { PlanetType = homeType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
+        Send(session, new WorldReset { PlanetType = homeType, PlanetName = planetName, SystemName = systemName, Hyperjump = false, LocationId = session.CurrentLocationId });
         Send(session, new RespawnNotice
         {
             X = p.Position.X,
@@ -4340,6 +4340,7 @@ public sealed partial class GameServer
             TerrainLavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes, // #2172: the planet map previews need it too
             ContentFingerprint = _content.BlockFingerprint, // #2222: the client checks it against its own
             AdminCallSupported = !SinglePlayerServer, // #3508: the client offers "Call an admin" only then — never in singleplayer (#3638)
+            LocationId = state.CurrentLocationId, // generation 48: the client builds the world's colour harmony from the body's id
         });
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);

@@ -20,6 +20,13 @@ namespace BlocksBeyondTheStars.Client
         /// appearance editor needs the painted back and the outer arm shown, not just the face.</summary>
         public bool FullTurntable;
 
+        /// <summary>Set before <see cref="EnsureBuilt"/> by the appearance editor — its camera gets the shared fixed look
+        /// light (<see cref="LookPreview"/>), the same in the main menu and in a world, switchable to the neutral studio
+        /// light. Off for every other rig (the submission picture, the screenshot capture keep the studio light). The
+        /// figure is the world's own: rounded parts as in the world (<c>PlayerAvatar.Round.cs</c>), and the painted face and body paint exactly as painted — the
+        /// animals' "calmer hide" (<c>CreatureBuilder.CalmHide</c>) never reaches an avatar.</summary>
+        public bool WorldLook;
+
         private Camera _cam;
         private PlayerAvatar _avatar;
         private Transform _model;
@@ -62,6 +69,10 @@ namespace BlocksBeyondTheStars.Client
             // catches the key light. Distance set so the ~1.85 m figure fits the portrait with margin.
             _cam.transform.position = _origin + new Vector3(-0.85f, 1.05f, -3.95f);
             _cam.transform.LookAt(_origin + new Vector3(0f, 0.95f, 0f));
+            if (WorldLook)
+            {
+                LookPreview.Attach(_cam); // the "as in the world" light
+            }
 
             var lightGo = new GameObject("AvatarPreviewLight");
             lightGo.transform.SetParent(transform, false);
@@ -80,6 +91,16 @@ namespace BlocksBeyondTheStars.Client
             _avatar.SetVisible(true);
 
             SetActive(false);
+        }
+
+        /// <summary>The "as in the world" / "pixels only" switch over the bottom of the picture of this rig on
+        /// <paramref name="parent"/> — only for a <see cref="WorldLook"/> rig.</summary>
+        public void AddLookToggle(Transform parent, float x, float y, float w, float h, System.Func<string, string> localize)
+        {
+            if (WorldLook)
+            {
+                LookPreview.AddToggle(parent, x, y, w, h, localize);
+            }
         }
 
         public void SetColors(Color skin, Color torso, Color arms, Color legs) => _avatar?.ApplyColors(skin, torso, arms, legs);

@@ -62,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
 
             string gpu = DeviceKey;
             int next = QualityCalibration.StartStep((int)settings.Preset, MayStepUp(), settings.AutoWorldSample, gpu, settings.AutoHighRejectedGpu);
+            next = (int)ClientSettings.AllowedPreset((QualityPreset)next); // #3946: never above what the platform offers
             if (next == (int)settings.Preset)
             {
                 return;
@@ -132,7 +133,8 @@ namespace BlocksBeyondTheStars.Client
         private static void Decide(ClientSettings settings, FrameSampleStats shell)
         {
             var before = settings.Preset;
-            var after = (QualityPreset)QualityCalibration.ShellStep((int)before, shell, MayStepUp());
+            // #3946: the step up stops at the platform's highest preset (the browser's Low).
+            var after = ClientSettings.AllowedPreset((QualityPreset)QualityCalibration.ShellStep((int)before, shell, MayStepUp()));
             if (after == before)
             {
                 Debug.Log($"[AutoQuality] Preset {before} confirmed ({shell}).");

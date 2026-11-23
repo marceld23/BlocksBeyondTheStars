@@ -34,6 +34,8 @@ no compute, no GPU particles and no modern upscaling.
 3. **Everything that WebGL 2 forbids stays forbidden.** Because WebGL 2 remains the fallback, the renderer keeps
    to hand-written dual-pipeline shaders, Shuriken particles and no compute (see ADR 0003 and
    [VFX.md](../VFX.md)); WebGPU-only features are not used until WebGL 2 is dropped by a later decision.
+   *Narrowed by [ADR 0021](0021-graphics-tiers-desktop-high-potato-browser.md) (2026-11-21): the limit binds what the
+   browser build runs; desktop High may use techniques the browser cannot, with a working path for the other tiers.*
 4. **GPU reads go through one door.** `GpuReadback` chooses `ReadPixels` where the API allows it and an
    `AsyncGPUReadback` request on WebGPU, so the photo item, the chat and F1/F2 screenshots and the texture
    editor work on both; new readers use it too.

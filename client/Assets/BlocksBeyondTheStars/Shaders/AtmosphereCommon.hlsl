@@ -81,6 +81,42 @@ float4 _Sc_CloudBand;      // #3272: see the header
 float4 _Sc_CloudBandColor; // #3272: see the header
 float4 _Sc_DistSoft;       // #3461/#3462: see the header
 float4 _Sc_DistSoftRange;  // #3481: see the header
+// The look's globals (Sky.Look.cs):
+//   _Sc_Look        x = amount (0 … 1), y = texture calm 0..1, z = ambient share, w = direct-sun share
+//   _Sc_Look2       x = the block atlas's mip with one texel per tile, y = the crown mode (0 leaf cutout, 1 closed
+//                   with painted puffs, 2 micro blocks in the chunk mesh, 3 staged: micro blocks near, a closed cube
+//                   with a painted cube pattern far), z = the micro blocks' wind flutter, w = the share of the
+//                   world's light a model right at the eye takes (the first-person hand; LitColor)
+//   _Sc_Look4       staged crowns: x = the range of the real micro blocks (m, 0 = none), y = the cross-fade's width
+//                   (m), z = the distance from the eye at which a cube starts to shrink away (0 = never), w = where it
+//                   is gone
+//   _Sc_LookEye     xyz = the main camera's world position (for the shadow pass, which renders from the sun's view),
+//                   w = how far the near clusters of staged crowns cast their own shadows (m)
+//   _Sc_AmbSky      rgb = the ambient light from above (linear: the sun light's luminance in the sky's hue)
+//   _Sc_AmbGround   rgb = the ambient light from below (the ground's bounce)
+//   _Sc_LookSunHue  rgb = the sun light's hue (luminance 1), a = its luminance
+//   _Sc_LookSunDir  xyz = world-space direction TO the sun (for shaders that do not declare _Sc_SunDir)
+//   _Sc_LookModel   the amount for models (LitColor): 1 in the world, 0 in the menu, previews and the space view
+//   _Sc_Look3       x = soft blocks: the rounded edge's width in tile units (0 = off), y = the joint's darkness,
+//                   z = fine grain 0..1, w = rim light 0..1
+float4 _Sc_Look;
+float4 _Sc_Look2;
+float4 _Sc_Look3;
+float4 _Sc_Look4;
+float4 _Sc_LookEye;
+float4 _Sc_LookLeaf;  // the leaf picture on the small cubes of a staged crown (BlockAtlas.shader, the instanced variant): x = its share (0 = one colour per cube), y = where it starts to fade (m from the eye), z = where it is gone, w = how much darker the gaps between the leaves are drawn
+float4 _Sc_LookGrass; // grass clumps (GrassClump.shader): x = their range (m, 0 = none), y = the width over which they grow out of the ground, z = height factor, w = how much the carpet under them is calmed
+float  _Sc_LookGrassShadow; // > 0: grass takes the softened sun shadow of the ground beneath it (MeadowLight.hlsl)
+float4 _Sc_LookPlant; // plant bodies (PlantBody.shader): x = their range (m, 0 = none), y = the cross-fade's width, z = how far the bodies cast their own shadows, w unused
+float _Sc_LookGem;        // 1 = a crystal's facets are lit as a cut stone (PlantBody.shader); 0 = like any plant part
+float4 _Sc_LookWater;     // clear shallows (BlockAtlasTransparent.shader): x = on 0..1, y = the caustics on the bed, z = the sun's glitter
+float4 _Sc_LookGlowHaze;  // glowing haze (Sky.GlowHaze.cs): rgb = the colour of the natural lights around the player, a = how much of the haze takes it (0 = none)
+float4 _Sc_LookGlowHaze2; // x = the mean height of those lights, y = 1 / the band above them over which the glow fades
+float4 _Sc_AmbSky;
+float4 _Sc_AmbGround;
+float4 _Sc_LookSunHue;
+float4 _Sc_LookSunDir;
+float  _Sc_LookModel;
 TEXTURE2D(_Sc_CloudNoise); SAMPLER(sampler_Sc_CloudNoise);
 
 // #2814: the colour the interior fill lights the cabin in — white where nothing set it (a station, the menu, a preview).
@@ -199,6 +235,81 @@ float BbtsSkyLightScale(float sky)
     return BbtsSkyAmbient(saturate(sky)) / 0.78;
 }
 
+// The sun and sky light on a world surface. `amb` is BbtsSkyAmbient of its skylight, `direct` the sun's share
+// (N·L × shadow × how open the sky is) and N its normal. The ambient takes the sky's hue from above and the ground's bounce from below, and the sun gets a larger share —
+// lit and shaded sides part in brightness and in colour. (`classic` is the plain term light × (amb + 0.5 direct) that
+// an amount of 0 gives.)
+float3 BbtsWorldLight(float3 light, float amb, float direct, float3 N)
+{
+    float3 classic = light * (amb + 0.5 * direct);
+    if (_Sc_Look.x <= 0.0)
+    {
+        return classic;
+    }
+
+    float3 ambCol = lerp(_Sc_AmbGround.rgb, _Sc_AmbSky.rgb, saturate(N.y * 0.5 + 0.5));
+    float3 lab = ambCol * (amb * _Sc_Look.z) + light * (_Sc_Look.w * direct);
+    return lerp(classic, lab, _Sc_Look.x);
+}
+
+// How far a block face's texels fade toward their tile's average colour (0 = untouched). Natural, unpainted
+// faces only — plain (tint mode 0), flora (1) and bark (4) — and never a glowing, metal or glossy one; plants keep half,
+// their blossoms and berries carry the accents. `mat` = the face's material (r gloss, g metal, a emission).
+float BbtsLookNatural(float mode, float4 mat)
+{
+    float natural = (mode < 1.5 || (mode > 3.5 && mode < 4.5)) ? 1.0 : 0.0;
+    return natural * saturate(1.0 - mat.g * 5.0) * saturate(1.0 - (mat.r - 0.35) * 4.0) * (mat.a > 0.01 ? 0.0 : 1.0);
+}
+
+float BbtsLookCalm(float mode, float cut, float4 mat)
+{
+    if (_Sc_Look.y <= 0.0)
+    {
+        return 0.0;
+    }
+
+    float plant = (cut > 1.5 || (mode > 0.5 && mode < 1.5)) ? 0.5 : 1.0;
+    return _Sc_Look.y * BbtsLookNatural(mode, mat) * plant;
+}
+
+// A cheap hash and value noise of a world position (no texture: it must not add assets).
+float BbtsHash3(float3 p)
+{
+    p = frac(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float BbtsValueNoise(float3 p)
+{
+    float3 c = floor(p);
+    float3 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float x00 = lerp(BbtsHash3(c), BbtsHash3(c + float3(1.0, 0.0, 0.0)), f.x);
+    float x10 = lerp(BbtsHash3(c + float3(0.0, 1.0, 0.0)), BbtsHash3(c + float3(1.0, 1.0, 0.0)), f.x);
+    float x01 = lerp(BbtsHash3(c + float3(0.0, 0.0, 1.0)), BbtsHash3(c + float3(1.0, 0.0, 1.0)), f.x);
+    float x11 = lerp(BbtsHash3(c + float3(0.0, 1.0, 1.0)), BbtsHash3(c + float3(1.0, 1.0, 1.0)), f.x);
+    return lerp(lerp(x00, x10, f.y), lerp(x01, x11, f.y), f.z);
+}
+
+// Fine grain — the tile gives the colour, this gives the surface: soft patches (~20 cm), a fine grain (~3 cm)
+// and sparse dark pores, all in world space, so no pattern repeats per block and none is tied to the tile's 64 px.
+// Returns a factor around 1 for the albedo. `p` = the world position, taken a hair inside the block (a point exactly on
+// a cell plane would flip between two noise cells). Fades out with distance, where it would only shimmer.
+float BbtsLookGrain(float3 p, float amount, float camDist)
+{
+    amount *= 1.0 - smoothstep(10.0, 28.0, camDist);
+    if (amount <= 0.001)
+    {
+        return 1.0;
+    }
+
+    float mottle = BbtsValueNoise(p * 5.0) - 0.5;
+    float fine = BbtsValueNoise(p * 37.0) - 0.5;
+    float pore = step(0.86, BbtsHash3(floor(p * 23.0)));
+    return 1.0 + amount * (0.16 * mottle + 0.11 * fine - 0.10 * pore);
+}
+
 // Vertex sway for leaves, grass and flora (#2397). `foliage` = a tree crown / cutout leaf (TEXCOORD2.x > 0.5), `flora` =
 // a plant (tint mode 1); `tip` = 0 at the root … 1 at the tip (a plant bends at the top and stays rooted; crowns pass a
 // constant). World-position phases keep chunk borders seamless and let neighbours drift apart; two slow waves plus a
@@ -285,6 +396,75 @@ float3 BbtsBlockSway(float3 wp, float leafCode, float tintMode, float skylight, 
 
     // #2819: sheltered plants fade from the wind into the indoor draught (one skylight per plant, so it cannot split).
     return lerp(BbtsDraught(wp, tip), offset, BbtsSwayShelter(skylight));
+}
+
+// Micro-block crowns (_Sc_Look2.y = 2) — on top of the crown's rigid sway every small cube rocks a little on
+// its own, so the leaves move in the wind. `phaseCode` is the vertex colour's gloss channel: the mesher writes the
+// cube's class there as k/255, the same on all of a cube's vertices, so a cube moves as one piece (the world term below
+// changes by a fraction of a millimetre across 25 cm). Slow (under half a wave per second), about 2 cm at _Sc_Look2.z = 1,
+// stronger with the wind; off with the wind-sway switch. The forward, shadow and depth passes all call it.
+float3 BbtsCrownFlutter(float3 wp, float leafCode, float phaseCode)
+{
+    if (_Sc_Look2.y < 1.5 || _Sc_Wind.w < 0.5 || leafCode < 0.5 || leafCode > 1.5)
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+
+    float phase = round(phaseCode * 255.0) * 0.9 + dot(wp, float3(0.31, 0.17, 0.23));
+    float t = _Sc_Wind.y;
+    float wave = sin(t * 1.7 + phase) * 0.6 + sin(t * 2.9 + phase * 1.3) * 0.4;
+    float wind = length(_Sc_Wind.xz);
+    float2 dir = wind > 0.01 ? _Sc_Wind.xz / wind : float2(0.7071, 0.7071);
+    return float3(dir.x, 0.25, dir.y) * (wave * 0.022 * (0.4 + 0.6 * saturate(wind)) * _Sc_Look2.z);
+}
+
+// Staged crowns (_Sc_Look2.y = 3). Near the eye a crown cell is its real micro-block cluster (GPU instances,
+// CrownClusters.cs), beyond the range the closed cube of the chunk mesh with a painted cube pattern. Over the last
+// metres of the range the two are cross-faded by a screen-door dither: every pixel shows exactly one of them — the
+// cluster where the noise is below the near share, the cube where it is not — so nothing pops and nothing is blended.
+
+// Interleaved gradient noise of a pixel position (0..1), stable per pixel.
+float BbtsIgn(float2 px)
+{
+    return frac(52.9829189 * frac(dot(px, float2(0.06711056, 0.00583715))));
+}
+
+// The share of the near picture at a world position: 1 inside the range, falling to 0 over the cross-fade at its end.
+float BbtsCrownNearShare(float3 wp, float3 eye)
+{
+    return saturate((_Sc_Look4.x - distance(wp, eye)) / max(_Sc_Look4.y, 0.01));
+}
+
+// The size of one small cube of a near cluster (1 = whole, 0 = collapsed onto its middle): it shrinks away right in
+// front of the eye, so foliage the player walks through opens up instead of filling the screen with boxes, and it is
+// collapsed beyond the range, where the far picture has taken over (no pixels to shade there).
+float BbtsCrownCubeScale(float3 cubeWs, float3 eye)
+{
+    float d = distance(cubeWs, eye);
+    if (d > _Sc_Look4.x + 1.5)
+    {
+        return 0.0;
+    }
+
+    return _Sc_Look4.z > 0.0 ? smoothstep(_Sc_Look4.w, _Sc_Look4.z, d) : 1.0;
+}
+
+// Plant bodies. A small plant that has a body (PlantBodies.cs) keeps its crossed picture in the chunk mesh as
+// the far picture; the mesher marks it by adding 0.04 to its cutout code (TEXCOORD2.x: 3 plant + 0.1/0.2/0.3 accent
+// pick). The mark sits in the hundredths, so the code's ±0.5 windows and the accent pick in the tenths stay as they are.
+bool BbtsStagedPlant(float leafCode)
+{
+    float tenths = (leafCode - round(leafCode)) * 10.0;
+    // A crossed picture (3), one in water (4) — or the plain form of a solid plant (0: cactus, cap, crystal …).
+    bool kind = (leafCode > 2.5 && leafCode < 4.5) || (leafCode > -0.01 && leafCode < 0.45);
+    return kind && (tenths - round(tenths)) > 0.2;
+}
+
+// The share of the body at a world position: 1 inside the range, falling to 0 over the cross-fade at its end (the same
+// screen-door as the staged crowns: the body where the pixel's noise is below the share, the picture where it is not).
+float BbtsPlantNearShare(float3 wp, float3 eye)
+{
+    return saturate((_Sc_LookPlant.x - distance(wp, eye)) / max(_Sc_LookPlant.y, 0.01));
 }
 
 // Mist density at height y: 1 at and below the floor, falling off exponentially above it.
@@ -473,6 +653,19 @@ float BbtsDistSoftTexture(float3 wp)
 // The haze colour for the terms: the distance veil takes the sky warmed toward the sun when looking at it (in-scatter),
 // the mist its own lit colour (#3271; the veil's while _Sc_MistColor.a is 0), the band the lit cloud colour (#3272) — both
 // catch some of the sun's warmth too — mixed by the terms' weights.
+// The haze near lava and crystals takes their light's colour — fully at and below the lights' height, a
+// quarter of it high above them. Zero globals (no lights around): the colour passes through.
+float3 BbtsGlowHaze(float3 colour, float3 wp)
+{
+    if (_Sc_LookGlowHaze.a <= 0.001)
+    {
+        return colour;
+    }
+
+    float low = saturate(1.0 - (wp.y - _Sc_LookGlowHaze2.x) * _Sc_LookGlowHaze2.y);
+    return lerp(colour, _Sc_LookGlowHaze.rgb, saturate(_Sc_LookGlowHaze.a) * (0.25 + 0.75 * low));
+}
+
 float3 BbtsHazeMix(float3 wp, float3 terms)
 {
     float3 sky = (_Sc_FogSky.a < 0.5) ? float3(1.0, 1.0, 1.0) : _Sc_FogSky.rgb;
@@ -481,13 +674,13 @@ float3 BbtsHazeMix(float3 wp, float3 terms)
     float3 veil = lerp(sky, _Sc_FogSun.rgb, toSun);
     if (_Sc_MistColor.a < 0.001 && _Sc_CloudBand.z < 0.001)
     {
-        return veil; // no mist colour of its own and no band: the look before #3271, exactly
+        return BbtsGlowHaze(veil, wp); // no mist colour of its own and no band: the look before #3271, exactly
     }
 
     float3 mist = lerp(veil, lerp(_Sc_MistColor.rgb, _Sc_FogSun.rgb, toSun * 0.6), saturate(_Sc_MistColor.a));
     float3 cloud = lerp(_Sc_CloudBandColor.rgb, _Sc_FogSun.rgb, toSun * 0.3);
     float w = terms.x + terms.y + terms.z;
-    return w > 1e-4 ? (veil * terms.x + mist * terms.y + cloud * terms.z) / max(w, 1e-4) : veil;
+    return BbtsGlowHaze(w > 1e-4 ? (veil * terms.x + mist * terms.y + cloud * terms.z) / max(w, 1e-4) : veil, wp);
 }
 
 // The colour the haze blends toward at `wp`, for shaders that ask for amount and colour separately: the terms are

@@ -35,6 +35,11 @@ public static class PlantGlowLight
     /// <summary>#3423: <see cref="PackedFor(long, string, BlockDefinition)"/> on a world of <paramref name="planet"/>'s type —
     /// the species' colour from the type's flora palette when it has one (<see cref="FloraTints.For(long, string, string, PlanetType)"/>).</summary>
     public static int PackedFor(long worldSeed, string locationKey, BlockDefinition block, PlanetType? planet)
+        => PackedFor(worldSeed, locationKey, block, planet, WorldHarmony.None);
+
+    /// <summary>The colour harmony (generation 48): <see cref="PackedFor(long, string, BlockDefinition, PlanetType)"/> in
+    /// the colour the species wears in <paramref name="harmony"/> — the light a glowing plant casts follows its leaves.</summary>
+    public static int PackedFor(long worldSeed, string locationKey, BlockDefinition block, PlanetType? planet, WorldHarmony harmony)
     {
         if (block.LightColor is not int declared || (declared & 0xFFFFFF) == 0)
         {
@@ -42,7 +47,7 @@ public static class PlantGlowLight
         }
 
         int peak = System.Math.Max((declared >> 16) & 0xFF, System.Math.Max((declared >> 8) & 0xFF, declared & 0xFF));
-        var tint = FloraTints.For(worldSeed, locationKey, block.Key, planet);
+        var tint = FloraTints.For(worldSeed, locationKey, block.Key, planet, harmony);
         float tintPeak = System.Math.Max(tint.R, System.Math.Max(tint.G, tint.B));
         if (tintPeak <= 0.001f)
         {

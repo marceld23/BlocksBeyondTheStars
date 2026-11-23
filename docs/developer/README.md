@@ -60,6 +60,10 @@ refreshed 2026-10-23.
   wheel and its two messages, body states, blinking faces, contact shadows; what is not done.
 - [URP_MIGRATION.md](URP_MIGRATION.md) — the URP rendering setup (custom unlit voxel shaders, post, shadows).
 - [ADVANCED_GRAPHICS.md](ADVANCED_GRAPHICS.md) — graphics: what shipped + the remaining roadmap.
+- [LOOK.md](LOOK.md) — the game's look (2026-11-22): light and sky, colour harmony and world generation 48, calm tiles,
+  soft blocks, grass clumps, plants as bodies and their baked far picture, micro-block crowns, fur and feathers, rounded
+  figures and tools, textured debris, billowy clouds, clear shallows, devices as forms inside their cube, ship station
+  decor, the cabin light limit and the editors' previews — per part what each graphics tier gets, the files, the limits.
 - [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) — UI + render concept, done vs. open.
 - [UI_PANELS.md](UI_PANELS.md) — the UiPanel base for modal in-world panels + the ClientContext panel registry, and
   the RigViews registry for the rig's other views.
@@ -253,3 +257,4 @@ ones are marked, not deleted.
 - [0018 — Every closed room breathes: one air engine for bases and stations, doors are bulkheads](adr/0018-every-closed-room-breathes-one-air-engine.md)
 - [0019 — GameServer subsystems: top-level classes behind compiler-derived host interfaces](adr/0019-gameserver-subsystems.md)
 - [0020 — Seasonal festivals: the calendar sets the default, nothing can be missed](adr/0020-seasonal-festivals-calendar-sets-defaults-no-fomo.md)
+- [0021 — Graphics tiers: desktop High may go beyond the browser, Potato runs on slow devices, the browser stays](adr/0021-graphics-tiers-desktop-high-potato-browser.md)

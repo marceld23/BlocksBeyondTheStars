@@ -452,7 +452,7 @@ public class ContentTests
     [Fact]
     public void GamingBlocks_AreFoundNotCrafted_ButPlaceable()
     {
-        // #1762: Marcel's rule — the gaming gear is mineable and placeable, never craftable.
+        // #1762: the rule — the gaming gear is mineable and placeable, never craftable.
         var content = Load();
         foreach (var key in new[] { "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse" })
         {

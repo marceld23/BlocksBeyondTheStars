@@ -442,11 +442,15 @@ public sealed partial class GameServer
         // state or an event of the catalogue) and refuses anything the catalogue does not know. #2220: the name
         // is read the way it is typed — any letter case, and "cloudy" for "clouds". The forced weather is
         // this world's alone, so — like the clock above — the line goes to the players under this sky, not
-        // to those on another body.
+        // to those on another body. The forced state holds at EVERY position (no biome offset, front or summit step):
+        // before, "/setweather rain" read "clouds" in each biome one step drier, and nothing fell where the admin stood.
+        // The environment goes out at once, so the sky answers the command and not the next heartbeat.
         if (WeatherCatalog.FindByName(cmd.StringArg) is { } weatherDef)
         {
             _planetWeatherMode = "dynamic";
-            _sim.Force(weatherDef.Key);
+            _sim.Force(weatherDef.Key, everywhere: true);
+            _sinceEnvBroadcast = 0;
+            BroadcastEnvironment();
             BroadcastToWorld(new ServerMessage { Text = "@srv.admin.weather_set:" + weatherDef.Key });
             CheatLog(p, $"set weather to {weatherDef.Key}");
         }

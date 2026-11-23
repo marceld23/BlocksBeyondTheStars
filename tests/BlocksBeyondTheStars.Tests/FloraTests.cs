@@ -494,7 +494,7 @@ public sealed class FloraTests : IDisposable
             var creatures = CreatureGenerator.GenerateRoster(planet, rosterSeed);
             Assert.Equal(creatures.Select(c => c.Id + ":" + c.Name), server.SpeciesRoster.Select(c => c.Id + ":" + c.Name));
 
-            Assert.Equal(BlocksBeyondTheStars.Shared.World.FloraTints.ForWorld(7, server.World.LocationId, generation), server.FloraTint);
+            Assert.Equal(BlocksBeyondTheStars.Shared.World.FloraTints.ForWorld(7, server.World.LocationId, generation, planet), server.FloraTint); // generation 48: in the world's colour harmony
         }
     }
 

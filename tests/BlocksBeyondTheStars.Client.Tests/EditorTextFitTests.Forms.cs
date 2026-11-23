@@ -87,5 +87,7 @@ public sealed partial class EditorTextFitTests
         Button("ShapeEditor helpers (265×44)", 265f, 44f, "ui.shape.custom.grid_toggle", "ui.shape.custom.mirror_z"),
         FitLine("ShapeEditor budget (265)", 265f, 13, 16, "ui.shape.custom.budget") with { Sample = "88" },
         Button("ShapeEditor craft (572×44)", FormRightW, 44f, "ui.shape.custom.craft"),
+        // #3941 (ShapeEditor.Slots.cs): the colour-slot palette's kicker over the right card's width.
+        FitLine("ShapeEditor slot palette kicker (upper case, 572)", FormRightW * FormKickerShare, 13, 16, "ui.shape.slot.title"),
     };
 }

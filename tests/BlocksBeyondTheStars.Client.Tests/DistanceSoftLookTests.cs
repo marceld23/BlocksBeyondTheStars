@@ -161,11 +161,14 @@ public sealed class DistanceSoftLookTests
         Assert.Contains("saturate((camDist - _Sc_DistSoftRange.x) / max(1.0, _Sc_DistSoftRange.y - _Sc_DistSoftRange.x))", common, StringComparison.Ordinal);
         Assert.Contains("float BbtsDistSoftTexture(float3 wp)", common, StringComparison.Ordinal);
 
-        // A: the tile's average colour from the mip Sky sends, the alpha (the leaves' cutout) untouched.
+        // A: the tile's average colour from the mip with one texel per tile (Sky sends it, the look's own copy of it is the
+        // floor), the alpha (the leaves' cutout) untouched. The distance share is one of the shares the colour fades by: the
+        // calmed natural tiles and the closed crowns fade toward the same mean.
         string atlas = ShaderText("BlockAtlas.shader");
         Assert.Contains("float soft = BbtsDistSoftTexture(i.wp);", atlas, StringComparison.Ordinal);
-        Assert.Contains("SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, cellUv, _Sc_DistSoft.w)", atlas, StringComparison.Ordinal);
-        Assert.Contains("texel.rgb = lerp(texel.rgb, meanRgb, soft);", atlas, StringComparison.Ordinal);
+        Assert.Contains("SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, cellUv, max(_Sc_DistSoft.w, _Sc_Look2.x))", atlas, StringComparison.Ordinal);
+        Assert.Contains("colourSoft = closedCrown ? 1.0 : max(soft, ", atlas, StringComparison.Ordinal);
+        Assert.Contains("texel.rgb = lerp(texel.rgb, meanRgb, colourSoft);", atlas, StringComparison.Ordinal);
 
         // B: the sky bodies mark themselves in the stencil, the composite skips them and the far plane.
         string bodies = ShaderText("SkyBodyPhase.shader");

@@ -38,8 +38,7 @@ public sealed class MeadowWiringTests
         // #3120: the tufts take the meadow's light, which carries the block shader's shadow term.
         Assert.Contains("#include \"MeadowLight.hlsl\"", urp);
         Assert.Contains("BbtsMeadowShade(", urp);
-        Assert.Contains("MainLightRealtimeShadow(TransformWorldToShadowCoord(wp))", Shader("MeadowLight.hlsl"));
-        Assert.Contains("GetMainLightShadowFade(wp)", Shader("MeadowLight.hlsl"));
+        AssertMeadowLightShadows();
         Assert.Contains("\"LightMode\" = \"DepthOnly\"", urp);
         Assert.DoesNotContain("ShadowCaster", urp); // tufts stay non-casters
         Assert.Contains("ShadowCastingMode.Off", Script("GroundScatter.cs"));
@@ -56,7 +55,18 @@ public sealed class MeadowWiringTests
         Assert.DoesNotContain("ShadowCaster", shader);
         Assert.Contains("#pragma multi_compile_instancing", shader);
         Assert.Contains("#include \"MeadowLight.hlsl\"", shader);
-        Assert.Contains("MainLightRealtimeShadow(TransformWorldToShadowCoord(wp))", Shader("MeadowLight.hlsl"));
+        AssertMeadowLightShadows();
+    }
+
+    /// <summary>The meadow's light carries the block shader's shadow term: the real-time shadow map blended toward lit by the
+    /// shadow-distance fade (#1612), in one helper that every lookup of the shade goes through — at the fragment itself, or
+    /// (softened) at the ground under it.</summary>
+    private static void AssertMeadowLightShadows()
+    {
+        string light = Shader("MeadowLight.hlsl");
+        Assert.Contains("return lerp(MainLightRealtimeShadow(TransformWorldToShadowCoord(pos)), 1.0, GetMainLightShadowFade(pos));", light);
+        Assert.Contains("shadow = BbtsMeadowSunShadow(wp);", light);
+        Assert.Contains("BbtsMeadowSunShadow(shadowPos + ", light);
     }
 
     [Theory]
@@ -101,7 +111,7 @@ public sealed class MeadowWiringTests
         string meadow = Script("GameBootstrap.Meadow.cs");
         Assert.Contains("shells.Setup(data.GrassTops,", meadow);
         Assert.Contains("HighDetails.DesktopClass", meadow); // the browser never gets a meadow component
-        Assert.Contains("FloraTints.For(_worldSeed, LocationName, keys[i], _floraPlanet)", meadow); // #3423: the type's palette
+        Assert.Contains("FloraTints.For(_worldSeed, LocationName, keys[i], _floraPlanet, _floraHarmony)", meadow); // #3423: the type's palette
         Assert.Contains("ApplyMeadowPalette();", Script("GameBootstrap.Environment.cs"));
         Assert.Contains("HighDetails.Changed += OnHighDetailsChanged;", Script("GrassShells.cs"));
     }

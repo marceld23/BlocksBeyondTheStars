@@ -67,6 +67,23 @@ for the build, then the local pack and the world's textures), point-filtered wit
   labels `ui.tex.held.<material>`), whether the build ships their tiles or not; without one it starts from a light grey
   (`HeldTextures.BaseColor`).
 
+### Part forms: rounded boxes, chamfered bars, the drill's cone (2026-11-22)
+
+Since the game look ([LOOK.md](LOOK.md) §8) a cube part is drawn as a box with rounded edges (`RoundedCube`, the radius a
+share of the part's thinnest side; very thin parts stay sharp), and some parts get a form of their own. The rule is
+Unity-free (`Client.Core/HeldPartForms.cs`, meshes in `HeldFormMeshes.cs`; client `HeldTextures.ToolPartMesh` /
+`FormMesh`, `HeldItem.PartCube`): a part with an exactly square cross-section becomes a **chamfered bar** (flat 45° long
+edges, an octagon seen end-on) when it is long against its thickness — barrels, shafts, handles, antennas, rods — or a
+**chamfered plate** when it is thin against its width — flanges, lens rings, caps; the frontmost bar along a drill's
+axis becomes a **cone**. Wide housings and screens stay rounded boxes. The NPCs' hoe and hammer are built from
+`HeldWorkTools.cs` and run through the same rule (handles chamfered, blade and head boxes).
+
+A `heldModel` part may name its form: `"f": "box" | "chamfer" | "cone"` (`HeldModelPart.F`, `ItemDefinition.FormBox` /
+`FormChamfer` / `FormCone`), which overrides the rule; an unknown word is ignored and the part still drawn. A player's own
+tool look keeps its boxes (`ToolLook.ToParts` writes `box`), and the wire format is unchanged. The texture keeps tiling in
+metres as above. Far away a rounded part shows its plain cube (`RoundLod`, LOOK.md §7). On Potato every part stays a plain
+box (`GameLook.PlainFigures`, fixed for the run from the start-up preset, #3934). Tests: `HeldPartFormsTests`.
+
 ### A model for every gadget (#2837)
 
 A `Gadget` is a shaped kind (`HeldItemShapes.IsShapedKind`): it draws its `heldModel` like a drill or a gun. Before, all
