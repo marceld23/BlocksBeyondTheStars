@@ -152,6 +152,9 @@ public sealed partial class GameServer
         // #3893: "/spstower [list|<key> [post|nopost]]" — stand a guide tower ruin in front of the admin for a play test (GameServerSpsTowersAdmin.cs)
         ["spstower"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSpsTower(session, cmd.StringArg)),
 
+        // #3970: "/sol" (or "/system <id>") — a fixed star system of data/systems joins the galaxy now, for a play test (GameServerFixedSystems.Admin.cs)
+        ["reveal_system"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminRevealSystem(session, cmd.StringArg)),
+
         // ---- The Sounders' Song QA (#3368): "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi" ----
         ["sounders"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSounders(session, cmd.StringArg)),
 

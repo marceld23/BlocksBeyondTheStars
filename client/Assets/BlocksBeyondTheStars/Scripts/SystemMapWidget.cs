@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The dot diameter of a body: the body you are on largest, the selected one a little larger, a gas giant
         /// half again as big (#2437).</summary>
         private static float DotSize(NetBody body, string activeBodyId, string selectedBodyId)
-            => (body.Id == activeBodyId ? 18f : body.Id == selectedBodyId ? 16f : 12f) * DotScale(body.PlanetType);
+            => (body.Id == activeBodyId ? 18f : body.Id == selectedBodyId ? 16f : 12f) * DotScale(body);
 
         private void DrawBody(NetBody body, Vector2 pos, float dotSize, string activeBodyId, string selectedBodyId,
             System.Func<string, int> markerColorOf, System.Func<string, string> weatherGlyphOf)
@@ -177,6 +177,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2437: a gas giant draws half again as big as the other dots — it IS the biggest thing in its system.</summary>
         internal static float DotScale(string type) => type == "gas_giant" ? 1.5f : 1f;
+
+        /// <summary>#3970: a body's dot scale — a fixed giant drawn far bigger than its walkable size (Sol's Jupiter, Saturn, Uranus and
+        /// Neptune) draws like the gas giant.</summary>
+        internal static float DotScale(NetBody body) => BodySize.LooksGiant(body) ? 1.5f : DotScale(body.PlanetType);
 
         /// <summary>A planet-type → dot colour mapping (a few known biomes, else a stable hash hue); stations
         /// and asteroid fields get neutral greys. Shared with the flight system chart (#597).</summary>

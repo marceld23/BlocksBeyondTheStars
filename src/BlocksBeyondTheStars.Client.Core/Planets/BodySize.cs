@@ -53,5 +53,25 @@ namespace BlocksBeyondTheStars.Client
             string key = !string.IsNullOrEmpty(body?.Id) ? body!.Id : fallbackId ?? string.Empty;
             return WorldConstants.CircumferenceFor(key, ClassOf(kind, planetType), body?.SizeBias ?? 0f);
         }
+
+        /// <summary>#3970: the diameter the flight view draws <paramref name="body"/> at — the server's fixed drawn size
+        /// (<see cref="NetBody.VisibleDiameter"/>, Sol's giants) when it sent one, else the one its walkable
+        /// <paramref name="circumference"/> gives (<see cref="SystemBodyLayout.VisibleDiameter"/>, the server's own rule).</summary>
+        public static float VisibleDiameterOf(NetBody? body, int circumference)
+            => SystemBodyLayout.VisibleDiameter(body?.VisibleDiameter ?? 0f, circumference);
+
+        /// <summary>#3970: the circumference a view that scales a body by its size should use (the sky disc, the sky's
+        /// prominence order): the walkable one, or — when the server fixed a drawn diameter — the circumference that diameter
+        /// stands for (<see cref="SystemBodyLayout.OrbitDiameter"/> inverted), so Jupiter looms in the sky as it does in
+        /// flight. The world map bake keeps the walkable <see cref="CircumferenceOf(NetBody)"/>.</summary>
+        public static int ApparentCircumferenceOf(NetBody body)
+            => body.VisibleDiameter > 0f
+                ? System.Math.Max(0, (int)((body.VisibleDiameter - SystemBodyLayout.OrbitDiameter(0)) * 220f))
+                : CircumferenceOf(body);
+
+        /// <summary>#3970: whether <paramref name="body"/> is drawn clearly bigger than its walkable size (a quarter more) — a
+        /// fixed giant, which the system chart draws with the gas giant's larger dot.</summary>
+        public static bool LooksGiant(NetBody body)
+            => body.VisibleDiameter > SystemBodyLayout.OrbitDiameter(CircumferenceOf(body)) * 1.25f;
     }
 }

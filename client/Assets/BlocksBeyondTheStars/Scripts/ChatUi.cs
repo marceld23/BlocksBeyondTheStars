@@ -653,6 +653,10 @@ namespace BlocksBeyondTheStars.Client
                 // the admin (a fresh seed each time).
                 case "/spstower": net.SendAdminCommand("spstower", stringArg: t.Substring(p[0].Length).Trim()); return true;
 
+                // #3970: "/sol" — our solar system joins the galaxy now; "/system <key>" any other fixed star system (play tests).
+                case "/sol": net.SendAdminCommand("reveal_system", stringArg: "sol"); return true;
+                case "/system": net.SendAdminCommand("reveal_system", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
                 // #3368: the Sounders' Song QA — "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi"
                 // (the server answers with its usage line for anything else).
                 case "/sounders": net.SendAdminCommand("sounders", stringArg: t.Substring(p[0].Length).Trim()); return true;
@@ -810,6 +814,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_landmark")); // #3496: /landmark list, /landmark key, /tp landmark
             LocalLine(L("ui.admin.help_giantwreck")); // #3611: /giantwreck list, /giantwreck key, /tp giantwreck
             LocalLine(L("ui.admin.help_spstower")); // #3893: /spstower list, /spstower key, /tp tower
+            LocalLine(L("ui.admin.help_sol")); // #3970: /sol, /system key
             LocalLine(L("ui.admin.help_guardian_giant")); // #3676: /giant guardian, /tp giant
             LocalLine(L("ui.admin.help_cruiser")); // #3900: /cruiser, /cruiser echo
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge

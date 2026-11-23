@@ -505,7 +505,8 @@ public sealed partial class UniverseGenerator
                 // "guardian_finale" / "guardian_finale-core" ids are RESERVED and added separately on story
                 // reveal — never here — so random world/station generation can never spawn the finale area
                 // (guaranteed by UniverseTests.Procedural_generation_never_collides_with_the_reserved_finale_area).
-                Id = $"sys{i}",
+                Id = StarSystemIds.Rolled(i),
+                Origin = StarSystemOrigin.Rolled,
                 Name = systemName,
                 MapX = rng.NextFloat() * 1000f,
                 MapY = rng.NextFloat() * 1000f,

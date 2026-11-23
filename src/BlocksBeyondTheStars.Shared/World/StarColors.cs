@@ -202,15 +202,7 @@ public static class StarColors
         => LerpRgb(Ramp[anchor], Ramp[neighbour], StableHashing.Unit(StableHashing.Mix64(star ^ BlendSalt)) * SpecialBlend);
 
     /// <summary>The index <c>i</c> of a procedural system id <c>sys{i}</c>, or -1.</summary>
-    private static int ProceduralIndex(string? systemId)
-    {
-        if (systemId is null || systemId.Length <= 3 || !systemId.StartsWith("sys", System.StringComparison.Ordinal))
-        {
-            return -1;
-        }
-
-        return int.TryParse(systemId.Substring(3), NumberStyles.None, CultureInfo.InvariantCulture, out int i) ? i : -1;
-    }
+    private static int ProceduralIndex(string? systemId) => StarSystemIds.RolledIndex(systemId);
 
     /// <summary>The class dealt to system <paramref name="index"/>: its block's four cards, shuffled per world.</summary>
     private static StarClass DealtClass(long worldSeed, int index)

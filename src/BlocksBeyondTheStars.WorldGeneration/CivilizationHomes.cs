@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
@@ -107,7 +106,7 @@ public static class CivilizationHomes
         int fixedCount = Math.Max(1, fixedSystems);
         foreach (var system in galaxy.Systems)
         {
-            if (!IsFixedSystem(system.Id, fixedCount) || !StartRuleHolds(civ.Scope.StartSystem, system.Id == startSystemId))
+            if (!StarSystemIds.IsStartRolled(system.Id, fixedCount) || !StartRuleHolds(civ.Scope.StartSystem, system.Id == startSystemId))
             {
                 continue;
             }
@@ -123,10 +122,6 @@ public static class CivilizationHomes
 
         return list;
     }
-
-    private static bool IsFixedSystem(string id, int fixedCount)
-        => id.StartsWith("sys", StringComparison.Ordinal)
-           && int.TryParse(id.Substring(3), NumberStyles.Integer, CultureInfo.InvariantCulture, out int index) && index < fixedCount;
 
     private static bool StartRuleHolds(string rule, bool isStart)
         => string.Equals(rule, CivilizationRules.StartNever, StringComparison.OrdinalIgnoreCase) ? !isStart

@@ -95,7 +95,7 @@ public sealed partial class GameServer
         }
 
         var outermost = _galaxy!.Systems
-            .Where(s => s.Id.StartsWith("sys", StringComparison.Ordinal) && s.Id != home.Id)
+            .Where(s => s.IsRolled && s.Id != home.Id)
             .OrderByDescending(s =>
             {
                 float dx = s.MapX - home.MapX;
@@ -113,7 +113,7 @@ public sealed partial class GameServer
     private void MaybeGrowGalaxy(PlayerSession session, string systemId)
     {
         if (!_meta.Description.GalaxyGrowth || _galaxy is null
-            || !systemId.StartsWith("sys", StringComparison.Ordinal) || !IsEdgeSystem(systemId))
+            || !StarSystemIds.IsRolled(systemId) || !IsEdgeSystem(systemId))
         {
             return;
         }
@@ -153,6 +153,7 @@ public sealed partial class GameServer
             }
         }
 
+        RevealFixedSystemsByGrowth(); // #3969: a fixed system whose growth rule the galaxy meets now joins it (Sol after the 6th)
         _repo.SaveMetadata(_meta);
         BroadcastStarMap();
         Send(session, new ServerMessage

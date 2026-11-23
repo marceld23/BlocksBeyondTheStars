@@ -44,7 +44,7 @@ public static class DebrisFieldPlacer
         int placed = 0;
         foreach (var system in systems)
         {
-            int index = FixedIndex(system.Id);
+            int index = StarSystemIds.RolledIndex(system.Id);
             if (index < 0 || index >= fixedCount || system.Bodies.Count == 0)
             {
                 continue;
@@ -210,12 +210,6 @@ public static class DebrisFieldPlacer
     /// <summary>Everything a field keeps clear of: the solid bodies and the stations (a field centred on a station would
     /// tap every docking ship's shield). The wreck is a free-floater of its own and ignored.</summary>
     private static bool IsObstacle(CelestialKind kind) => IsSolid(kind) || kind == CelestialKind.SpaceStation;
-
-    private static int FixedIndex(string systemId)
-        => systemId.Length > 3 && systemId.StartsWith("sys", StringComparison.Ordinal)
-           && int.TryParse(systemId.Substring(3), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int i)
-            ? i
-            : -1;
 
     private static double Hash01(long seed, string salt, int index)
     {
