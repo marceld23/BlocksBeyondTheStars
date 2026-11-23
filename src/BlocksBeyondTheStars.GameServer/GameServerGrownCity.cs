@@ -41,10 +41,10 @@ public sealed partial class GameServer
         return rec?.Plan is { Length: > 0 } pinned ? new List<string>(pinned.Split(SuburbSeparator)) : new List<string>();
     }
 
-    /// <summary>Writes a fresh grown city's suburb plans into its record (once).</summary>
-    private void PinCitySuburbs(StructurePlacementRecord? loaded, List<string>? suburbs)
+    /// <summary>Writes a fresh grown city's suburb plans into its record (settlement <paramref name="index"/>, once).</summary>
+    private void PinCitySuburbs(StructurePlacementRecord? loaded, List<string>? suburbs, int index)
     {
-        if (suburbs is not { Count: > 0 } || loaded?.Plan is { Length: > 0 } || FindPlacementRecord("settlement", 0) is not { } rec)
+        if (suburbs is not { Count: > 0 } || loaded?.Plan is { Length: > 0 } || FindPlacementRecord("settlement", index) is not { } rec)
         {
             return;
         }

@@ -158,12 +158,15 @@ public static partial class CityGenerator
     /// <paramref name="legacyModuleRoll"/> (#2690) brings back the historical roll, under which a whole district column
     /// decided alike — for a record from before #1872 that freezes the picks it was stamped with.
     /// <paramref name="terrainGeneration"/> (#3519): from generation 38 a district module's markers carry their settings (a
-    /// chest's content, a sound, a den), like a landmark's; the default 0 composes as every older world does.</summary>
+    /// chest's content, a sound, a den), like a landmark's; the default 0 composes as every older world does.
+    /// <paramref name="theme"/> (#3980): the city place's theme key — the composer's rng lane <c>city:&lt;theme&gt;</c>; the
+    /// G.D.S. theme composes every existing city exactly as before.</summary>
     public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
         CityLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
-        bool legacyModuleRoll = false, int terrainGeneration = 0, IList<string>? suburbPlans = null)
+        bool legacyModuleRoll = false, int terrainGeneration = 0, IList<string>? suburbPlans = null,
+        string theme = CityPlace.DefaultTheme)
     {
         // #1876: a kit city takes its grid from the layout spec (districts per side, district size, street width, height, map).
         var spec = layout ?? CityLayoutSpec.Default;
@@ -174,7 +177,7 @@ public static partial class CityGenerator
         // one records, null neither — see SettlementGenerator.Generate.
         bool replay = composition is { Count: > 0 };
         bool record = composition is { Count: 0 };
-        var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash("city:gds")));
+        var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash("city:" + theme)));
 
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
         ushort stone = B("stone");
