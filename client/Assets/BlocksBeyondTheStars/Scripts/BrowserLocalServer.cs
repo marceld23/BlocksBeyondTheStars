@@ -43,6 +43,12 @@ namespace BlocksBeyondTheStars.Client
         private double _stepSeconds = 1.0 / 20.0;
         private float _sinceDurableSave;
 
+        /// <summary>#3979: the server builds worlds inside its tick, so it holds while a planet map of its galaxy is still
+        /// being fetched (after its start, and when the galaxy grows the Sol system).</summary>
+        private PlanetMapDemand _mapDemand;
+        private PlanetMapTickGate _mapGate;
+        private bool _heldForMaps;
+
         /// <summary>The in-memory wire the in-game <see cref="GameBootstrap"/> client connects through.</summary>
         public LoopbackLink Link { get; private set; }
 
@@ -182,6 +188,8 @@ namespace BlocksBeyondTheStars.Client
                 // #1531: server→client messages cross the loopback as OBJECTS — no JSON round trip on the render
                 // thread (the UseJsonEncoding flag above still covers the client→server intents).
                 Link = new LoopbackLink { PassObjects = true };
+                _mapDemand = PlanetMapFetcher.For(content);
+                _mapGate = new PlanetMapTickGate();
                 _server = new SvGameServer(config, content, new LoopbackServerTransport(Link), _repo,
                     new UnityGameLogger(), aiProvider: new BlocksBeyondTheStars.GameServer.NullAiMissionProvider());
                 _repo.Flushed += PersistBlob; // server autosaves + shutdown both end in Flush()
@@ -215,6 +223,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (!MapsReady())
+            {
+                return;
+            }
+
             _accumulator += Time.unscaledDeltaTime;
             int steps = 0;
             while (_accumulator >= _stepSeconds && steps < MaxTicksPerFrame)
@@ -235,6 +248,24 @@ namespace BlocksBeyondTheStars.Client
                 _sinceDurableSave = 0f;
                 _server.SaveNow(); // SaveAll + Flush → PersistBlob via the Flushed hook
             }
+        }
+
+        /// <summary>#3979: false while the server must wait for a planet map (no tick, no time banked meanwhile).</summary>
+        private bool MapsReady()
+        {
+            bool ready = _mapGate == null || _mapGate.MayTick(_mapDemand, _server.Galaxy);
+            if (ready == _heldForMaps)
+            {
+                _heldForMaps = !ready;
+                Debug.Log(ready ? "[BrowserSP] The planet maps are here — the world runs on." : "[BrowserSP] Waiting for planet maps before the world runs on.");
+            }
+
+            if (!ready)
+            {
+                _accumulator = 0;
+            }
+
+            return ready;
         }
 
         /// <summary>Browser tabs get no reliable shutdown callback — save durably the moment the tab is

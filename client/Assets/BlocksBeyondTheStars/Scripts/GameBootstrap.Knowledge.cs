@@ -311,7 +311,14 @@ namespace BlocksBeyondTheStars.Client
         /// before the transport connects.</summary>
         private void WireKnowledge()
         {
-            Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
+            Network.StarMapReceived += m =>
+            {
+                StarMap = m;
+                RebuildWikiState();
+                // #3979: the maps of the map bodies the player now knows of (the Sol system) start loading in the browser,
+                // so they are here before the player lands or the orbit globe bakes. A no-op where maps come from disk.
+                PlanetMapFetcher.For(Content)?.Need(PlanetMapDemand.PlanetTypesOf(m));
+            };
             Network.ExploredMapReceived += m => { if (!string.IsNullOrEmpty(m.BodyId)) ExploredMaps[m.BodyId] = m; };
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
