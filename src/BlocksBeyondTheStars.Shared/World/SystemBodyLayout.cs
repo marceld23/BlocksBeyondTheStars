@@ -76,6 +76,17 @@ public static class SystemBodyLayout
     /// <summary>How far outside a body's surface a ship is held (it cannot fly into the sphere).</summary>
     public const float KeepOutMargin = 10f;
 
+    /// <summary>#3970: the largest the launch body is drawn — its keep-out shell, plus the launch column's clearance, must stay
+    /// below the flight plane (it hangs <see cref="HomeY"/> under it): 264. A rolled body never reaches it (a lone giant's 81 ×
+    /// <see cref="HomeDiameterFactor"/> ≈ 258); Sol's giants, drawn far bigger than their walkable size, do.</summary>
+    public const float MaxHomeDiameter = 2f * (-HomeY - KeepOutMargin - LaunchColumnClearance);
+
+    /// <summary>#3970: the launch body's drawn diameter in its own flight scene: its <paramref name="visibleDiameter"/> ×
+    /// <see cref="HomeDiameterFactor"/>, held to <see cref="MaxHomeDiameter"/>. The client draws it and the server sends its
+    /// landing traders to it — one rule.</summary>
+    public static float HomeDiameter(float visibleDiameter)
+        => System.MathF.Min(visibleDiameter * HomeDiameterFactor, MaxHomeDiameter);
+
     /// <summary>The land prompt shows within body radius + <see cref="KeepOutMargin"/> + this band.</summary>
     public const float LandBand = 40f;
 

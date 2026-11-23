@@ -7071,6 +7071,7 @@ public sealed partial class GameServer
             ParentId = b.ParentId,
             SizeBias = b.SizeBias, // #549: the archetype size bias (already part of Circumference; an older client reads it)
             Circumference = WorldCircumferenceOf(b), // #2691: the client sizes every view of this body from THIS value
+            VisibleDiameter = b.Fixed?.VisibleDiameter ?? 0f, // #3970: a fixed drawn size (Sol's giants), else 0 = from Circumference
             RingSeed = b.RingSeed, // #596: 0 = no rings; the client renders the ring system from this
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total, receiver.State.PlayerId) : 0,

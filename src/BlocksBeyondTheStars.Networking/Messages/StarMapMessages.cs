@@ -105,6 +105,12 @@ public sealed class NetBody
     /// the classic <c>WorldConstants.CircumferenceFor(id, class, <see cref="SizeBias"/>)</c>, which is what such a
     /// server uses. Additive contractless field (no protocol bump): an older client ignores it.</summary>
     public int Circumference { get; set; }
+
+    /// <summary>#3970: the body's drawn diameter in the flight view when its data fixes one apart from its walkable size (Sol's
+    /// gas giants look far bigger than Earth while you walk the same 16,000 blocks around both). 0 = drawn from
+    /// <see cref="Circumference"/> as always (<c>SystemBodyLayout.OrbitDiameter</c>). Additive contractless field: an older
+    /// client ignores it and draws the body from its circumference.</summary>
+    public float VisibleDiameter { get; set; }
 }
 
 public sealed class NetStarSystem

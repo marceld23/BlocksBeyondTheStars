@@ -87,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
             // The home body IS the world we launched from: missing from the star map, it takes the size the server sent for it.
             int homeCirc = BodySize.CircumferenceOf(current, current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType,
                 Game?.Circumference ?? 0);
-            float homeDiameter = OrbitDiameterFor(homeCirc) * SystemBodyLayout.HomeDiameterFactor;
+            float homeDiameter = SystemBodyLayout.HomeDiameter(BodySize.VisibleDiameterOf(current, homeCirc)); // #3970: a fixed drawn size, held below the flight plane
             // Label the home body by what the star map calls it; LocationName only as a fallback — after an
             // in-flight hyperjump it still named the DEPARTURE planet, so the alien anchor world was drawn and
             // land-prompted as "Crossway Reach · Seana" (#1565).
@@ -141,7 +141,7 @@ namespace BlocksBeyondTheStars.Client
                 // lays it out the same way for its traders), and the moon you launched from holds that first orbit
                 // slot, so the planet's other moons ring above it.
                 string homeParentId = current.Kind == "Moon" && !string.IsNullOrEmpty(current.ParentId) ? current.ParentId : null;
-                float homeTrueRadius = OrbitDiameterFor(homeCirc) * 0.5f;
+                float homeTrueRadius = BodySize.VisibleDiameterOf(current, homeCirc) * 0.5f;
                 foreach (var b in system.Bodies)
                 {
                     // Render every real planet in the system — even one whose PlanetType string didn't come
@@ -154,7 +154,7 @@ namespace BlocksBeyondTheStars.Client
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
                     int circ = BodySize.CircumferenceOf(b); // #2691: the server's size of the body
-                    float diameter = OrbitDiameterFor(circ);
+                    float diameter = BodySize.VisibleDiameterOf(b, circ); // #3970: the server's fixed drawn size, else from circ
                     if (b.Id == homeParentId)
                     {
                         var (px, pz) = SystemBodyLayout.HomeParentPosition(pos.x, pos.z, diameter * 0.5f, homeTrueRadius);
@@ -199,7 +199,7 @@ namespace BlocksBeyondTheStars.Client
 
                     var rel = new Vector3((b.SystemX - parent.Sx) * SystemViewScale, 0f, (b.SystemZ - parent.Sz) * SystemViewScale);
                     int moonCirc = BodySize.CircumferenceOf(b);
-                    float moonDia = OrbitDiameterFor(moonCirc);
+                    float moonDia = BodySize.VisibleDiameterOf(b, moonCirc);
                     // Outside the planet's surface, with room to spare — and above this parent's previous
                     // moon's ring, so siblings stack outward instead of sharing one radius (#548).
                     float minClear = moonLadder.TryGetValue(parentIndex, out var last)
@@ -236,7 +236,7 @@ namespace BlocksBeyondTheStars.Client
                     string type = string.IsNullOrEmpty(b.PlanetType) ? "asteroid" : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
                     int circ = BodySize.CircumferenceOf(b, b.Id, b.Kind, type);
-                    float diameter = OrbitDiameterFor(circ);
+                    float diameter = BodySize.VisibleDiameterOf(b, circ); // #3970: the server's fixed drawn size, else from circ
                     Plan(b.Id, b.Name, b.Kind, pos, diameter, type, circ);
                 }
 
@@ -315,14 +315,6 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
-
-        /// <summary>The orbit-view diameter for a body, derived from its real walkable circumference — so a
-        /// tiny asteroid reads small, a moon medium and a big planet large, matching how long it'd take to walk
-        /// around. Same body → same size, on the surface (server) and in orbit (here). <paramref name="circumference"/>
-        /// is the body's walkable circumference as the server sized it (<see cref="BodySize"/>,
-        /// #2691 — incl. its archetype size identity, #549).</summary>
-        private static float OrbitDiameterFor(int circumference)
-            => SystemBodyLayout.OrbitDiameter(circumference); // ~13 (asteroid) .. ~23 (moon) .. ~46-62 (planet; a lone giant reaches ~81)
 
         /// <summary>Spawns one real celestial body: a sphere textured with its REAL generated world map (seas, the
         /// biomes' ground, snow and ice, this world's water and vegetation colours — what you see from orbit IS the world

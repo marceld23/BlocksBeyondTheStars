@@ -43,7 +43,7 @@ public sealed partial class GameServer
         }
 
         var homeCentre = new Vector3f(SystemBodyLayout.HomeX, SystemBodyLayout.HomeY, SystemBodyLayout.HomeZ);
-        float homeRadius = VisibleDiameterOf(home) * SystemBodyLayout.HomeDiameterFactor * 0.5f;
+        float homeRadius = SystemBodyLayout.HomeDiameter(VisibleDiameterOf(home)) * 0.5f;
         if (body.Id == home.Id)
         {
             (centre, radius) = (homeCentre, homeRadius);
