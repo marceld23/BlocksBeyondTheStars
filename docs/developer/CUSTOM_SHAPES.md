@@ -13,9 +13,10 @@ built-in forms, so **45 indices were free**. A player-designed form is simply on
 geometry lives in a per-save registry. Crafting, the item key, placing, chunk storage, persistence, the wire
 format and mining therefore needed no new field at all.
 
-Descriptor bits 27–31 remain reserved zero. They are the escape hatch if 45 forms per save ever prove too
-few: widening the index is additive (old data reads high bits 0 = the same ids), not a migration. Do that
-before reaching for anything cleverer.
+Since #1846 the top three indices (61–63) are built-in furniture forms, so a save holds **42** player forms
+(indices 19–60). Descriptor bits 27–30 hold the cell of a form over several blocks (#1961, see below); only
+bit 31 (the sign) is still free. If 42 forms per save ever prove too few, widening the index needs a new home
+for it — there is no spare run of bits left in the descriptor (#3966).
 
 ## The bitmap format (`Shared/World/CustomShape.cs`)
 
@@ -51,10 +52,10 @@ Two deliberate differences:
 
 | | paint designs | player forms |
 |---|---|---|
-| id space | 16 bit (65 535) | **45** (shape indices 19..63) |
+| id space | 16 bit (65 535) | **42** (shape indices 19..60) |
 | wipe | tombstone, id never reused | **frees the id** for the next designer |
 
-Never-reuse is unaffordable at 45 slots — a long-lived world would strand. The consequence is documented for
+Never-reuse is unaffordable at 42 slots — a long-lived world would strand. The consequence is documented for
 operators: after a wipe, a block or item still holding that index adopts whatever form claims the slot next.
 Forms are cosmetic geometry and a wipe is an explicit moderation act, so that trade is the right way round.
 
@@ -245,6 +246,7 @@ designed in the main-menu Form Editor.
 
 - Behaviour keyed on specific built-in forms — sitting, beds, campfires — does not extend to custom forms.
   They are decorative geometry.
-- Airtightness follows the block's `Solid` flag, not its shape, so a hollow form still seals a room, exactly
-  as a thin `Sheet` does today.
+- Only a cube seals a room: the air fill (`GameServerAirSpace.cs`) counts an airtight block as a wall only in
+  cube form, so any shaped block — a slab, a `Sheet`, a player form, however solid it looks — leaves the room
+  open to the air beyond it (#3966).
 - Paint works on a custom form, but a 32×32 design maps per face, so on a very fine form it reads as noise.

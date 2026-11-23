@@ -261,7 +261,7 @@ volumetric march); `Headlamp.cs` sets its globals, `HeadlampRules` (Client.Core)
 - **Beam:** an LED profile — a hotspot (12° half angle, a 5° core), a faint reflector ring just inside its edge and a
   soft spill out to 34° at 20 % — instead of a linear cosine ramp across the whole screen.
 - **Falloff:** windowed inverse square, `saturate(1 − (d/r)⁴)² / (d² + r₀²)` with r = 30 m and a 1.6 m source radius;
-  intensity 22 in a calm, slightly cool LED white. The old `(1 − d/26)²` made 10 m only 2.2× darker than 1 m.
+  intensity 30 (22 until #3965 found it a little too dim) in a calm, slightly cool LED white. The old `(1 − d/26)²` made 10 m only 2.2× darker than 1 m.
 - **Shading:** Lambert plus the block shader's stable GGX glint with each face's own gloss; water mirrors the lamps in
   its SSR (`BbtsHeadlampMirror`).
 - **Origin:** first person 13 cm right / 8 cm above the eye on the helmet, aimed at the point 9 m ahead of the eye;

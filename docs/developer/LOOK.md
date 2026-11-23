@@ -20,7 +20,7 @@ bit for bit.
   (#3946), one property per part: whether the mesher records crown cells, grass edges and plant cells for the near
   drawers (`RecordCrownCells`, `RecordGrassClumps`, `RecordPlantCells`), which crown far form a preset gets
   (`CrownFarFormsTier`), the emitter reach (`LongEmitterReach`), plain figures (`PlainFigures`), the plant far pictures
-  (`PlantFarPictures`), and `MeshTierKey`, which tells when the loaded chunks must be meshed again. `Sky.Look.cs`
+  (`PlantFarPictures`), the terrain forms (`TerrainFormsNow`), and `MeshTierKey`, which tells when the loaded chunks must be meshed again. `Sky.Look.cs`
   publishes the values the shaders read as globals once a frame; the
   shared shader parts are in `Shaders/AtmosphereCommon.hlsl`. Shader branches are driven by those values, not by
   keywords, so no shader variant was added for the look.
@@ -55,6 +55,7 @@ At a glance:
 | Device forms | soft edges | soft edges | hard edges | hard edges | hard edges (never run) |
 | Soft edges of player forms | yes | yes | no | no | no |
 | Clear shallow water | yes | yes | no | no | no |
+| Terrain forms (§17) | yes | yes | no (not looked for) | no | no |
 
 ## 1. Light and sky (#3927)
 
@@ -631,6 +632,66 @@ cells without heights. Everything else: every tier.
 pictures, not bodies; the three sample world colours are fixed tones; the new buttons cannot be reached with a gamepad;
 *Pixels only* shows a form in one colour. It was never checked on screen that the per-camera values stay with the preview
 camera (URP is assumed to submit a camera's draws before `endCameraRendering`).
+
+## 17. Terrain forms (#3964)
+
+**What the player sees.** Natural ground is no longer a field of smooth cubes. Part of it is drawn as a form made of micro
+cubes (eight per block edge):
+
+- **Edges** (top open, one or two sides open): broken-off edges, a small step, a double step, a missing corner; on grass
+  the earth under the sod falls back so the grass hangs over as a lip, or the grass edge breaks off.
+- **Walls** (top covered, a side open): strata grooves that line up across neighbouring blocks (their height follows the
+  world height and a coarse field), niches, a ledge that stands out while the face steps back, chipped faces.
+- **Ceilings** (only the bottom open): a breakout of rock.
+- **Flat ground** (only the top open): a surface pattern that suits the material, laid over whole regions so it reads as
+  a surface — flagstone joints (stones of two to three and a half blocks, in running bond) or cracks on rock and ice, wind
+  ripples (every nine to twelve eighths, along X or Z) or small dips on sand, snow, ash and earth, shallow dips in grass.
+  Only the top eighth is touched.
+
+Forms come in rough and calm regions (a smooth field 24 blocks wide; about a fifth of the ground is calm), and each world
+has its own strength from its seed. Walking, mining, aiming and building are unchanged: **the collision is the cube**.
+
+**Which cells.** `TerrainForms.FamilyOf` (`src/BlocksBeyondTheStars.Client.Core/TerrainForms/TerrainForms.cs`): rock (stone,
+basalt, granite, sandstone, moss stone, deepslate, dark and blackened sandstone, coral rock, sulfur stone, tainted stone,
+ice), soft ground (dirt, mud, peat, ash, salt, sand, black sand, snow) and grass (grass, alien grass, mycelium). Never
+formed: a cell with an edited mark (placed, stamped or weather snow, #3118), a shape, front or paint descriptor or a dye;
+ores, devices, plants, wood, leaves, glass; a cell beside water or lava (shores and sea floors stay cubes). The choice is a
+hash of the world cell and the world seed (`GameLook.TerrainFormsSalt`, set on join), so every client draws the same.
+
+**How.**
+
+- **Rules** (`TerrainForms.TrySelect`, Client.Core, no Unity): the cell's spot from its open sides, a chance per family and
+  spot (`BaseChance`) times the region field, the world's strength and `GameLook.TerrainFormsDensity`; then a recipe carves
+  a full 8³ grid. Integer geometry and plain float products only, identical on every platform.
+- **Faces** (`TerrainForms.BuildFaces`): a face points from a filled micro cell to an empty one. The cell draws it when the
+  filled one is its own (toward its own space, open air, or a formed neighbour's empty micro cell), or when the filled one
+  lies in a full, unformed neighbour and the empty one is its own — the **back wall**: that neighbour takes the formed
+  cell for a full cube and culls its face, so this cell closes the gap itself. Faces are merged into rectangles per plane.
+  A neighbour in the same chunk is read micro cell by micro cell (`TerrainFormContext.FormAt`), so a groove or a step runs
+  on into it; a neighbour in another chunk counts as full, because the build cannot see that chunk's edited marks — a back
+  wall too many, never a hole.
+- **Mesher** (`Scripts/ChunkMesher.TerrainForms.cs`, the branch after the device forms in `ChunkMesher.BuildGeometry`): only
+  the planet streamer passes `terrainForms: true`; ships, stations, editors, miniatures and the tests keep the cube (the
+  mesher golden hashes do not move). The formed cell records its collider faces with the cube rule (as a device form) and
+  emits its faces into the opaque submesh with the device-form face streams: each face shows the tile the cube shows on
+  the side it looks to, sliced by position (the grass sod's side tile on the sides); faces on the cell's surface take that
+  cube face's light and corner AO, inner faces the light of the cell's first open side and the inner shade of the device
+  forms. A form that breaks the top edge (`topCarved`) keeps the grass carpet and tufts off its cell.
+- **Tier** (`GameLook.TerrainFormsNow`, part of `MeshTierKey`): a preset change across Medium remeshes the loaded chunks.
+
+**Files.** `src/BlocksBeyondTheStars.Client.Core/TerrainForms/TerrainForms.cs`, `Scripts/ChunkMesher.TerrainForms.cs`,
+`Scripts/ChunkMesher.cs`, `Scripts/GameLook.TerrainForms.cs`, `Scripts/GameLook.Tiers.cs`, `Scripts/GameBootstrap.cs`,
+`Scripts/GameBootstrap.ChunkStreaming.cs`. Tests: `tests/BlocksBeyondTheStars.Client.Tests/TerrainFormsTests.cs` (the same
+cell gives the same form, the merged faces cover exactly the micro faces of the rule, two formed neighbours draw their
+border once, flat forms touch only the top layer and edge forms keep the inner half of the top, the face budget).
+
+**Tiers.** Desktop class on Medium and High. Low, Potato and the browser keep the cube; the mesher does not look for forms.
+
+**Known limits.** Tuned by eye in a playtest on 2026-11-23, not measured: an edge or wall form has about 15 faces, a
+patterned flat cell 8 to 9, a cube 1 or 2. The forms have hard edges (no chamfer); shadows, sky light and corner AO still
+treat the cell as a cube. On a step edge you stand up to half a block above the drawn form. A groove or joint that meets a
+chunk border ends in a small cross wall. Across the world's X seam the hash sees other coordinates, so the forms may jump
+there.
 
 ## Frame cost
 

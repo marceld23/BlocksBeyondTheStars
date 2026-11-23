@@ -26,6 +26,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🪨 Terrain forms: natural ground drawn as micro-cube forms; a brighter headlamp; shape docs corrected — #3964, #3965, #3966 — ✅ 2026-11-23 (client + Client.Core; display only — no protocol, save, data or world-generation change, no new texts)
+
+- **The idea.** Marcel, 2026-11-23: the terrain is too coarse — every material should also come "differently filled"
+  (steps, speckled stones, ledges, holes), placed procedurally to suit the landscape. Built first as a local prototype,
+  tuned in his playtest the same evening (more and deeper forms, snow and ice added, calmer flat-ground patterns), then
+  shipped as tuned.
+- **#3964 Terrain forms.** Natural rock, soft ground (incl. snow) and grass cells are drawn as forms out of 8³ micro
+  cubes: broken edges, steps, missing corners and a grass lip on edges; strata grooves, niches, ledges and chips on walls;
+  breakouts on ceilings; on flat ground region-wide surface patterns that suit the material (flagstone joints and cracks
+  on rock and ice, wind ripples and dips on sand, snow, ash and earth, shallow dips in grass — one eighth deep). Rough and
+  calm regions, a strength per world. Display only: the collision stays the cube; placed, stamped, dyed, painted or shaped
+  cells, ores and cells beside water or lava keep the cube. Rules in Client.Core (`TerrainForms`), the mesher branch in
+  `ChunkMesher.TerrainForms.cs` (planet streaming only; back walls close every carved micro cell against a full
+  neighbour; a formed neighbour in the same chunk is read micro cell by micro cell). Desktop Medium and High only; Low,
+  Potato and the browser keep the cube. Tests: `TerrainFormsTests` (determinism, faces cover exactly the micro faces of
+  the rule, shared borders drawn once, walkable tops, face budget, families, calm regions).
+- **#3965 Headlamp.** Intensity 22 → 30 (about a third brighter); range, cone and colour unchanged.
+- **#3966 Docs.** CUSTOM_SHAPES.md and the `ShapeCode` comment: descriptor bits 27–30 carry the cell of a multi-block form
+  (only bit 31 is free), a save holds 42 player forms (19–60), and only a cube seals a room (the air fill counts shaped
+  blocks as open).
+- **Docs:** LOOK.md §17 (new) + the tier table, ADVANCED_GRAPHICS (headlamp intensity), CUSTOM_SHAPES.
+- **Not done / follow-ups:** soft (chamfered) edges on the forms; the landscape style from the generator (mesa, karst,
+  dunes) as an input; forms in the far view; a frame-cost measurement with PerfProbe (counted in the prototype: about 15
+  faces per formed edge or wall cell, 8–9 per patterned flat cell).
+- ⚠ **Playtest:** walk cliffs, cave walls and ceilings, rock and sand plains and grass edges on Medium and High; place a
+  block beside a formed edge (it stays a smooth cube); look for see-through holes, especially at chunk borders; check that
+  Low and Potato show smooth cubes; the headlamp in a dark cave.
+
 ### 🏝️ Far view: floating islands float, waterfalls fall, builds on islands — #3958, #3959, #3960 — ✅ 2026-11-23 (Client.Core + one line in FarTerrainView; no protocol, save or world-generation change)
 
 - **The report.** Marcel, 2026-11-23 (screenshot of a sky world): in the far view every floating island looked like a

@@ -437,6 +437,7 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
                 LoadingPlanetType = m.PlanetType;
                 _worldSeed = m.WorldSeed;
+                GameLook.TerrainFormsSalt = m.WorldSeed; // #3964: the terrain forms hash with the world seed
                 TerrainContinents = m.TerrainContinents; // #704: previews must match the server's gate
                 TerrainGeneration = m.TerrainGeneration; // #1644: same for the landform generation
                 TerrainLavaCoreVolcanoes = m.TerrainLavaCoreVolcanoes; // #2172: and the save's volcanoes

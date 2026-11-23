@@ -483,8 +483,8 @@ public static class ShapeCode
     // few slots at the very top (61..63). The free indices BETWEEN the two are handed out to player-designed
     // forms registered per save (see CustomShape + the server registry). A custom form therefore rides through
     // crafting, the item key, placing, persistence and mining with no format change whatsoever: it is just
-    // another shape index. Descriptor bits 27..31 stay reserved zero as the escape hatch if the slots per
-    // save ever prove too few (widening them is additive, not a migration).
+    // another shape index. Bits 27..30 carry the cell of a form over several blocks (#1961, see CellOf below) and
+    // only bit 31 is still free, so more slots per save would need a new home for the index (#3966).
 
     /// <summary>First shape index handed out to player-designed forms (one past the low built-in range).
     /// Persisted saves store custom forms BY this index, so it is frozen at 19.</summary>

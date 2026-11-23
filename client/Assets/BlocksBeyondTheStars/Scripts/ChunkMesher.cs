@@ -320,7 +320,8 @@ namespace BlocksBeyondTheStars.Client
             System.Func<int, int, int, int> worldShape = null,
             System.Func<int, Rect?> designUv = null,
             System.Func<int, int, int, bool> worldLoaded = null,
-            System.Func<int, int, int> biomePalette = null) // #3289: column → biome palette (planet chunks only), ChunkMesher.BiomeLooks.cs
+            System.Func<int, int, int> biomePalette = null, // #3289: column → biome palette (planet chunks only), ChunkMesher.BiomeLooks.cs
+            bool terrainForms = false) // #3964 terrain forms (ChunkMesher.TerrainForms.cs): planet streaming only
         {
             // Pooled output buffers: every build used to allocate ~13 fresh List<>s whose backing arrays are
             // large (a dense chunk's vertex list alone runs to six figures of bytes), making chunk (re)meshing
@@ -463,6 +464,7 @@ namespace BlocksBeyondTheStars.Client
             bool FormOnlyOpens(int px, int py, int pz)
                 => deviceForms && traits.DeviceFormOf(worldBlock(px, py, pz)) != null
                    && (worldShape == null || ShapeCode.IsCube(worldShape(px, py, pz)));
+            var terrainCtx = BeginTerrainForms(terrainForms && atlas != null && GameLook.TerrainFormsNow, chunk, origin, worldBlock, traits);
 
             WaterSurfaceData WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
@@ -931,10 +933,16 @@ namespace BlocksBeyondTheStars.Client
                 // ("only under air") would leave a bare patch of the flat tile under every plant; the grass also
                 // grows under a plant that stands on a narrow foot (`under`: 2 = full, 1 = low, 0 = none — by the plant's
                 // family, BlockTraits.CoverUnderOf). Display only: nothing in the world changes.
+                bool terrFormed = false, terrTop = false; // #3964 terrain forms: decided before the ground details, which a broken top edge keeps off
+                if (terrainCtx != null && !ventHole)
+                {
+                    terrFormed = terrainCtx.FormAt(wx, wy, wz, terrainCtx.Own, out terrTop);
+                }
+
                 var aboveGround = worldBlock(wx, wy + 1, wz);
                 // Both extras only where the clumps run (recordGrass): Low and Potato keep the classic "only under air".
                 int under = aboveGround.IsAir || !GameLook.CoverUnderPlants || !recordGrass ? 0 : traits.CoverUnderOf(aboveGround);
-                if (atlas != null && !ventHole // nothing grows on a vent: its hole lies there
+                if (atlas != null && !ventHole && !terrTop // nothing grows on a vent: its hole lies there
                     && (traits.ScatterOf(id) >= 0 || traits.CarpetOf(id) || (recordGrass && GameLook.GroundCover && traits.ScrubOf(id) > 0))
                     && (aboveGround.IsAir || (under > 0 && traits.CarpetOf(id)))
                     && ShapeCode.IsCube(chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z))))
@@ -1564,6 +1572,43 @@ namespace BlocksBeyondTheStars.Client
                     AddDeviceForm(data, atlas, dfInfo, new Vector3(x, y, z), DeviceFormFaces.YawForFront(dfFront), dfCell,
                         matR, matG, emission, floraFlag, animCode, new Vector4(leafFlag, dfTint.r, dfTint.g, dfTint.b));
                     continue;
+                }
+
+                // #3964 terrain forms (ChunkMesher.TerrainForms.cs): a natural terrain cell drawn as its form; collider
+                // faces by the cube rule, exactly as the device forms above.
+                if (terrFormed && designId == 0 && !transparent)
+                {
+                    var tCell = DeviceCellScratch();
+                    int exposed = 0;
+                    for (int tfc6 = 0; tfc6 < Faces.Length; tfc6++)
+                    {
+                        var td = Faces[tfc6];
+                        int ox = wx + td.X, oy = wy + td.Y, oz = wz + td.Z;
+                        bool tOpen = traits.ExposesOpaqueFace(worldBlock(ox, oy, oz)) || ShapedNeighbourOpens(ox, oy, oz);
+                        if (tOpen)
+                        {
+                            exposed |= 1 << tfc6;
+                            if (collidable && !FormOnlyOpens(ox, oy, oz))
+                            {
+                                colliderFaces[WorldConstants.LocalIndex(x, y, z)] |= (byte)(1 << tfc6);
+                            }
+                        }
+
+                        tCell.Set(tfc6, tOpen, Skylight(ox, oy, oz), BlockLightAt(ox, oy, oz), BlockLightDirAt(ox, oy, oz),
+                            tOpen ? FaceAo(wx, wy, wz, tfc6) : Vector4.one);
+                    }
+
+                    if (terrainCtx.BuildFaces(wx, wy, wz, exposed))
+                    {
+                        ShareTerrainLight(tCell);
+                        tCell.SetCubeTiles(atlas, uv, hasCap, capUv, uvRot, cubeTiles, -1);
+                        var tTint = dyed ? dye : painted ? paint : speciesTint;
+                        AddTerrainForm(data, terrainCtx.Rects, new Vector3(x, y, z), tCell, matR, matG, emission, floraFlag, animCode,
+                            new Vector4(leafFlag, tTint.r, tTint.g, tTint.b));
+                        continue;
+                    }
+
+                    colliderFaces[WorldConstants.LocalIndex(x, y, z)] = 0; // over budget: the cube path below records them again
                 }
 
                 // Edge bevel (T0): plain opaque cubes get their exposed convex edges chamfered. Fluids, glass/

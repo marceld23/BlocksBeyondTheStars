@@ -17,8 +17,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The lamp's reach (m): the falloff window closes here.</summary>
         public const float Range = 30f;
 
-        /// <summary>Linear intensity: 1 m in front of the visor the hotspot is ~6, at 3 m ~2, at 8 m ~0.3 (before albedo).</summary>
-        public const float Intensity = 22f;
+        /// <summary>Linear intensity: 1 m in front of the visor the hotspot is ~8, at 3 m ~2.7, at 8 m ~0.4 (before albedo).
+        /// #3965: raised from 22 — a little too dim in caves and at night.</summary>
+        public const float Intensity = 30f;
 
         /// <summary>The LED's colour, sRGB: a calm, very slightly cool white (#3229: no halogen yellow).</summary>
         public static readonly Color LedSrgb = new Color(0.93f, 0.97f, 1f, 1f);
