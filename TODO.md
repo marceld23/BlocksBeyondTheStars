@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946) — ✅ 2026-11-22, PR #3949 (⚠ **frame cost not measured on any preset, never run in a browser build** — #3947, must be checked before the next release; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
+### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946), PR #3949 (`8d0ef990`) — ✅ released in v2026.11.27 (⚠ **frame cost not measured on any preset** — #3947; the browser build was started once unseen before the tag and logged no errors on WebGPU or WebGL2, nobody has looked at it there yet; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
 
 The game gets the look of its four concept pictures, in one package: the old look is gone, there is no switch and no
 setting; the quality preset decides how much of it a player gets. How every part works, its files, what High, Medium,
@@ -125,7 +125,7 @@ forms* / *Appearance*, §6 Editors.
     (`StationBackdrop`) still uses the old plant colour; the grey tint of fog weather is not harmonised;
   - `held_darkmetal` and `held_plastic` keep a faint seam.
 
-### 🧒 Justus's reports of 2026-11-21 (evening): the moon launch, the pause menu on Space, the blue swim, swimming like an arrow, a cooler boost — #3919–#3925 — ✅ 2026-11-21 (client + shared + one server layout rule; no protocol bump, no save change)
+### 🧒 Justus's reports of 2026-11-21 (evening): the moon launch, the pause menu on Space, the blue swim, swimming like an arrow, a cooler boost — #3919–#3925, PR #3926 (`294b185a`) — ✅ released in v2026.11.27 (client + shared + one server layout rule; no protocol bump, no save change)
 
 Six reports and one Test Pilot note from one evening's play (v2026.11.26), all found in the code and fixed.
 
@@ -173,7 +173,7 @@ Six reports and one Test Pilot note from one evening's play (v2026.11.26), all f
   drone that circles after a hit; float at a lake's surface at night in third person (no blue, oxygen stays), dive
   (blue as before); swim forward, stand still, dive; boost in first and third person on High and Potato.
 
-### 🎛️ Sky-lights follow-ups: bare hands on sound, the cruiser wreck's scan card and battle scars, one name per thing, the pad's blaster push — #3914–#3917 — ✅ 2026-11-21 (server + shared + client + data; no protocol bump, no save change; 3 new texts in all 14 languages)
+### 🎛️ Sky-lights follow-ups: bare hands on sound, the cruiser wreck's scan card and battle scars, one name per thing, the pad's blaster push — #3914–#3917, PR #3926 (`294b185a`) — ✅ released in v2026.11.27 (server + shared + client + data; no protocol bump, no save change; 3 new texts in all 14 languages)
 
 Follow-ups of the package below (not released yet, so nothing of it reaches a save that already exists).
 
@@ -210,7 +210,7 @@ Follow-ups of the package below (not released yet, so nothing of it reaches a sa
   at a creature (push), hold LB + d-pad at a monument stone (only tones, no chamber). Board a cruiser wreck: the scan
   card, the scorch marks, dark consoles, loose plates.
 
-### 🗼 The sky-lights (VEGA story) and the other side (Sounders story) — #3891 (epic), #3892–#3912; answers the ideas #3858, #3857, #3829, #3830 — ✅ 2026-11-21, PR #3913 `a9ba731e` (⚠ playtest open; server + client + data; **terrain generation 47, save version 18**, protocol stays 12; all 14 languages)
+### 🗼 The sky-lights (VEGA story) and the other side (Sounders story) — #3891 (epic), #3892–#3912; answers the ideas #3858, #3857, #3829, #3830, PR #3913 (`a9ba731e`) — ✅ released in v2026.11.27 (⚠ playtest open; server + client + data; **terrain generation 47, save version 18**, protocol stays 12; all 14 languages)
 
 Four player ideas became two story extensions. Maps: [docs/developer/SPS_TOWERS.md](docs/developer/SPS_TOWERS.md),
 [docs/developer/OTHER_SIDE.md](docs/developer/OTHER_SIDE.md), the escort-cruiser sections of
@@ -267,7 +267,7 @@ Leitmotif of the VEGA part: **red turns blue again** — one key item (the hacki
 - **Follow-ups #3914–#3917:** ✅ 2026-11-21 — see the entry above (bare hands on sound, the cruiser wreck's scan card
   and battle scars, one name per thing in the Sounders pack, the pad's blaster push on our side).
 
-### 🧰 Player reports of 2026-11-21: small pets, calm boxed-in animals, land animals wade out of deep water — #3879–#3881 — ✅ 2026-11-21 (server + shared only; no protocol bump, no save change, no new texts)
+### 🧰 Player reports of 2026-11-21: small pets, calm boxed-in animals, land animals wade out of deep water — #3879–#3881, PR #3890 (`116d3833`) — ✅ released in v2026.11.27 (server + shared only; no protocol bump, no save change, no new texts)
 
 - **A villager's pet stood half through the shop's walls (#3879).** The household pets of the lively places (and the
   tamer's pet) were small only relative to their species (× 0.6 / × 0.8): a 3.35-block arachnid followed its person into
@@ -286,7 +286,7 @@ Leitmotif of the VEGA part: **red turns blue again** — one key item (the hacki
   deep water after 20 s leaves while nobody looks (`GameServerLandInDeepWater`, the intruder sweep). Tests:
   `BoxedInAnimalTests`.
 
-### 🚶 Lively figures: a walk, a body and joints that read as alive — #3888 (epic), #3882–#3887 — ✅ 2026-11-21 (⚠ playtest open; client + one server rule; no protocol bump, no save change, no new texts)
+### 🚶 Lively figures: a walk, a body and joints that read as alive — #3888 (epic), #3882–#3887, PR #3889 (`a43fd4e0`) — ✅ released in v2026.11.27 (⚠ playtest open; client + one server rule; no protocol bump, no save change, no new texts)
 
 Marcel, 2026-11-21: villagers and characters look wooden and stiff from outside, the NPCs' walk most of all; do NPCs
 have knees and elbows? They had (every humanoid is one `PlayerAvatar`), but the walk barely used them. Map:

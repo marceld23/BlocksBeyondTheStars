@@ -11,6 +11,243 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.27] — 2026-11-23
+
+The new-look release. **The whole world looks new**: a **lower sun** that lights the sides of your blocks all day, a
+**sky with a soft glow** round the sun and longer golden evenings, **calm, redrawn textures** on blocks with **softly
+rounded edges**, **grass in clumps and plants that sway**, **tree crowns of real leaves, boughs and fronds**, **fur and
+feathers** on the animals, rounded figures and tools, and **devices with a body inside their block**. The editors now
+**show your work the way the world shows it**. Worlds you create from now on get **colours that answer their sky**,
+**plants in groups** and — somewhere in every galaxy — **one red and one blue sun**. The story grows too: **the
+sky-lights** in VEGA's story — old guide towers, a hacking chip, a sleeping guard and an **escort cruiser** boss — and
+**the other side** in the Sounders' story, a grey world right beside ours where you build with sound. Besides: **figures walk with knees,
+hips and ankles**, and **Justus's reports** bring a calm moon launch, swimming like an arrow and a much cooler boost.
+
+ℹ️ **Compatibility:** the sky-lights bring six new blocks — the **save version rises from 17 to 18**: a world is
+converted the first time you open it (the game makes a backup first), and the previous version of the game can no
+longer open it afterwards. The **terrain generation rises from 46 to 48** (47: the guide towers; 48: the colour
+harmony, the plant groups and the red and blue suns) — those come with **worlds you create from now on**; your existing
+worlds keep their terrain, their colours and their stars. **Every world, old or new**, gets the new light, sky and
+clouds, the textures, the soft block edges, the new shapes of plants, trees, animals, figures, tools and devices — that
+is simply how the game draws now — and so do the escort cruiser, the other side, the lively figures and every fix. The
+**network protocol stays at version 12**, but because the list of blocks changed, game and server must both be on
+2026.11.27: an older game is asked to update when it joins.
+
+### 🌅 Light and sky (#3927)
+
+- The **sun's path leans**, so at noon it stands lower in the sky: the **sides of your blocks get sunlight all day**, and
+  the world has more than "bright top, dark side".
+- **Shadows take the colour of the sky**, and faces that look down get a little light bounced up from the ground.
+- The **sky is a gradient** from the horizon to a deeper colour overhead, with a **soft glow round the sun**. The
+  **golden hour lasts longer**, and the **sun and moons in the sky are larger**.
+- **Animals, players, NPCs and doors stand in the world's real sunlight** — warm on the sun's side, with a bright rim
+  against it — instead of a fixed studio light.
+- The haze near **lava, crystals and glowing plants** takes on their colour. Outdoors the glow of bright light is
+  stronger; aboard it stays as before.
+- On **Medium and High** (desktop): lava, crystals and glowing plants **light up a whole cliff**, not only the blocks
+  beside them, and the view **focuses on what is in the middle of the picture** — the background well behind it goes
+  soft, a look into the distance stays sharp (off with *Reduced effects*).
+
+### 🎨 Colours that belong to their world — new worlds (#3928)
+
+- On a world created from now on, **plants, clouds, valley mist and water answer the sky** instead of being picked one
+  by one: the tree crowns take one colour that matches the sky, the other plants follow the world's colour scheme, and
+  clean water stays between sea-green and indigo.
+- Every world has **a mood** — balanced, vivid, pastel, earthy or **gloomy** — and which moods a world can have depends
+  on its kind of planet. **Arena Nigra is always gloomy.**
+- **Plants grow in groups with clearings between them**, at about the same number of plants as before.
+- The planet seen from space and the clouds you dive through when you land show the same colours.
+
+### 🧱 Calm textures and soft blocks (#3929)
+
+- **All 583 of the game's textures were redrawn** in a calm style: soft forms instead of busy pixel noise. The light now
+  draws the grain, the texture gives the colour.
+- **Every block face has softly rounded edges and a fine joint**; about a third of the joints almost vanish, so a floor
+  reads as **stone slabs of different sizes** instead of a grid. Natural ground carries a fine grain.
+- **Grass blocks show earth on their sides with the grass hanging over the top edge** — alien grass and mycelium too. A
+  giant mushroom's cap has **gills** underneath, and a **geyser** looks like the ground beside it with a ring and a hole.
+- Stone, dirt, sand, snow and the other ground blocks vary by small mirrored versions instead of cracks and speckles.
+- **Your own textures stay exactly as you painted them** — texture packs and a world's own textures win over the new
+  set and are not calmed.
+
+### 🌿 Grass, plants and trees (#3930, #3931, #3932)
+
+On **Medium and High** (desktop), near you:
+
+- **Grass grows as dense clumps of blades** with a fringe at open edges, and also **under the plants**. Bare sand,
+  earth, ash and salt carry patches of **dry tufts**, stony ground a few **round pebbles**.
+- **Small plants are small bodies** — stems, leaves, blossoms and caps — that **sway in the wind**; water plants sway
+  as if in a current, glowing plants glow, hanging plants hang from the ceiling. The **school club's plants** are bodies
+  too. Farther away a plant becomes a picture again, now with the outline of its body (on the desktop also on Low).
+- **Crystals are cut stones** with a foot, a wide girdle and a point, and a light of their own.
+- **Tree crowns are clusters of small cubes with real gaps** that rock in the wind, with the leaf picture running across
+  them; farther away they close into a crown with a painted cube pattern. **Conifers are cones of sloping boughs under a
+  spire**, **palms carry long feathered fronds** and a rosette over the trunk — and they **keep that outline in the
+  distance**. Strands hang from the underside of the crowns.
+- On **Low**, crowns are closed blocks with the cube pattern and conifers and palms keep a simple form of their outline;
+  on **Potato** they are plain leaf blocks and plants keep their painted pictures.
+
+### 🦊 Creatures, figures and tools (#3933, #3934)
+
+- On **Medium and High** (desktop), furry animals wear **felt, bristles, shag or strands**, feathered ones have **wings
+  of real feathers, a tail fan and a crest**; every box of an animal has rounded edges, and standard animals have
+  **three blunt toes**. Hides are calmer on every preset.
+- **Butterflies, beetles, fish, snails** and the other smallest creatures are **small bodies with beating wings and
+  wagging tails** that point where they go — on every preset. The ones that are lights (fireflies, wisps, glowing
+  plankton …) stay glowing.
+- **Your figure, the NPCs and every held tool have rounded edges**; barrels, shafts and handles are flattened at their
+  edges, and **a drill's bit is a cone** — on every preset but Potato, where they stay plain boxes.
+
+### ☁️ Clouds, water and the little things (#3935)
+
+- **Clouds are heaps of round billows** on a flat underside, warm on the sun's side and darker underneath. On High the
+  desktop game adds ten more low clouds.
+- On **Medium and High**, **shallow water is clear**: you see the bed with a turquoise shimmer and the sun's moving web
+  of light on it, and small ripples break the reflection into glitter.
+- **A broken block splits into pieces of its own texture**; plants, torches and lanterns break into much smaller
+  pieces, and pieces of a glowing block glow.
+- Where a harvested plant regrows, **a small version of that very plant** stands and grows.
+
+### 🛠️ Devices and ship stations (#3936, #3937, #3938)
+
+- **25 devices and 3 crates have a body inside their block**: a workbench on legs, a forge with a fire niche and a
+  chimney, tanks with a glowing column and a lid, desks with a key deck and a screen. The block still fills the whole
+  cell for building, mining and aiming. On Medium and High their edges are soft.
+- The **workbench, the three crates and the thumper now keep the direction you placed them in** — building beside them
+  no longer turns them, and their top picture turns with them.
+- A device you reshaped or painted keeps your look.
+- Aboard, the **cockpit desk** is a body of its own with key decks and a tilted screen and **faces the pilot**; the lab
+  and console **terminals face the side you stand on**, and the medbay capsule stands on a base.
+- **Ceiling lamps aboard are separate bright lamps** with a lens and a rim — no more white glare.
+
+### ✏️ Editors that show the world (#3939, #3940, #3941)
+
+- The **texture editor** shows a block texture as a **wall of 3×3 real blocks**, drawn the way the world draws them, and
+  follows your brush while you paint. Plants show as three crossed pictures, and textures the world colours get a
+  **World colour** button. **As in the world / Pixels only** switches the preview in every editor.
+- **Soft tools:** a soft brush, a smoothing brush, **Smooth all**, **Calm all**, **Make seamless** and **Brightness
+  only** (for plants, leaves and bark, which the world colours itself). **Calm when saving** (0–100 %) calms what you
+  save; your painting itself stays as you painted it.
+- The **avatar designer** shows your figure in the world's light with its rounded edges.
+- The **form editors** show a form with its block's texture, and a form can now use **five colour slots** — main,
+  second, accent, dark and glow. On Medium and High your own forms get **soft edges** in the world.
+
+### ⭐ A red and a blue sun in every galaxy — new worlds (#3942)
+
+- Every galaxy created from now on holds **exactly one red and one blue sun**, **never in your start system** — and
+  rarely one more. All other suns shine white to orange. Find them on the star map!
+
+### 🖥️ Presets, the browser — and an honest word (#3946)
+
+- The new look **has no switch: it replaces the old one**. Your **quality preset** (Settings → Graphics) decides how
+  much of it you get — the user manual (§4 *The look of the world*) lists what each preset shows.
+- **In the browser only Potato and Low are offered now**; a higher preset saved earlier is lowered when the game loads.
+- Changing the preset while you play rebuilds the blocks around you when the change crosses Low. Figures and tools
+  switch to or from Potato at the next start, and how far lava and crystals shine changes at the next world you enter.
+- **An honest word:** the look is brand new, and how fast it runs has not been checked on every kind of computer yet.
+  If the game runs slower for you than before, **choose a lower preset** — and please tell us with **F1** (**F2** in
+  the browser).
+
+### 🗼 The sky-lights — VEGA's story (#3891–#3903, #3915, #3917)
+
+- On some worlds with inhabited settlements stand the ruins of **tall guide towers — the sky-lights** (worlds created
+  from now on; the first such world of a new galaxy always has one, with a guard post).
+- A tower's **relay console** shows its old records one by one. With a **hacking chip** — a rare drop of Hunters, or
+  forged in the workshop from titanium and Guardian plates — **the tower's lamps turn from red to blue**, bottom to top,
+  it plays its message and **reveals the world's landmarks, wrecks, old sites and other towers** on your map.
+- At a guard post the chip opens the **capsule tank**: a guard of the escort wing steps out, tells of the red night and
+  gives you the **Rusted Guardian plasma**. The workshop rebuilds it into the **Guardian laser**: a tap fires a shot,
+  holding fires a beam that draws suit energy and stops at a 15 % reserve.
+- **The escort cruiser** comes out of hyperspace: a big Guardian cruiser with two phases and a **mega laser that warns
+  you first** — an aiming line and 2.8 seconds to get away. A **barrel roll**, distance or an asteroid saves your ship.
+  It has a **boss bar and boss music**, comes once in the story and later, rarely, by itself. In a fight with several
+  ships, a downed ship only sends its own crew home, and every pilot who fought gets the loot.
+- The beaten cruiser stays as a **wreck you can board**: robots, chests, a crate for every fighter, and a bridge console
+  the chip turns blue — where **VEGA's sister core ECHO** speaks once and says goodbye. Her memory core is a keepsake.
+  The wreck has its **own scan card** and carries the scars of the fight: scorched plating, dark screens, loose hull
+  plates.
+- Three new VEGA missions — **The Sky-Light**, **The Sleeper** and **ECHO's Call** — **stay open** when your chapter
+  moves on. A world without towers skips the first two and still offers the third.
+- On a gamepad, the Resonance Blaster's push works on our side again: a short tap of LB or a pull of LT.
+
+### 🌫️ The other side — the Sounders' story (#3904–#3912, #3914, #3916)
+
+- With the **Crossing disc** in the socket of the obsidian chest plate, a **rune gate** — three or more rune stones
+  close together — takes you to **the other side**: the same world, all in grey. Nobody on the real side sees you,
+  enemies ignore you, and there is no hunger, no oxygen and no damage. Gates glow there as tall pillars of light, and
+  the way back is a rune gate too. Leave the game over there and you come back at your gate.
+- Over there you shape **sound blocks** with the **Resonance Blaster** (use key) and dissolve them again (mine key); the
+  last tone you played on the melody bar picks the block's tone, and walking over them makes them sing. Only you and
+  your allies can dissolve your blocks, and nobody can wall in another player.
+- **Walled in without a blaster?** Hold the mine key on a sound block that touches you for two seconds of hits and it
+  gives way; the controls line tells you when.
+- Every gate carries a **crack** over there. Mend it with a short counter-voice game on the melody bar, and at a gate
+  the world itself holds, **the real side blooms**: singing plants, a refilled relic cache and a small gift.
+- Three new chapters — **The Threshold**, **Singing Softly** and **The Song from Over There** — continue the Sounders'
+  story; if you finished chapter 8, chapter 9 starts by itself.
+- **One name per thing:** the Sounders' words now read the same everywhere in Korean, Turkish, Chinese, German and
+  Ukrainian.
+- 13 new sounds, 5 icons, 4 textures, 6 blocks and 346 new texts in all 14 languages.
+
+### 🚶 Lively figures (#3882–#3888)
+
+- **Villagers no longer walk on stilts:** the knee gives after each step and folds as the leg swings forward, the arms
+  swing with the opposite leg, and **every villager has its own pace, swing and bounce**. Standing, they shift their
+  weight from one leg to the other.
+- **Hips and shoulders move**: the hips dip and sway over the standing foot, the shoulders turn against them, the upper
+  body leans into the pace, and a bow bends at the waist.
+- **The foot rolls**: toes up at the heel strike, heel off at the push-off — boots follow.
+- **Knees and elbows show** as small joints, clear of every armour plate.
+- Androids and Guardians move more calmly, like the machines they are, on servo-coloured joints. Every villager strolls
+  at a pace of its own (a child a little faster, machines in step).
+
+### 🧒 Justus's reports (#3919–#3925)
+
+- **Launching from a moon no longer flings your ship far away** (#3919): the planet now hangs at a proper distance
+  beside its moon, and nothing in space may push your ship faster.
+- **Holding W at the helm with a dialog open** (F1, a menu) no longer shows a burning engine, a trail and thrust on the
+  readout while the ship stands still; the afterburner no longer roars behind the pause menu (#3920).
+- **Space no longer opens the pause menu** after you closed the Tab menu; the gamepad's chat keyboard still works
+  (#3921).
+- **The scanner's frame stays on a drone** instead of stuttering around it after a hit (#3922).
+- **Floating at the surface no longer turns the whole picture blue** in third person, and no longer uses up your
+  oxygen: you float with your head above the water. Under water everything looks as before (#3923).
+- **Swim like an arrow** (#3924): your figure now leans into the way it swims — upright treading water, almost flat in
+  a swim, flatter in a sprint, head first in a dive — and other players see it too. The controls line names the swim
+  keys while you swim, and VEGA's swim hint comes the first time you are chest-deep.
+- **A much cooler boost** (#3925, from a Test Pilot report): a hot orange flame, an ignition burst at the nozzles, star
+  streaks along your flight, a stronger widening of the view with a small shake and a pulsing boost bar. On Potato you
+  keep the colour, the streaks, the view and the sound; *camera motion off*, *reduce flashes* and *reduced effects* each
+  take their part away.
+
+### 🐾 Animals (#3879, #3880, #3881)
+
+- **Villagers' pets are small** now — a big species comes as a young one — so they no longer stand half through the
+  walls of a shop (#3879).
+- **A boxed-in animal no longer thrashes on the spot**: it looks for an open way, and if there is none it stands still
+  for a moment and tries again (#3880).
+- **Land animals wade out of deep water** instead of being trapped in it (#3881).
+
+### 🐞 Fixes
+
+- **Rain on the visor** now also beads in sleet, drizzle (thinner) and acid rain (green), and rain streaks and
+  lightning fit the screen's resolution (#3944).
+- A **running light** circles the empty player-name box in the main menu, so you see where to type (#3945).
+- The grass carpet on High **flickers much less**.
+- **Admin:** `/setweather` now holds everywhere on the planet for five minutes at full strength — a forced `rain` no
+  longer turned into clouds in drier places (#3943).
+
+### 🔧 Under the hood
+
+- Save version 18 (six new blocks), terrain generation 48; two appended fields tell the client which location it is in
+  — older peers drop them, so no protocol bump.
+- The game look in one package: light, sky, textures, plants, creatures, devices, editors and the browser presets
+  (epic #3948, #3927–#3946).
+
+Thank you, **Justus**, for an evening full of reports — the moon launch, the pause menu on Space, the blue swim and
+swimming like an arrow — and thank you to everyone who sent ideas, reports and Test Pilot notes: the sky-lights, the
+other side and the calmer animals came from you!
+
 ## [2026.11.26] — 2026-11-21
 
 The lively-places release. Villages and towns are **no longer alike**: every place has **its own colour**, stalls,
@@ -11554,7 +11791,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.26...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.27...HEAD
+[2026.11.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.26...v2026.11.27
 [2026.11.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.25...v2026.11.26
 [2026.11.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.24...v2026.11.25
 [2026.11.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.23...v2026.11.24
