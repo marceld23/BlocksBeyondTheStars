@@ -13,7 +13,7 @@ from every kind. This is the *how it fits together* reference; the kinds themsel
  source (template | kit | generator entry | generator)      → BuiltStructure / the stamper's structure type
    └─ post passes: material tokens → quarter turn → furnishing → ruin pass (StructureRuiner) → marker filter
                    → dress (a civilization's props, #3641)
- placement: structure_types.json rule → roll (count pinned) → seat (guaranteed search + SeatPolicy)
+ placement: structure_types.json rule → roll (count pinned) → seat (guaranteed search + SeatPolicy | given)
    → StructureFootprints (keep-clear, register) → StructurePlacementRecord → writer (once, FeatureStamped)
  replay (every load): record → same source + params + seed → markers, loot, residents (blocks are never rewritten)
 ```
@@ -187,6 +187,30 @@ The prop markers stay in the layout.
   is pinned in `WorldMetadata.BodySites` and read back in the landing-pad stage of every later load. Only during the boot's
   structures stage of a body without edits (never an admin placement). The foundation, skirt and shelf fill come from the
   biome at the site. Details in [WORLD_GENERATION.md](WORLD_GENERATION.md) §55.
+- **The given seat** (#3980, `Shared/Definitions/GivenSeat.cs`, `GameServerGivenPlaces.cs`): a structure placed at a fixed
+  block position handed in by data or a caller — the footprint's centre column, its quarter turn and optionally the site
+  height. No search: the origin corner is the centre minus half the footprint, the ground row the seat's or the footprint's
+  median ground (`GivenOrigin`); the ground is graded to it by `ReserveSiteGround` (seat name `given`, the kind's grade; only
+  in the structures stage of a body stamped for the first time, generation 40+), the box joins the footprint registry, and
+  the record pins seat `given`. Two users:
+  - *Landmarks* — `GivenLandmarkSource` (body → list of template + seat; nothing sets it yet, the body place lists of a later
+    package will) is read by `StampGivenPlaces`, the structures stage's **first** stamper (right after the boot footprints),
+    so every rolled kind keeps clear of the given landmarks (generation 38+, through the registry). Each is a landmark record
+    at index `GivenLandmarkIndexBase` (1000) + its list position, written through `CommitLandmark` like any landmark
+    (overlay storage, markers, protection); `StampLandmarks` and the admin's `/landmark` leave that index band alone. Every
+    such record is replayed on every load whatever the list says now; a place added to a body that was played on is not
+    stamped over a player's build (a skip is recorded). Tests: `GivenSeatTests`.
+  - *Cities* — a `CityPlace` carries its centre as a given seat (next bullet).
+- **City places** (#3980, `WorldGeneration/CityPlace.cs`, `GameServerCityPlaces.cs`): a city is a place, not a planet flag. A
+  `CityPlace` holds the settlement index it is pinned under, its centre (`GivenSeat`), its theme key (the record's
+  `city:<theme>`, the composer's rng lane), its seed, its grid (default 7×7), an optional kit and name, the open zones the
+  composer leaves clear (world rectangles) and — not read yet — a land mask (coastlines) and a district kept free for a
+  landmark. `StampCityPlaces` is the one path that stamps cities: each place is designed (pinned kit / generator entry / a
+  fresh draw on the place's seed / the place's own layout), seated on its centre, pinned, composed and reserves its graded
+  ground; all of them are committed together. The city world is `GdsCityPlace`: one place at pad 0 (index 0, theme
+  `gds`, the settlement seed, the pad ring and the crash site open) — byte-identical to the composer before (`CityWorldTests`,
+  the structure goldens). Nothing creates a second place yet; `LoadedWorld.CityFootprint` (the G.D.S. cool rooms) is the
+  first city's.
 - **Planned settlements** (generation 41): a planned kit (grid or grown) seats first and is planned into the site's ground
   (`SettlementPlanner`); the plan is pinned in `StructurePlacementRecord.Plan` and baked on every replay
   (`SettlementPlanBaker`). The structure carries a column map (`SettlementStructure.ColumnFloors`): the stamper, the
@@ -273,10 +297,10 @@ design is stamped; quarter-turn and ruin previews run the server's own code. See
 | Sources | `WorldGeneration/Sources/*`, `StructureCellSink.cs`, `*Builder*.cs` |
 | Ruin pass | `StructureRuiner*.cs`, `VoxelGrid.cs`, `RuinMarkers.cs`, `StructureDecay.cs`, `*Generator.Ruin.cs` |
 | Templates | `Shared/Definitions/StructureTemplate.cs`, `Shared/Content/StructureCatalog*.cs`, `Sources/SourceTemplates.cs`, `SettlementGenerator.Templates.cs`, `GameServerSourceEntries.cs`, `GameServerStructureMarkerLife.cs` |
-| Placement | `data/structure_types.json`, `Shared/Definitions/StructureTypeRules*.cs`, `GameServer/StructureFootprints.cs`, `GameServerStructureFootprints.cs`, `GameServerStructureRecords.cs` |
+| Placement | `data/structure_types.json`, `Shared/Definitions/StructureTypeRules*.cs`, `GameServer/StructureFootprints.cs`, `GameServerStructureFootprints.cs`, `GameServerStructureRecords.cs`; the given seat: `Shared/Definitions/GivenSeat.cs`, `GameServerGivenPlaces.cs`; city places: `WorldGeneration/CityPlace.cs`, `GameServerCityPlaces.cs` |
 | Ships and wrecks | `Shared/Definitions/UserShip.cs`, `GameContent.UserShips.cs`, `GameServerUserShips.cs`, `ShipCellBlocks.cs`, `WreckGenerator.Layout*.cs`, `WreckLayoutHull.cs`, `GameServerWrecks.Layout.cs` |
 | Giant ship wrecks | `Shared/Definitions/GiantShipRules.cs`, `GameContent.GiantShips.cs`, `WorldGeneration/GiantShipGenerator*.cs`, `StructureRuiner.Giant*.cs`, `GiantWreckPlacer.cs`, `GameServerGiantWrecks*.cs`, `GameServerGiantDerelict*.cs` — see [GIANT_SHIPS.md](GIANT_SHIPS.md) §12 |
 | Lost civilizations | `Shared/Definitions/CivilizationDefinition.cs`, `CivilizationRules.cs`, `GameContent.Civilizations.cs`, `WorldGeneration/CivilizationHomes.cs`, `CivilizationLayouts.cs` (materials, ruin options, `CivilizationPropDress`), `UniverseGenerator.Civilizations.cs`, `MazeRuinPlan.cs`, `MazeRuinGenerator.cs`, `Sources/MazeRuinSource.cs`, `GameServerCivilizations.cs` (stage, record), `GameServerCivilizationStamp.cs` (seats, water write mode), `GameServerCivilizationsWorld.cs` — see [CIVILIZATIONS.md](CIVILIZATIONS.md) |
 | SPS guide towers | `Shared/Definitions/SpsTowerRules.cs`, `GameContent.SpsTowers.cs`, `StructureCatalog.SpsTowers.cs`, `Shared/State/SpsTowerRecord.cs`, `WorldGeneration/SpsTowerGenerator.cs`, `GameServerSpsTowers.cs`, `GameServerSpsTowerStamp.cs`, `GameServerSpsTowersWorld.cs`, `GameServerSpsTowersAdmin.cs` — see [SPS_TOWERS.md](SPS_TOWERS.md) |
 | Fallen guardian giants | `Shared/Definitions/GuardianGiantBody.cs`, `GuardianGiantRules.cs`, `Shared/State/GuardianGiantRecord.cs`, `WorldGeneration/GuardianGiantBuilder.cs` (`GuardianGiantBuilder`, `GuardianGiantSites`), `Sources/BuilderSources.cs` (`GuardianGiantSource`), `GameServerGuardianGiantStamp.cs` — see [WORLD_GENERATION.md](WORLD_GENERATION.md) §59 |
-| Tests | `SpsTowerTemplateTests`, `SpsTowerStampTests`, `GuardianGiantStampTests`, `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |
+| Tests | `GivenSeatTests`, `SpsTowerTemplateTests`, `SpsTowerStampTests`, `GuardianGiantStampTests`, `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |

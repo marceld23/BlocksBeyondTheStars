@@ -231,6 +231,14 @@ generation 38+ the footprint registry, #3514, which also replaces the landmark's
     no other planet rolls it. A body that already carries records but none for one of its fixed indices (a crash between
     two stamps, or a content update that added one) plans that one on its next load, its seat clear of every player-built
     cell (`StampMissingFixedLandmarks`).
+- **Given landmarks** (#3980, `GameServerGivenPlaces.cs`). A body may carry landmarks at **given seats** — a template, the
+  footprint's centre column and quarter turn, optionally the ground row (`GivenSeat`), handed in through
+  `GivenLandmarkSource` (later: the body place lists from data). No roll, no search, no `PlaceLandmarks` switch: they are
+  stamped first in the structures stage (`StampGivenPlaces`), the ground under them graded to the site height (seat
+  `given`, the landmark's grade), so every rolled structure keeps clear of them. Each is an ordinary landmark record at index
+  1000 + its list position (seed hashed from its key and the body), replayed on every load even when the list no longer
+  names it; the rolled landmark and the admin's stamps keep the indices below 1000. See
+  [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4.
 - **Pinned.** One placement record (`landmark`, index 0): the template key, the seat, and `turns`, `rev`, `seed` in
   its layout field. A body that was visited before, a roll that said no and a failed seat all record a skip.
 - **Written once** (feature `landmark:<index>`), in one transaction:

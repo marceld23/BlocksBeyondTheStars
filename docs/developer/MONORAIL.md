@@ -515,6 +515,24 @@ abandoned stations followed a generation later as ruins — see the next section
   site, or — on a world that was already played on — somebody built there.
 - **Pinned.** `rail_line`/0 (placed or not; `Composition` = the pylon tops `x,y,z` in line order) and `rail_station`/0,1
   (origin, `GroundY`, seat, `Template` = `heading=N`, `Name` = the town). Every later load replays the records.
+- **Planner and builder** (#3984). The line is planned and built in two steps (`GameServerIntercityRail.cs` — types and the
+  stamp-chain step; `…Planner.cs` — the rolled planner and the shared core; `…GivenRoute.cs` — the given planner;
+  `…Builder.cs` — pin, replay, activate, stamp; `…Runtime.cs` — protection, map, graph, trains). A planner turns the world
+  into an `IntercityPlan`: one line's index, its **ordered stops** (two or more stations with spot, heading, seat) and its
+  pylon tops in line order. The rolled planner is the decision above under `IntercityLimits.Rolled` (the 960 / 2000-block
+  route cap, the 36-block pylon, the 4000-cell cut — parameters, so a given route can lift them); the shared core (the
+  profile with a grade cone from the nearest station on each side, the pylon and cut checks, the player-edit check) serves
+  every planner. The builder takes any number of plans: line *k* is pinned as `rail_line`/*k* and its stops as
+  `rail_station`/*k* × 64 + *stop* (line 0's two stations stay 0 and 1), stamped once under its own feature
+  (`intercityrail`, `intercityrail:k`), and every line gets its graph and public train. The stamp-chain step builds line 0
+  (rolled or replayed) and replays every further pinned line. The rolled line is bit-identical to the single flow before.
+  **Given routes** (`IntercityGivenRoute`: stops by centre column, optional heading and floor, waypoints per leg) are planned
+  by `PlanGivenIntercityRoute`: termini at both ends, every stop between them a **through station** (the line enters its
+  hall from behind over the end pylon and leaves over the exit pylon), a pylon every ≤ 18 blocks through the waypoints; the
+  route keeps clear of nothing on its own. Nothing feeds a given route yet (`IntercityGivenRouteTests` builds a three-stop
+  route on a flat world through a test seam). Open for the rail network: a train halting at a through station centres on its
+  stop four blocks into the hall, so its rear hangs out of the hall's back; the stamp-chain step only runs where settlements
+  are placed.
 - **Stamped once** (feature `intercityrail`): the stations through `StampSettlementBlocks` (carve, foundation, skirt,
   apron; the vegetation carve kept inside the hall so it never reaches into the town's timber), the pylon columns from
   the ground (or the sea bed) up, then the corridor: first exactly the cells `LinkClear` samples, then the wagon's whole
@@ -562,7 +580,8 @@ the map; the public train shuttling and waiting 30 s at each station, a stranger
 pylons and the station protected; the same line for the same seed and everything back after a restart; no line on
 generation 18, at chance 0, on an airless, a restricted or the city world; the station layout; on generation 42 a
 1908-block forest line that only the 0.8 chance builds, its trees cleared within the new budget, its train at setting 3
-halting at the far station). `RailEtaTests` (Client.Tests: every forecast from a received train list meets the real
+halting at the far station). `IntercityGivenRouteTests` (#3984: a three-stop given route, a through station in the middle, built
+by the same builder: one rail line with all three stops, records under line 1, a public train). `RailEtaTests` (Client.Tests: every forecast from a received train list meets the real
 server train's arrival and departure at both stations within 1.5 s; a manual train has none, a standing one counts down
 here). `StructureTypeRulesTests` (`chanceFrom` by generation, a broken one dropped).
 

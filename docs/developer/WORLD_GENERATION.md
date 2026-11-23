@@ -1655,10 +1655,15 @@ guard posts inside and ON the footprint rim outside the gates. Open zones (the p
 at pad 0 − 56/+56) are handed in as rectangles the composer leaves as paved ground; a module they intersect
 becomes an open square. Deterministic from the body seed.
 
-**The stamp** (`GameServerSettlements.StampCityWorld`). A city world skips the hospitality roll entirely:
+**The stamp** (`GameServerCityPlaces.StampCityWorld`). A city world skips the hospitality roll entirely:
 one settlement, centred on landing pad 0, `GroundY` = the pad's ground, seat `shelf`, pinned as settlement 0
 with template `city:gds`; `CommitSettlements` (phases B–D, shared with the roll) does the rest. The footprint
-is kept on `LoadedWorld.CityFootprint`.
+is kept on `LoadedWorld.CityFootprint`. Since #3980 this is "the G.D.S. world has one **city place** at pad 0"
+(`GdsCityPlace`): a `CityPlace` (centre as a given seat, theme `gds`, the settlement seed, grid 7, the pad ring and the
+crash site as open zones) stamped through `StampCityPlaces`, the one path for every composed city — several places per
+world, each under its own settlement index, are possible; nothing creates a second one yet. `CityGenerator.Generate`
+takes the place's theme (its rng lane `city:<theme>`) and its layout (the grid), the defaults composing exactly as before
+([STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4).
 
 **Cool rooms** (`TemperatureSystem.InCityShelter`). Inside the footprint AND `RoofedAt` → the effective
 temperature is `CityComfortC` = 22 °C. Streets, gardens and the plaza stay desert-hot. No climate physics.
