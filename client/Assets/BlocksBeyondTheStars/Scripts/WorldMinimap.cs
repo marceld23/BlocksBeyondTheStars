@@ -165,6 +165,12 @@ namespace BlocksBeyondTheStars.Client
                     return; // the cache was cleared (world exit) in between
                 }
 
+                if (!PlanetGlobeCaps.AppliesTo(data))
+                {
+                    onReady?.Invoke(tex, data); // #3978: a map world's poles are real — the globe wears the raw map
+                    return;
+                }
+
                 if (e.GlobeTexture == null)
                 {
                     int cap = PlanetGlobeCaps.PolarAverage(data.Rgba, data.Width, data.Height, data.GroundRgb);

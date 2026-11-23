@@ -75,6 +75,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The world's own vegetation colour (0xRRGGBB).</summary>
         public int FloraRgb;
 
+        /// <summary>#3978: the body's terrain comes from a planet map, whose first and last rows are its real poles (blended
+        /// to ice) — the globe needs no polar caps (<see cref="PlanetGlobeCaps.AppliesTo"/>).</summary>
+        public bool RealPoles;
+
         public const byte FlagSea = 1;
         public const byte FlagFrozen = 2;
         public const byte FlagFluid = 4; // pond / lake above sea level
@@ -186,6 +190,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var planet = _planet;
+            _data.RealPoles = planet.HasTerrainMap; // #3978
             var gen = new WorldGenerator(_req.WorldSeed, _req.Content);
             gen.SetWorldMode(_data.Circumference, _req.Cratered, landingPads: null, _req.BodyId);
             gen.SetContinentsEnabled(_req.Continents); // #704: same creation-time gate as the server
