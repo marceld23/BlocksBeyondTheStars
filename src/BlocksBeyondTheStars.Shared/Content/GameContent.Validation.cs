@@ -968,6 +968,7 @@ public sealed partial class GameContent
         ValidateEnemies(problems); // #2971: data/enemies.json
         ValidateBiomePalettes(problems); // #3289: data/blocks.json biomePalette / biomeLooks
         ValidateCreatureCoats(problems); // #3972: data/creatures.json coats
+        ValidatePlaces(problems); // #3981: data/places/<planetType>.json
 
         if (problems.Count > 0)
         {

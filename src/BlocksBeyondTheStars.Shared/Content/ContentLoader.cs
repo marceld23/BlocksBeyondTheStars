@@ -163,6 +163,10 @@ public static partial class ContentLoader
         // Fixed star systems (#3969, Sol): one file per system under data/systems — checked against the planets; a broken file
         // is reported and dropped. Optional: no folder → none.
         content.SetFixedSystems(LoadFixedSystems(Path.Combine(dataDir, World.FixedSystemRules.DataFolder), warn), warn);
+
+        // The bodies' fixed places (#3981): one list per planet type under data/places — checked in Validate against the planets
+        // and the landmarks. Optional: no folder → none.
+        content.SetPlaceLists(LoadPlaceLists(Path.Combine(dataDir, PlaceRules.DataFolder)));
         content.SetStories(stories);
         content.SetFailedStoryPacks(failedPacks);
 
