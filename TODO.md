@@ -26,6 +26,15 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏷️ One name for the Resonance Blaster in every language — #3952 — ✅ 2026-11-23 (language tables only; no new key, no code, protocol or save change)
+
+- **The finding.** In ten language tables (es, fr, it, ja, ko, nl, pl, pt, ru, zh) the Sounders' Resonance Blaster had
+  one name on its blueprint (`blueprint.sounder_resonance.name`) and another on the item you hold
+  (`item.resonance_blaster.name`). Found while translating the v2026.11.27 release post: the translators' glossary
+  handed them the blueprint's name.
+- **The fix.** The blueprint takes the item's name in those ten tables, so all fourteen tables now have one name for the
+  tool. The Chinese quality preset label (`ui.settings.preset`) loses a stray space ("画质预设").
+
 ### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946), PR #3949 (`8d0ef990`) — ✅ released in v2026.11.27 (⚠ **frame cost not measured on any preset** — #3947; the browser build was started once unseen before the tag and logged no errors on WebGPU or WebGL2, nobody has looked at it there yet; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
 
 The game gets the look of its four concept pictures, in one package: the old look is gone, there is no switch and no
