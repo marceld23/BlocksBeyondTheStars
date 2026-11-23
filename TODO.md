@@ -26,7 +26,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏷️ One name for the Resonance Blaster in every language — #3952 — ✅ 2026-11-23 (language tables only; no new key, no code, protocol or save change)
+### 📏 PerfProbe skips the prologue before it measures — #3954 — ✅ 2026-11-23 (client tooling only; no gameplay, protocol or save change)
+
+- **The finding.** While measuring the new look for #3947, all 16 probe runs (desktop and browser, v2026.11.26 and
+  v2026.11.27) logged `[Cutscene] Begin vega_protocol/prologue` right before the idle phase and never an `End`: the probe
+  only dismissed VEGA's panel lines, while the cutscene director kept the scripted camera for the whole run. So every
+  probe number since the cutscene system took the prologue measured the camera flight, not the player's view —
+  old-against-new comparisons stay fair (same scene on both sides), absolute numbers do not.
+- **The fix.** `CutsceneDirector.SkipForTooling()` ends the playing scene as skipped at once; `PerfProbe.ClearIntro()`
+  calls it for every scene the director plays (the prologue, the welcome card, anything queued after them) and dismisses
+  VEGA's lines in the same loop, until five quiet seconds pass. Each skip is logged (`[PerfProbe] Skipped cutscene …`).
+- **Docs:** CLIENT_TESTING (what the probe does first), ADVANCED_GRAPHICS (the 2026-11-06 preset table was taken during
+  the prologue).
+
+### 🏷️ One name for the Resonance Blaster in every language — #3952, PR #3953 (`0fe612e5`) — ✅ 2026-11-23 (language tables only; no new key, no code, protocol or save change)
 
 - **The finding.** In ten language tables (es, fr, it, ja, ko, nl, pl, pt, ru, zh) the Sounders' Resonance Blaster had
   one name on its blueprint (`blueprint.sounder_resonance.name`) and another on the item you hold
@@ -35,7 +48,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - **The fix.** The blueprint takes the item's name in those ten tables, so all fourteen tables now have one name for the
   tool. The Chinese quality preset label (`ui.settings.preset`) loses a stray space ("画质预设").
 
-### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946), PR #3949 (`8d0ef990`) — ✅ released in v2026.11.27 (⚠ **frame cost not measured on any preset** — #3947; the browser build was started once unseen before the tag and logged no errors on WebGPU or WebGL2, nobody has looked at it there yet; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
+### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946), PR #3949 (`8d0ef990`) — ✅ released in v2026.11.27 (frame cost measured 2026-11-23 against v2026.11.26 on all four presets and in the browser — Medium/High cost more, accepted; ⚠ nobody has looked at the look in a browser yet — #3947; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
 
 The game gets the look of its four concept pictures, in one package: the old look is gone, there is no switch and no
 setting; the quality preset decides how much of it a player gets. How every part works, its files, what High, Medium,
@@ -99,9 +112,11 @@ forms* / *Appearance*, §6 Editors.
   and chart tests (Tests).
 - **Docs:** LOOK.md (new), ADR 0021 (new; ADR 0015 §3 marked as narrowed), ART_BIBLE, ADVANCED_GRAPHICS, CREATOR_SUITE,
   CUSTOM_SHAPES, HELD_ITEMS, MULTIWORLD_AND_SYSTEM_FLIGHT, WORLD_GENERATION §63, USER_MANUAL, the docs index, README.
-- ⚠ **Not measured, never in a browser:** no frame time was taken on any preset after the look was complete, and no
-  browser build has run it (the block shader reads one texture more — the plants' far atlas — and the browser limits
-  textures per shader). Open issue #3947 (stays open after the merge), release-blocking — see the backlog item below.
+- **Measured 2026-11-23 (#3947)**, release builds v2026.11.26 against v2026.11.27, PerfProbe, one run each — the numbers
+  are in [docs/developer/LOOK.md](docs/developer/LOOK.md) "Frame cost". Desktop Potato and Low keep 60 fps; Medium and
+  High cost about 40 % more GPU time and nearly twice the main-thread time (the reference laptop drops from 60 to ~40 fps
+  on Medium). **Accepted by Marcel 2026-11-23**, no optimisation planned. The browser (Potato and Low, WebGPU and WebGL 2)
+  shows no difference and no new error. Still open: Marcel's own look at the browser build (#3947 stays open for it).
 - ⚠ **Playtest:** a NEW world (generation 48) on High, Medium, Low and Potato: noon and evening light, a meadow, a
   conifer and a palm forest near and far, plants at the end of their range, a furry herd, the star map (one red, one blue
   sun, neither at home), a gloomy world, Arena Nigra; aboard: the cockpit desk faces the pilot, the terminals face the
@@ -110,10 +125,8 @@ forms* / *Appearance*, §6 Editors.
   tools and *Calm when saving*, a painted ground tile in the world (as painted); a form with all five colour slots, dyed
   and undyed; `/setweather rain` in several biomes, acid rain on the visor.
 - **Open (backlog):**
-  - ★ **#3947: check the look in a browser build and measure the frame cost on all four presets before the next
-    release** (the
-    same worlds on High, Medium, Low, Potato; the browser on WebGPU and WebGL 2; compare the mean brightness of capture
-    pairs against the rule "never darker");
+  - ★ **#3947: look at the look in a browser build** (WebGPU and WebGL 2, Low and Potato) — the frame cost part is done
+    (2026-11-23, see above);
   - round primitives (cylinders, spheres) inside player forms — needs a format extension with server validation and a
     design of its own;
   - new furniture blocks (shelf, planter, window frame …) — new blocks shift the block ids (save version bump), plus
@@ -17659,11 +17672,14 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
 ### ★ Before the next release: the game look in a browser build, and its frame cost on all four presets — #3947 (2026-11-22)
 The game look shipped in one package (see the entry "🎨 The game look" at the top, and
-[docs/developer/LOOK.md](docs/developer/LOOK.md) "Not measured yet") without a frame-time measurement on High, Medium,
+[docs/developer/LOOK.md](docs/developer/LOOK.md) "Frame cost") without a frame-time measurement on High, Medium,
 Low or Potato and without ever running in a browser build. Build WebGL (WebGPU and the WebGL 2 fallback) and look at it
 in a real browser — the block shader reads one texture more (the plants' far atlas) and the browser limits textures per
 shader — and take frame times on the same worlds on all four presets (a dense forest, a meadow, a furry herd, the ship).
 Release-blocking. The look's other open items are listed in that entry.
+**Status 2026-11-23:** frame cost measured (PerfProbe, release builds v2026.11.26 against v2026.11.27, all four desktop
+presets + the browser on Potato and Low, WebGPU and WebGL 2; numbers in LOOK.md "Frame cost"); the Medium/High extra cost
+is accepted. The browser build ran without new errors (console only). Open: Marcel's own look at it in a browser.
 
 ### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't (#588, 2026-07-29, branch fix/menu-dialog-opacity)
 **Report:** "Some dialogs are see-through (e.g. the world-options dialog), others black out the menu behind

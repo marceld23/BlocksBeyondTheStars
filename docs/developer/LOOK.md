@@ -628,10 +628,33 @@ pictures, not bodies; the three sample world colours are fixed tones; the new bu
 *Pixels only* shows a form in one colour. It was never checked on screen that the per-camera values stay with the preview
 camera (URP is assumed to submit a camera's draws before `endCameraRendering`).
 
-## Not measured yet
+## Frame cost
 
-Plainly: **the frame cost of the look was not measured on any preset after the look was completed, and the look has
-never run in a browser build.** Every triangle and vertex count in this doc is computed or counted offline. The block
-shader reads one texture more than before (the plants' far atlas), and the browser limits textures per shader. Both
-checks — a browser build looked at in a real browser, and frame times on High, Medium, Low and Potato on the same worlds
-— are tracked as the open issue #3947 (see [TODO.md](../../TODO.md)) and must be done before the next release.
+Measured 2026-11-23 (#3947) with PerfProbe on the release builds v2026.11.26 (before the look) and v2026.11.27 (the look),
+one run each, seed 424242, 30 s idle + 30 s walk, quiet machine. ⚠ Both builds predate #3954, so the probe sampled the
+prologue's camera flight, not the player's view: the comparison is fair (the same scene on both sides), the absolute
+numbers are not the cost in play.
+
+**Desktop** — reference laptop (Ryzen 9 PRO 7940HS, RTX 2000 Ada Laptop GPU, Direct3D 12), view distance 8, VSync on;
+idle phase, GPU p90 and main-thread p50:
+
+| Preset | v2026.11.26 | v2026.11.27 |
+|---|---|---|
+| Potato | 60 fps · GPU 3.1 ms · main 5.4 ms | 60 fps · GPU 3.9 ms · main 5.5 ms |
+| Low | 60 fps · GPU 5.5 ms · main 5.5 ms | 60 fps · GPU 8.9 ms · main 5.7 ms |
+| Medium | 60 fps · GPU 13.7 ms · main 6.4 ms | 40 fps · GPU 19.6 ms · main 10.6 ms |
+| High | 37 fps · GPU 24.4 ms · main 7.3 ms | 28 fps · GPU 34.2 ms · main 15.9 ms |
+
+Walking: Medium 55 → 43 fps, High 35 → 30 fps; Potato and Low stay at 60. So Potato and Low keep their frame rate; on
+Medium and High the look costs about 40 % more GPU time and nearly twice the main-thread time — Medium and High are where
+the near drawers (crown clusters, grass clumps, plant bodies) run. This laptop calibrates itself to Medium, so it drops
+from 60 to about 40 fps there. The extra cost was accepted (2026-11-23); no optimisation is planned for it.
+
+**Browser** — headless Chromium on the same laptop (it renders on the Radeon 780M integrated GPU through ANGLE/D3D11),
+view distance 3, the browser's 60 fps cap, no GPU timer: Potato and Low, WebGPU and WebGL 2, 58–60 fps idle and 53–57 fps
+walking on both builds, differences within run-to-run noise. No new console error; WebGL 2 logs the same 187 shader
+warm-up warnings as v2026.11.26 (all before the join). The preset stays at Low (#3946), where v2026.11.26 still rose to
+Medium. At the cap these numbers show that the frame fits, not how much room is left.
+
+Still open (#3947): nobody has looked at the look in a browser — only its console was read. The block shader reads one
+texture more than before (the plants' far atlas), and the browser limits textures per shader.
