@@ -41,7 +41,7 @@ public sealed partial class GameServer
         pylons = l.Pylons.Count,
         length = Math.Round(l.Spline.TotalArc, 1),
         l.Closed,
-        intercity = ReferenceEquals(l, IntercityLine()),
+        intercity = IsIntercityRailLine(l),
         stops = l.Stops.Take(BumpRailCap * 2).Select(s =>
         {
             var places = RailPlacesAt(s.Cell); // #3457: a stop may belong to a town and a base at once
