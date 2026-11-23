@@ -368,4 +368,26 @@ public sealed class CreatureSpecies
 
     /// <summary>Only Aggressive/PackHunter creatures roam and deal proximity damage.</summary>
     public bool Hostile => Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+
+    /// <summary>
+    /// The ONE copy of a species (#3971): a companion snapshot, a sampled species in the register, a cross's plan, a story
+    /// companion's home look — every path that needs an independent descriptor calls this. Every property is copied (a
+    /// memberwise copy, so a trait added later can never be forgotten here), every collection deeply, so the copy shares
+    /// nothing mutable with the live roster.
+    /// <para>The copy also lifts a snapshot saved before a trait existed, exactly as the hand-written copy always did:
+    /// <see cref="HasFins"/> is derived (<see cref="CreatureMotion.HasFins"/>), <see cref="Heads"/>/<see cref="WingPairs"/>/
+    /// <see cref="FinPairs"/> of 0 read as 1 and a <see cref="HeadRatio"/> of 0 as the classic 1. On a current species those
+    /// lifts change nothing.</para>
+    /// </summary>
+    public CreatureSpecies Clone()
+    {
+        var copy = (CreatureSpecies)MemberwiseClone();
+        copy.BiomeSurfaces = (string[])BiomeSurfaces.Clone();
+        copy.HasFins = CreatureMotion.HasFins(this);
+        copy.Heads = System.Math.Max(1, Heads);
+        copy.WingPairs = System.Math.Max(1, WingPairs);
+        copy.FinPairs = System.Math.Max(1, FinPairs);
+        copy.HeadRatio = HeadRatio > 0f ? HeadRatio : 1f;
+        return copy;
+    }
 }

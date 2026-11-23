@@ -1158,12 +1158,7 @@ public sealed partial class GameServer
             return n;
         }
 
-        n.GiantHeight = sp.GiantHeight;
-        n.BackFeature = sp.BackFeature;
-        n.LegRatio = sp.LegRatio;
-        n.Mandibles = sp.Mandibles;
-        n.WormLength = sp.WormLength;
-        n.WormGirth = sp.WormGirth;
+        CreatureWireMapping.WriteGiantSpecies(n, sp); // #3971: the species half of the giant wire
         n.Facing = g.Facing;
         n.Phase = g.Phase;
         n.PhaseT = (float)(_uptime - g.PhaseStart);

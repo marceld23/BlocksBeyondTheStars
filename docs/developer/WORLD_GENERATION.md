@@ -1539,7 +1539,7 @@ altitude) and runs only when the save's generation is ≥ `WorldDescription.NewK
 generation-5 roster is therefore bit-for-bit the classic two-argument roster (`CreatureNewKindsTests`
 serialises both). The diversity re-draw (`EnsureHabitatDiversity`) passes the generation through, so a
 re-drawn niche slot rolls the wave too. Nothing is persisted: the roster is re-derived on every start, and a
-companion snapshot carries the three counts (`CloneSpecies`).
+companion snapshot carries the three counts (`CreatureSpecies.Clone`).
 
 **Generation 10 — the arachnid (#2009).** The same discipline once more: the arachnid roll is the very last
 draw of `MakeSpecies` (after `ApplyNewKinds`) and runs only when the save's generation is ≥
@@ -2186,7 +2186,7 @@ the FINAL draw of `MakeSpecies` on a generation-15 world (60 % classic, else amb
 hunter leans red, a glower violet); `AuthoredCreature.EyeRgb` may name it. `PlanetType.ContaminatedFauna` +
 `EyeColor` → `MakeContaminated`, a post-pass beside `MakePeaceful`: Aggressive (every fourth PackHunter), a bite of 2–7
 where the plan rolled none, Cathemeral (a sleeping hunter is no hunter), the type's eyes, `toxic_meat` where the drop was
-food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CloneSpecies` copies
+food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CreatureSpecies.Clone` copies
 it, `CreatureBuilder` paints the iris self-lit. The scan reads `ui.scan.threat.contaminated` on such a world.
 
 **Factories (#2070).** `PlanetType.FactoryCount` [min, max] replaces the 0 / 1 / 2 roll with the same first draw; the
@@ -2330,7 +2330,7 @@ tan).
 
 **Authored giants (#2075).** `AuthoredCreature` has carried the giant traits since #2003; `InitGiants` now reads them:
 `CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, kind)` builds the first authored record with the
-matching giant body plan exactly as the roster would (`MakeAuthoredSpecies`, sub-seed salted with the key; `Size` =
+matching giant body plan exactly as the roster would (`AuthoredSpeciesMapping.ToSpecies`, sub-seed salted with the key; `Size` =
 `giantHeight / 10` for a giant) and it takes the slot the roll would have filled — the Ignivermis (`au_ignivermis`: red
 back, black belly, ember glow, hearing 1.3, 55 blocks, 3800 HP, `swallowsCreatures`) is the worm of every Arena Nigra.
 `GenerateRoster` skips giant body plans, so the spawner never rolls it as an animal. `PlanetType.SandwormCount` (0 = the
