@@ -278,6 +278,12 @@ is never bundled. Sources, all public domain:
   public domain — https://pds-geosciences.wustl.edu.
 - `data/maps/mars.bbmap` — MGS MOLA Mission Experiment Gridded Data Record `MEGT90N000CB` — NASA Planetary Data System,
   Geosciences Node — public domain — https://pds-geosciences.wustl.edu.
+- `data/maps/venus.bbmap` — Venus Magellan Global Topography 4641m (v2) — NASA / USGS Astrogeology Science Center —
+  public domain — originators P.G. Ford, G.H. Pettengill, F. Liu, J. Quigley; Ford, P.G. and G.H. Pettengill, 1992,
+  J. Geophys. Res. 97, 13103–13114, doi:10.1029/92JE01085 — https://astrogeology.usgs.gov.
+- `data/maps/mercury.bbmap` — Mercury MESSENGER Global DEM 665m (v2) — NASA / USGS Astrogeology Science Center — public
+  domain — Becker, K.J. et al., 2016, First Global Digital Elevation Model of Mercury, LPSC 47, abstract 2959 —
+  https://astrogeology.usgs.gov.
 
 **No third-party models** are bundled — the rest of the visuals remain runtime-generated
 (vertex/atlas block colours, code-built avatars + logo, procedural UI panels). See

@@ -2,6 +2,7 @@
 
     uv run planet_maps.py earth            # Earth, 2048 x 1024: ETOPO1 elevation + Natural Earth I land cover
     uv run planet_maps.py moon mars        # 1024 x 512: LRO LOLA / MGS MOLA elevation, biome bands from elevation
+    uv run planet_maps.py venus mercury    # 1024 x 512: Magellan / MESSENGER elevation (USGS mosaics, rows read remotely)
     uv run planet_maps.py earth --probe    # print the source colour, elevation and class at known places
 
 Downloads go to tools/planet_maps/.cache (git-ignored, never committed); only the derived .bbmap is committed. The
@@ -22,6 +23,7 @@ from scipy import ndimage
 from scipy.io import netcdf_file
 
 import bbmap
+import remote_tiff
 
 HERE = Path(__file__).resolve().parent
 CACHE = HERE / ".cache"
@@ -35,6 +37,26 @@ ETOPO_URL = (
 NATURAL_EARTH_URL = "https://naciscdn.org/naturalearth/10m/raster/NE1_LR_LC.zip"
 LOLA_URL = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_4.img"
 MOLA_URL = "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg004/megt90n000cb.img"
+VENUS_URL = "https://planetarymaps.usgs.gov/mosaic/Venus_Magellan_Topography_Global_4641m_v02.tif"
+MERCURY_URL = "https://planetarymaps.usgs.gov/mosaic/Mercury_Messenger_USGS_DEM_Global_665m_v2.tif"
+# The Magellan topography counts from a 6,051.0 km sphere (its area-weighted mean is about +0.8 km); the map counts from
+# the mean planetary radius, 6,051.8 km. The MESSENGER DEM already counts from Mercury's 2,439.4 km reference sphere.
+VENUS_DATUM_OFFSET_M = -800.0
+
+# Known features for --probe on the airless and hostile bodies: (name, latitude, east longitude).
+VENUS_PLACES = [
+    ("Maxwell Montes", 65.2, 3.3),
+    ("Lakshmi Planum", 68.6, -20.7),
+    ("Ovda Regio", -2.8, 85.8),
+    ("Diana Chasma", -14.8, 155.5),
+    ("Atalanta Planitia", 45.8, 165.8),
+]
+MERCURY_PLACES = [
+    ("Caloris Planitia", 30.5, -170.2),
+    ("Rachmaninoff", 27.6, 57.6),
+    ("Rembrandt", -33.2, 87.9),
+    ("Borealis Planitia", 73.4, -79.5),
+]
 
 # Known places for --probe and the self-check: (name, latitude, longitude, the class Earth should show there).
 EARTH_PLACES = [
@@ -208,6 +230,54 @@ def band_classes(elev: np.ndarray) -> np.ndarray:
     return classes
 
 
+def usgs_mosaic_grid(url: str, name: str, stride: int, offset_m: float, width: int, height: int) -> np.ndarray:
+    """A USGS global elevation mosaic (GeoTIFF) as metres on the map, south row first, column 0 = longitude 0.
+
+    Only every stride-th row is read (over HTTP range requests, the rows cached in .cache/<name>), each standing for the
+    stride rows around it; the columns are area-averaged in full. Cells without data are averaged around, and a cell
+    with none at all takes its nearest neighbour's value. offset_m moves the datum (metres added to every value)."""
+    cache = CACHE / name / f"rows_every_{stride}.npz"
+    if cache.exists():
+        with np.load(cache) as saved:
+            raw, scale, nodata, west = saved["raw"], float(saved["scale"]), int(saved["nodata"]), float(saved["west"])
+    else:
+        layout = remote_tiff.read_layout(url)
+        print(f"reading every {stride}th of {layout.height} rows of {url} ...", flush=True)
+        raw = remote_tiff.read_rows(layout, list(range(stride // 2, layout.height, stride)))
+        scale, west = layout.scale, layout.west_longitude
+        nodata = layout.nodata if layout.nodata is not None else -32768
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(cache, raw=raw, scale=scale, nodata=nodata, west=west)
+    valid = raw != nodata
+    metres = np.where(valid, raw.astype(np.float64) * scale + offset_m, 0.0)[::-1]
+    shift = round(-west / 360.0 * raw.shape[1])  # columns from the west edge to longitude 0
+    metres, weight = np.roll(metres, -shift, axis=1), np.roll(valid[::-1].astype(np.float64), -shift, axis=1)
+    summed, covered = area_resample(metres, height, width), area_resample(weight, height, width)
+    grid = np.divide(summed, covered, out=np.full_like(summed, np.nan), where=covered > 1e-6)
+    print(f"  {100.0 * (1.0 - valid.mean()):.2f} % of the read samples had no data, "
+          f"{100.0 * np.isnan(grid).mean():.2f} % of the cells none at all")
+    return fill_gaps(grid)
+
+
+def fill_gaps(grid: np.ndarray) -> np.ndarray:
+    """Fills the NaN cells smoothly from the data around them (normalised convolution with a growing blur, wrapping
+    east-west), so a gap in the source becomes a gentle surface instead of a stripe of copied cells."""
+    missing = np.isnan(grid)
+    if not missing.any():
+        return grid
+    known = (~missing).astype(np.float64)
+    values = np.where(missing, 0.0, grid)
+    filled = grid.copy()
+    sigma = 1.0
+    while np.isnan(filled).any():
+        num = ndimage.gaussian_filter(values, sigma, mode=("nearest", "wrap"))
+        den = ndimage.gaussian_filter(known, sigma, mode=("nearest", "wrap"))
+        reach = np.isnan(filled) & (den > 1e-3)
+        filled[reach] = num[reach] / den[reach]
+        sigma *= 1.5
+    return filled
+
+
 def build_moon(width: int, height: int, probe: bool) -> tuple[np.ndarray, np.ndarray]:
     elev = pds_grid(LOLA_URL, "lola_ldem4", "<i2", 0.5, width, height)
     return elev, band_classes(elev)
@@ -218,10 +288,35 @@ def build_mars(width: int, height: int, probe: bool) -> tuple[np.ndarray, np.nda
     return elev, band_classes(elev)
 
 
+def build_venus(width: int, height: int, probe: bool) -> tuple[np.ndarray, np.ndarray]:
+    elev = usgs_mosaic_grid(VENUS_URL, "magellan_topo_4641m", 4, VENUS_DATUM_OFFSET_M, width, height)
+    probe_places(elev, VENUS_PLACES, probe)
+    return elev, band_classes(elev)
+
+
+def build_mercury(width: int, height: int, probe: bool) -> tuple[np.ndarray, np.ndarray]:
+    elev = usgs_mosaic_grid(MERCURY_URL, "messenger_dem_665m", 9, 0.0, width, height)
+    probe_places(elev, MERCURY_PLACES, probe)
+    return elev, band_classes(elev)
+
+
+def probe_places(elev: np.ndarray, places: list[tuple[str, float, float]], probe: bool) -> None:
+    """Prints the elevation at known features next to the body's mean, so a flipped or shifted grid shows at once."""
+    if not probe:
+        return
+    height, width = elev.shape
+    print(f"  mean elevation {elev.mean():7.0f} m")
+    for name, la, lo in places:
+        row, col = cell_of(la, lo, width, height)
+        print(f"  {name:20s} lat {la:6.1f} lon {lo:6.1f}: {elev[row, col]:7.0f} m")
+
+
 BODIES = {
     "earth": (build_earth, 2048, 1024),
     "moon": (build_moon, 1024, 512),
     "mars": (build_mars, 1024, 512),
+    "venus": (build_venus, 1024, 512),
+    "mercury": (build_mercury, 1024, 512),
 }
 
 # --- Preview --------------------------------------------------------------------------------------------------------
@@ -256,11 +351,25 @@ def preview(elev: np.ndarray, classes: np.ndarray, sea: bool) -> Image.Image:
     return Image.fromarray(np.clip(rgb[::-1], 0, 255).astype(np.uint8))
 
 
+def relief(elev: np.ndarray) -> Image.Image:
+    """North up: the elevation alone as a colour ramp (dark low ground to white peaks) under a hill shade lit from the
+    north-west — the view to check a body's landmarks in (Maxwell Montes, Caloris, Olympus Mons), class bands aside."""
+    lo, hi = np.percentile(elev, [0.5, 99.5])
+    t = np.clip((elev - lo) / max(hi - lo, 1.0), 0.0, 1.0)[..., None]
+    ramp = np.array([[40, 45, 70], [120, 110, 90], [200, 170, 120], [250, 250, 250]], dtype=np.float64)
+    pos = t * (len(ramp) - 1)
+    i = np.minimum(pos.astype(int), len(ramp) - 2)
+    rgb = ramp[i[..., 0]] * (1 - (pos - i)) + ramp[i[..., 0] + 1] * (pos - i)
+    dy, dx = np.gradient(elev)
+    shade = np.clip(0.75 + (dx - dy) / max(np.percentile(np.abs(dx) + np.abs(dy), 99), 1.0) * 0.25, 0.4, 1.1)
+    return Image.fromarray(np.clip(rgb * shade[..., None], 0, 255)[::-1].astype(np.uint8))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("bodies", nargs="+", choices=sorted(BODIES))
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="where the .bbmap files go (default data/maps)")
-    parser.add_argument("--probe", action="store_true", help="print the class at known places (Earth)")
+    parser.add_argument("--probe", action="store_true", help="print the class (Earth) or the elevation (Venus, Mercury) at known places")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     for key in args.bodies:
@@ -271,10 +380,11 @@ def main() -> int:
         assert back_elev.shape == (height, width) and np.array_equal(back_classes, classes)
         (args.out / f"{key}.bbmap").write_bytes(data)
         preview(elev, classes, sea=key == "earth").save(CACHE / f"{key}_preview.png")
+        relief(elev).save(CACHE / f"{key}_relief.png")
         counts = np.bincount(classes.ravel(), minlength=8) / classes.size
         shares = ", ".join(f"{bbmap.CLASS_NAMES[i]} {counts[i]:.1%}" for i in range(8))
         print(f"{key}: {width}x{height}, {len(data) / 1e6:.2f} MB, elevation {elev.min():.0f}..{elev.max():.0f} m; {shares}")
-        print(f"  preview: {CACHE / f'{key}_preview.png'}")
+        print(f"  preview: {CACHE / f'{key}_preview.png'}, relief: {CACHE / f'{key}_relief.png'}")
     return 0
 
 
