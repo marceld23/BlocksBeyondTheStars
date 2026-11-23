@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// surface whether Jump is held or not and the Descend key dives. #3923: the float settles with the head point the server
 /// breathes at (+1.5) above the water and the chest (+1.1) in it. #3924: the body tilts with the swim — upright treading
 /// water, forward in a crawl, nearly level in a sprint, head first in a dive — and the short controls line names the swim
-/// keys.
+/// keys. #3956: the surface needs open air over the head — a ceiling over flooded water is none, so a tunnel full of water
+/// sinks the swimmer instead of hanging it under the ceiling.
 /// </summary>
 public sealed class SwimRulesTests
 {
@@ -204,6 +205,61 @@ public sealed class SwimRulesTests
         Assert.Equal(4, line.Split(" · ").Length);
         Assert.Contains("{key:Jump}", line);
         Assert.Contains("{key:Crouch}", line);
+    }
+
+    [Theory]
+    [InlineData(false, false, true)]  // open air (or a lily pad, a torch: walk-through props have no collider)
+    [InlineData(true, false, false)]  // water, another liquid, a submerged kelp stalk
+    [InlineData(false, true, false)]  // a ceiling over flooded water (#3956)
+    [InlineData(true, true, false)]
+    public void TheSurface_NeedsOpenAirOverTheHead(bool aboveLiquid, bool aboveColliding, bool surface)
+    {
+        Assert.Equal(surface, SwimRules.OpenSurface(aboveLiquid, aboveColliding));
+    }
+
+    [Fact]
+    public void AFloodedTunnel_SinksToItsFloor_InsteadOfHangingUnderTheCeiling()
+    {
+        // #3956, the reported tunnel: water in the cells 59–61, stone at 62 and at 58; the feet at 60.17.
+        float feet = TunnelSwim(60.17f, waterFrom: 59, ceiling: 62, jump: false, seconds: 3f);
+        Assert.InRange(feet, 59f, 59.05f);
+    }
+
+    [Fact]
+    public void AFloodedTunnel_JumpStillRises_UpToTheCeiling()
+    {
+        float feet = TunnelSwim(59f, waterFrom: 59, ceiling: 62, jump: true, seconds: 3f);
+        Assert.True(feet > 60f, $"Jump only reached {feet:0.00}");
+    }
+
+    [Fact]
+    public void AnAirGapUnderTheCeiling_StillFloats()
+    {
+        // Water in 59–60, air in 61, stone at 62: the head finds open air, so the body floats at the gap's waterline.
+        float feet = TunnelSwim(59.95f, waterFrom: 59, ceiling: 62, jump: false, seconds: 5f, waterTop: 61);
+        Assert.InRange(61f - feet, SwimRules.FloatDepth - 0.05f, SwimRules.FloatDepth + 0.05f);
+    }
+
+    /// <summary>A swim in a tunnel: water from <paramref name="waterFrom"/> up to (not including) <paramref name="waterTop"/>
+    /// (default: the ceiling), air between, a solid ceiling at <paramref name="ceiling"/> and a solid floor under the water.
+    /// The capsule stands 1.8 high and stops at the floor and the ceiling, as the character controller does.</summary>
+    private static float TunnelSwim(float feet, int waterFrom, int ceiling, bool jump, float seconds, int waterTop = -1)
+    {
+        const float dt = 1f / 60f, height = 1.8f;
+        int top = waterTop < 0 ? ceiling : waterTop;
+        bool Water(float y) => System.MathF.Floor(y) >= waterFrom && System.MathF.Floor(y) < top;
+        bool Solid(float y) => System.MathF.Floor(y) >= ceiling || System.MathF.Floor(y) < waterFrom;
+        float v = 0f;
+        for (int i = 0; i < (int)(seconds / dt); i++)
+        {
+            float head = feet + 1.9f;
+            bool atSurface = SwimRules.OpenSurface(aboveLiquid: Water(head), aboveColliding: Solid(head));
+            float target = SwimRules.VerticalTarget(atSurface, jump, diveHeld: false, Up, Sink, top - feet);
+            v = MoveTowards(v, target, SwimRules.VerticalAccel(atSurface, false, SwimAccel) * dt);
+            feet = System.Math.Clamp(feet + (v * dt), waterFrom, ceiling - height);
+        }
+
+        return feet;
     }
 
     private readonly record struct Run(float Feet, float Speed, bool LeftTheWater);
