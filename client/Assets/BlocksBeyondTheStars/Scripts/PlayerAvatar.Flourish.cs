@@ -28,6 +28,12 @@ namespace BlocksBeyondTheStars.Client
         private HeldFlourishKind _flourishKind;
         private HeldSpin _heldSpin;
         private float _carryTip; // degrees the carried item tips up from level in the hand (#3763, HeldStances.CarryTip)
+        private HeldStance _heldStance;
+
+        // Justus 2026-11-23: a drill with a bit mines with the arm held steady ahead, the item level — no chop. The blend eases
+        // in and out, and a held mouse button re-swings before it falls, so the arm stays put while the drill runs.
+        private const float DrillUpperArm = -78f, DrillElbow = -12f, DrillBlendRate = 14f;
+        private float _drillHold;
 
         /// <summary>A new held model is about to be built (<see cref="BuildHeld"/>): the old one's flourish and moving parts
         /// go with it.</summary>
@@ -35,8 +41,35 @@ namespace BlocksBeyondTheStars.Client
         {
             _flourish.Cancel();
             _heldSpin = null;
-            _carryTip = HeldStances.CarryTip(HeldStances.For(kind.ToString())); // #3763: a blade and a pick are carried tipped up
+            _drillHold = 0f;
+            _heldStance = HeldStances.For(kind.ToString());
+            _carryTip = HeldStances.CarryTip(_heldStance); // #3763: a blade and a pick are carried tipped up
             _flourishKind = kind == HeldItem.Kind.Gloves || _fightGloves ? HeldFlourishKind.None : HeldFlourishes.ForKind(kind.ToString());
+        }
+
+        /// <summary>The use motion of the right arm while a swing runs: the chop — raise, then drive down with an elbow snap —
+        /// or, for a drill whose bit spins (<see cref="HeldStances.HoldsStillWhileUsed"/>), the arm held steady ahead.</summary>
+        private void PoseSwing(float dt, ref float armR, ref float elbowR, ref float level)
+        {
+            bool still = HeldStances.HoldsStillWhileUsed(_heldStance, _heldSpin != null && _heldSpin.HasBit);
+            _drillHold = Mathf.MoveTowards(_drillHold, still && _swingTimer > 0f ? 1f : 0f, DrillBlendRate * dt);
+            if (_swingTimer > 0f)
+            {
+                _swingTimer -= dt;
+                if (!still)
+                {
+                    float c = 1f - Mathf.Clamp01(_swingTimer / SwingDuration);
+                    armR = Mathf.Lerp(-115f, 30f, Mathf.SmoothStep(0f, 1f, c));
+                    elbowR = -(20f + 45f * Mathf.Sin(Mathf.Clamp01(c) * Mathf.PI));
+                }
+            }
+
+            if (_drillHold > 0f)
+            {
+                armR = Mathf.Lerp(armR, DrillUpperArm, _drillHold);
+                elbowR = Mathf.Lerp(elbowR, DrillElbow, _drillHold);
+                level = Mathf.Max(level, _drillHold);
+            }
         }
 
         /// <summary>Starts the held item's flourish (if it has one) — after a draw, or an idle blade's twirl. Not on a hidden

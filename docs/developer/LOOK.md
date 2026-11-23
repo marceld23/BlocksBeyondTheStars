@@ -75,7 +75,9 @@ background colour, which stays the horizon colour, so the distance haze still me
 `LitColor.shader` reads the sun direction and hue globals in the world and keeps the studio light in menus and
 previews; the first-person hand and tool take only a small share of the world's light, so they stay readable.
 `GameLook.cs` also lengthens the reach of the quiet natural emitters in the block light index — on Medium and High
-only, fixed when a world is entered (`GameLook.Tiers.cs`, `LongEmitterReach`). Bloom:
+only, fixed when a world is entered (`GameLook.Tiers.cs`, `LongEmitterReach`). Since a crystal world's whole ground is
+the `crystal` block, that reach nearly burnt such worlds out; on 2026-11-23 the crystal's own glow went 0.50 → 0.42 and its
+light colour to 90 % (0x97B4E6). Bloom:
 `GameLook.cs`, called from `UrpScenePost`, lowers the threshold and raises intensity and scatter
 outdoors and fades back to the classic values aboard (the "home" share). The glowing haze: `Scripts/Sky.GlowHaze.cs`
 reads the natural lights within a few dozen blocks from the world's light index about twice a second, forms one mean
@@ -351,7 +353,8 @@ spore floaters, ember mites, glowing plankton) stay glowing sprites.
   the opaques without a depth pass, so the SSAO does not flicker on it. No shadow. A felt budget per frame shrinks the
   felt's range when many furry animals stand close.
 - **Rounded boxes** (`Scripts/RoundedCube.cs`, used by `CreatureBuilder.TileCube` for all creature builds): the radius is
-  a share of the box's thinnest side, with the cube's texture coordinates; touching boxes show a joint.
+  a share of the box's thinnest side (`GameLook.Round`, 0.12 — 0.2 until 2026-11-23, when Justus found the animals "too
+  round"), with the cube's texture coordinates; touching boxes show a joint.
 - **The far stage of rounded boxes** (`Scripts/RoundLod.cs`): every rounded part of an avatar, a tool or an animal is
   registered with its plain twin (`RoundLod.Assign`); a pass over a few hundred parts a frame swaps by distance — a part
   turns plain where its rounding is under half a pixel (on Low, Potato and the browser a whole pixel), measured to the
@@ -381,7 +384,8 @@ NPCs' hoe and hammer handles are flattened like every other handle.
 **How.**
 
 - **Avatar** (`Scripts/PlayerAvatar.Round.cs`, hooks in `PlayerAvatar.cs`, `PlayerAvatar.PaintMesh.cs`, `HeldItem.cs` for
-  the first-person arm): rounded boxes; a painted part gets at most one texel of its paint tile as radius, so the paint
+  the first-person arm): rounded boxes (`GameLook.AvatarRound`, 0.10 of the thinnest side — 0.16 until 2026-11-23, with
+  the animals' rounding); a painted part gets at most one texel of its paint tile as radius, so the paint
   stays where it was painted, and the head under a painted face likewise; very thin parts stay sharp.
 - **Tools** (`src/BlocksBeyondTheStars.Client.Core/HeldPartForms.cs` — the rule, `HeldFormMeshes.cs` — the meshes,
   `HeldItemShapes.cs`, `HeldWorkTools.cs` — the NPCs' tools; client `HeldTextures.ToolPartMesh` / `FormMesh`,

@@ -83,6 +83,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether the stance's use motion is the overhead chop (first person) instead of the forward jab.</summary>
         public static bool Chops(HeldStance stance) => stance == HeldStance.Pick;
 
+        /// <summary>Justus, 2026-11-23 ("when I use a drill it goes up and down — take that out and keep only the spin"): a
+        /// drill whose bit spins holds still while it mines — the turning bit is its use motion, in first person and on every
+        /// figure. Everything else keeps its jab or chop (a pick has no bit and chops).</summary>
+        public static bool HoldsStillWhileUsed(HeldStance stance, bool spinningBit) => spinningBit && !Chops(stance);
+
         /// <summary>The chop's pitch (degrees, added to the rest turn) at <paramref name="t"/> 0..1 of the swing: a short
         /// wind-up back over the shoulder, the strike down past level, and back to rest — 0 at both ends.</summary>
         public static float ChopPitch(float t)

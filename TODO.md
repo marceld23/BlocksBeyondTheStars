@@ -26,7 +26,54 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏊 A flooded tunnel sinks you again: a ceiling is no water surface — #3956 — ✅ 2026-11-23 (client only; no protocol or save change)
+### 🏝️ Far view: floating islands float, waterfalls fall, builds on islands — #3958, #3959, #3960 — ✅ 2026-11-23 (Client.Core + one line in FarTerrainView; no protocol, save or world-generation change)
+
+- **The report.** Marcel, 2026-11-23 (screenshot of a sky world): in the far view every floating island looked like a
+  mountain — a pale column from the island's top down to the ground, no sky under it.
+- **The cause.** `FarTerrainSource.Sample` gave one height per column, since #2333 the highest band's top, and
+  `FarPatchBuilder` spans a closed height field over those heights — so its triangles ran from every island's top down to
+  the neighbouring ground. Arch bars and cap overhangs had the same flanks; a build on an island became a pillar.
+- **The fix.** The height field follows the ground again (bands resting on the column within 3 blocks still raise it);
+  every free band is a `FarFloat` drawn as a block slab one far cell wide — top, underside and the side spans the
+  neighbour does not cover — on all three sky-island tiers (#3958). Waterfalls under island rims are water curtains the
+  shader tints like the far sea (#3959). A far-tile build over a slab raises the slab, not the ground (#3960).
+  The far level's slabs stay out of the near level's whole reach (no doubled islands in the overlap ring); the shader is
+  unchanged. Same on every graphics tier. Tests: `FarTerrainFloatTests` (the slab
+  over the ground, the patch geometry, the waterfall, the build on an island, a world without bands).
+- **Docs:** WORLD_GENERATION (far view and bands).
+- ⚠ **Playtest:** a sky world (skylands) from a hill and from the ship: islands float with sky beneath on both far levels,
+  waterfalls show under pond islands, no gaps or flicker at the chunk ring; a house built on an island seen from afar;
+  arch and hoodoo worlds: the bars float.
+
+### 🧒 Justus's reports of 2026-11-23: the drill holds still, less rounded figures — #3961, #3962 — ✅ 2026-11-23 (client only; no protocol or save change, no new texts)
+
+- **The reports** (Layex, v2026.11.27): "when I use a drill it goes up and down — take that out and keep only the spin
+  animation!" and "the rounded corners of NPCs and animals are cool, just a bit less please!"
+- **The drill (#3961).** Every mining swing played the tool jab (first person: a 34–55° forward-down pitch; third person:
+  the overhead chop), and a held button re-swings, so a running drill bobbed the whole time. New rule
+  `HeldStances.HoldsStillWhileUsed`: a drill whose bit spins (`HeldSpin.HasBit`) holds still while it mines — first
+  person only the bit turns, the figure holds the arm steady ahead (`PlayerAvatar.PoseSwing`, eased). The pickaxe still
+  chops; blades, guns, gloves and blocks are unchanged. Test: `HeldStancesTests`.
+- **The rounding (#3962).** `GameLook.Round` (animals) 0.2 → 0.12, `GameLook.AvatarRound` (players and NPCs) 0.16 → 0.10.
+- **Docs:** LOOK (the rounding shares).
+- ⚠ **Playtest:** mine with the basic drill (first and third person, another player watching): no bobbing, the bit
+  spins; the pickaxe chops; animals and NPCs read less round but not sharp.
+
+### 💎 Crystal worlds glow a little less — ✅ 2026-11-23 (client + data; no protocol or save change)
+
+- **The report.** Marcel, 2026-11-23: crystal worlds glow very brightly, nearly burnt out — dim the crystals a little.
+- **The cause.** A crystal world's whole ground is the `crystal` block: every surface cell glows (emission 0.5, × 3 HDR)
+  and floods its light, which the new look (#3948) carries twice as far on Medium and High (`GameLook.Reach`).
+- **The fix (small on purpose).** The crystal's own glow 0.50 → 0.42 (`ChunkMesher.BlockEmissionSlow`) and its light
+  colour 0xA8C8FF → 0x97B4E6, 90 % (`data/blocks.json`). Crystal flora and the reach are unchanged.
+- **Lamp check (analysis only).** Asked whether lamp blocks — e.g. at the Guardian — still work after the look rework: in
+  code they do (emission 1.0, the block-light flood of category `light`, the guardian giant's limbs meshed by
+  `ChunkMesher.Build` with their light sources). The one intended change: under cover a strong emitter's face is capped
+  (`LookCabinLight`, about 4.5 → 1.4), which also calms the red lamps of the buried Guardian-core chamber; the light they
+  cast is unchanged.
+- ⚠ **Playtest:** a crystal world by day and night: the ground still glows, no longer burns out.
+
+### 🏊 A flooded tunnel sinks you again: a ceiling is no water surface — #3956, PR #3957 (`0a5f0eb8`) — ✅ 2026-11-23 (client only; no protocol or save change)
 
 - **The report.** Lyxette, 2026-11-22, v2026.11.26: since swimming no longer bounces, he hovers in the water instead of
   slowly sinking to the bottom. He was swimming in a fully flooded tunnel — water three cells high under a stone ceiling.

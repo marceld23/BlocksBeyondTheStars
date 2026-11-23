@@ -635,6 +635,10 @@ namespace BlocksBeyondTheStars.Client
                     posOff += new Vector3(-0.04f, -0.02f, 0.16f) * jab;
                     rot += new Vector3(9f * jab, -7f * jab, -5f * jab);
                 }
+                else if (HeldStances.HoldsStillWhileUsed(_stance, _spin != null && _spin.HasBit))
+                {
+                    // Justus 2026-11-23: a drill with a bit no longer bobs up and down while it mines — only its bit turns.
+                }
                 else
                 {
                     // Tools / drill / block: a forward-down jab; a pick chops over the head (#3763).

@@ -31,6 +31,10 @@ namespace BlocksBeyondTheStars.Client
         private float _drivenUntil = -1f;
         private float _angle;
 
+        /// <summary>True on a drill with a spinning bit (a blade's twirl has none): such a drill holds still while it mines
+        /// (<see cref="HeldStances.HoldsStillWhileUsed"/>).</summary>
+        public bool HasBit => _bit != null && _bit.Length > 0;
+
         /// <summary>Adds the moving parts to a freshly built held model of <paramref name="kind"/>, or returns null when it has
         /// none (anything but a drill with a bit or a blade).</summary>
         public static HeldSpin Attach(GameObject held, HeldItem.Kind kind)

@@ -110,6 +110,24 @@ public sealed class HeldStancesTests
         }
     }
 
+    /// <summary>Justus, 2026-11-23 ("when I use a drill it goes up and down — take that out, keep only the spin"): a drill
+    /// whose bit spins holds still while it mines, in first person and on every figure; nothing else changes its motion.</summary>
+    [Fact]
+    public void ADrillWithASpinningBit_HoldsStillWhileItMines_EverythingElseKeepsItsMotion()
+    {
+        Assert.True(HeldStances.HoldsStillWhileUsed(HeldStances.For("Drill"), spinningBit: true));
+        Assert.False(HeldStances.HoldsStillWhileUsed(HeldStances.For("Drill"), spinningBit: false)); // no bit: the jab stays
+        Assert.False(HeldStances.HoldsStillWhileUsed(HeldStances.For(HeldStances.PickKind), spinningBit: true)); // a pick chops
+        Assert.False(HeldStances.HoldsStillWhileUsed(HeldStances.For("Blade"), spinningBit: false));
+        Assert.False(HeldStances.HoldsStillWhileUsed(HeldStances.For("Block"), spinningBit: false));
+
+        Assert.Contains("HeldStances.HoldsStillWhileUsed(_stance, _spin != null && _spin.HasBit)", Script("Viewmodel.cs"));
+        string flourish = Script("PlayerAvatar.Flourish.cs");
+        Assert.Contains("HeldStances.HoldsStillWhileUsed(_heldStance, _heldSpin != null && _heldSpin.HasBit)", flourish);
+        Assert.Contains("PoseSwing(dt, ref armR, ref elbowR, ref level);", Script("PlayerAvatar.cs"));
+        Assert.Contains("public bool HasBit => _bit != null && _bit.Length > 0;", Script("HeldSpin.cs"));
+    }
+
     [Fact]
     public void TheClient_UsesTheStances()
     {
@@ -126,7 +144,9 @@ public sealed class HeldStancesTests
         Assert.Contains("HeldStances.ChopPitch(t)", stance);
 
         Assert.Contains("- _carryTip) * level", Script("PlayerAvatar.cs")); // the third-person hand tips a blade and a pick up
-        Assert.Contains("_carryTip = HeldStances.CarryTip(HeldStances.For(kind.ToString()));", Script("PlayerAvatar.Flourish.cs"));
+        string flourish = Script("PlayerAvatar.Flourish.cs");
+        Assert.Contains("_heldStance = HeldStances.For(kind.ToString());", flourish);
+        Assert.Contains("_carryTip = HeldStances.CarryTip(_heldStance);", flourish);
 
         Assert.Contains("if (drill && !_heldPick)", Script("PlayerController.Interact.cs")); // no drill loop from a pick
         Assert.Contains("_heldPick = kind == HeldItem.Kind.Pick;", Script("PlayerController.View.cs"));

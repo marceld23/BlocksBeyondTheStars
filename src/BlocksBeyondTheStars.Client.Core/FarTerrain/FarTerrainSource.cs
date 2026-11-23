@@ -48,6 +48,15 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
     /// </summary>
     public sealed class FarTerrainSource
     {
+        /// <summary>The most floating shapes one column reports (#3958): up to three sky-island tiers, a bar or a cap, the
+        /// waterfalls under them. Further ones are dropped.</summary>
+        public const int MaxFloats = 6;
+
+        /// <summary>A band whose bottom lies at most this many blocks over the column's top rests on it (#3958): a crown on
+        /// its pillar, an afloat island on the sea, an iceberg — it raises the height field as before. A wider gap is open
+        /// air from afar, so the band floats as its own slab.</summary>
+        public const int AttachGap = 3;
+
         private readonly WorldGenerator _generator;
         private readonly Dictionary<string, ushort> _blockIds = new Dictionary<string, ushort>();
         private readonly GameContent _content;
@@ -123,20 +132,110 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         /// (<see cref="WorldGenerator.VentsAreVolcanic"/>).</summary>
         public bool VentsAreVolcanic => _ventsVolcanic ??= _generator.VentsAreVolcanic(Planet);
 
-        /// <summary>Samples a column. <paramref name="detail"/> adds ponds, rivers and the biome surface block (the near
-        /// level); the coarse level reads the planet's default surface to stay cheap.</summary>
-        public FarSample Sample(int worldX, int worldZ, bool detail)
-        {
-            int ground = _generator.SurfaceHeight(Planet, worldX, worldZ);
+        /// <summary>Samples a column's height-field top, dropping what floats over it (see the overload).</summary>
+        public FarSample Sample(int worldX, int worldZ, bool detail) => Sample(worldX, worldZ, detail, default, out _);
 
-            // #2333: a band over the column — a sky island, an arch bar, a pillar crown — is what the eye sees from
-            // afar, so it is the sample's top, over dry ground and over the sea alike.
-            if (_bands && _generator.TryGetHighestBand(Planet, worldX, worldZ, out var band) && band.Top >= ground
-                && (SeaLevel == int.MinValue || band.Top >= SeaLevel))
+        /// <summary>Samples a column. <paramref name="detail"/> adds ponds, rivers and the biome surface block (the near
+        /// level); the coarse level reads the planet's default surface to stay cheap. The returned sample is the column's
+        /// height-field top: the ground or the sea, raised by every band that rests on it (#2333: a crown on its pillar,
+        /// an afloat island, an iceberg). A band with open air under it — a sky island, an arch bar, a cap's overhang —
+        /// goes into <paramref name="floats"/> instead (#3958), bottom-up, merged where bands touch, followed by the
+        /// column's waterfalls (#3959); a height field drawn up to an island's top made every island a mountain.</summary>
+        public FarSample Sample(int worldX, int worldZ, bool detail, System.Span<FarFloat> floats, out int floatCount)
+        {
+            floatCount = 0;
+            int ground = _generator.SurfaceHeight(Planet, worldX, worldZ);
+            var sample = GroundSample(worldX, worldZ, ground, detail);
+            if (!_bands)
             {
-                return BandSample(band, worldX, worldZ, detail);
+                return sample;
             }
 
+            System.Span<WorldGenerator.ColumnBand> bands = stackalloc WorldGenerator.ColumnBand[WorldGenerator.MaxColumnBands];
+            int n = _generator.GetExtraBands(Planet, worldX, worldZ, bands);
+            if (n == 0)
+            {
+                return sample;
+            }
+
+            SortByBottom(bands.Slice(0, n));
+            for (int i = 0; i < n; i++)
+            {
+                var band = bands[i];
+                if (band.Kind == WorldGenerator.BandKind.Waterfall || band.Top + 1 <= sample.Top)
+                {
+                    continue; // a waterfall comes last; a band inside the column (a sea-cave pool, a buried bar) never shows
+                }
+
+                if (floatCount == 0 && band.Bottom <= sample.Top + AttachGap)
+                {
+                    sample = BandSample(band, worldX, worldZ, detail); // it rests on the column: the height field rises
+                    continue;
+                }
+
+                AddFloat(floats, ref floatCount, band, BandSample(band, worldX, worldZ, detail));
+            }
+
+            for (int i = 0; i < n && floatCount < floats.Length; i++)
+            {
+                var band = bands[i];
+                if (band.Kind == WorldGenerator.BandKind.Waterfall && band.Top + 1 > sample.Top)
+                {
+                    var surface = new FarSample(band.Top + 1, FarSurface.Water, 0);
+                    floats[floatCount++] = new FarFloat(System.Math.Max(band.Bottom, sample.Top), band.Top + 1, FarFloatKind.Waterfall, surface, 0);
+                }
+            }
+
+            return sample;
+        }
+
+        /// <summary>Adds a free band to the column's floats — onto the last slab when the two touch, else as a new one.</summary>
+        private void AddFloat(System.Span<FarFloat> floats, ref int count, in WorldGenerator.ColumnBand band, FarSample surface)
+        {
+            if (count > 0 && band.Bottom <= floats[count - 1].Top + AttachGap)
+            {
+                if (band.Top + 1 > floats[count - 1].Top)
+                {
+                    floats[count - 1] = floats[count - 1].WithTop(band.Top + 1, surface);
+                }
+
+                return;
+            }
+
+            if (count < floats.Length)
+            {
+                floats[count++] = new FarFloat(band.Bottom, band.Top + 1, FarFloatKind.Solid, surface, SideBlockOf(band));
+            }
+        }
+
+        /// <summary>Insertion sort by bottom (a column carries a handful of bands).</summary>
+        private static void SortByBottom(System.Span<WorldGenerator.ColumnBand> bands)
+        {
+            for (int i = 1; i < bands.Length; i++)
+            {
+                var band = bands[i];
+                int j = i - 1;
+                while (j >= 0 && bands[j].Bottom > band.Bottom)
+                {
+                    bands[j + 1] = bands[j];
+                    j--;
+                }
+
+                bands[j + 1] = band;
+            }
+        }
+
+        /// <summary>What a floating band's sides and underside are made of: its own rock, ice or mud, else the deep block.</summary>
+        private ushort SideBlockOf(in WorldGenerator.ColumnBand band) => band.Kind switch
+        {
+            WorldGenerator.BandKind.Ice => BlockIdOf("ice"),
+            WorldGenerator.BandKind.Mat => BlockIdOf("mud"),
+            _ => band.Material.IsAir ? BlockIdOf(Planet.DeepBlock) : band.Material.Value,
+        };
+
+        /// <summary>The column's own top without any band: the sea (or its ice), a pond or river, or the covered land.</summary>
+        private FarSample GroundSample(int worldX, int worldZ, int ground, bool detail)
+        {
             if (SeaLevel != int.MinValue && ground <= SeaLevel) // the generator's own sea-column test
             {
                 // #2956: a frozen sea is ice from afar, as it is in the chunks — every column asks the chunks' own freeze

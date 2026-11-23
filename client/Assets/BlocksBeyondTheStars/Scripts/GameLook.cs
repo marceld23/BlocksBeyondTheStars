@@ -92,13 +92,14 @@ namespace BlocksBeyondTheStars.Client
         public static readonly float HideCalm = 0.4f;
 
         /// <summary>Rounded edges on the creatures' box parts (<see cref="RoundedCube"/>): the radius as a share of a
-        /// part's thinnest side.</summary>
-        public static readonly float Round = 0.2f;
+        /// part's thinnest side. 0.2 → 0.12 on 2026-11-23 (Justus: "the rounded corners are cool, just a bit less please").</summary>
+        public static readonly float Round = 0.12f;
 
-        /// <summary>Rounded edges on the player avatar's boxes (<c>PlayerAvatar.Round.cs</c>): the radius as a share of a
-        /// part's thinnest side. A painted part keeps its paint texels where they are, so its radius is capped at one
-        /// texel of its paint tile.</summary>
-        public static readonly float AvatarRound = 0.16f;
+        /// <summary>Rounded edges on the player avatar's boxes (<c>PlayerAvatar.Round.cs</c>), which every figure wears —
+        /// players and NPCs alike: the radius as a share of a part's thinnest side. A painted part keeps its paint texels
+        /// where they are, so its radius is capped at one texel of its paint tile. 0.16 → 0.10 on 2026-11-23 (Justus, as
+        /// <see cref="Round"/>).</summary>
+        public static readonly float AvatarRound = 0.10f;
 
         /// <summary>The calm nature tiles: the step in brightness between the three variants of a ground block (0.02 = 2 %
         /// darker and 2 % lighter).</summary>

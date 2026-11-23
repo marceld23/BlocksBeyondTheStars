@@ -2692,7 +2692,7 @@ namespace BlocksBeyondTheStars.Client
                 case "flora_crystal": return 0.70f;
                 case "flora_shardbloom": return 0.6f;
                 case "flora_sporepod": return 0.55f;
-                case "crystal": return 0.50f;
+                case "crystal": return 0.42f; // 0.50 → 0.42 (Marcel 2026-11-23: crystal worlds nearly burnt out; a crystal world's whole ground is crystal)
                 // #2858: no flora_frostflower here any more — the catalog never tagged it as a glowing species, and its
                 // glow lit up every ice world. A frost flower is a flower.
                 case "copper_ore": return 0.28f;
