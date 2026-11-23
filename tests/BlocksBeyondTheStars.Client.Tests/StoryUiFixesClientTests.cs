@@ -204,7 +204,8 @@ public sealed class StoryUiFixesClientTests
     /// <summary>The built-in last-resort list in <c>StreamingAssetsCache.cs</c> must name exactly the files of
     /// <c>data/</c> (what the sync copies into <c>StreamingAssets/data</c>). It drifted once unnoticed — a browser build
     /// without <c>manifest.json</c> never fetched <c>lore_sites.json</c> and six more. Read as text: the Unity source
-    /// cannot be loaded headless (the UI layout guards' pattern).</summary>
+    /// cannot be loaded headless (the UI layout guards' pattern). The on-demand files (the planet maps, #3979) are the
+    /// exception: they stay out of every eager list.</summary>
     [Fact]
     public void TheBuiltInFallbackList_MatchesTheDataFolder()
     {
@@ -220,6 +221,7 @@ public sealed class StoryUiFixesClientTests
         var actual = Directory.GetFiles(data, "*", SearchOption.AllDirectories)
             .Select(f => Path.GetRelativePath(data, f).Replace('\\', '/'))
             .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase) && f != "manifest.json")
+            .Where(f => !PlanetMapDemand.IsOnDemandDataFile(f)) // #3979: the planet maps are fetched on demand, never listed
             .ToList();
 
         Assert.Equal(listed.Count, listed.Distinct(StringComparer.Ordinal).Count());
