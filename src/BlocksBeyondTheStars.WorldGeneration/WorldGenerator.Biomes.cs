@@ -193,6 +193,13 @@ public sealed partial class WorldGenerator
             surfaceY = BiomeAltitude(planet, worldX, worldZ, surfaceY); // #3556: valleys and grades never move a biome border
         }
 
+        return calib.BaseForm.BiomeIndex(this, calib, seed, worldX, worldZ, count, surfaceY); // #3977
+    }
+
+    /// <summary>The procedural base forms' biome pick (#3977): the sand-sea field and the hot-zone field claim their
+    /// columns first, the classic region-and-altitude mix spreads over the rest.</summary>
+    private int ProceduralBiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
+    {
         if (calib.SandBiome >= 0)
         {
             // Generation 9 (#2000): the sand-sea field claims its low columns; the classic mix spreads over the rest.

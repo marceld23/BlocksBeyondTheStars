@@ -12,6 +12,20 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>impact craters of airless bodies: profiles, chains, ejecta rays, floor metal (partial of <see cref="WorldGenerator"/>, split from the single file by seam).</summary>
 public sealed partial class WorldGenerator
 {
+    /// <summary>The cratered base form's raw height (#3977, <see cref="CrateredBaseForm"/>). Airless moons + landable
+    /// asteroids (item 33): mostly flat regolith (a gentle undulation only — no hills/mountains/canyons) pocked with
+    /// round impact craters carved on top. How rolling that regolith is, and how dense/deep/sharp the craters are, is
+    /// this BODY's own character (#518). Crater CHAINS (#699) — aligned secondary-impact strings — carve on top of the
+    /// primary field.</summary>
+    private int CrateredRawHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+    {
+        long seed = w.Seed;
+        double h = BaseSwell(w, worldX, worldZ);
+        double flat = h * CraterProfileFor(seed).Flatness * planet.Amplitude;
+        return planet.BaseHeight + (int)System.Math.Round(
+            flat + CraterCarve(seed, worldX, worldZ, planet) + CraterChainCarve(seed, worldX, worldZ));
+    }
+
     // --- impact-crater field (item 33): seam-safe round basins via an FBM mask (the B7 pond-mask approach),
     // each ringed by a raised ejecta rim. Pure noise → deterministic and wraps across the X seam.
     // The numbers below are the CENTRE of each range; the actual values are rolled per body from its identity

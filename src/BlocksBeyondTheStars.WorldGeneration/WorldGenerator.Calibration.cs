@@ -23,6 +23,7 @@ public sealed partial class WorldGenerator
     {
         public int SeaLevel = int.MinValue;   // int.MinValue = dry world
         public PlanetType? Planet;            // #3556: the type it was measured for (the biome pick reads its natural ground)
+        public TerrainBaseForm BaseForm = RolledBaseForm.Instance; // #3977: the world's base form (the biome pick asks it)
         public BlockId SeaFluid;
         public int[] SortedHeights = System.Array.Empty<int>(); // coarse whole-world surface sample, sorted
         public int MinHeight, MaxHeight;
@@ -117,8 +118,9 @@ public sealed partial class WorldGenerator
     private WorldCalibration BuildCalibration(PlanetType planet)
     {
         long seed = PlanetSeed(planet);
-        var c = new WorldCalibration { Planet = planet };
-        double R01(long salt) => (double)((ulong)(seed ^ salt) % 10000UL) / 10000.0;
+        var form = WonderFor(planet).BaseForm; // #3977: the world's base form answers the sea (and later the biomes)
+        var c = new WorldCalibration { Planet = planet, BaseForm = form };
+        double R01(long salt) => CalibrationRoll(seed, salt);
 
         // 1) Whole-world height sample (coarse but torus-complete) — the basis for the percentile sea level
         //    and the altitude normalisation. ~17k samples on the default world; cached per world afterwards.
@@ -139,49 +141,8 @@ public sealed partial class WorldGenerator
         c.AltLo = c.SortedHeights[(int)(0.02 * (c.SortedHeights.Length - 1))];
         c.AltHi = c.SortedHeights[(int)(0.98 * (c.SortedHeights.Length - 1))];
 
-        // 2) Sea level by height percentile (#473): waterAbundance now really means "roughly this fraction
-        //    of the world floods" — on every terrain style and every drama roll. Ocean-class worlds
-        //    (abundance ≥ 1) roll their land fraction per world instead (decision #3): some are near-solid
-        //    water, some archipelagos. Water still beats lava; airless worlds stay dry.
-        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
-        bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
-        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
-        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0);
-
-        // Continents (#704): on a continental world the sea's job is to FILL THE BASINS — the flood target
-        // becomes the basin share (1 − rolled land fraction), so the waterline settles at/near the shelf
-        // edge regardless of how the threshold→area mapping behaves. The percentile machinery makes it exact.
-        var continent = ContinentProfileFor(planet, seed);
-        if (planet.IsGasWorld && _content.GetBlock("gas") is { } gas)
-        {
-            // #2112: the gas giant has no solid surface — the gas floods the WHOLE heightfield, a few blocks over its highest
-            // ground, so nothing of it ever shows; the floating islands are the only land. Never below generation 18 (the type
-            // itself is gated), so no classic world can take this branch.
-            c.SeaLevel = c.MaxHeight + GasSeaRise;
-            c.SeaFluid = gas.NumericId;
-        }
-        else if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
-        {
-            double frac = planet.BuoyantIslands
-                ? 0.95 + 0.03 * R01(0x5EA04)       // #1757: the land is the islands afloat — 95–98 % of the terrain floods
-                : continent.Active
-                ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
-                : waterAb >= 1.0
-                    ? 0.78 + 0.19 * R01(0x5EA01)   // ocean-class band: 78–97 % water (islands guaranteed)
-                    : System.Math.Clamp(0.06 + 0.40 * waterAb + (R01(0x5EA02) - 0.5) * 0.08, 0.02, 0.60);
-            c.SeaLevel = QuantileLevel(c.SortedHeights, frac);
-            c.SeaFluid = water.NumericId;
-        }
-        else if (lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
-        {
-            // Only dry volcanic/airless worlds pool a lava sea (B54: visible across low + mid terrain).
-            // A continental lava world (#704) floods its basins the same way — basalt continents.
-            double frac = continent.Active
-                ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
-                : System.Math.Clamp(0.30 * lavaAb + (R01(0x5EA03) - 0.5) * 0.06, 0.05, 0.55);
-            c.SeaLevel = QuantileLevel(c.SortedHeights, frac);
-            c.SeaFluid = lava.NumericId;
-        }
+        // 2) The sea level and its fluid — the base form's answer (#3977); the procedural forms flood a percentile.
+        (c.SeaLevel, c.SeaFluid) = form.Sea(this, planet, c);
 
         // 3) Cave threshold by field quantile (#472): the data's caveThreshold maps to a target carve
         //    fraction (lower data value = cavier world, as before), jittered per world, then converted to
@@ -280,6 +241,60 @@ public sealed partial class WorldGenerator
         }
 
         return c;
+    }
+
+    /// <summary>A per-world roll in [0, 1) of the calibration (the world's seed and a salt).</summary>
+    private static double CalibrationRoll(long seed, long salt) => (double)((ulong)(seed ^ salt) % 10000UL) / 10000.0;
+
+    /// <summary>The procedural sea (#473, the procedural base forms' answer, #3977): the level that floods a target share
+    /// of the calibration's sampled ground, and its fluid. <c>waterAbundance</c> really means "roughly this fraction of the
+    /// world floods" — on every terrain style and every drama roll. Ocean-class worlds (abundance ≥ 1) roll their land
+    /// fraction per world instead (decision #3): some are near-solid water, some archipelagos. Water beats lava; airless
+    /// worlds stay dry (<see cref="int.MinValue"/>). The gas giant's gas floods its whole heightfield.</summary>
+    private (int Level, BlockId Fluid) PercentileSea(PlanetType planet, WorldCalibration c)
+    {
+        long seed = PlanetSeed(planet);
+        double R01(long salt) => CalibrationRoll(seed, salt);
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
+        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
+        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0);
+
+        // Continents (#704): on a continental world the sea's job is to FILL THE BASINS — the flood target
+        // becomes the basin share (1 − rolled land fraction), so the waterline settles at/near the shelf
+        // edge regardless of how the threshold→area mapping behaves. The percentile machinery makes it exact.
+        var continent = ContinentProfileFor(planet, seed);
+        if (planet.IsGasWorld && _content.GetBlock("gas") is { } gas)
+        {
+            // #2112: the gas giant has no solid surface — the gas floods the WHOLE heightfield, a few blocks over its highest
+            // ground, so nothing of it ever shows; the floating islands are the only land. Never below generation 18 (the type
+            // itself is gated), so no classic world can take this branch.
+            return (c.MaxHeight + GasSeaRise, gas.NumericId);
+        }
+
+        if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
+        {
+            double frac = planet.BuoyantIslands
+                ? 0.95 + 0.03 * R01(0x5EA04)       // #1757: the land is the islands afloat — 95–98 % of the terrain floods
+                : continent.Active
+                ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
+                : waterAb >= 1.0
+                    ? 0.78 + 0.19 * R01(0x5EA01)   // ocean-class band: 78–97 % water (islands guaranteed)
+                    : System.Math.Clamp(0.06 + 0.40 * waterAb + (R01(0x5EA02) - 0.5) * 0.08, 0.02, 0.60);
+            return (QuantileLevel(c.SortedHeights, frac), water.NumericId);
+        }
+
+        if (lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
+        {
+            // Only dry volcanic/airless worlds pool a lava sea (B54: visible across low + mid terrain).
+            // A continental lava world (#704) floods its basins the same way — basalt continents.
+            double frac = continent.Active
+                ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
+                : System.Math.Clamp(0.30 * lavaAb + (R01(0x5EA03) - 0.5) * 0.06, 0.05, 0.55);
+            return (QuantileLevel(c.SortedHeights, frac), lava.NumericId);
+        }
+
+        return (int.MinValue, default);
     }
 
     /// <summary>The hot-zone region field (generation 8): broad blobs a few hundred blocks across.</summary>
