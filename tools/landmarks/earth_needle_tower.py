@@ -1,4 +1,4 @@
-"""Earth's two needle towers (#3982): the TV tower of Berlin and the tall tower of Toronto.
+"""Earth's two needle towers (#3982): the TV tower of Berlin and the Sky Needle of Toronto.
 
 - `earth_berlin_tv_tower` (about 201 high): a slender concrete shaft rising from a low pavilion with a zigzag roof,
   a steel sphere with two rows of windows (the observation deck and the cafe above it), the shaft going on through the
@@ -17,7 +17,7 @@ import math
 import shapecode as sc
 import solids
 from _earth import earth_design, glow, ring_lights
-from geom import CLEAR, Design, Mat
+from geom import Design, Mat
 
 KEYS = ("earth_berlin_tv_tower", "earth_toronto_tower")
 CONCRETE = Mat("concrete", tint=0xC9C6BE)
@@ -191,7 +191,7 @@ def toronto_sky_pod(d: Design) -> None:
 
 
 def toronto() -> Design:
-    d = earth_design("earth_toronto_tower", "Toronto Tower")
+    d = earth_design("earth_toronto_tower", "Toronto Sky Needle")
     c = T_C
     d.disc(c, c, 0, 22, Mat("concrete", tint=0x8C8A86))
     toronto_legs(d)

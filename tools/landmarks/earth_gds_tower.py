@@ -14,7 +14,7 @@ from __future__ import annotations
 import shapecode as sc
 import solids
 from _earth import earth_design, fence_rail, glow, ladder_shaft, square_edge
-from geom import CLEAR, Design, Mat
+from geom import Design, Mat
 
 KEYS = ("earth_gds_tower",)
 RED = 0x8A1C24                  # CityGenerator.Red

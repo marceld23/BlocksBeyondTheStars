@@ -123,7 +123,7 @@ def dial(d: Design, ox: int, oz: int, plane: int) -> None:
     for k in range(12):
         a = k * math.pi / 6
         d.put(*on_face(ox, oz, plane, round(4.6 * math.sin(a)), DIAL_Y + round(4.6 * math.cos(a))), HAND)
-    for t in range(0, 5):                                                 # the minute hand, straight up
+    for t in range(5):                                                 # the minute hand, straight up
         d.put(*on_face(ox, oz, plane, 0, DIAL_Y + t), HAND)
     for t in range(1, 4):                                                 # the hour hand, toward two
         d.put(*on_face(ox, oz, plane, t, DIAL_Y + round(t * 0.55)), HAND)
@@ -194,7 +194,7 @@ def inside(d: Design) -> None:
 
 
 def build() -> Design:
-    d = earth_design("earth_london_clock_tower", "Clock Tower")
+    d = earth_design("earth_london_clock_tower", "London Clock Tower")
     plinth(d)
     shaft(d)
     clock_stage(d)

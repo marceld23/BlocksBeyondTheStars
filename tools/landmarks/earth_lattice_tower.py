@@ -299,7 +299,7 @@ def tokyo_spec() -> Spec:
 
     def leg(h: float) -> float:
         return 3 + 9 * math.exp(-h / 30)
-    paint = lambda x, y, z: tokyo_band(y)   # noqa: E731
+    paint = lambda x, y, z: tokyo_band(y)
     return Spec("earth_tokyo_tower", "Sky Signal Tower", c=32, w=w, leg=leg, merge=44, top=160, mast=199,
                 decks=[Deck(88, w(88) + 6, TUBE + 1, cabin=11), Deck(146, w(146) + 5, TUBE + 1, cabin=6)],
                 chord=paint, brace=paint, deck_m=Mat("steel_floor"), skirt=glow("strip_light_warm", 0xFFC870),

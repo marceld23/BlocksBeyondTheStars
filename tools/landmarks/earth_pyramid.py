@@ -88,7 +88,7 @@ class Pyramid:
         z0 = z_in - walk
         treads = flight(d, x - 1, 1, z0, 0, 1, walk - 1, DRESSED, width=3)
         for tx, ty, tz in treads:
-            for yy in range(0, ty):
+            for yy in range(ty):
                 if (tx, yy, tz) not in d.plain:
                     d.put(tx, yy, tz, DRESSED)
         d.fill(solids.box(x - 1, 0, z0 - 2, x + 1, 0, z0 - 1), DRESSED)
