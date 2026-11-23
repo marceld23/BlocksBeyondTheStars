@@ -75,8 +75,21 @@ public sealed class CelestialBody
 /// <summary>A star system: a named cluster of bodies on the star map.</summary>
 public sealed class StarSystem
 {
+    private StarSystemOrigin? _origin;
+
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Where the system comes from (#3969) — set by whoever creates it. A system built without one (a test, a tool)
+    /// reads as rolled exactly when its id is a rolled one (<see cref="StarSystemIds"/>), else as fixed.</summary>
+    public StarSystemOrigin Origin
+    {
+        get => _origin ?? (StarSystemIds.IsRolled(Id) ? StarSystemOrigin.Rolled : StarSystemOrigin.Fixed);
+        set => _origin = value;
+    }
+
+    /// <summary>Whether <c>UniverseGenerator</c> rolled this system (<see cref="StarSystemOrigin.Rolled"/>).</summary>
+    public bool IsRolled => Origin == StarSystemOrigin.Rolled;
 
     /// <summary>2D star-map coordinates.</summary>
     public float MapX { get; set; }

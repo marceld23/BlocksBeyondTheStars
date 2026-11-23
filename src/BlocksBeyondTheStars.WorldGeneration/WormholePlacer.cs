@@ -42,7 +42,7 @@ public static class WormholePlacer
         }
 
         var candidates = systems
-            .Select(s => (System: s, Index: FixedIndex(s.Id)))
+            .Select(s => (System: s, Index: StarSystemIds.RolledIndex(s.Id)))
             .Where(c => c.Index >= 0 && c.Index < fixedCount && c.System.Bodies.Count > 0)
             .OrderBy(c => Hash01(seed, "order", c.Index))
             .ThenBy(c => c.Index)
@@ -62,7 +62,7 @@ public static class WormholePlacer
             // The partner: a free system far enough away, the seed choosing among them; else the farthest one left.
             var far = free.Where(s => MapDistance(a, s) >= settings.MinMapDistance).ToList();
             var b = far.Count > 0
-                ? far.OrderBy(s => Hash01(seed, "partner:" + a.Id, FixedIndex(s.Id))).First()
+                ? far.OrderBy(s => Hash01(seed, "partner:" + a.Id, StarSystemIds.RolledIndex(s.Id))).First()
                 : free.OrderByDescending(s => MapDistance(a, s)).First();
             free.Remove(b);
 
@@ -81,7 +81,7 @@ public static class WormholePlacer
     /// story's finale system — and any other hand-made system — never does. The server checks this again at every
     /// transit, so even an edited save cannot open a way there.</summary>
     public static bool MayHoldWormhole(string systemId)
-        => systemId.StartsWith("sys", StringComparison.Ordinal) && FixedIndex(systemId) >= 0;
+        => StarSystemIds.IsRolled(systemId);
 
     private static Wormhole EndIn(StarSystem system, long seed, WormholeDefinition settings)
     {
@@ -92,7 +92,7 @@ public static class WormholePlacer
             outer = Math.Max(outer, r);
         }
 
-        int index = FixedIndex(system.Id);
+        int index = StarSystemIds.RolledIndex(system.Id);
         double angle = Hash01(seed, "angle", index) * Math.PI * 2.0;
         float radius = outer + settings.EdgeMargin + (float)(Hash01(seed, "radius", index) * settings.EdgeSpread);
         float height = (float)((Hash01(seed, "height", index) - 0.5) * 160.0);
@@ -105,12 +105,6 @@ public static class WormholePlacer
             SystemZ = (float)(Math.Sin(angle) * radius),
         };
     }
-
-    private static int FixedIndex(string systemId)
-        => systemId.Length > 3 && systemId.StartsWith("sys", StringComparison.Ordinal)
-           && int.TryParse(systemId.Substring(3), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int i)
-            ? i
-            : -1;
 
     private static float MapDistance(StarSystem a, StarSystem b)
     {

@@ -80,7 +80,7 @@ public sealed partial class GameServer
 
     /// <summary>A pack system id may never be a procedural one (<c>sys…</c>) or the Guardian's.</summary>
     private static bool IsValidPackSystemId(string? id)
-        => !string.IsNullOrEmpty(id) && id != GuardianFinaleSystemId && !id!.StartsWith("sys", StringComparison.Ordinal)
+        => !string.IsNullOrEmpty(id) && id != GuardianFinaleSystemId && !StarSystemIds.HasRolledPrefix(id)
            && StoryPackValidator.IsKeySafeId(id);
 
     /// <summary>The pack system with this id, if one is declared.</summary>
@@ -162,7 +162,7 @@ public sealed partial class GameServer
             ? (px, py)
             : PackSystemMapPosition(_galaxy, def, _meta.Seed);
         string name = PackSystemName(def, "en");
-        var system = new StarSystem { Id = def.Id, Name = name, MapX = mapX, MapY = mapY };
+        var system = new StarSystem { Id = def.Id, Origin = StarSystemOrigin.Pack, Name = name, MapX = mapX, MapY = mapY };
         float angle = (BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("packsystem-orbit:" + def.Id) % 360) * MathF.PI / 180f;
         system.Bodies.Add(new CelestialBody
         {
@@ -201,7 +201,7 @@ public sealed partial class GameServer
     /// </summary>
     internal static (float X, float Y) PackSystemMapPosition(Galaxy galaxy, StoryPackSystem def, long seed)
     {
-        var stars = galaxy.Systems.Where(s => BlocksBeyondTheStars.WorldGeneration.WormholePlacer.MayHoldWormhole(s.Id)).ToList();
+        var stars = galaxy.Systems.Where(s => s.IsRolled).ToList();
         var home = stars.FirstOrDefault(s => s.Id == "sys0") ?? stars.FirstOrDefault();
         if (home is null)
         {
@@ -269,7 +269,7 @@ public sealed partial class GameServer
     /// </summary>
     internal bool PackSystemHiddenFor(PlayerSession s, string? systemId)
     {
-        if (string.IsNullOrEmpty(systemId) || systemId!.StartsWith("sys", StringComparison.Ordinal) || systemId == GuardianFinaleSystemId
+        if (string.IsNullOrEmpty(systemId) || StarSystemIds.HasRolledPrefix(systemId) || systemId == GuardianFinaleSystemId
             || !TryGetPackSystem(systemId, out var pack, out var system))
         {
             return false;
@@ -315,7 +315,7 @@ public sealed partial class GameServer
 
     /// <summary>The star-map name of a system for this player: a pack system's in their language.</summary>
     private string StarMapSystemName(PlayerSession s, StarSystem sys)
-        => !sys.Id.StartsWith("sys", StringComparison.Ordinal) && TryGetPackSystem(sys.Id, out _, out var def) ? PackSystemName(def, s.Locale) : sys.Name;
+        => !sys.IsRolled && TryGetPackSystem(sys.Id, out _, out var def) ? PackSystemName(def, s.Locale) : sys.Name;
 
     // ---------------------------------------------------------------------------------------------
     // Marker providers (#3349).

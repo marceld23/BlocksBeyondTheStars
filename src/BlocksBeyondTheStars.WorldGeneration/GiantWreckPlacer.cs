@@ -67,7 +67,7 @@ public static class GiantWreckPlacer
         int placed = 0;
         foreach (var system in systems)
         {
-            int index = FixedIndex(system.Id);
+            int index = StarSystemIds.RolledIndex(system.Id);
             if (index < 0 || index >= fixedCount || system.Bodies.Count == 0 || HasGiantWreck(system))
             {
                 continue;
@@ -263,12 +263,6 @@ public static class GiantWreckPlacer
 
         return room;
     }
-
-    private static int FixedIndex(string systemId)
-        => systemId.Length > 3 && systemId.StartsWith("sys", StringComparison.Ordinal)
-           && int.TryParse(systemId.Substring(3), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int i)
-            ? i
-            : -1;
 
     /// <summary>A uniform roll in [0, 1) per (salt, system index) — its own salt, never the generator's or the derelicts'.</summary>
     private static double Hash01(long seed, string salt, int index)
