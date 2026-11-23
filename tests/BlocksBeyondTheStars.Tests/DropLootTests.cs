@@ -63,6 +63,21 @@ public sealed class DropLootTests : IDisposable
         return 0;
     }
 
+    /// <summary>The top of the GROUND in a column: a surface plant on it is taken away first. A packet lies IN a plant's
+    /// cell, not on top of it (#1367), and since world generation 48 groups the surface plants a test column may
+    /// carry one.</summary>
+    private int GroundTopY(SvGameServer server, int x, int z)
+    {
+        int y = SurfaceTopY(server, x, z);
+        while (_content.BlockById(server.World.GetBlock(new Vector3i(x, y, z)))?.Category == "flora")
+        {
+            server.World.SetBlock(new Vector3i(x, y, z), default);
+            y--;
+        }
+
+        return y;
+    }
+
     private void FillEverySlot(Inventory inv, string filler = "stone")
     {
         int max = _content.MaxStackOf(filler);
@@ -82,7 +97,7 @@ public sealed class DropLootTests : IDisposable
         {
             server.AddLocalPlayer("Hunter").State.AboardShip = false;
             const int x = 10, z = 10;
-            int top = SurfaceTopY(server, x, z);
+            int top = GroundTopY(server, x, z);
 
             server.SpillToGroundForTest(new Vector3i(x, top + 8, z), "iron_ore", 2); // where a flier died
 

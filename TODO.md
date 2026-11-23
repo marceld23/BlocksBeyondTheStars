@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946) — ✅ 2026-11-22, PR #TBD (⚠ **frame cost not measured on any preset, never run in a browser build** — #3947, must be checked before the next release; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
+### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946) — ✅ 2026-11-22, PR #3949 (⚠ **frame cost not measured on any preset, never run in a browser build** — #3947, must be checked before the next release; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
 
 The game gets the look of its four concept pictures, in one package: the old look is gone, there is no switch and no
 setting; the quality preset decides how much of it a player gets. How every part works, its files, what High, Medium,
