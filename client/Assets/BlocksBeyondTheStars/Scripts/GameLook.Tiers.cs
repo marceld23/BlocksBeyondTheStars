@@ -17,6 +17,7 @@ namespace BlocksBeyondTheStars.Client
     ///   the chunks arrive).</item>
     ///   <item>Rounded and formed parts on figures and held tools: every tier but Potato, fixed for the run.</item>
     ///   <item>The plant far pictures: baked on a desktop client on Low and up; never on Potato or in the browser.</item>
+    ///   <item>The terrain forms (#3964): a desktop-class client on Medium or High (<see cref="TerrainFormsNow"/>).</item>
     /// </list>
     /// The mesher reads its gates on worker threads, so they rest on <see cref="FxKit.Preset"/> and a main-thread snapshot
     /// of the device class, never on a Unity call. A preset change that changes what the mesher emits
@@ -108,6 +109,7 @@ namespace BlocksBeyondTheStars.Client
         /// picture hidden near the eye with no body to take its place). Main thread.</summary>
         public static int MeshTierKey
             => (RecordCrownCells ? 1 : 0) | (RecordGrassClumps ? 2 : 0) | (RecordPlantCells ? 4 : 0)
-               | (CrownFarFormsTier << 3) | (BlockShapeGeometry.SoftTierAllows ? 32 : 0);
+               | (CrownFarFormsTier << 3) | (BlockShapeGeometry.SoftTierAllows ? 32 : 0)
+               | (TerrainFormsNow ? 64 : 0); // #3964 terrain forms (GameLook.TerrainForms.cs)
     }
 }

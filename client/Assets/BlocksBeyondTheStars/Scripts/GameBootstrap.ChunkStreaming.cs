@@ -334,7 +334,7 @@ namespace BlocksBeyondTheStars.Client
                 try
                 {
                     Data = ChunkMesher.BuildGeometry(Center, Content, Hood.BlockFn, Atlas, FloraTintFn, null, Lights, Hood.ShapeFn, DesignUv, Hood.LoadedFn,
-                        BiomePalette);
+                        BiomePalette, terrainForms: true);
                 }
                 catch (System.Exception ex)
                 {
