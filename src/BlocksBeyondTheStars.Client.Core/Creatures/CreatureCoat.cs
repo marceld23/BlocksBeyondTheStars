@@ -252,16 +252,12 @@ namespace BlocksBeyondTheStars.Client
             return list;
         }
 
-        /// <summary>The species' pattern: none for an authored species (its look is designed) and for about one in
-        /// <see cref="NoneOneIn"/> rolled ones, otherwise one of <see cref="PatternsFor"/> by the species seed — for about a
-        /// third of them one of the world motif's favourite group (#2868) when the body can carry one.</summary>
-        public static CoatPattern PatternFor(NetCreature c, FaunaThemes.Look? look = null, Func<string, bool>? tileAvailable = null)
+        /// <summary>The ROLLED pattern of a species: none for about one in <see cref="NoneOneIn"/>, otherwise one of
+        /// <see cref="PatternsFor"/> by the species seed — for about a third of them one of the world motif's favourite group
+        /// (#2868) when the body can carry one. Whether a species rolls at all (an authored one wears no pattern, an explicit
+        /// coat its own) is <see cref="CreatureLookResolver"/>'s decision (#3972).</summary>
+        public static CoatPattern RolledPattern(NetCreature c, FaunaThemes.Look? look = null, Func<string, bool>? tileAvailable = null)
         {
-            if (IsAuthored(c.SpeciesId))
-            {
-                return CoatPattern.None;
-            }
-
             uint seed = SpeciesSeed(c.SpeciesId, c.VoiceSeed);
             if (CoatMix.Mix(seed, CoatMix.SaltPatternNone) % (uint)NoneOneIn == 0u)
             {

@@ -23,7 +23,8 @@ public sealed class CreatureLookResolverTests
     /// <summary>The digest of the looks the decision functions gave BEFORE the look resolver and the body-plan table existed
     /// (computed with <c>CreatureCoat.PatternFor</c>/<c>PatternRgb</c>/<c>MaskSeed</c>, <c>CreatureHides.Pick</c>,
     /// <c>GlowMasks</c>, the string-compared <c>PatternsFor</c>, <c>CreatureVoices.PoolFor</c> and <c>CreatureFootprint</c>).
-    /// A change here is a change of every existing world's fauna.</summary>
+    /// A change here is a change of every existing world's fauna. Since then the same looks come from
+    /// <see cref="CreatureLookResolver.Resolve"/> and the body-plan profile table.</summary>
     private const string LegacyDigest = "B096C8441FE48ABF";
 
     private static readonly string[] Plans = Enum.GetNames(typeof(CreatureBodyPlan)).Concat(new[] { "", "Unknown" }).ToArray();
@@ -43,6 +44,20 @@ public sealed class CreatureLookResolverTests
 
         string digest = Fnv(sb.ToString()).ToString("X16", CultureInfo.InvariantCulture);
         Assert.Equal(LegacyDigest, digest);
+    }
+
+    [Fact]
+    public void EveryBodyPlan_HasItsProfileRow_AndAnUnknownNameClaimsNothing()
+    {
+        foreach (CreatureBodyPlan plan in Enum.GetValues(typeof(CreatureBodyPlan)))
+        {
+            Assert.Equal(plan, CreatureBodyPlans.Of(plan).Plan);
+            Assert.Same(CreatureBodyPlans.Of(plan), CreatureBodyPlans.Of(plan.ToString()));
+        }
+
+        Assert.Same(CreatureBodyPlans.Unknown, CreatureBodyPlans.Of("NotAPlan"));
+        Assert.Same(CreatureBodyPlans.Unknown, CreatureBodyPlans.Of("3")); // a number is no plan name on the wire
+        Assert.Same(CreatureBodyPlans.Of(CreatureBodyPlan.Standard), CreatureBodyPlans.Of(""));
     }
 
     /// <summary>Many creatures, each with a world look (or none) and a tile availability.</summary>
@@ -99,16 +114,11 @@ public sealed class CreatureLookResolverTests
     private static string Describe(NetCreature c, FaunaThemes.Look? look, bool allTiles)
     {
         Func<string, bool> tiles = allTiles ? _ => true : PartialTiles;
-        uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
-        var pattern = CreatureCoat.PatternFor(c, look, tiles);
-        int mark = CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern, look);
-        var hides = CreatureHides.Pick(c, tiles, look);
-        var glow = GlowMasks.PatternFor(c);
-        int glowRgb = GlowMasks.ColourFor(seed, c.ColorRgb);
+        var r = CreatureLookResolver.Resolve(c, look, tiles, tiles);
         string options = string.Join(",", CreatureCoat.PatternsFor(c, allTiles ? tiles : null));
         return string.Join("|",
-            pattern, mark.ToString("X6", CultureInfo.InvariantCulture), c.ColorRgb, c.BellyRgb,
-            hides.Torso, hides.Head, hides.Limbs, hides.Ornament, CreatureCoat.MaskSeed(c), glow, glowRgb, options,
+            r.Pattern, r.PatternRgb.ToString("X6", CultureInfo.InvariantCulture), r.BodyRgb, r.BellyRgb,
+            r.Hides.Torso, r.Hides.Head, r.Hides.Limbs, r.Hides.Ornament, r.MaskSeed, r.Glow, r.GlowRgb, options,
             Voice(c), Footprint(c));
     }
 
