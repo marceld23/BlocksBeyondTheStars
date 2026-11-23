@@ -386,6 +386,33 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
   | `blocks_king` | rolled, air + inhabited | intact, protected; burger keeper inside |
 
   Sizes stay within 256 a side; the largest overlay blob is in the tens of KB.
+- **Earth's twelve** (#3982, the Sol package): `data/landmarks/earth_*.json` — in the top folder with an `earth_` prefix,
+  because the content loader reads `data/landmarks/*.json` only (no subfolders). Every one is `pinOnly` (no world rolls
+  it; Earth's location list places them), needs an atmosphere and has `landmark.<key>.name` / `.desc`. Earth's cities
+  are inhabited, so the city landmarks are intact (`ruin: never`), lit and `protection: protected`; only the pyramids
+  are ruins — masonry at a low strength, every passage lined with kept stone (its torches kept too, so they still burn)
+  and one gentle ruin zone (strength 0.05) round the passages. Eight scripts (`tools/landmarks/earth_*.py`, shared
+  helpers in `_earth.py`; `gen_landmarks.py <template key>` writes one of a script's templates):
+
+  | key | script | size (w × h × l) | inside |
+  |---|---|---|---|
+  | `earth_eiffel_tower` | `earth_lattice_tower.py` | 101 × 247 × 101 | glass lift tube with a spiral stair to three platforms (glass floor ring on the first), cyan light bands, antenna crown |
+  | `earth_tokyo_tower` | `earth_lattice_tower.py` | 65 × 201 × 65 | orange-and-white lattice, the same tube and stair to a two-storey main deck and a top deck |
+  | `earth_berlin_tv_tower` | `earth_needle_tower.py` | 40 × 201 × 40 | spiral stair up the shaft into the sphere (viewing deck and cafe floor), banded needle |
+  | `earth_toronto_tower` | `earth_needle_tower.py` | 45 × 250 × 45 | three legs, hexagonal core with a spiral stair to the pod (glass floor ring, restaurant deck) and the sky pod |
+  | `earth_brandenburg_gate` | `earth_gate.py` | 62 × 34 × 13 | five passages, guardhouses, a ladder in the west pier to the roof; copper chariot on the attic |
+  | `earth_pyramid_great` | `earth_pyramid.py` | 231 × 146 × 238 | ruin: entrance stair, passage, queen's chamber, ascending passage, grand gallery, king's chamber |
+  | `earth_pyramid_second` | `earth_pyramid.py` | 215 × 137 × 222 | ruin: casing cap on top, passage to the burial chamber |
+  | `earth_pyramid_third` | `earth_pyramid.py` | 105 × 62 × 112 | ruin: pink granite lower courses, antechamber, burial chamber |
+  | `earth_london_clock_tower` | `earth_clock_tower.py` | 19 × 98 × 19 | four lit dials, spiral stair through three floors to the clock room and belfry, ladder to the lantern |
+  | `earth_sydney_opera` | `earth_shell_hall.py` | 110 × 65 × 165 | podium with a grand stair, shell groups (concert hall with stage, organ and tiers; theatre; restaurant) |
+  | `earth_new_york_statue` | `earth_statue.py` | 60 × 94 × 60 | star terrace, pedestal with a spiral stair into the robe, ladder up the pylon to the crown platform |
+  | `earth_rio_statue` | `earth_statue.py` | 35 × 40 × 35 | viewing terrace, a small room in the pedestal (stands on a hilltop) |
+  | `earth_gds_tower` | `earth_gds_tower.py` | 44 × 194 × 44 | G.D.S. red with purple bands and windows; lobby with `guard_post` markers, trader floor (four `vendor`s), ladder core to the roof deck |
+
+  The G.D.S. tower's 14 `guard_post` markers are the G.D.S. city's guardian posts; a landmark staffs post markers like
+  any intact landmark (§5). The placement by Earth's location list and the guard test (every place-only template is
+  named by a place, and none of them is in a pool) belong to the C# side.
 
 ## 8. Key files
 
@@ -398,5 +425,5 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
 | Wire | `Networking/Messages/LandmarkMessages.cs` (tag 335) |
 | Client | `Client.Core/Audio/SoundEmitterMix.cs`, `Client.Core/LandmarkSilhouetteMesh.cs`; `SoundEmitterView.cs`, `LandmarkSilhouetteView.cs`, `Shaders/FarTerrain.shader`, `WorldMap.cs`, `WikiUI.cs` |
 | Editor | `StructureEditor.Landmark.cs`, `StructureEditor.Zones.cs`, `EditorMarkerPanel.cs`; `Client.Core/StampStepsDescriber.cs`, `StructureStampRules.cs` |
-| Data and tools | `data/landmarks/*.json`, `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/landmarks/*.py` (`lightmount.py`: the light-mount pass), `tools/merge_structure.py` |
+| Data and tools | `data/landmarks/*.json` (Earth's: `earth_*.json`), `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/landmarks/*.py` (`lightmount.py`: the light-mount pass; `_earth.py` + `earth_*.py`: Earth's landmarks), `tools/merge_structure.py` |
 | Tests | `LandmarkTemplateTests`, `StructureRuinerTests` (+ `…GoldenTests`, `…OptionTests`, `…HullTests`, `…CrashTests` for revision 3), `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`, `LandmarkOverlayWorldTests`, `StructureOverlayTests`, `StructureRuinerZoneTests`, `LandmarkSchoolClubTests` (span, fixed), `StructureProtectionTests`, `LandmarkLightMountTests` |
