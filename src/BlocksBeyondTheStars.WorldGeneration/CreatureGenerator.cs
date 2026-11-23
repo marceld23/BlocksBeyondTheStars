@@ -385,7 +385,7 @@ public static class CreatureGenerator
 
     /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111, #2112).</summary>
     private static bool IsGiantPlan(CreatureBodyPlan plan)
-        => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
+        => CreatureBodyPlans.Of(plan).Giant; // #3972: the profile table
 
     public const string SkyGiantId = "gi_sky_giant";
 

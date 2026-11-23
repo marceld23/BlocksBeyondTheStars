@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -193,9 +194,9 @@ namespace BlocksBeyondTheStars.Client
         /// it only takes the plate and belly colours.</summary>
         public static IReadOnlyList<CoatPattern> PatternsFor(NetCreature c, Func<string, bool>? tileAvailable = null)
         {
-            string plan = string.IsNullOrEmpty(c.BodyPlan) ? "Standard" : c.BodyPlan;
+            var body = CreatureBodyPlans.Of(c.BodyPlan); // #3972: the plan's facts, not its name
             var list = new List<CoatPattern>();
-            if (plan == "Sandworm")
+            if (body.ArmourCoat)
             {
                 list.Add(CoatPattern.CrestBand);  // the armour plates and petals
                 list.Add(CoatPattern.BellyBlaze);
@@ -208,13 +209,8 @@ namespace BlocksBeyondTheStars.Client
                 list.AddRange(TilePatterns);
             }
 
-            // #3327: the hound is a standard quadruped underneath — the same box torso, box head, legs and tail.
-            bool boxTorso = plan is "Standard" or "Titan" or "Colossus" or "Hound";
-            bool boxHead = plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Worm" or "Hound";
-            bool legs = c.Legs > 0 && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Arachnid" or "Hound";
-            bool tail = plan == "Worm" || (c.HasTail && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Hound");
-            bool accents = c.HasCrest || c.HasFins || plan is "Leviathan" or "SkyGiant";
-            if (boxTorso)
+            bool tail = body.Tail == BodyTail.Always || (c.HasTail && body.Tail == BodyTail.IfTrait);
+            if (body.BoxTorso)
             {
                 list.Add(CoatPattern.DorsalStripe);
                 list.Add(CoatPattern.Saddle);
@@ -223,12 +219,12 @@ namespace BlocksBeyondTheStars.Client
 
             // The countershading maps v once over a flank (a pinned mesh), so the hide stretches by the flank's repeats: kept
             // to the bodies whose flanks need at most two (a standard or biped body up to size 2).
-            if (plan is "Standard" or "Biped" or "Hound" && c.Size <= 2f)
+            if (body.Countershade && c.Size <= 2f)
             {
                 list.Add(CoatPattern.Countershade);
             }
 
-            if (boxHead && c.Eyes > 0)
+            if (body.BoxHead && c.Eyes > 0)
             {
                 list.Add(CoatPattern.EyeMask);
             }
@@ -238,17 +234,17 @@ namespace BlocksBeyondTheStars.Client
                 list.Add(CoatPattern.TailRings);
             }
 
-            if (accents)
+            if (c.HasCrest || c.HasFins || body.Accents)
             {
                 list.Add(CoatPattern.CrestBand);
             }
 
-            if (plan != "Medusa")
+            if (body.BellySlab)
             {
                 list.Add(CoatPattern.BellyBlaze);
             }
 
-            if (legs)
+            if (c.Legs > 0 && body.SockLegs)
             {
                 list.Add(CoatPattern.Socks);
             }

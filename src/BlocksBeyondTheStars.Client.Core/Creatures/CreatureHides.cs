@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -232,7 +233,7 @@ namespace BlocksBeyondTheStars.Client
             uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
             bool authored = CreatureCoat.IsAuthored(c.SpeciesId);
             // #3327: the Schuppenhund's scales cover it head to tail, as drawn — its world rolled the scale variant already.
-            bool wearsOne = authored || c.BodyPlan == "Hound";
+            bool wearsOne = authored || CreatureBodyPlans.Of(c.BodyPlan).WearsOneHide; // #3972: the profile table
             var pool = PoolFor(c);
             IReadOnlyList<string> source = pool;
             string? named = !string.IsNullOrEmpty(c.Hide) && IsKnown(c.Hide) ? c.Hide : null;

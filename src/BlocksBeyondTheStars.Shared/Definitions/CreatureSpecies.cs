@@ -360,7 +360,7 @@ public sealed class CreatureSpecies
     public bool PackDefender { get; set; }
 
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
-    public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
+    public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;
 
     /// <summary>The two giants that live hidden in a medium and come for what shakes it (#2001 the sandworm in the sand,
     /// #2111 the leviathan in the sea): the same path, the same hearing, the same strike.</summary>

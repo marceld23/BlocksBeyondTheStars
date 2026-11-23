@@ -55,9 +55,9 @@ public static class CreatureFootprint
     public static float Radius(CreatureSpecies sp, float sizeScale)
     {
         float size = sp.Size * (sizeScale > 0f ? sizeScale : 1f);
-        switch (sp.BodyPlan)
+        switch (CreatureBodyPlans.Of(sp.BodyPlan).Footprint) // #3972: the plan's row in the profile table
         {
-            case CreatureBodyPlan.Titan:
+            case BodyFootprint.Titan:
                 {
                     float u = Unit(size, 8f);
                     int segments = Math.Clamp(sp.BodySegments, 2, 3);
@@ -65,43 +65,35 @@ public static class CreatureFootprint
                     return (0.575f * segments + 0.6f + 0.18f * neck) * u;
                 }
 
-            case CreatureBodyPlan.Arachnid:
+            case BodyFootprint.Arachnid:
                 return 2.2f * Unit(size, 8f);
 
-            case CreatureBodyPlan.Biped:
-            case CreatureBodyPlan.Robot: // #3295: the hunter robot stands on the biped's proportions
+            case BodyFootprint.Upright: // the biped, and the hunter robot on its proportions (#3295)
                 {
                     float s = Math.Clamp(size, 0.3f, 2.5f);
                     float headRatio = sp.HeadRatio > 0f ? sp.HeadRatio : 1.6f; // the builder's fallback
                     return Math.Max(0.3f * s, 0.5f * BipedRules.HeadEdge(s, headRatio));
                 }
 
-            case CreatureBodyPlan.Worm:
+            case BodyFootprint.Worm:
                 {
                     int links = Math.Clamp(sp.BodySegments, 6, 12);
                     return (0.55f + 0.15f * links) * Unit(size, 3f);
                 }
 
-            case CreatureBodyPlan.Ray:
+            case BodyFootprint.Ray:
                 return 3.2f * Unit(size, 3.5f);
 
-            case CreatureBodyPlan.Medusa:
+            case BodyFootprint.Medusa:
                 return 1.5f * Unit(size, 3f);
 
-            case CreatureBodyPlan.Sounder:
-            case CreatureBodyPlan.Soundi:
-            case CreatureBodyPlan.Soundrak:
-            case CreatureBodyPlan.Soundeling:
-            case CreatureBodyPlan.Quali:
+            case BodyFootprint.Soaniri:
                 return SoundersRadius(sp.BodyPlan, size); // #3355/#3359: the bodies of Soaniri
 
-            case CreatureBodyPlan.Colossus:
-            case CreatureBodyPlan.Sandworm:
-            case CreatureBodyPlan.Leviathan:
-            case CreatureBodyPlan.SkyGiant:
+            case BodyFootprint.Giant:
                 return 0.5f * Math.Max(Math.Max(sp.GiantHeight, sp.WormLength), size);
 
-            default: // Standard, Floral, Reindeer (#3322: Rudolpho walks on the standard four-legged proportions)
+            default: // Segments: Standard, Floral, Hound, Reindeer (#3322: Rudolpho walks on the standard four-legged proportions)
                 {
                     float u = Unit(size, 3f);
                     int segments = Math.Clamp(sp.BodySegments, 1, 4);
@@ -141,32 +133,22 @@ public static class CreatureFootprint
     public static float HeadReach(CreatureSpecies sp, float sizeScale)
     {
         float size = ScaledSize(sp, sizeScale);
-        switch (sp.BodyPlan)
+        switch (CreatureBodyPlans.Of(sp.BodyPlan).HeadReach) // #3972: the plan's row in the profile table
         {
-            case CreatureBodyPlan.Arachnid:
+            case BodyHeadReach.Arachnid:
                 return 1.8f * Unit(size, 8f);
 
-            case CreatureBodyPlan.Worm:
+            case BodyHeadReach.Worm:
                 return 1.2f * Unit(size, 3f);
 
-            case CreatureBodyPlan.Biped:
-            case CreatureBodyPlan.Robot: // #3295: upright like the biped
-            case CreatureBodyPlan.Sounder: // #3355/#3359: the upright ones of Soaniri and the sky drifter
-            case CreatureBodyPlan.Soundrak:
-            case CreatureBodyPlan.Quali:
-            case CreatureBodyPlan.Ray:
-            case CreatureBodyPlan.Medusa:
-            case CreatureBodyPlan.Colossus:
-            case CreatureBodyPlan.Sandworm:
-            case CreatureBodyPlan.Leviathan:
-            case CreatureBodyPlan.SkyGiant:
+            case BodyHeadReach.None: // upright (biped, robot, Sounder, Soundrak), floating, swimming and the giants
                 return 0f;
 
-            case CreatureBodyPlan.Hound:
+            case BodyHeadReach.Muzzle:
                 // #3325: the standard front plus the muzzle — the builder draws it SnoutLength × 0.8u in front of the face.
                 return Radius(sp, sizeScale) + HoundMuzzleDepth(sp.SnoutLength, Unit(size, 3f));
 
-            default: // Standard, Floral, Titan, Reindeer (#3322)
+            default: // Radius: Standard, Floral, Titan, Reindeer (#3322), Soundi, Soundeling
                 return Radius(sp, sizeScale);
         }
     }
