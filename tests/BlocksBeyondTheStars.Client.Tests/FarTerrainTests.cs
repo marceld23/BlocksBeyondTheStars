@@ -244,8 +244,8 @@ public sealed class FarTerrainTests
         var key = new FarPatchKey(0, 0, 0);
 
         var plain = new FarPatchBuilder(key, 512, source).BuildGeometry(overlay, (s, e, t) => 0xFF808080);
-        Assert.Equal(17 * 17 + 4 * 17, plain.VertexCount);
-        Assert.Equal(16 * 16 * 6 + 4 * 16 * 6, plain.Indices.Length);
+        Assert.Equal(17 * 17 + 4 * 17, plain.GridVertexCount); // #3958: a free band over this patch adds slab vertices after it
+        Assert.True(plain.Indices.Length >= 16 * 16 * 6 + 4 * 16 * 6);
         Assert.All(plain.Indices, i => Assert.InRange(i, 0, plain.VertexCount - 1));
 
         // A 400-block tower in the cell under vertex (1, 1) = world (8, 8).
@@ -265,42 +265,7 @@ public sealed class FarTerrainTests
         Assert.Equal(0xFF0000FFu, built.Colors[v]);
     }
 
-    /// <summary>#2333: a band over a column — here a sky island — is the far sample's top, not the ground under it.</summary>
-    [Fact]
-    public void TheFarTerrainSource_SeesABandAsTheColumnsTop()
-    {
-        var content = LoadContent();
-        var info = new FarTerrainWorldInfo
-        {
-            WorldId = 1,
-            LocationId = "sys0-p1",
-            PlanetType = "skylands",
-            Circumference = 6000,
-            TerrainGeneration = WorldDescription.CurrentTerrainGeneration,
-        };
-        var source = FarTerrainSource.Create(content, 424242, info)!;
-        var planet = content.GetPlanet("skylands")!;
-        var generator = new BlocksBeyondTheStars.WorldGeneration.WorldGenerator(424242, content);
-        generator.SetTerrainGeneration(WorldDescription.CurrentTerrainGeneration);
-        generator.SetWorldMode(6000, false, new List<BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten>(), "sys0-p1");
-
-        int checkedColumns = 0;
-        for (int x = 0; x < 2000 && checkedColumns < 25; x += 7)
-            for (int z = -900; z < 900 && checkedColumns < 25; z += 11)
-            {
-                if (!generator.TryGetHighestBand(planet, x, z, out var band))
-                {
-                    continue;
-                }
-
-                var sample = source.Sample(x, z, detail: true);
-                Assert.Equal(band.Top + 1, sample.Top);
-                Assert.True(sample.Top > generator.SurfaceHeight(planet, x, z) + 1, "the island stands over the ground");
-                checkedColumns++;
-            }
-
-        Assert.True(checkedColumns > 0, "a sky world should have island columns in the scanned area");
-    }
+    // #2333 / #3958: the bands of a sky world live in FarTerrainFloatTests.
 
     /// <summary>#2956: the reported tundra world — a sea frozen under a sheet of ice read as open water from afar (the
     /// shader tinted it violet), and the land as bare dirt and stone where the chunks wear snow and ice. Now a frozen sea

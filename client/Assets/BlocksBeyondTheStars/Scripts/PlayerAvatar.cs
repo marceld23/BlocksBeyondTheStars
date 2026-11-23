@@ -755,14 +755,9 @@ namespace BlocksBeyondTheStars.Client
             PoseStance(dt, ref armR, ref elbowR, ref level);
             PoseHeldFlourish(dt, idle, ref armR, ref elbowR, ref level, ref armL, ref elbowL, ref yawL); // #3134: the free arm racks a gun
 
-            // Tool/weapon chop overrides the right arm: raise, then drive down (with an elbow snap).
-            if (_swingTimer > 0f)
-            {
-                _swingTimer -= dt;
-                float c = 1f - Mathf.Clamp01(_swingTimer / SwingDuration);
-                armR = Mathf.Lerp(-115f, 30f, Mathf.SmoothStep(0f, 1f, c));
-                elbowR = -(20f + 45f * Mathf.Sin(Mathf.Clamp01(c) * Mathf.PI));
-            }
+            // Tool/weapon chop overrides the right arm: raise, then drive down (with an elbow snap); a drill with a bit holds
+            // steady ahead instead (PlayerAvatar.Flourish.cs).
+            PoseSwing(dt, ref armR, ref elbowR, ref level);
 
             // #2278: a glove blow overrides the arms — one straight jab (alternating) or both arms pushing forward.
             if (_punchTimer > 0f)

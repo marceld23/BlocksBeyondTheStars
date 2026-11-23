@@ -2608,10 +2608,25 @@ pure function of the cell hash, memoised in a `CellCache<T>` (the #712 lesson of
   not its foot's. From generation 21 every island / crown band grows its own flora (older worlds plant the highest
   band only). `WonderProfile.BandMaterial` = sandstone on butte / wind country, basalt on volcanic, ice in the deep
   cold, else the deep block.
-- **The far view sees bands (#2333).** `WorldGenerator.TryGetHighestBand` / `HighestBandTopInSquare`;
-  `FarTerrainSource.Sample` reports the highest band's top and skin as the column's top, and the server's
-  `FarColumnBand(surfaceY, seaLevel, bandTopY)` stretches a far column's streaming band up to it — sky islands are
-  seen from afar now too. The minimap stays height-only on purpose.
+- **The far view sees bands (#2333).** `WorldGenerator.TryGetHighestBand` / `HighestBandTopInSquare`; the server's
+  `FarColumnBand(surfaceY, seaLevel, bandTopY)` stretches a far column's streaming band up to the highest band top — sky
+  islands are seen from afar now too. The minimap stays height-only on purpose.
+- **Floating bands are slabs in the far view, not mountains (#3958–#3960).** #2333 first made the highest band's top the
+  far sample's top, and the far height field then drew every sky island as a mountain down to the ground.
+  `FarTerrainSource.Sample(x, z, detail, floats, out count)` now reads all of the column's bands (`GetExtraBands`, sorted
+  by bottom): a band whose bottom lies within `AttachGap` (3) of the column's top rests on it (a crown on its pillar, an
+  afloat island, an iceberg) and raises the height field as before; a band with a wider gap goes into the column's
+  `FarFloat`s (up to `MaxFloats`, touching bands merged), followed by its waterfalls. `FarPatchBuilder.Floats.cs` draws
+  each float of a point the patch owns (the half-open grid, so a shared point is drawn once) after the height field: a
+  block slab one far cell wide — top face in the band's surface colour, bottom face and the side spans the neighbour's
+  slabs do not cover in its side block (the deep block, a bar's rock, ice) — or, for a waterfall, a curtain half a cell
+  wide of four water-flagged faces the shader tints like the far sea. A build from the server's far tiles that stands
+  over a slab (its top above the slab's bottom) raises that slab instead of the height field (#3960); a build floating
+  free in the air still shows as a raised column (the far tile carries only its top). The shapes carry their own discard
+  radius (`FarPatchGeometry.FloatInnerRadius`, written to TEXCOORD0.x by `FarTerrainView.ToMesh`): on the far level the
+  near level's whole reach, so a coarse 32-block slab never stands beside the fine 8-block one in the levels' 96-block
+  overlap ring. No wire or save change; the `FarTerrain` shader is unchanged (both faces drawn, the column mask applies).
+  Tests: `FarTerrainFloatTests`.
 - **Pads and structures read bands and voids (#2334).** `WorldGenerator.Placement.cs`: `ColumnHasBandAbove`,
   `ColumnHasVoidBelow` (mega-caverns, tunnels, daylight halls within a depth), `FootprintClear` (centre + corners).
   The pad nudge (`NudgePadToDryAndFlat`) skips covered columns (`PadFootprintCovered`); `TryPlaceStructureGuaranteed`

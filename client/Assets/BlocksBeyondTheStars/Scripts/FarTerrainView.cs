@@ -588,7 +588,9 @@ namespace BlocksBeyondTheStars.Client
                 normals[i] = new Vector3(geo.Normals[i * 3], geo.Normals[i * 3 + 1], geo.Normals[i * 3 + 2]);
                 uint c = geo.Colors[i];
                 colors[i] = new Color32((byte)(c & 0xFF), (byte)((c >> 8) & 0xFF), (byte)((c >> 16) & 0xFF), (byte)((c >> 24) & 0xFF));
-                uv[i] = new Vector2(geo.InnerRadius, key.Level);
+                // #3958: the floating slabs after the height field carry their own discard radius (no doubled islands in
+                // the levels' overlap ring).
+                uv[i] = new Vector2(i < geo.GridVertexCount ? geo.InnerRadius : geo.FloatInnerRadius, key.Level);
             }
 
             var mesh = new Mesh { name = $"Far {key}", indexFormat = n > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
