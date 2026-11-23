@@ -81,15 +81,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>
-    /// Reserves the ground of a structure about to be stamped for the first time (#3569): seats <c>flat</c>, <c>slope</c> and
-    /// <c>shelf</c> of a kind with a grade, on a body stamped for the first time, during the boot's structures stage only. The
+    /// Reserves the ground of a structure about to be stamped for the first time (#3569): seats <c>flat</c>, <c>slope</c>,
+    /// <c>shelf</c> and <c>given</c> (#3980, <see cref="GivenSeat"/>) of a kind with a grade, on a body stamped for the first time, during the boot's structures stage only. The
     /// site joins the world's list, the generator applies it, every resident chunk the grade reaches is dropped (it
     /// regenerates graded — the stamps' edits are in the repository already), and the list is pinned in the save.
     /// <paramref name="gradeOf"/> overrides the kind's grade (the city world's larger one).
     /// </summary>
     private void ReserveSiteGround(string kind, int width, int length, Vector3i origin, int groundY, string seat, StructureGradeRule? gradeOf = null)
     {
-        if (!_siteGroundOpen || !GeographyWorld || !_worlds.Active.VirginAtLoad || seat is not ("flat" or "slope" or "shelf"))
+        if (!_siteGroundOpen || !GeographyWorld || !_worlds.Active.VirginAtLoad || seat is not ("flat" or "slope" or "shelf" or GivenSeat.SeatName))
         {
             return;
         }

@@ -151,8 +151,10 @@ public sealed partial class GameServer
             return;
         }
 
-        // Every record of this body is replayed: index 0 is the rolled landmark, higher ones an admin stamped by hand.
-        var records = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind).OrderBy(r => r.Index).ToList();
+        // Every record of this body is replayed: index 0 is the rolled landmark, higher ones an admin stamped by hand. #3980: the
+        // given places' records (GivenLandmarkIndexBase on) are the structures stage's first stamper's (GameServerGivenPlaces.cs).
+        var records = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind && !IsGivenLandmarkIndex(r.Index))
+            .OrderBy(r => r.Index).ToList();
         if (records.Count > 0)
         {
             foreach (var rec in records)

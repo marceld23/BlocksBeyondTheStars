@@ -58,6 +58,7 @@ namespace BlocksBeyondTheStars.Client
             ["text_monuments"] = "ruins", // #3310: KuBa-W's stone tablets
             ["sounder_world"] = "ruins", // #3358: Soaniri's village, ruin city and Choir Tower
             ["civilizations"] = "ruins", // #3639: a lost civilization's sites on its home body
+            ["given_places"] = "ruins", // #3980: structures at given seats (a body's place list)
             ["guardian_giants"] = "ruins", // #3676: the fallen guardian giants
             ["sps_towers"] = "ruins", // #3893: the ruins of the SPS guide towers
             ["factories"] = "ruins",

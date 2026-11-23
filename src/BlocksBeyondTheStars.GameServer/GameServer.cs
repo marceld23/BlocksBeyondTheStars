@@ -847,6 +847,7 @@ public sealed partial class GameServer
                     bool Allowed(string kind) => StructureKindAllowed(kind, planet, restricted);
                     bool Stamps(string kind) => StructureType(kind).Enabled && Allowed(kind);
                     RegisterBootFootprints(); // #3514: the pads and the planned crash site, before any stamper
+                    BootDetail("given places", StampGivenPlaces); // #3980: structures at given seats — before every rolled kind, which keeps clear of them
 
                     // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every
                     // world of the type whatever the structure options say (self-skips on every other type).

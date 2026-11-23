@@ -94,8 +94,8 @@ public sealed partial class GameServer
     /// source cannot build it (#3518).</summary>
     internal LandmarkInstance? ForceLandmark(StructureTemplate template, Vector3i at)
     {
-        int index = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind)
-            .Select(r => r.Index + 1).DefaultIfEmpty(0).Max();
+        int index = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind && !IsGivenLandmarkIndex(r.Index))
+            .Select(r => r.Index + 1).DefaultIfEmpty(0).Max(); // #3980: the given places' indices are theirs
         string lane = FormattableString.Invariant($"landmark:admin:{_world.LocationId}:{index}:{at.X}:{at.Z}");
         var plan = new LandmarkPlan
         {
