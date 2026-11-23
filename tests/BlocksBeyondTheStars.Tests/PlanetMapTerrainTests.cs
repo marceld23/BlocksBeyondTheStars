@@ -115,6 +115,19 @@ public sealed class PlanetMapTerrainTests
     }
 
     [Fact]
+    public void EveryShippedMap_DecodesWithTheGamesCodec()
+    {
+        // The tool (Python) writes the files, the game (C#) reads them: every committed map must pass the full check.
+        string dir = Path.Combine(TestPaths.DataDir(), PlanetMapCodec.DataFolder);
+        foreach (string file in Directory.Exists(dir) ? Directory.GetFiles(dir, "*" + PlanetMapCodec.Extension) : Array.Empty<string>())
+        {
+            var map = PlanetMapCodec.Decode(File.ReadAllBytes(file));
+            Assert.True(map.Width == 2 * map.Height, $"{Path.GetFileName(file)} is {map.Width} x {map.Height}, not 2:1");
+            Assert.True(GameContent.IsPlanetMapKey(Path.GetFileNameWithoutExtension(file)), $"{Path.GetFileName(file)} is no map key");
+        }
+    }
+
+    [Fact]
     public void TheContent_ReadsAMap_OnFirstUse_AndKeepsIt()
     {
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());

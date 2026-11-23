@@ -16,6 +16,7 @@
 *.psd   binary
 *.mp3   binary
 *.wav   binary
+*.bbmap binary
 *.ogg   binary
 *.ttf   binary
 *.otf   binary
