@@ -524,6 +524,69 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#3979: whether a data file stays out of the eager download (the manifest, both fallback lists) and is
+        /// fetched by <see cref="FetchOnDemand"/> when needed — the planet maps under <c>maps/</c>. The rule itself is
+        /// <see cref="PlanetMapDemand.IsOnDemandDataFile"/>; this forwards it for the editor's build script.</summary>
+        public static bool IsOnDemandDataFile(string relativePath) => PlanetMapDemand.IsOnDemandDataFile(relativePath);
+
+        /// <summary>#3979: fetches one on-demand data file (a planet map) over HTTP from the remote StreamingAssets, keeps
+        /// a copy in the data cache (so this build fetches it once per browser — a new build clears the cache) and hands
+        /// the bytes on. Remote StreamingAssets only: a native install reads the file from disk. Exactly one of the two
+        /// callbacks runs, on the main thread.</summary>
+        public static void FetchOnDemand(string relativePath, Action<byte[]> onBytes, Action<string> onFailure)
+        {
+            string file = NormalizeRelativePath(relativePath);
+            if (string.IsNullOrEmpty(file) || !UsesRemoteStreamingAssets)
+            {
+                onFailure?.Invoke($"'{relativePath}' is no remote data file.");
+                return;
+            }
+
+            string url = JoinUrl(Application.streamingAssetsPath, DataFolder + "/" + file);
+            var request = UnityWebRequest.Get(url);
+            request.SendWebRequest().completed += _ =>
+            {
+                try
+                {
+                    if (!RequestSucceeded(request))
+                    {
+                        onFailure?.Invoke($"Could not fetch '{url}': {RequestError(request)}");
+                        return;
+                    }
+
+                    byte[] bytes = request.downloadHandler.data;
+                    KeepOnDemandCopy(file, bytes);
+                    onBytes?.Invoke(bytes);
+                }
+                finally
+                {
+                    request.Dispose();
+                }
+            };
+        }
+
+        /// <summary>Writes a fetched on-demand file into the data cache (best effort: a failed write only costs a fetch
+        /// next session).</summary>
+        private static void KeepOnDemandCopy(string file, byte[] bytes)
+        {
+            if (!_ready || string.IsNullOrEmpty(_dataDir))
+            {
+                return;
+            }
+
+            try
+            {
+                string path = Path.Combine(_dataDir, file.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(path) ?? _dataDir);
+                File.WriteAllBytes(path, bytes);
+                WebGlStorage.Sync();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Could not keep '{file}' in the data cache: {ex.Message}");
+            }
+        }
+
         private static IEnumerator DownloadRemoteData(string cacheDir, Action<Exception> onFailure)
         {
             string[] files = null;

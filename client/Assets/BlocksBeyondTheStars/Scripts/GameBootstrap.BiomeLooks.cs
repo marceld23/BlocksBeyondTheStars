@@ -19,21 +19,49 @@ namespace BlocksBeyondTheStars.Client
         /// Main thread only — a mesh job captures its delegate at dispatch.</summary>
         private BiomeLookResolver _biomeLooks;
 
+        /// <summary>#3979: the world info whose resolver waits for the world's planet map (browser), and that wait.</summary>
+        private FarTerrainWorldInfo _biomeLookInfoAwaitingMap;
+        private readonly PlanetMapWait _biomeLookMapWait = new PlanetMapWait();
+
         /// <summary>The atlas <c>BiomeLookVersion</c> the loaded chunks were meshed with.</summary>
         private int _biomeLookVersionSeen;
 
         /// <summary>Called once from <see cref="WireChunkStreaming"/>.</summary>
         private void WireBiomeLooks()
         {
-            Network.JoinAccepted += _ => _biomeLooks = null; // another world: its own info follows
-            Network.WorldResetReceived += _ => _biomeLooks = null;
+            Network.JoinAccepted += _ => ForgetBiomeLooks(); // another world: its own info follows
+            Network.WorldResetReceived += _ => ForgetBiomeLooks();
             Network.FarTerrainWorldInfoReceived += OnBiomeLookWorldInfo;
+        }
+
+        private void ForgetBiomeLooks()
+        {
+            _biomeLooks = null;
+            _biomeLookInfoAwaitingMap = null;
+            _biomeLookMapWait.Clear();
+        }
+
+        /// <summary>#3979: per frame — builds the resolver once the planet map it waited for has arrived.</summary>
+        private void PumpBiomeLookMap()
+        {
+            if (_biomeLookInfoAwaitingMap != null && _biomeLookMapWait.ShouldRetry(PlanetMapFetcher.For(Content)))
+            {
+                OnBiomeLookWorldInfo(_biomeLookInfoAwaitingMap);
+            }
         }
 
         private void OnBiomeLookWorldInfo(FarTerrainWorldInfo info)
         {
             if (Content == null)
             {
+                return;
+            }
+
+            _biomeLookInfoAwaitingMap = null;
+            if (!_biomeLookMapWait.Ready(PlanetMapFetcher.For(Content), info.PlanetType))
+            {
+                _biomeLooks = null;
+                _biomeLookInfoAwaitingMap = info; // the world's planet map is still on its way
                 return;
             }
 

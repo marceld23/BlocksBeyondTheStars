@@ -232,7 +232,7 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < _pending.Count; i++)
                 {
                     var e = _pending[i];
-                    if (e.Task == null && PlanetMapSchedule.MayStart(e.Priority, running, runningInteractive))
+                    if (e.Task == null && MapReady(e) && PlanetMapSchedule.MayStart(e.Priority, running, runningInteractive))
                     {
                         var job = e.Job;
                         e.Task = System.Threading.Tasks.Task.Run(() => job.Run());
@@ -249,9 +249,10 @@ namespace BlocksBeyondTheStars.Client
 
             // Browser: bake rows of the most urgent map until the frame's budget is spent.
             var sw = Stopwatch.StartNew();
-            while (_pending.Count > 0 && sw.Elapsed.TotalMilliseconds < SliceBudgetMs)
+            int next;
+            while ((next = FirstReady()) >= 0 && sw.Elapsed.TotalMilliseconds < SliceBudgetMs)
             {
-                var e = _pending[0];
+                var e = _pending[next];
                 bool done;
                 try
                 {
@@ -259,17 +260,36 @@ namespace BlocksBeyondTheStars.Client
                 }
                 catch (Exception ex)
                 {
-                    _pending.RemoveAt(0);
+                    _pending.RemoveAt(next);
                     Fail(e, ex);
                     continue;
                 }
 
                 if (done)
                 {
-                    _pending.RemoveAt(0);
+                    _pending.RemoveAt(next);
                     Finish(e);
                 }
             }
+        }
+
+        /// <summary>#3979: whether a bake may start — a map body's bake waits until its planet map is here (the browser
+        /// fetches it on demand; until then the caller keeps the flat colour). Always true where maps come from disk.</summary>
+        private static bool MapReady(Entry e)
+            => PlanetMapFetcher.For(e.Request.Content)?.IsReady(e.Request.PlanetTypeKey) ?? true;
+
+        /// <summary>The most urgent pending bake whose map is here (the list is sorted), or -1.</summary>
+        private static int FirstReady()
+        {
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                if (MapReady(_pending[i]))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         private static void Finish(Entry e)

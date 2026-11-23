@@ -333,6 +333,11 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 string relative = file.Substring(dataRoot.Length + 1)
                     .Replace(Path.DirectorySeparatorChar, '/')
                     .Replace(Path.AltDirectorySeparatorChar, '/');
+                if (StreamingAssetsCache.IsOnDemandDataFile(relative))
+                {
+                    continue; // #3979: the planet maps ship in StreamingAssets but are fetched when a world needs one
+                }
+
                 files.Add(relative);
             }
 

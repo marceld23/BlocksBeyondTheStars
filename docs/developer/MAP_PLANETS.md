@@ -1,7 +1,8 @@
 # Map planets — terrain from a planet map
 
-> Status: **Implemented** (#3977, #3978, 2026-11). The engine and the map format are in place; `data/maps/earth.bbmap`,
-> `moon.bbmap` and `mars.bbmap` are built. Which planet types use a map is data (`terrainMap` in `data/planets.json`).
+> Status: **Implemented** (#3977, #3978, #3979, 2026-11). The engine and the map format are in place;
+> `data/maps/earth.bbmap`, `moon.bbmap`, `mars.bbmap`, `venus.bbmap` and `mercury.bbmap` are built, and the browser
+> fetches them on demand (§6). Which planet types use a map is data (`terrainMap` in `data/planets.json`).
 
 A procedural world is rolled from its seed. A **map world** takes its ground and its biomes from a **planet map**: a grid
 of real elevation and biome classes, sampled onto the torus. Everything else — rivers, caves, ores, small landforms,
@@ -126,6 +127,7 @@ columns wrap.
 cd tools/planet_maps
 uv run planet_maps.py earth --probe   # data/maps/earth.bbmap + .cache/earth_preview.png
 uv run planet_maps.py moon mars       # data/maps/moon.bbmap, mars.bbmap (1024 × 512)
+uv run planet_maps.py venus mercury   # data/maps/venus.bbmap, mercury.bbmap (1024 × 512)
 ```
 
 Downloads land in the git-ignored `tools/planet_maps/.cache/`; only the derived `.bbmap` files are committed. Sources,
@@ -141,4 +143,48 @@ licences and attributions: [tools/planet_maps/README.md](../../tools/planet_maps
 - **Moon, Mars** (1024 × 512): elevation from LRO LOLA (LDEM_4) and MGS MOLA (MEGDR, 4 pixels per degree). No climate:
   class 0 above 80° latitude, else seven equal-area elevation bands (class 1 the lowest ground … 7 the highest) — indices
   into the body's own biome list.
-- **Venus, Mercury**: not built yet (#3979).
+- **Venus, Mercury** (1024 × 512, #3979): elevation from the USGS Astrogeology global mosaics — Magellan Global
+  Topography 4641 m and the MESSENGER Global DEM 665 m. Both are large uncompressed GeoTIFFs, so the tool reads only every
+  4th (Venus) / 9th (Mercury) row over HTTP range requests (`remote_tiff.py`) and area-averages the columns in full.
+  Magellan's altimetry gaps (about 8 % of the samples) are filled smoothly from the cells around them. Built ranges:
+  **Venus −2,750 m … 10,243 m** (from the 6,051.8 km mean radius; Maxwell Montes' cell 9,735 m, Ishtar Terra and
+  Aphrodite Terra plain to see) and **Mercury −5,338 m … 4,169 m** (from the DEM's 2,439.4 km sphere; the Caloris basin a
+  smooth plain inside rough rim country). Classes as for the Moon and Mars. The tool also writes `<key>_relief.png`, the
+  elevation alone under a hill shade, to check such landmarks.
+
+## 6. Maps in the browser (#3979)
+
+The desktop reads a map from `data/maps` the first time a generator asks (§2, *Loading*). The browser must not: everything
+in `StreamingAssets/data` that the manifest lists is downloaded before the first menu frame, and the maps are megabytes
+nobody needs before the Sol system appears. So:
+
+- **Out of the eager download.** `data/maps/` is still synced into `StreamingAssets/data/maps/` (the sync scripts copy all
+  of `data/`), but `BuildScript.EnsureStreamingAssetsManifest` leaves every file for which
+  `PlanetMapDemand.IsOnDemandDataFile` holds (everything under `maps/`) out of `manifest.json`, the generated fallback
+  list and the fallback-staleness warning; the built-in `StreamingAssetsCache.FallbackManifest` never lists them either
+  (`StoryUiFixesClientTests` checks it against `data/` minus those files).
+- **The decision** (`PlanetMapDemand`, Client.Core, headless-tested in `PlanetMapDemandTests`): which map a planet type
+  needs (`MapKeyOf`), whether it is here (registered, or readable from the content's source — a copy kept earlier), and
+  starting **one** fetch per missing map (`IsReady`, `Need`). A damaged or failed fetch is tried again on the next ask, at
+  most `MaxAttempts` (3) times per session. Built without a fetch (desktop, the Editor), every map counts as ready and
+  nothing changes.
+- **The fetch** (`PlanetMapFetcher` + `StreamingAssetsCache.FetchOnDemand`, client asmdef): `UnityWebRequest` of
+  `StreamingAssets/data/maps/<key>.bbmap` — only where StreamingAssets is remote (HTTP), so a desktop build keeps the file
+  path. The bytes are kept in the browser's data cache (a new build clears it with the rest) and handed to
+  `GameContent.RegisterPlanetMap`.
+- **Who waits.** Every place a map planet type reaches a `WorldGenerator` on the client asks first:
+  - the **in-process browser server** (`BrowserLocalServer`) — it builds worlds inside its tick (a join, a landing, a warp),
+    so it does not tick while any map of a body in its galaxy is still on its way (`PlanetMapTickGate`): after its start,
+    and again when the galaxy grows the Sol system. A map that failed every attempt no longer holds it — a world that needs
+    it then fails loudly instead of freezing the game;
+  - the **far terrain** (`FarTerrainView`, `FarWorldGenerator` via `FarTerrainSource`) and the **biome looks**
+    (`GameBootstrap.BiomeLooks`, `BiomeLookResolver`) — they build their generator once the map arrived
+    (`PlanetMapWait`);
+  - the **planet bakes** (`WorldMinimap`, `PlanetMapBakeJob`: the orbit globe, the bodies in the sky, the landing map) — a
+    map body's bake stays parked and its caller keeps the flat colour until the map is here.
+- **Asking early.** When the star map arrives (`GameBootstrap.Knowledge`), the maps of every map body on it start loading,
+  so they are usually here before the player lands. Hosted multiplayer in the browser fetches the same way (the world itself
+  is the remote server's; the client needs the map for the far terrain, the biome looks and the bakes).
+- **Not covered:** a browser save whose *start* world (`WorldMetadata.DefaultPlanetType`, generated inside
+  `GameServer.Start`) is a map planet — no start body is one today; such a start would need the map before
+  `BrowserLocalServer.StartServer`.
