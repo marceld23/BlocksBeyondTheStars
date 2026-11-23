@@ -44,6 +44,8 @@ refreshed 2026-10-23.
 - [SEAMLESS_TRANSITIONS.md](SEAMLESS_TRANSITIONS.md) — the cinematic, cut-free landing, lift-off and docking: the
   transition cover (clouds, glare, hangar doors) as the seam, the arrival gate, the touchdown and lift-off cinematics.
 - [WORLD_WRAP.md](WORLD_WRAP.md) — torus world topology (both axes wrap; periodic noise).
+- [MAP_PLANETS.md](MAP_PLANETS.md) — the terrain base forms (rolled, cratered, map) and terrain from a planet map: the
+  `.bbmap` format, the integer sampling, the height curve, the seam blend and the `tools/planet_maps` builder.
 - [FLUID_ROUTING.md](FLUID_ROUTING.md) — rivers, waterfalls and lava: one fluid-agnostic routing
   network (downhill-into-sinks, animated surfaces, lavafalls + embers).
 
