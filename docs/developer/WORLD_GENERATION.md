@@ -190,6 +190,12 @@ from the mixed hash, §43) so two same-type worlds still look distinct — see
 
 Surface height is computed per column in
 [`WorldGenerator.SurfaceHeight`](../../src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs).
+
+**The base form** (#3977): a world's raw height, its sea level and fluid, and its biome pick are the three answers of
+its *terrain base form*, chosen once per world — **rolled** (everything below), **cratered** (§4 e) or **map** (terrain
+from a planet map, `terrainMap`, #3978). See [MAP_PLANETS.md](MAP_PLANETS.md). Landmark overlays, valleys, site grades
+and the caches sit on top of whichever form the world has.
+
 Variety stacks from five mechanisms:
 
 **a) Eight terrain archetypes** (`ArchetypeOffset`, explicit landform shapes since #576):
@@ -276,6 +282,9 @@ Two steps, both in [`WorldGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGen
    percentile) maps each column to a biome index — so a planet's biome list reads bottom-to-top, entry 0 in the lowlands,
    the last on the peaks. Hot zones (Titas) and the sand sea are region fields cut at a measured quantile on top.
 
+> A **map world** (#3978, [MAP_PLANETS.md](MAP_PLANETS.md)) skips both steps: it keeps its whole biome list in order and
+> takes each column's biome from the map's class.
+>
 > **No climate model.** There is no moisture field and no latitude (the torus has no poles): the biome list is a band
 > sequence of one field plus altitude, so entry *i* only borders *i − 1* and *i + 1*. The large scale (360, ~7.5× the
 > default `TerrainScale` of 48) makes each biome a big contiguous region so per-biome systems (weather) cover a

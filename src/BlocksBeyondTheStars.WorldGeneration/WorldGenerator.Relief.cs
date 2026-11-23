@@ -122,23 +122,32 @@ public sealed partial class WorldGenerator
             return slot.Raw;
         }
 
-        long seed = w.Seed;
-        double n = FbmT(seed, worldX, worldZ, w.Scale, octaves: 4);
-        double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain
+        return w.BaseForm.RawHeight(this, planet, w, worldX, worldZ); // #3977: rolled, cratered (or from a map)
+    }
 
-        // Airless moons + landable asteroids (item 33): mostly flat regolith (a gentle undulation only — no
-        // hills/mountains/canyons) pocked with round impact craters carved on top. How rolling that regolith
-        // is, and how dense/deep/sharp the craters are, is this BODY's own character (#518). Crater CHAINS
-        // (#699) — aligned secondary-impact strings — carve on top of the primary field.
-        if (w.Cratered)
+    /// <summary>The rolled base form's raw height (#3977, <see cref="RolledBaseForm"/>): the archetype blend or the
+    /// world's styles over the base swell, scaled by the world's drama, on the baseline (continents, escarpments, the
+    /// baseline regimes, salt polygons, basalt fields) — eased into broad dunes inside a sand sea.</summary>
+    private int RolledRawHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+    {
+        long seed = w.Seed;
+        double h = BaseSwell(w, worldX, worldZ); // [-1, 1] base rolling terrain
+        double drama = DramaFor(seed); // W-R1: per-world relief multiplier (gentle ↔ dramatic)
+        double baseline = RolledBaseline(w, seed, worldX, worldZ);
+        double relief = RolledRelief(planet, w, seed, h, worldX, worldZ);
+
+        // Generation 9 (#2000): inside the sand-sea region the land's relief eases into broad dunes.
+        if (w.SandSea)
         {
-            double flat = h * CraterProfileFor(seed).Flatness * planet.Amplitude;
-            return planet.BaseHeight + (int)System.Math.Round(
-                flat + CraterCarve(seed, worldX, worldZ, planet) + CraterChainCarve(seed, worldX, worldZ));
+            return planet.BaseHeight + (int)System.Math.Round(SandSeaBlend(w, seed, worldX, worldZ, baseline + relief * drama));
         }
 
-        double drama = DramaFor(seed); // W-R1: per-world relief multiplier (gentle ↔ dramatic)
+        return planet.BaseHeight + (int)System.Math.Round(baseline + relief * drama);
+    }
 
+    /// <summary>The rolled form's baseline at a column: the offsets everything else rides on (blocks).</summary>
+    private double RolledBaseline(WonderProfile w, long seed, int worldX, int worldZ)
+    {
         // Continents (#704, new worlds only): a bimodal platform/basin offset UNDER everything else, so
         // styles, archetypes and landmarks simply ride on the continent or drown in the ocean basin.
         double baseline = w.Continent.Active ? ContinentOffset(w.Continent, seed, worldX, worldZ) : 0.0;
@@ -178,6 +187,13 @@ public sealed partial class WorldGenerator
             baseline += hexRise;
         }
 
+        return baseline;
+    }
+
+    /// <summary>The rolled form's relief at a column (blocks, before the drama): the world's styles or the archetype
+    /// blend over the base swell <paramref name="h"/>, damped or boosted by the biome under it.</summary>
+    private double RolledRelief(PlanetType planet, WonderProfile w, long seed, double h, int worldX, int worldZ)
+    {
         // A planet may dictate an overall terrain SHAPE (item 21 V2) so worlds read structurally different —
         // mesas, dunes, spires, etc. — instead of every world using the same mixed blend. Since #703 a broad
         // fade field hands 20–40 % of most styled worlds to the archetype blend, so a dunes world has gravel
@@ -223,13 +239,7 @@ public sealed partial class WorldGenerator
             relief *= ReliefMulAt(muls, seed, worldX, worldZ);
         }
 
-        // Generation 9 (#2000): inside the sand-sea region the land's relief eases into broad dunes.
-        if (w.SandSea)
-        {
-            return planet.BaseHeight + (int)System.Math.Round(SandSeaBlend(w, seed, worldX, worldZ, baseline + relief * drama));
-        }
-
-        return planet.BaseHeight + (int)System.Math.Round(baseline + relief * drama);
+        return relief;
     }
 
     /// <summary>Styles that hand a rolled 20–40 % of their surface to the archetype blend (#703). The

@@ -126,6 +126,10 @@ tools/devblog/i18n/
 # Wix i18n audit/import — website content dumps and translations (never committed)
 tools/wix-i18n/out/
 
+# Planet maps (#3978): the downloaded source data and the previews — only data/maps/*.bbmap is committed
+tools/planet_maps/.cache/
+tools/planet_maps/.venv/
+
 # Build/capture run logs (client)
 client/build-run.log
 client/capture-run.log

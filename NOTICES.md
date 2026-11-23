@@ -266,6 +266,19 @@ assets: they are drawn in code (`src/BlocksBeyondTheStars.Client.Core/Creatures/
   --output-file=NotoSansSymbols2-Subset.ttf --name-IDs='*' --name-languages='*' --no-hinting --layout-features=''
   --notdef-outline` — add a code point there to give a new weather glyph a shape.
 
+**Planet maps** (`data/maps/*.bbmap`, #3978) — derived by `tools/planet_maps` (resampled and classified); the raw data
+is never bundled. Sources, all public domain:
+
+- `data/maps/earth.bbmap` (elevation) — ETOPO1 1 Arc-Minute Global Relief Model, ice surface — NOAA (U.S. Government
+  work) — public domain — Amante, C. and B.W. Eakins, 2009, NOAA Technical Memorandum NESDIS NGDC-24,
+  doi:10.7289/V5C8276M — read through NOAA CoastWatch ERDDAP (`etopo180`).
+- `data/maps/earth.bbmap` (biome classes) — Natural Earth I, land cover (`NE1_LR_LC`) — public domain — made with
+  Natural Earth, https://www.naturalearthdata.com.
+- `data/maps/moon.bbmap` — LRO LOLA Gridded Data Record `LDEM_4` — NASA Planetary Data System, Geosciences Node —
+  public domain — https://pds-geosciences.wustl.edu.
+- `data/maps/mars.bbmap` — MGS MOLA Mission Experiment Gridded Data Record `MEGT90N000CB` — NASA Planetary Data System,
+  Geosciences Node — public domain — https://pds-geosciences.wustl.edu.
+
 **No third-party models** are bundled — the rest of the visuals remain runtime-generated
 (vertex/atlas block colours, code-built avatars + logo, procedural UI panels). See
 `docs/developer/CLIENT_SHELL_AND_ASSETS.md` for the placeholder strategy and asset folder layout.

@@ -179,6 +179,13 @@ public sealed class PlanetGlobeTests
     }
 
     [Fact]
+    public void Caps_AreOff_ForAMapWorld_WhosePolesAreReal()
+    {
+        Assert.True(PlanetGlobeCaps.AppliesTo(new PlanetMapData()));
+        Assert.False(PlanetGlobeCaps.AppliesTo(new PlanetMapData { RealPoles = true })); // #3978
+    }
+
+    [Fact]
     public void Caps_PaintThePolarRowsInTheGroundColour_AndLeaveTheRestAndTheSourceAlone()
     {
         const int w = 96, h = 48, ground = 0x336699;

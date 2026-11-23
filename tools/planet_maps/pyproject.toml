@@ -1,0 +1,13 @@
+[project]
+name = "blocks-beyond-the-stars-planet-maps"
+version = "0.1.0"
+description = "Builds the planet maps (data/maps/*.bbmap) of the map worlds from public-domain elevation and land-cover data."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pillow>=10.0",
+    "scipy>=1.11",
+]
+
+[tool.uv]
+package = false
