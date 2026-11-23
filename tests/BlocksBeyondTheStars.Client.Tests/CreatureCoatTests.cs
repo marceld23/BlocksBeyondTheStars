@@ -79,7 +79,7 @@ public sealed class CreatureCoatTests
         const int N = 12000;
         for (int s = 1; s <= N; s++)
         {
-            var p = CreatureCoat.PatternFor(Species(s, crest: true), null, _ => true);
+            var p = CreatureCoat.RolledPattern(Species(s, crest: true), null, _ => true);
             seen[p] = seen.TryGetValue(p, out int n) ? n + 1 : 1;
         }
 
@@ -94,8 +94,8 @@ public sealed class CreatureCoatTests
         int changed = 0;
         for (int s = 1; s <= 3000; s++)
         {
-            var all = CreatureCoat.PatternFor(Species(s), null, _ => true);
-            var some = CreatureCoat.PatternFor(Species(s), null, OnlyGiraffe);
+            var all = CreatureCoat.RolledPattern(Species(s), null, _ => true);
+            var some = CreatureCoat.RolledPattern(Species(s), null, OnlyGiraffe);
             Assert.True(!CreatureCoat.IsTilePattern(some) || some == CoatPattern.Giraffe, some.ToString());
             if (all != some)
             {
@@ -114,7 +114,7 @@ public sealed class CreatureCoatTests
         int inGroup = 0, patterned = 0;
         for (int s = 1; s <= 4000; s++)
         {
-            var p = CreatureCoat.PatternFor(Species(s), spots, _ => true);
+            var p = CreatureCoat.RolledPattern(Species(s), spots, _ => true);
             if (p == CoatPattern.None)
             {
                 continue;
@@ -158,7 +158,7 @@ public sealed class CreatureCoatTests
     {
         for (int s = 1; s < 100; s++)
         {
-            Assert.Equal(CoatPattern.None, CreatureCoat.PatternFor(Species(s, id: "au_leni")));
+            Assert.Equal(CoatPattern.None, CreatureLookResolver.Resolve(Species(s, id: "au_leni"), null, _ => true, _ => true).Pattern); // #3972: the resolver's rule
         }
     }
 

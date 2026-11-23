@@ -979,6 +979,7 @@ public sealed partial class GameServer
             HullMax = sp.MaxHealth,
             Position = pos,
             DamagePerSecond = sp.AttackDamage,
+            AnimalSeed = CoatVariants.AnimalSeedOf("wild:" + id), // #3972: picks a coat variant, like the size below
             SizeScale = Shared.Sounders.SoundersFauna.SizeScaleFor(sp, FaunaSizeScale(id)), // this individual's own size (cosmetic; #3359: the giants of Soaniri vary less)
             Loot = { new ItemAmount(sp.DropItem, sp.DropCount) },
         });
@@ -3741,8 +3742,7 @@ public sealed partial class GameServer
         bool perchedFalling = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched && e.Vert.Airborne;
         var (airborne, perched) = CreatureAirState(e, motion);
         var vel = e.TickVel.Velocity; // #2665: the client's interpolation tangent
-        var look = ActiveFaunaLook(); // #2868: cached per world — a species that carries no home look wears this one
-        return new NetCreature
+        var n = new NetCreature
         {
             Motion = CreatureMotion.Key(motion),
             Airborne = airborne,
@@ -3756,8 +3756,7 @@ public sealed partial class GameServer
 
             Id = e.Id,
             SpeciesId = e.SpeciesId,
-            NameKey = sp?.NameKey ?? "creature.generic.name",
-            Name = sp?.Name ?? string.Empty,
+            AnimalSeed = e.AnimalSeed, // #3972: this animal's own seed
             Hostile = !e.IsCompanion && (e.Hostile || e.ProvokeTimer > 0), // provoked creatures read as hostile (red tint); companions never
             Asleep = asleep || SoundelingCurled(e), // #3366: a Soundeling hiding in the dark by day is curled up like a sleeper
             CarriesLight = e.Soundeling is { Item.Length: > 0 }, // #3366: the light a Soundeling carries to a dark spot
@@ -3773,48 +3772,15 @@ public sealed partial class GameServer
             X = e.Position.X,
             Y = e.Position.Y,
             Z = e.Position.Z,
-            Habitat = (sp?.Habitat ?? CreatureHabitat.Land).ToString(),
-            Activity = (sp?.Activity ?? CreatureActivity.Diurnal).ToString(),
-            Temperament = (sp?.Temperament ?? CreatureTemperament.Passive).ToString(),
-            Size = (sp?.Size ?? 1f) * e.SizeScale, // species size × this individual's own variance (cosmetic)
-            SpeciesSize = sp?.Size ?? 1f, // #2565: the size the bite reach (CreatureReach) is measured by
-            Legs = sp?.Legs ?? 4,
-            HasWings = sp?.HasWings ?? false,
-            HasTail = sp?.HasTail ?? false,
-            BodySegments = sp?.BodySegments ?? 1,
-            ColorRgb = sp?.ColorRgb ?? 0xFFFFFF,
-            Glows = sp?.Glows ?? false,
-            Eyes = sp?.Eyes ?? 2,
-            EyeRgb = sp?.EyeRgb ?? 0, // #2069: the iris colour, 0 = the classic eye
-            Horns = sp?.Horns ?? 0,
-            HasCrest = sp?.HasCrest ?? false,
-            BellyRgb = sp?.BellyRgb ?? (sp?.ColorRgb ?? 0xFFFFFF),
-            Tentacles = sp?.Tentacles ?? 0,
-            EyeStalks = sp?.EyeStalks ?? false,
-            HasGasSac = sp?.HasGasSac ?? false,
-            // Through the helper, not the raw flag: a companion tamed before fins existed carries a snapshot
-            // with the flag false, and every input the derivation needs is in that snapshot.
-            HasFins = CreatureMotion.HasFins(sp),
-            BodyPlan = (sp?.BodyPlan ?? CreatureBodyPlan.Standard).ToString(),
-            Hide = sp?.Hide ?? string.Empty, // #1763: an authored species' fixed hide tile
-            LookPlanet = sp is { LookPlanet.Length: > 0 } ? sp.LookPlanet : look.Planet, // #2868: a pet's, a clone's home world
-            LookSeed = sp is { LookSeed: not 0 } ? sp.LookSeed : look.Seed,
-            NeckLength = sp?.NeckLength ?? 0,
-            HasTrunk = sp?.HasTrunk ?? false,
-            HeadShape = (sp?.HeadShape ?? CreatureHeadShape.Box).ToString(), // #2009
             Lurking = e.Lurking,                                              // #2009: an ambusher sitting in wait
             Begging = e.BegPhase is BegPhase.Beg or BegPhase.Rush or BegPhase.Squabble, // #2018: the pose + the fast calls
-            Arms = sp?.Arms ?? 0,                                // #2081: a biped's two arms
-            HeadRatio = sp is { HeadRatio: > 0f } ? sp.HeadRatio : 1f, // #2081: its big head (a pre-wave snapshot carries 0)
-            EarStyle = (sp?.EarStyle ?? CreatureEarStyle.None).ToString(), // #3325: the Schuppenhund's ears, muzzle, claws and teeth
-            SnoutLength = sp?.SnoutLength ?? 0f,
-            HasClaws = sp?.HasClaws ?? false,
-            HasTeeth = sp?.HasTeeth ?? false,
-            Heads = System.Math.Max(1, sp?.Heads ?? 1),         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
-            WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1),
-            FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1),
-            VoiceSeed = sp?.VoiceSeed ?? 0, // 0 → client falls back to hashing the trait tuple (#907)
         };
+
+        // #3971: the species traits through the one species→wire mapping; ActiveFaunaLook is cached per world (#2868) — a
+        // species that carries no home look wears this one.
+        CreatureWireMapping.WriteSpecies(n, sp, ActiveFaunaLook(), e.AnimalSeed);
+        n.Size = n.SpeciesSize * e.SizeScale; // species size × this individual's own variance (cosmetic)
+        return n;
     }
 
     // --- Eating / consuming (food heals, poison harms) ---

@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
+
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
 /// <summary>Where a creature lives — governs spawning, movement and survival.</summary>
@@ -359,8 +361,13 @@ public sealed class CreatureSpecies
     /// then they calm down. See <see cref="CreatureBehaviour.DefendsKin"/>.</summary>
     public bool PackDefender { get; set; }
 
+    /// <summary>#3972: the fixed coats of the species (from an authored record's <c>coats</c>); each animal wears the one its
+    /// <c>AnimalSeed</c> picks (<see cref="CoatVariants.Pick"/>), sent as its colours, hide and explicit pattern. Empty on
+    /// every rolled species and every record so far — those keep the classic look.</summary>
+    public List<CoatVariant> Coats { get; set; } = new();
+
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
-    public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
+    public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;
 
     /// <summary>The two giants that live hidden in a medium and come for what shakes it (#2001 the sandworm in the sand,
     /// #2111 the leviathan in the sea): the same path, the same hearing, the same strike.</summary>
@@ -368,4 +375,27 @@ public sealed class CreatureSpecies
 
     /// <summary>Only Aggressive/PackHunter creatures roam and deal proximity damage.</summary>
     public bool Hostile => Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+
+    /// <summary>
+    /// The ONE copy of a species (#3971): a companion snapshot, a sampled species in the register, a cross's plan, a story
+    /// companion's home look — every path that needs an independent descriptor calls this. Every property is copied (a
+    /// memberwise copy, so a trait added later can never be forgotten here), every collection deeply, so the copy shares
+    /// nothing mutable with the live roster.
+    /// <para>The copy also lifts a snapshot saved before a trait existed, exactly as the hand-written copy always did:
+    /// <see cref="HasFins"/> is derived (<see cref="CreatureMotion.HasFins"/>), <see cref="Heads"/>/<see cref="WingPairs"/>/
+    /// <see cref="FinPairs"/> of 0 read as 1 and a <see cref="HeadRatio"/> of 0 as the classic 1. On a current species those
+    /// lifts change nothing.</para>
+    /// </summary>
+    public CreatureSpecies Clone()
+    {
+        var copy = (CreatureSpecies)MemberwiseClone();
+        copy.BiomeSurfaces = (string[])BiomeSurfaces.Clone();
+        copy.Coats = Coats?.ConvertAll(v => v.Clone()) ?? new List<CoatVariant>(); // #3972
+        copy.HasFins = CreatureMotion.HasFins(this);
+        copy.Heads = System.Math.Max(1, Heads);
+        copy.WingPairs = System.Math.Max(1, WingPairs);
+        copy.FinPairs = System.Math.Max(1, FinPairs);
+        copy.HeadRatio = HeadRatio > 0f ? HeadRatio : 1f;
+        return copy;
+    }
 }

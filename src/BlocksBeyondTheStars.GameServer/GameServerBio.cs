@@ -718,7 +718,7 @@ public sealed partial class GameServer
             OriginBodyId = originBodyId,
             OriginBodyName = originBodyId,
             Context = BioContexts.ForCreature(sp, _world.Planet),
-            Creature = CloneSpecies(sp),
+            Creature = sp.Clone(),
         });
         return seed;
     }

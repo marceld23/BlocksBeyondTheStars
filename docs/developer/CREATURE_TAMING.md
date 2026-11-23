@@ -42,6 +42,21 @@ seeded per world) and a species' roster slot (`sp0`) differs per world. So a com
 roster. Stored as `PlayerState.TamedCreatures : List<TamedCreature>` in the player JSON blob (no DB schema
 change — like `LandedBodies`/`KnownSystems`).
 
+**One copy, one mapping per hop (#3971).** A trait travels record → species → copy → wire, and each hop is one place:
+`AuthoredSpeciesMapping.ToSpecies` (WorldGeneration) builds a species from a `data/creatures.json` record;
+`CreatureSpecies.Clone()` (Shared) is the only copy — the companion snapshot, a sampled register species, a cross's plan
+and a story companion's look all use it (a memberwise copy plus deep collections, with the lifts of a pre-wave snapshot:
+derived fins, at least one head / wing pair / fin pair, a classic head ratio); `CreatureWireMapping` (GameServer) writes
+the species half of `NetCreature`, `NetFaunaSpecies` and `NetCompanion`, while the per-animal half (position, health,
+motion, owner, the giant's phase) stays in `ToNetCreatureCore` / `WithGiantWire`. `CreatureSpeciesMappingTests` fails
+with the property's name when a new `AuthoredCreature` property is neither read nor listed in
+`AuthoredSpeciesMapping.RecordOnly`, when `Clone` misses a property or shares a collection, and when a new
+`CreatureSpecies` property neither reaches `NetCreature` nor is listed in `CreatureWireMapping.ServerOnly`.
+
+**The animal's own seed (#3972).** A companion keeps the wild animal's `AnimalSeed` (`TamedCreature.AnimalSeed`, copied
+at taming like `SizeScale`, saved in the player blob and by `Snapshots.CloneTamed`), so a species with coat variants keeps
+its coat for good; a companion saved before the field existed (0) derives one from its companion id on spawn.
+
 **A pet keeps its home look (#2868).** The client dresses an animal by a planet hide theme and a per-world random
 motif, and the server tells it per creature which world that look belongs to (`NetCreature.LookPlanet` = a planet
 type key, `NetCreature.LookSeed` = `FaunaLooks.WorldLookSeed(world seed, "system · body")`). A rolled roster species

@@ -235,6 +235,21 @@ public sealed class NetCreature
     /// existing contractless MessagePack message: an older client ignores it, an older server leaves it 0 (the client
     /// then falls back to <see cref="Size"/>).</summary>
     public float SpeciesSize { get; set; }
+
+    /// <summary>#3972: this animal's own seed (never 0 from a current server) — the server picks its coat variant and mask
+    /// layout from it. Additive: an older client ignores it, an older server leaves it 0.</summary>
+    public int AnimalSeed { get; set; }
+
+    /// <summary>#3972: the explicit coat pattern of a species with coat variants, by name ("Tabby", …; "None" = a plain coat).
+    /// Empty = no explicit coat: the client rolls the pattern as always. Body and belly colour and the hide of the picked coat
+    /// travel on <see cref="ColorRgb"/>, <see cref="BellyRgb"/> and <see cref="Hide"/>. Additive (contractless).</summary>
+    public string CoatPattern { get; set; } = string.Empty;
+
+    /// <summary>#3972: the explicit coat's pattern colour (0xRRGGBB); unused without <see cref="CoatPattern"/>.</summary>
+    public int CoatPatternRgb { get; set; }
+
+    /// <summary>#3972: the mask layout 0..3 the explicit coat's pattern is drawn with (<c>CoatVariants.MaskVariant</c>).</summary>
+    public int CoatMask { get; set; }
 }
 
 /// <summary>A world effect at a spot (#1998): a thumper's thump, a colossus stomp, a sandworm breaching or striking. The

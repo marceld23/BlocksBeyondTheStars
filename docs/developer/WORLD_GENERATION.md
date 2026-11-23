@@ -1511,6 +1511,17 @@ and `GiftsWhenCalm`. Leni rides on `glacier`, `icecap`, `frozen_ocean` and `bore
 flower fields' only species (`CreatureBodyPlan.Floral`: a petal ring around the head, a grin while calm, a
 toothed maw while hostile — the view rebuilds the body on the hostility flip).
 
+**Coat variants (#3972).** A record may list `coats`: `[{ "weight": 3, "bodyRgb": …, "bellyRgb": …, "pattern":
+"Tabby", "patternRgb": …, "hide": "fur" }, …]` — the coats the species comes in (a cat: black, grey tabby, ginger
+tabby, …). Empty on every record so far, which keeps the designed colours. Each animal carries its own `AnimalSeed`
+(`CombatEntity`, from its entity id; a pen animal from its pen and place, a village or keeper's pet from its owner, a
+companion from `TamedCreature.AnimalSeed`, which taming copies like the size); `CoatVariants.Pick` chooses its coat by
+weight and `CoatVariants.MaskVariant` one of four mask layouts from the same seed. The server sends the picked coat's
+colours on `ColorRgb`/`BellyRgb`, its hide on `Hide` and its pattern on `NetCreature.CoatPattern` / `CoatPatternRgb` /
+`CoatMask` (additive fields; `NetCreature.AnimalSeed` too); the client's `CreatureLookResolver` wears it as sent. Pattern
+names are the client's `CoatPattern` names, hide names the hide tiles (`CreatureLookNames`, shared, checked at content
+load — an unknown name or a weight below 1 fails the load).
+
 **The flowerling's rules (#1760, `GameServerFlowerling.cs`).** Every block break is reported to
 `CreaturesOnBlockBroken`: a mining-angered species within 16 blocks WITH line of sight takes a 60 s grudge
 (`ProvokeTimer`; the species is Territorial, so the provoked path hunts and bites with its own damage).
@@ -1548,7 +1559,7 @@ altitude) and runs only when the save's generation is ≥ `WorldDescription.NewK
 generation-5 roster is therefore bit-for-bit the classic two-argument roster (`CreatureNewKindsTests`
 serialises both). The diversity re-draw (`EnsureHabitatDiversity`) passes the generation through, so a
 re-drawn niche slot rolls the wave too. Nothing is persisted: the roster is re-derived on every start, and a
-companion snapshot carries the three counts (`CloneSpecies`).
+companion snapshot carries the three counts (`CreatureSpecies.Clone`).
 
 **Generation 10 — the arachnid (#2009).** The same discipline once more: the arachnid roll is the very last
 draw of `MakeSpecies` (after `ApplyNewKinds`) and runs only when the save's generation is ≥
@@ -2200,7 +2211,7 @@ the FINAL draw of `MakeSpecies` on a generation-15 world (60 % classic, else amb
 hunter leans red, a glower violet); `AuthoredCreature.EyeRgb` may name it. `PlanetType.ContaminatedFauna` +
 `EyeColor` → `MakeContaminated`, a post-pass beside `MakePeaceful`: Aggressive (every fourth PackHunter), a bite of 2–7
 where the plan rolled none, Cathemeral (a sleeping hunter is no hunter), the type's eyes, `toxic_meat` where the drop was
-food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CloneSpecies` copies
+food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CreatureSpecies.Clone` copies
 it, `CreatureBuilder` paints the iris self-lit. The scan reads `ui.scan.threat.contaminated` on such a world.
 
 **Factories (#2070).** `PlanetType.FactoryCount` [min, max] replaces the 0 / 1 / 2 roll with the same first draw; the
@@ -2344,7 +2355,7 @@ tan).
 
 **Authored giants (#2075).** `AuthoredCreature` has carried the giant traits since #2003; `InitGiants` now reads them:
 `CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, kind)` builds the first authored record with the
-matching giant body plan exactly as the roster would (`MakeAuthoredSpecies`, sub-seed salted with the key; `Size` =
+matching giant body plan exactly as the roster would (`AuthoredSpeciesMapping.ToSpecies`, sub-seed salted with the key; `Size` =
 `giantHeight / 10` for a giant) and it takes the slot the roll would have filled — the Ignivermis (`au_ignivermis`: red
 back, black belly, ember glow, hearing 1.3, 55 blocks, 3800 HP, `swallowsCreatures`) is the worm of every Arena Nigra.
 `GenerateRoster` skips giant body plans, so the spawner never rolls it as an animal. `PlanetType.SandwormCount` (0 = the

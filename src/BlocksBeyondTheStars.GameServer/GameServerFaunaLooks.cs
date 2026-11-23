@@ -71,7 +71,7 @@ public sealed partial class GameServer
 
     /// <summary>A species copy for a record that leaves its world — a companion's snapshot, a register entry: the look
     /// values it already carries (a clone's, a cross's), else the active world's, where the record is taken.</summary>
-    private CreatureSpecies SnapshotSpecies(CreatureSpecies sp) => WithFaunaLook(CloneSpecies(sp), ActiveFaunaLook());
+    private CreatureSpecies SnapshotSpecies(CreatureSpecies sp) => WithFaunaLook(sp.Clone(), ActiveFaunaLook());
 
     /// <summary>Fills the look values <paramref name="sp"/> lacks from <paramref name="look"/> (each on its own); the values
     /// it carries stay. Returns the same species.</summary>
@@ -120,7 +120,7 @@ public sealed partial class GameServer
     private CreatureSpecies WithEntryLook(BioSpeciesEntry entry)
     {
         var sp = entry.Creature!;
-        return HasFaunaLook(sp) || FaunaLookOfEntry(entry) is not { } look ? sp : WithFaunaLook(CloneSpecies(sp), look);
+        return HasFaunaLook(sp) || FaunaLookOfEntry(entry) is not { } look ? sp : WithFaunaLook(sp.Clone(), look);
     }
 
     /// <summary>The species a companion brings into a world's id table: its snapshot — given its origin's look when it is a
@@ -129,5 +129,5 @@ public sealed partial class GameServer
         => HasFaunaLook(snapshot) || GuestSeed(snapshot.Id) is not { } seed || BioEntry(seed) is not { } entry
            || FaunaLookOfEntry(entry) is not { } look
             ? snapshot
-            : WithFaunaLook(CloneSpecies(snapshot), look);
+            : WithFaunaLook(snapshot.Clone(), look);
 }

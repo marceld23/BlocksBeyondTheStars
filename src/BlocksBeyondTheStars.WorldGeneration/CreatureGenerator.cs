@@ -122,7 +122,7 @@ public static class CreatureGenerator
 
                 long s = unchecked(planetSeed ^ ((long)list.Count * golden) ^ WorldGenerator.StableHash("authored:" + record.Key));
                 var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-                list.Add(MakeAuthoredSpecies(record, planet, rng, s));
+                list.Add(AuthoredSpeciesMapping.ToSpecies(record, planet, rng, s));
             }
         }
 
@@ -172,110 +172,6 @@ public static class CreatureGenerator
         uint h = unchecked((uint)seed * 2654435761u);
         h ^= h >> 15;
         return foods[(int)(h % (uint)foods.Count)];
-    }
-
-    /// <summary>Builds the roster entry of an authored record (#1763): the designed traits verbatim, the name's
-    /// second word coined per world, the formulas of the rolled species where the record leaves a stat null, and
-    /// the derived fields (voice, fins) exactly as for a rolled species.</summary>
-    private static CreatureSpecies MakeAuthoredSpecies(AuthoredCreature a, PlanetType planet, System.Random rng, long speciesSeed)
-    {
-        bool hostile = a.Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
-        string coined = NameGenerator.Creature(rng);
-        int space = coined.IndexOf(' ');
-        string second = space > 0 ? coined.Substring(0, space) : coined;
-
-        // The biome affinity by surface block: the first of the type's biomes whose surface the record names, so a
-        // rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive,
-        // which the spawner checks against the ground under the animal's feet.
-        int affinity = -1;
-        for (int i = 0; i < planet.Biomes.Count && affinity < 0; i++)
-        {
-            if (a.BiomeSurfaces.Contains(planet.Biomes[i].SurfaceBlock))
-            {
-                affinity = i;
-            }
-        }
-
-        var species = new CreatureSpecies
-        {
-            Id = "au_" + a.Key,
-            NameKey = "creature.generic.name",
-            Name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
-                : a.FixedName ? a.NamePrefix // #2084: the kids' name, exactly as they wrote it
-                : a.NamePrefix + " " + second,
-            Habitat = a.Habitat,
-            Activity = a.Activity,
-            Temperament = a.Temperament,
-            LocoStyle = a.LocoStyle,
-            BodyPlan = a.BodyPlan,
-            HeadShape = a.HeadShape, // #2009: a worksheet arachnid may wear a pyramid
-            Size = a.Size,
-            MaxHealth = a.MaxHealth ?? 10f + a.Size * 8f + (hostile ? 10f : 0f),
-            Speed = a.Speed,
-            AttackDamage = a.AttackDamage ?? (hostile ? 4.5f : 0f),
-            Legs = a.Legs,
-            HasWings = a.HasWings,
-            HasTail = a.HasTail,
-            BodySegments = a.BodySegments,
-            ColorRgb = a.ColorRgb,
-            BellyRgb = a.BellyRgb,
-            Eyes = a.Eyes,
-            EyeRgb = a.EyeRgb, // #2069: a worksheet species may name its iris
-            Horns = a.Horns,
-            HasCrest = a.HasCrest,
-            Glows = a.Glows,
-            SocialGroupSize = a.SocialGroupSize,
-            HoverAltitude = a.HoverAltitude,
-            Heads = System.Math.Clamp(a.Heads, 1, 3),         // #1780-#1782: an authored species may use the gen-6 bodies
-            WingPairs = System.Math.Clamp(a.WingPairs, 1, 3),
-            FinPairs = System.Math.Clamp(a.FinPairs, 1, 3),
-            BiomeAffinity = affinity,
-            DropItem = a.DropItem,
-            DropCount = a.DropCount,
-            DropKind = a.DropKind,
-            BiomeSurfaces = a.BiomeSurfaces.ToArray(),
-            BiomeExclusive = a.BiomeExclusive,
-            Hide = a.Hide,
-            AngeredByMining = a.AngeredByMining,
-            GiftsWhenCalm = a.GiftsWhenCalm,
-            BegsForFood = a.BegsForFood,  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
-            Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) // #2081: arms on the biped body only …
-                : a.BodyPlan == CreatureBodyPlan.Sounder ? BlocksBeyondTheStars.Shared.Sounders.SounderRules.Arms : 0, // … and the Sounder's four (#3355)
-            HeadRatio = a.HeadRatio > 0f ? System.Math.Clamp(a.HeadRatio, 0.5f, BipedRules.MaxHeadRatio) : 1f,
-            FavouriteFood = a.FavouriteFood,                  // #2082: empty = the generation-16 roll for a beggar
-            FeedsToTame = System.Math.Max(0, a.FeedsToTame),
-            EarStyle = a.EarStyle,        // #3325: a worksheet hound carries the class traits
-            SnoutLength = System.Math.Clamp(a.SnoutLength, 0f, HoundRules.MaxSnout),
-            HasClaws = a.HasClaws,
-            HasTeeth = a.HasTeeth,
-            BiteDamage = System.Math.Max(0f, a.BiteDamage), // #3326: bites in chunks when both are set
-            BiteInterval = System.Math.Max(0f, a.BiteInterval),
-            GiantHeight = a.GiantHeight,  // #1998: an authored giant (#2003) carries the same traits as a rolled one
-            BackFeature = a.BackFeature,
-            LegRatio = a.LegRatio,
-            NeckLength = a.NeckLength,
-            Mandibles = a.Mandibles,
-            WormLength = a.WormLength,
-            WormGirth = a.WormGirth,
-            Hearing = a.Hearing,
-            SwallowsCreatures = a.SwallowsCreatures, // #2076: an authored worm says whether it hunts the animals
-            DuelTame = a.DuelTame,         // #3365: the Soundi is tamed in a duel …
-            PackDefender = a.PackDefender, // … and its pack defends it outside one
-        };
-
-        if (species.GiantHeight > 0f)
-        {
-            species.Size = species.GiantHeight / 10f; // #2075: a giant's scan and voice scale, exactly as for a rolled one
-        }
-
-        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
-        species.HasFins = CreatureMotion.FinsFor(species);
-        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
-        {
-            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;
-        }
-
-        return species;
     }
 
     // ---------------- The Schuppenhund (#3325, generation 34) ----------------
@@ -470,7 +366,7 @@ public static class CreatureGenerator
 
             long s = unchecked(planetSeed ^ WorldGenerator.StableHash("authored:" + record.Key));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            return MakeAuthoredSpecies(record, planet, rng, s);
+            return AuthoredSpeciesMapping.ToSpecies(record, planet, rng, s);
         }
 
         return null;
@@ -484,12 +380,12 @@ public static class CreatureGenerator
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
         long s = unchecked(planetSeed ^ WorldGenerator.StableHash("authored:" + record.Key));
         var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        return MakeAuthoredSpecies(record, planet, rng, s);
+        return AuthoredSpeciesMapping.ToSpecies(record, planet, rng, s);
     }
 
     /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111, #2112).</summary>
     private static bool IsGiantPlan(CreatureBodyPlan plan)
-        => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
+        => CreatureBodyPlans.Of(plan).Giant; // #3972: the profile table
 
     public const string SkyGiantId = "gi_sky_giant";
 

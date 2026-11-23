@@ -196,6 +196,37 @@ with the mip chains), past which new species simply go unpatterned and unlit. A 
 A tile pattern whose tile did not load is skipped by probing onward, so only the species that picked it
 change.
 
+**One look resolver (#3972).** The builder asks one function for a creature's whole coat:
+`CreatureLookResolver.Resolve(c, world look, pattern-tile availability, hide availability)` returns a `CreatureLook` —
+body and belly colour, pattern, pattern colour, the hide of every part, the mask seed, the glow pattern and colour, and
+which source decided it. The sources, in order:
+
+1. **An explicit coat on the wire** — a species with coat variants (`coats` in `data/creatures.json`): the server picked
+   one per animal from its `AnimalSeed` (`CoatVariants.Pick`) and sent its colours on `ColorRgb`/`BellyRgb`, its hide on
+   `Hide` and its pattern on `NetCreature.CoatPattern` / `CoatPatternRgb` / `CoatMask`. The hide is worn head to tail; the
+   masks are drawn from (species seed, mask variant 0..3), so a coat variant bakes at most four textures per part kind.
+2. **The authored rule** — a designed species (`au_…`) without an explicit coat wears no pattern (this rule used to sit in
+   the pattern pick, keyed on the id prefix).
+3. **The rolled coat** — everything above: pattern, pattern colour and hides from the species seed, leaning toward the
+   world's theme and motif; on a palette world (Soaniri) the marks keep the world's colours. Tile availability and the
+   motifs are the client's, so this choice stays on the client.
+
+Today no species has coat variants, so every look is exactly what it was — `CreatureLookResolverTests` pins a digest of
+the looks of 6000 rolled and authored creatures over every body plan, theme, motif and palette, computed with the
+decision functions before the resolver existed.
+
+**Body-plan profiles (#3972).** What the decisions ask of a body plan — a box torso (the back overlays), a box head (the
+eye mask), legs with shins (socks), which tail rings, accents, countershading, a belly slab, the sandworm's armour coat, a
+hide worn head to tail, its own voice pool (and whether it is a recorded one), how its footprint and head reach are
+measured, whether it is a giant — is one row per plan in `Shared/Definitions/CreatureBodyPlans.cs`
+(`CreatureBodyPlans.Of(plan or wire name)`). `CreatureCoat.PatternsFor`, `CreatureHides.Pick`, `CreatureVoices.PoolFor` /
+`SungPool`, `CreatureFootprint.Radius` / `HeadReach`, `CreatureSpecies.IsGiant` and the roster's giant check read the
+table instead of comparing plan names; an unknown wire name (a newer server's plan) gets the `Unknown` row, which claims
+nothing but a belly. A new plan is a new row. Still compared by name elsewhere (each a single-purpose rule, not a
+decision table): the builder's `Build` branch per plan and its per-plan builders, the voice timbre rules in
+`CreatureVoices` (medusa, arachnid, titan, biped, hound), `CreatureMotion` (glide, air fish, sky glider), the animator,
+the generator's plan rolls and the server's giant, Soaniri and hound behaviour.
+
 **Glow patterns (#2862).** A glowing species shines in one of seven patterns (`GlowMasks`): spot rows,
 freckles, veins, rings, lateral lines, blotches, or glowing tips (fins, crests and tentacles fully, a few
 freckles on the body — only on a body that has them). The glow colour is one of a luminous palette or a

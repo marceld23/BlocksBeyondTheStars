@@ -2545,29 +2545,28 @@ namespace BlocksBeyondTheStars.Client
         /// colours, the glow factors (body, belly/accents) and this animal's jitter bucket.</summary>
         private void NewCoat(NetCreature c, Mood mood, float bodyGlow, float bellyGlow)
         {
-            uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
-            _look = FaunaThemes.For(c, Planets);                 // #2868: the home world's theme and motif
+            // #3972: the whole coat from the one look resolver — explicit coat, authored rule or rolled (with the home world's
+            // theme, motif and palette, #2868/#3448).
+            var look = CreatureLookResolver.Resolve(c, FaunaThemes.For(c, Planets), PatternTileAvailable, HideAvailable);
+            _look = look.World;
             _placement = CreatureCoat.PlacementVariant(c.Id);    // #2865: this animal's own coat placement
-            var pattern = CreatureCoat.PatternFor(c, _look, PatternTileAvailable);
-            Color mark = Rgb(CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern, _look)); // #3448: a palette world keeps its marks in it
             CreatureCoat.JitterRgb(CreatureCoat.JitterBucket(c.Id), out float jr, out float jg, out float jb);
-            var glow = GlowMasks.PatternFor(c);
             // #2862: a glowing species shines in its glow pattern now; only a soft rest of the old whole-body brightening
             // stays, so a glower still reads a touch brighter.
             float bodyMul = c.Glows ? 1f + (bodyGlow - 1f) * 0.3f : 1f;
             float bellyMul = c.Glows ? 1f + (bellyGlow - 1f) * 0.3f : 1f;
             _coat = new CoatKit(
-                pattern,
-                CreatureHides.Pick(c, HideAvailable, _look),
-                mood.Tint(Rgb(c.ColorRgb)),
-                mood.Tint(Rgb(c.BellyRgb)),
-                mood.Tint(mark),
+                look.Pattern,
+                look.Hides,
+                mood.Tint(Rgb(look.BodyRgb)),
+                mood.Tint(Rgb(look.BellyRgb)),
+                mood.Tint(Rgb(look.PatternRgb)),
                 bodyMul * mood.Dim,
                 bellyMul * mood.Dim,
                 new Color(jr, jg, jb, 1f),
-                CreatureCoat.MaskSeed(c),
-                glow,
-                Rgb(GlowMasks.ColourFor(seed, c.ColorRgb)));
+                look.MaskSeed,
+                look.Glow,
+                Rgb(look.GlowRgb));
         }
 
         /// <summary>

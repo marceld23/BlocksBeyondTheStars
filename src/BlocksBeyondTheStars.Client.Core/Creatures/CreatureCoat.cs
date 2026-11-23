@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -106,6 +107,7 @@ namespace BlocksBeyondTheStars.Client
         public const uint SaltHorn = 22;
         public const uint SaltHornColour = 23;
         public const uint SaltPatternChoice = 24;
+        public const uint SaltMaskVariant = 25;
 
         /// <summary>The seed mixed with a salt: <c>fmix32(seed ^ salt·φ)</c>.</summary>
         public static uint Mix(uint seed, uint salt)
@@ -193,9 +195,9 @@ namespace BlocksBeyondTheStars.Client
         /// it only takes the plate and belly colours.</summary>
         public static IReadOnlyList<CoatPattern> PatternsFor(NetCreature c, Func<string, bool>? tileAvailable = null)
         {
-            string plan = string.IsNullOrEmpty(c.BodyPlan) ? "Standard" : c.BodyPlan;
+            var body = CreatureBodyPlans.Of(c.BodyPlan); // #3972: the plan's facts, not its name
             var list = new List<CoatPattern>();
-            if (plan == "Sandworm")
+            if (body.ArmourCoat)
             {
                 list.Add(CoatPattern.CrestBand);  // the armour plates and petals
                 list.Add(CoatPattern.BellyBlaze);
@@ -208,13 +210,8 @@ namespace BlocksBeyondTheStars.Client
                 list.AddRange(TilePatterns);
             }
 
-            // #3327: the hound is a standard quadruped underneath — the same box torso, box head, legs and tail.
-            bool boxTorso = plan is "Standard" or "Titan" or "Colossus" or "Hound";
-            bool boxHead = plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Worm" or "Hound";
-            bool legs = c.Legs > 0 && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Arachnid" or "Hound";
-            bool tail = plan == "Worm" || (c.HasTail && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Hound");
-            bool accents = c.HasCrest || c.HasFins || plan is "Leviathan" or "SkyGiant";
-            if (boxTorso)
+            bool tail = body.Tail == BodyTail.Always || (c.HasTail && body.Tail == BodyTail.IfTrait);
+            if (body.BoxTorso)
             {
                 list.Add(CoatPattern.DorsalStripe);
                 list.Add(CoatPattern.Saddle);
@@ -223,12 +220,12 @@ namespace BlocksBeyondTheStars.Client
 
             // The countershading maps v once over a flank (a pinned mesh), so the hide stretches by the flank's repeats: kept
             // to the bodies whose flanks need at most two (a standard or biped body up to size 2).
-            if (plan is "Standard" or "Biped" or "Hound" && c.Size <= 2f)
+            if (body.Countershade && c.Size <= 2f)
             {
                 list.Add(CoatPattern.Countershade);
             }
 
-            if (boxHead && c.Eyes > 0)
+            if (body.BoxHead && c.Eyes > 0)
             {
                 list.Add(CoatPattern.EyeMask);
             }
@@ -238,17 +235,17 @@ namespace BlocksBeyondTheStars.Client
                 list.Add(CoatPattern.TailRings);
             }
 
-            if (accents)
+            if (c.HasCrest || c.HasFins || body.Accents)
             {
                 list.Add(CoatPattern.CrestBand);
             }
 
-            if (plan != "Medusa")
+            if (body.BellySlab)
             {
                 list.Add(CoatPattern.BellyBlaze);
             }
 
-            if (legs)
+            if (c.Legs > 0 && body.SockLegs)
             {
                 list.Add(CoatPattern.Socks);
             }
@@ -256,16 +253,12 @@ namespace BlocksBeyondTheStars.Client
             return list;
         }
 
-        /// <summary>The species' pattern: none for an authored species (its look is designed) and for about one in
-        /// <see cref="NoneOneIn"/> rolled ones, otherwise one of <see cref="PatternsFor"/> by the species seed — for about a
-        /// third of them one of the world motif's favourite group (#2868) when the body can carry one.</summary>
-        public static CoatPattern PatternFor(NetCreature c, FaunaThemes.Look? look = null, Func<string, bool>? tileAvailable = null)
+        /// <summary>The ROLLED pattern of a species: none for about one in <see cref="NoneOneIn"/>, otherwise one of
+        /// <see cref="PatternsFor"/> by the species seed — for about a third of them one of the world motif's favourite group
+        /// (#2868) when the body can carry one. Whether a species rolls at all (an authored one wears no pattern, an explicit
+        /// coat its own) is <see cref="CreatureLookResolver"/>'s decision (#3972).</summary>
+        public static CoatPattern RolledPattern(NetCreature c, FaunaThemes.Look? look = null, Func<string, bool>? tileAvailable = null)
         {
-            if (IsAuthored(c.SpeciesId))
-            {
-                return CoatPattern.None;
-            }
-
             uint seed = SpeciesSeed(c.SpeciesId, c.VoiceSeed);
             if (CoatMix.Mix(seed, CoatMix.SaltPatternNone) % (uint)NoneOneIn == 0u)
             {

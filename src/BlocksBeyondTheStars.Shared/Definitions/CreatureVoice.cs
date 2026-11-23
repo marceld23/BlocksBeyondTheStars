@@ -426,24 +426,29 @@ public static class CreatureVoices
         return PoolFor(habitat);
     }
 
-    /// <summary>The body plans that speak from a pool of their own instead of their habitat's, or null.</summary>
-    private static string[]? OwnPool(string bodyPlan) => bodyPlan switch
-    {
-        "Biped" => BipedCalls,
-        "Robot" => RobotCalls,
-        "Hound" => CanineCalls,
-        _ => SungPool(bodyPlan), // #3359: the creatures of Soaniri
-    };
+    /// <summary>The body plans that speak from a pool of their own instead of their habitat's, or null — the plan's
+    /// <see cref="BodyPlanProfile.Voice"/> in the profile table (#3972).</summary>
+    private static string[]? OwnPool(string bodyPlan) => PoolOf(CreatureBodyPlans.Of(bodyPlan).Voice);
 
     /// <summary>#3359: the recorded voices of Soaniri's creatures — the body plans whose calls are real recordings (the animated
     /// series' Soundi, the Soundrak's scream, the Qualis' song, the Soundelings' coo), or null. A sung voice is never processed,
     /// layered or chained into a phrase: one recording per call, at its own pitch (<see cref="KeepsNaturalPitch"/>).</summary>
-    public static string[]? SungPool(string bodyPlan) => bodyPlan switch
+    public static string[]? SungPool(string bodyPlan)
     {
-        "Soundi" => SoundiCalls,
-        "Soundrak" => SoundrakCalls,
-        "Quali" => QualiCalls,
-        "Soundeling" => SoundelingCalls,
+        var body = CreatureBodyPlans.Of(bodyPlan);
+        return body.SungVoice ? PoolOf(body.Voice) : null;
+    }
+
+    /// <summary>The calls of a body voice; null for the habitat's (the caller picks the habitat pool).</summary>
+    private static string[]? PoolOf(BodyVoice voice) => voice switch
+    {
+        BodyVoice.Biped => BipedCalls,
+        BodyVoice.Robot => RobotCalls,
+        BodyVoice.Canine => CanineCalls,
+        BodyVoice.Soundi => SoundiCalls,
+        BodyVoice.Soundrak => SoundrakCalls,
+        BodyVoice.Quali => QualiCalls,
+        BodyVoice.Soundeling => SoundelingCalls,
         _ => null,
     };
 

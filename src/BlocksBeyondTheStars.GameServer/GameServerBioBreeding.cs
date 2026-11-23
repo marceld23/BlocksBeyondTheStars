@@ -74,7 +74,7 @@ public sealed partial class GameServer
         string id = GuestId(entry.Seed);
         if (!_speciesById.TryGetValue(id, out var sp))
         {
-            sp = CloneSpecies(snapshot);
+            sp = snapshot.Clone();
             sp.Id = id;
             // A guest belongs to no biome of this world and to no herd: it is one animal beside its tank.
             sp.BiomeAffinity = -1;
@@ -504,7 +504,7 @@ public sealed partial class GameServer
 
         var plan = Bit(0) ? a : b;
         var other = Bit(0) ? b : a;
-        var child = CloneSpecies(plan); // plan, habitat, limbs, gait and yield of one parent
+        var child = plan.Clone(); // plan, habitat, limbs, gait and yield of one parent
         child.Id = GuestId(seed);
         child.Name = name;
         child.NameKey = "creature.generic.name";

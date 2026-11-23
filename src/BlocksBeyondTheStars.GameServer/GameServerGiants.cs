@@ -296,9 +296,11 @@ public sealed partial class GameServer
 
     private CombatEntity SpawnGiantEntity(CreatureSpecies sp, GiantRuntime g, Vector3f pos)
     {
+        string id = NextEntityId();
         var e = new CombatEntity
         {
-            Id = NextEntityId(),
+            Id = id,
+            AnimalSeed = CoatVariants.AnimalSeedOf("giant:" + id), // #3972: every animal has its own seed
             Kind = sp.Hostile ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature,
             SpeciesId = sp.Id,
             Hostile = sp.Hostile,
@@ -1158,12 +1160,7 @@ public sealed partial class GameServer
             return n;
         }
 
-        n.GiantHeight = sp.GiantHeight;
-        n.BackFeature = sp.BackFeature;
-        n.LegRatio = sp.LegRatio;
-        n.Mandibles = sp.Mandibles;
-        n.WormLength = sp.WormLength;
-        n.WormGirth = sp.WormGirth;
+        CreatureWireMapping.WriteGiantSpecies(n, sp); // #3971: the species half of the giant wire
         n.Facing = g.Facing;
         n.Phase = g.Phase;
         n.PhaseT = (float)(_uptime - g.PhaseStart);

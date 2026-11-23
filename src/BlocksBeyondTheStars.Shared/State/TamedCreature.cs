@@ -34,6 +34,11 @@ public sealed class TamedCreature
     /// <summary>This individual's cosmetic size factor within its species (matches the wild animal it was).</summary>
     public float SizeScale { get; set; } = 1f;
 
+    /// <summary>#3972: this individual's own seed (the wild animal's, kept like <see cref="SizeScale"/>) — a species with coat
+    /// variants picks the companion's coat by it. 0 = saved before the seed existed; the server then derives one from
+    /// <see cref="Id"/>, which is just as stable.</summary>
+    public int AnimalSeed { get; set; }
+
     /// <summary>Affection/bond 0..100 — starts where the taming trust ended and GROWS by feeding (#1225).
     /// Three tiers hang off it: 50 a wider fetch reach, 70 the bandit ward (#1210), 90 the odd scouting
     /// hint. It decays a point a day when the animal is not fed, but never below
