@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🪨 Terrain forms: natural ground drawn as micro-cube forms; a brighter headlamp; shape docs corrected — #3964, #3965, #3966 — ✅ 2026-11-23 (client + Client.Core; display only — no protocol, save, data or world-generation change, no new texts)
+### 🪨 Terrain forms: natural ground drawn as micro-cube forms; a brighter headlamp; shape docs corrected — #3964, #3965, #3966, PR #3967 (`edc4bfe5`) — ✅ released in v2026.11.28 (client + Client.Core; display only — no protocol, save, data or world-generation change, no new texts)
 
 - **The idea.** Marcel, 2026-11-23: the terrain is too coarse — every material should also come "differently filled"
   (steps, speckled stones, ledges, holes), placed procedurally to suit the landscape. Built first as a local prototype,
@@ -54,7 +54,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   block beside a formed edge (it stays a smooth cube); look for see-through holes, especially at chunk borders; check that
   Low and Potato show smooth cubes; the headlamp in a dark cave.
 
-### 🏝️ Far view: floating islands float, waterfalls fall, builds on islands — #3958, #3959, #3960 — ✅ 2026-11-23 (Client.Core + one line in FarTerrainView; no protocol, save or world-generation change)
+### 🏝️ Far view: floating islands float, waterfalls fall, builds on islands — #3958, #3959, #3960, PR #3963 (`5ba5c553`) — ✅ released in v2026.11.28 (Client.Core + one line in FarTerrainView; no protocol, save or world-generation change)
 
 - **The report.** Marcel, 2026-11-23 (screenshot of a sky world): in the far view every floating island looked like a
   mountain — a pale column from the island's top down to the ground, no sky under it.
@@ -73,7 +73,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   waterfalls show under pond islands, no gaps or flicker at the chunk ring; a house built on an island seen from afar;
   arch and hoodoo worlds: the bars float.
 
-### 🧒 Justus's reports of 2026-11-23: the drill holds still, less rounded figures — #3961, #3962 — ✅ 2026-11-23 (client only; no protocol or save change, no new texts)
+### 🧒 Justus's reports of 2026-11-23: the drill holds still, less rounded figures — #3961, #3962, PR #3963 (`5ba5c553`) — ✅ released in v2026.11.28 (client only; no protocol or save change, no new texts)
 
 - **The reports** (Layex, v2026.11.27): "when I use a drill it goes up and down — take that out and keep only the spin
   animation!" and "the rounded corners of NPCs and animals are cool, just a bit less please!"
@@ -87,7 +87,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - ⚠ **Playtest:** mine with the basic drill (first and third person, another player watching): no bobbing, the bit
   spins; the pickaxe chops; animals and NPCs read less round but not sharp.
 
-### 💎 Crystal worlds glow a little less — ✅ 2026-11-23 (client + data; no protocol or save change)
+### 💎 Crystal worlds glow a little less — PR #3963 (`5ba5c553`) — ✅ released in v2026.11.28 (client + data; no protocol or save change)
 
 - **The report.** Marcel, 2026-11-23: crystal worlds glow very brightly, nearly burnt out — dim the crystals a little.
 - **The cause.** A crystal world's whole ground is the `crystal` block: every surface cell glows (emission 0.5, × 3 HDR)
@@ -101,7 +101,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   cast is unchanged.
 - ⚠ **Playtest:** a crystal world by day and night: the ground still glows, no longer burns out.
 
-### 🏊 A flooded tunnel sinks you again: a ceiling is no water surface — #3956, PR #3957 (`0a5f0eb8`) — ✅ 2026-11-23 (client only; no protocol or save change)
+### 🏊 A flooded tunnel sinks you again: a ceiling is no water surface — #3956, PR #3957 (`0a5f0eb8`) — ✅ released in v2026.11.28 (client only; no protocol or save change)
 
 - **The report.** Lyxette, 2026-11-22, v2026.11.26: since swimming no longer bounces, he hovers in the water instead of
   slowly sinking to the bottom. He was swimming in a fully flooded tunnel — water three cells high under a stone ceiling.
@@ -117,7 +117,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - ⚠ **Playtest:** a flooded tunnel or cave: idle sinks, Space rises to the ceiling, Ctrl dives; an air pocket under a
   ceiling floats; the open sea floats as before; lily pads on the water do not stop the float.
 
-### 📏 PerfProbe skips the prologue before it measures — #3954, PR #3955 (`e87af5bd`) — ✅ 2026-11-23 (client tooling only; no gameplay, protocol or save change)
+### 📏 PerfProbe skips the prologue before it measures — #3954, PR #3955 (`e87af5bd`) — ✅ released in v2026.11.28 (client tooling only; no gameplay, protocol or save change)
 
 - **The finding.** While measuring the new look for #3947, all 16 probe runs (desktop and browser, v2026.11.26 and
   v2026.11.27) logged `[Cutscene] Begin vega_protocol/prologue` right before the idle phase and never an `End`: the probe
@@ -130,7 +130,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - **Docs:** CLIENT_TESTING (what the probe does first), ADVANCED_GRAPHICS (the 2026-11-06 preset table was taken during
   the prologue).
 
-### 🏷️ One name for the Resonance Blaster in every language — #3952, PR #3953 (`0fe612e5`) — ✅ 2026-11-23 (language tables only; no new key, no code, protocol or save change)
+### 🏷️ One name for the Resonance Blaster in every language — #3952, PR #3953 (`0fe612e5`) — ✅ released in v2026.11.28 (language tables only; no new key, no code, protocol or save change)
 
 - **The finding.** In ten language tables (es, fr, it, ja, ko, nl, pl, pt, ru, zh) the Sounders' Resonance Blaster had
   one name on its blueprint (`blueprint.sounder_resonance.name`) and another on the item you hold
