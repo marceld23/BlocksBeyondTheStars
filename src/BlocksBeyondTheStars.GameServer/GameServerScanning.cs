@@ -93,7 +93,7 @@ public sealed partial class GameServer
                 readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.body.biped" }).ToArray(); // #2081
             }
 
-            if (sp.BodyPlan == Shared.Definitions.CreatureBodyPlan.Hound)
+            if (Shared.Definitions.HoundRules.IsScaleHound(sp))
             {
                 readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.body.hound" }).ToArray(); // #3326: how hard it bites
             }

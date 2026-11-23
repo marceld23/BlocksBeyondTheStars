@@ -1134,7 +1134,7 @@ public sealed partial class GameServer
             TickCalm(creature); // #3359: a calmed animal (the calm disc, the Resonance Blaster) holds no grudge while the calm lasts
 
             // A provoked territorial creature hunts like an aggressor until it calms down.
-            var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
+            var temperament = CreatureBehaviour.EffectiveTemperament(sp, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
             // #2712: what an aggressor hunts — the nearest player hostiles do NOT ignore. A cloaked, god-mode or Sandbox
             // player still wakes a sleeper and sends a skittish one running, but is nobody's prey.
@@ -1143,7 +1143,7 @@ public sealed partial class GameServer
             {
                 AnnounceArachnid(creature, targets); // #2009: VEGA points out the first one a player gets near
             }
-            else if (sp.BodyPlan == CreatureBodyPlan.Hound && !creature.IsCompanion)
+            else if (HoundRules.IsScaleHound(sp) && !creature.IsCompanion)
             {
                 AnnounceHound(creature, targets); // #3326: VEGA warns about the Schuppenhund
             }
@@ -1288,7 +1288,7 @@ public sealed partial class GameServer
                 if (prey is { } lurkPrey && WrapDistSq(creature.Position, lurkPrey) <= ArachnidRules.LurkRange * ArachnidRules.LurkRange)
                 {
                     creature.ProvokeTimer = CreatureProvokeSeconds;
-                    temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, provoked: true);
+                    temperament = CreatureBehaviour.EffectiveTemperament(sp, provoked: true);
                     aggressor = true;
                 }
                 else
@@ -3462,7 +3462,7 @@ public sealed partial class GameServer
     private void ProvokeCreature(CombatEntity target)
     {
         if (!_speciesById.TryGetValue(target.SpeciesId, out var sp)
-            || !CreatureBehaviour.RetaliatesWhenAttacked(sp.Temperament))
+            || !CreatureBehaviour.RetaliatesWhenAttacked(sp))
         {
             return;
         }

@@ -257,6 +257,15 @@ public static class CreatureBehaviour
             ? CreatureTemperament.Aggressive
             : baseTemperament;
 
+    /// <summary>Whether an animal of <paramref name="sp"/> fights back when attacked — the species' rule, which the server's
+    /// provoke and movement code ask (see <see cref="RetaliatesWhenAttacked(CreatureTemperament)"/>).</summary>
+    public static bool RetaliatesWhenAttacked(CreatureSpecies sp) => RetaliatesWhenAttacked(sp.Temperament);
+
+    /// <summary>The temperament an animal of <paramref name="sp"/> acts on right now (see
+    /// <see cref="EffectiveTemperament(CreatureTemperament, bool)"/>).</summary>
+    public static CreatureTemperament EffectiveTemperament(CreatureSpecies sp, bool provoked)
+        => EffectiveTemperament(sp.Temperament, provoked);
+
     // ---------------- Duel taming + pack defence (#3365, the wild Soundis) ----------------
 
     /// <summary>The share of its health a duelling animal never drops below — it gives up there instead (kid-friendly: no
