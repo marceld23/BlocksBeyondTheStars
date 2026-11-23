@@ -25,30 +25,56 @@ internal static class AuthoredSpeciesMapping
     /// the derived fields (voice, fins) exactly as for a rolled species.</summary>
     internal static CreatureSpecies ToSpecies(AuthoredCreature a, PlanetType planet, System.Random rng, long speciesSeed)
     {
-        bool hostile = a.Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
         string coined = NameGenerator.Creature(rng);
         int space = coined.IndexOf(' ');
         string second = space > 0 ? coined.Substring(0, space) : coined;
+        string name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
+            : a.FixedName ? a.NamePrefix // #2084: the kids' name, exactly as they wrote it
+            : a.NamePrefix + " " + second;
 
-        // The biome affinity by surface block: the first of the type's biomes whose surface the record names, so a
-        // rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive,
-        // which the spawner checks against the ground under the animal's feet.
-        int affinity = -1;
-        for (int i = 0; i < planet.Biomes.Count && affinity < 0; i++)
+        var species = Body(a, name);
+        ApplyLife(species, a, AffinityOf(a, planet));
+        ApplyClassTraits(species, a);
+        if (species.GiantHeight > 0f)
+        {
+            species.Size = species.GiantHeight / 10f; // #2075: a giant's scan and voice scale, exactly as for a rolled one
+        }
+
+        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
+        species.HasFins = CreatureMotion.FinsFor(species);
+        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
+        {
+            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;
+        }
+
+        return species;
+    }
+
+    /// <summary>The biome affinity by surface block: the first of the type's biomes whose surface the record names, so a
+    /// rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive, which the
+    /// spawner checks against the ground under the animal's feet.</summary>
+    private static int AffinityOf(AuthoredCreature a, PlanetType planet)
+    {
+        for (int i = 0; i < planet.Biomes.Count; i++)
         {
             if (a.BiomeSurfaces.Contains(planet.Biomes[i].SurfaceBlock))
             {
-                affinity = i;
+                return i;
             }
         }
 
-        var species = new CreatureSpecies
+        return -1;
+    }
+
+    /// <summary>Identity, stats, body and look.</summary>
+    private static CreatureSpecies Body(AuthoredCreature a, string name)
+    {
+        bool hostile = a.Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+        return new CreatureSpecies
         {
             Id = "au_" + a.Key,
             NameKey = "creature.generic.name",
-            Name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
-                : a.FixedName ? a.NamePrefix // #2084: the kids' name, exactly as they wrote it
-                : a.NamePrefix + " " + second,
+            Name = name,
             Habitat = a.Habitat,
             Activity = a.Activity,
             Temperament = a.Temperament,
@@ -70,58 +96,54 @@ internal static class AuthoredSpeciesMapping
             Horns = a.Horns,
             HasCrest = a.HasCrest,
             Glows = a.Glows,
-            SocialGroupSize = a.SocialGroupSize,
+            Hide = a.Hide,
             HoverAltitude = a.HoverAltitude,
             Heads = System.Math.Clamp(a.Heads, 1, 3),         // #1780-#1782: an authored species may use the gen-6 bodies
             WingPairs = System.Math.Clamp(a.WingPairs, 1, 3),
             FinPairs = System.Math.Clamp(a.FinPairs, 1, 3),
-            BiomeAffinity = affinity,
-            DropItem = a.DropItem,
-            DropCount = a.DropCount,
-            DropKind = a.DropKind,
-            BiomeSurfaces = a.BiomeSurfaces.ToArray(),
-            BiomeExclusive = a.BiomeExclusive,
-            Hide = a.Hide,
-            AngeredByMining = a.AngeredByMining,
-            GiftsWhenCalm = a.GiftsWhenCalm,
-            BegsForFood = a.BegsForFood,  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
-            Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) // #2081: arms on the biped body only …
-                : a.BodyPlan == CreatureBodyPlan.Sounder ? BlocksBeyondTheStars.Shared.Sounders.SounderRules.Arms : 0, // … and the Sounder's four (#3355)
-            HeadRatio = a.HeadRatio > 0f ? System.Math.Clamp(a.HeadRatio, 0.5f, BipedRules.MaxHeadRatio) : 1f,
-            FavouriteFood = a.FavouriteFood,                  // #2082: empty = the generation-16 roll for a beggar
-            FeedsToTame = System.Math.Max(0, a.FeedsToTame),
-            EarStyle = a.EarStyle,        // #3325: a worksheet hound carries the class traits
-            SnoutLength = System.Math.Clamp(a.SnoutLength, 0f, HoundRules.MaxSnout),
-            HasClaws = a.HasClaws,
-            HasTeeth = a.HasTeeth,
-            BiteDamage = System.Math.Max(0f, a.BiteDamage), // #3326: bites in chunks when both are set
-            BiteInterval = System.Math.Max(0f, a.BiteInterval),
-            GiantHeight = a.GiantHeight,  // #1998: an authored giant (#2003) carries the same traits as a rolled one
-            BackFeature = a.BackFeature,
-            LegRatio = a.LegRatio,
-            NeckLength = a.NeckLength,
-            Mandibles = a.Mandibles,
-            WormLength = a.WormLength,
-            WormGirth = a.WormGirth,
-            Hearing = a.Hearing,
-            SwallowsCreatures = a.SwallowsCreatures, // #2076: an authored worm says whether it hunts the animals
-            DuelTame = a.DuelTame,         // #3365: the Soundi is tamed in a duel …
-            PackDefender = a.PackDefender, // … and its pack defends it outside one
             Coats = a.Coats?.ConvertAll(v => v.Clone()) ?? new List<CoatVariant>(), // #3972: the fixed coats each animal picks from
         };
+    }
 
-        if (species.GiantHeight > 0f)
-        {
-            species.Size = species.GiantHeight / 10f; // #2075: a giant's scan and voice scale, exactly as for a rolled one
-        }
+    /// <summary>Where it lives, what it yields and how it behaves.</summary>
+    private static void ApplyLife(CreatureSpecies species, AuthoredCreature a, int affinity)
+    {
+        species.SocialGroupSize = a.SocialGroupSize;
+        species.BiomeAffinity = affinity;
+        species.DropItem = a.DropItem;
+        species.DropCount = a.DropCount;
+        species.DropKind = a.DropKind;
+        species.BiomeSurfaces = a.BiomeSurfaces.ToArray();
+        species.BiomeExclusive = a.BiomeExclusive;
+        species.AngeredByMining = a.AngeredByMining;
+        species.GiftsWhenCalm = a.GiftsWhenCalm;
+        species.BegsForFood = a.BegsForFood;  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
+        species.FavouriteFood = a.FavouriteFood;                  // #2082: empty = the generation-16 roll for a beggar
+        species.FeedsToTame = System.Math.Max(0, a.FeedsToTame);
+        species.SwallowsCreatures = a.SwallowsCreatures; // #2076: an authored worm says whether it hunts the animals
+        species.DuelTame = a.DuelTame;         // #3365: the Soundi is tamed in a duel …
+        species.PackDefender = a.PackDefender; // … and its pack defends it outside one
+    }
 
-        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
-        species.HasFins = CreatureMotion.FinsFor(species);
-        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
-        {
-            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;
-        }
-
-        return species;
+    /// <summary>The traits of the bodies that need them: the biped's arms and head, the hound's head and feet, the giants.</summary>
+    private static void ApplyClassTraits(CreatureSpecies species, AuthoredCreature a)
+    {
+        species.Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) // #2081: arms on the biped body only …
+            : a.BodyPlan == CreatureBodyPlan.Sounder ? BlocksBeyondTheStars.Shared.Sounders.SounderRules.Arms : 0; // … and the Sounder's four (#3355)
+        species.HeadRatio = a.HeadRatio > 0f ? System.Math.Clamp(a.HeadRatio, 0.5f, BipedRules.MaxHeadRatio) : 1f;
+        species.EarStyle = a.EarStyle;        // #3325: a worksheet hound carries the class traits
+        species.SnoutLength = System.Math.Clamp(a.SnoutLength, 0f, HoundRules.MaxSnout);
+        species.HasClaws = a.HasClaws;
+        species.HasTeeth = a.HasTeeth;
+        species.BiteDamage = System.Math.Max(0f, a.BiteDamage); // #3326: bites in chunks when both are set
+        species.BiteInterval = System.Math.Max(0f, a.BiteInterval);
+        species.GiantHeight = a.GiantHeight;  // #1998: an authored giant (#2003) carries the same traits as a rolled one
+        species.BackFeature = a.BackFeature;
+        species.LegRatio = a.LegRatio;
+        species.NeckLength = a.NeckLength;
+        species.Mandibles = a.Mandibles;
+        species.WormLength = a.WormLength;
+        species.WormGirth = a.WormGirth;
+        species.Hearing = a.Hearing;
     }
 }
