@@ -1133,6 +1133,17 @@ Two code reads done with the symbol package ("does everything the lab shows real
   a shell form), `MenuFeedbackButtonTests` (wiring, tip only in the menu form, placeholder in every language).
 - 📋 Playtest: click the button with mouse and pad; check the labels of the narrow row in the long languages (ru, tr).
 
+### 📸 Screenshots re-shot for the new look (2026-11-23/24) — ✅
+
+- ✅ All 77 pictures under `docs/screenshots` re-shot for the look rework (#3949) and reviewed by Marcel picture by picture
+  (two rounds); new world stills `creature_savanna.jpg` and `life_village.jpg`. Most come from v2026.11.27; the nine
+  re-taken after review are from v2026.11.28 (terrain micro-cube forms #3964, island fix #3963). Fresh seeds for terrain
+  generation 48; the discovery sites found by a headless seed search and reached with `/tp`. The start screen keeps the
+  dev build's version label (Marcel: leave it). Details: docs/screenshots/README.md § "The new look".
+- 📋 The capture tooling grew in the local worktree (still not merged): hovering HUD views (`hoverHeight`/`hoverPitch`,
+  capped below the first solid block), poses `lava_shore` and `site` (heading toward the most built blocks), a subject
+  still skips land animals standing in water, `capture-stills.ps1 -Lang`. Only on request.
+
 ### 📸 README screenshots refreshed (2026-11-16) — ✅
 
 - ✅ New first gallery from a v2026.11.19 build: main menu with Continue (EN + DE, dev version label painted out), VEGA at a
