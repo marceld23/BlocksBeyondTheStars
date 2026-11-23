@@ -26,7 +26,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏷️ One name for the Resonance Blaster in every language — #3952 — ✅ 2026-11-23 (language tables only; no new key, no code, protocol or save change)
+### 📏 PerfProbe skips the prologue before it measures — #3954 — ✅ 2026-11-23 (client tooling only; no gameplay, protocol or save change)
+
+- **The finding.** While measuring the new look for #3947, all 16 probe runs (desktop and browser, v2026.11.26 and
+  v2026.11.27) logged `[Cutscene] Begin vega_protocol/prologue` right before the idle phase and never an `End`: the probe
+  only dismissed VEGA's panel lines, while the cutscene director kept the scripted camera for the whole run. So every
+  probe number since the cutscene system took the prologue measured the camera flight, not the player's view —
+  old-against-new comparisons stay fair (same scene on both sides), absolute numbers do not.
+- **The fix.** `CutsceneDirector.SkipForTooling()` ends the playing scene as skipped at once; `PerfProbe.ClearIntro()`
+  calls it for every scene the director plays (the prologue, the welcome card, anything queued after them) and dismisses
+  VEGA's lines in the same loop, until five quiet seconds pass. Each skip is logged (`[PerfProbe] Skipped cutscene …`).
+- **Docs:** CLIENT_TESTING (what the probe does first), ADVANCED_GRAPHICS (the 2026-11-06 preset table was taken during
+  the prologue).
+
+### 🏷️ One name for the Resonance Blaster in every language — #3952, PR #3953 (`0fe612e5`) — ✅ 2026-11-23 (language tables only; no new key, no code, protocol or save change)
 
 - **The finding.** In ten language tables (es, fr, it, ja, ko, nl, pl, pt, ru, zh) the Sounders' Resonance Blaster had
   one name on its blueprint (`blueprint.sounder_resonance.name`) and another on the item you hold

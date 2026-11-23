@@ -143,7 +143,8 @@ EditMode assembly and the tests run in the wrong mode (and `UnityPlay` finds not
 
 No tier boots the whole in-game rig (`WorldRig` + `GameBootstrap` + `PlayerController` against a running server, frame
 after frame). The built player's **`-perfProbe`** mode (`PerfProbe.cs`) does: it starts a fixed-seed singleplayer
-world, idles, walks a scripted path, writes frame-time/GC numbers (`perf_baseline_*.json` + `.txt`) and quits with exit
+world, skips the prologue and every other scene the cutscene director plays (`CutsceneDirector.SkipForTooling`, #3954 —
+before that fix every probe run measured the prologue's camera flight), idles, walks a scripted path, writes frame-time/GC numbers (`perf_baseline_*.json` + `.txt`) and quits with exit
 code 0 — 1 when the world does not start. A change to the rig wiring is checked with a PerfProbe run before and after:
 both exit 0, `Player.log` shows no exception, and the numbers stay comparable.
 

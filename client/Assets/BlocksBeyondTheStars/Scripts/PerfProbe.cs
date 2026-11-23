@@ -253,28 +253,7 @@ namespace BlocksBeyondTheStars.Client
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
-            // A fresh world plays the prologue cinematic, and since #1011 its VEGA lines wait for an
-            // explicit continue — the probe must not measure the scripted camera flight, so dismiss the
-            // intro the way a player would (same injection hook the touch NEXT button uses, #1041) until
-            // no line has shown for a few quiet seconds.
-            var vega = FindAnyObjectByType<VegaPanel>();
-            float quiet = 0f, dismissGuard = 0f;
-            while (quiet < 3f && dismissGuard < 90f)
-            {
-                if (vega != null && vega.LineShowing)
-                {
-                    quiet = 0f;
-                    dismissGuard += 0.6f;
-                    InputMap.InjectNextFrame(InputAction.VegaContinue);
-                    yield return new WaitForSecondsRealtime(0.6f);
-                }
-                else
-                {
-                    quiet += Time.unscaledDeltaTime;
-                    dismissGuard += Time.unscaledDeltaTime;
-                    yield return null;
-                }
-            }
+            yield return ClearIntro();
 
             // Per-feature overrides run AFTER the preset is applied and the gameplay camera exists (so the SSAO
             // renderer / SMAA choice on ActiveCameraData is live), isolating one feature's cost for #374.
@@ -733,6 +712,46 @@ namespace BlocksBeyondTheStars.Client
             catch (Exception ex)
             {
                 Debug.LogWarning($"[PerfProbe] Could not write result files: {ex.Message}");
+            }
+        }
+
+        /// <summary>A fresh world plays the prologue cinematic and queues the welcome card, and since #1011 VEGA's lines wait
+        /// for an explicit continue. The probe must measure the game, not the scripted camera (#3954), so every scene the
+        /// director plays is skipped at once and VEGA's lines are dismissed the way a player would (the touch NEXT button's
+        /// injection hook, #1041), until neither has shown for a few quiet seconds.</summary>
+        private static IEnumerator ClearIntro()
+        {
+            const float QuietNeeded = 5f, Guard = 90f;
+            var vega = FindAnyObjectByType<VegaPanel>();
+            CutsceneDirector director = null;
+            float quiet = 0f, elapsed = 0f;
+            while (quiet < QuietNeeded && elapsed < Guard)
+            {
+                if (director == null)
+                {
+                    director = FindAnyObjectByType<CutsceneDirector>();
+                }
+
+                if (director != null && director.Playing)
+                {
+                    quiet = 0f;
+                    Debug.Log($"[PerfProbe] Skipped cutscene {director.SkipForTooling()}.");
+                    yield return null;
+                    elapsed += Time.unscaledDeltaTime;
+                }
+                else if (vega != null && vega.LineShowing)
+                {
+                    quiet = 0f;
+                    elapsed += 0.6f;
+                    InputMap.InjectNextFrame(InputAction.VegaContinue);
+                    yield return new WaitForSecondsRealtime(0.6f);
+                }
+                else
+                {
+                    quiet += Time.unscaledDeltaTime;
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
             }
         }
 

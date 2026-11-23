@@ -66,6 +66,21 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while any scene (a banner included) plays.</summary>
         public bool Playing => _play != null;
 
+        /// <summary>#3954: ends the playing scene as skipped at once, before its minimum display time — for tooling that must
+        /// measure the game, not a scripted camera (<see cref="PerfProbe"/>). Players skip through the skip input. Returns the
+        /// key of the scene it ended, or null when none played.</summary>
+        public string SkipForTooling()
+        {
+            if (_play == null)
+            {
+                return null;
+            }
+
+            string key = _current?.Key;
+            Finish(Outcome.Skipped);
+            return key;
+        }
+
         /// <summary>#2471: a touch tap the touch layer's full-screen look pad caught first — under a card the touch controls
         /// stay up and their canvas (order 100) lies over this frame (67), so the card's skip button, its continue button and
         /// its speaker box were out of reach on a tablet. Returns whether the playing scene took the tap.</summary>

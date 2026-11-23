@@ -372,7 +372,10 @@ or an API without timer queries — the VSync-capped wall-clock p90 has to stay 
 
 **The High cost factor** (`QualityCalibration.HighGpuCostFactor = 2.0`, #3283). PerfProbe on 2026-11-06, reference
 laptop (Ryzen 9 PRO 7940HS, RTX 2000 Ada Laptop GPU, Direct3D 12), seed 424242, view distance 8, 30 s idle + 30 s walk,
-quiet machine:
+quiet machine. ⚠ Until #3954 (2026-11-23) the probe did not skip the prologue cinematic, which has held the camera on a
+fresh world since the cutscene director came (2026-10-12) — so these numbers were most likely taken during the prologue's
+camera flight, not in the player's view. The ratio between the presets is what the factor rests on; re-measure before
+relying on the absolute values:
 
 | Preset | VSync | idle: fps · GPU p50 / p90 | walk: fps · GPU p50 / p90 |
 |---|---|---|---|
