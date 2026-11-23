@@ -195,6 +195,10 @@ release fetches the whole set again — 56 files, ~20 MB of JSON (2026-10). Thre
   (`deploy/worldhost/docker-compose.yml`) shrinks the JSON ~10–35× on the wire. Caddy's default type list leaves the
   Unity build files alone: they are Brotli-packed already (`*.unityweb`) and go out as `application/octet-stream`.
   A self-hosted portal without Caddy should compress `/play/StreamingAssets/` itself (#2187).
+- **The planet maps are not part of it (#3979).** `data/maps/*.bbmap` (a few megabytes nobody needs before the Sol
+  system appears) ships in StreamingAssets but stays out of the manifest; a map is fetched when a world of a map planet
+  needs it, and the in-process server, the far terrain, the biome looks and the planet bakes wait for it —
+  [MAP_PLANETS.md](MAP_PLANETS.md) §6.
 
 ## Bottom line
 
