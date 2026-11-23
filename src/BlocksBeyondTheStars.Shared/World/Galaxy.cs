@@ -70,6 +70,11 @@ public sealed class CelestialBody
     /// Purely cosmetic — no gameplay reads it; like the rest of the galaxy it re-derives
     /// deterministically from the world seed and is never persisted.</summary>
     public int RingSeed { get; set; }
+
+    /// <summary>#3969: the fixed values of a body of a fixed system (Sol) — its circumference, gravity, drawn size and name
+    /// key; null for a rolled body. Read through <see cref="BodyProfile.Resolve"/>, never persisted (the system is rebuilt
+    /// from its data at every start).</summary>
+    public FixedBodyDefinition? Fixed { get; set; }
 }
 
 /// <summary>A star system: a named cluster of bodies on the star map.</summary>
@@ -90,6 +95,10 @@ public sealed class StarSystem
 
     /// <summary>Whether <c>UniverseGenerator</c> rolled this system (<see cref="StarSystemOrigin.Rolled"/>).</summary>
     public bool IsRolled => Origin == StarSystemOrigin.Rolled;
+
+    /// <summary>#3969: the definition a fixed or pack system was built from (its star, its name key); null for a rolled
+    /// system and the Guardian's. Never persisted.</summary>
+    public FixedSystemDefinition? Fixed { get; set; }
 
     /// <summary>2D star-map coordinates.</summary>
     public float MapX { get; set; }

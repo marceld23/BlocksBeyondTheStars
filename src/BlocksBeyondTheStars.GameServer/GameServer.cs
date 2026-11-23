@@ -549,6 +549,7 @@ public sealed partial class GameServer
         // #2437: the generator is told the start type so its gas-giant pass never eats the planet the pick below lands on.
         _galaxy = GenerateGalaxy(systemCount); // #3640: with the civilizations' pinned guarantees
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
+        _fixedBodies.Clear(); // #3969: the hand-made systems append their bodies again below
 
         // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched
         // and growth never moves one. Never in the story's finale system (it is not even in the galaxy yet).
@@ -706,6 +707,10 @@ public sealed partial class GameServer
         // #3357: the pack star systems this save revealed before (the Sounders' Ornemis), back at their pinned map spot —
         // after the start body is chosen, so they never become the spawn world.
         EnsurePackSystemsInGalaxy();
+
+        // #3969: the fixed systems of data/systems (Sol) the save revealed before, back at their pinned spot — and one whose
+        // growth rule an older save already met. After the pack systems, so a pack keeps an id both declare.
+        EnsureFixedSystemsInGalaxy();
 
         // Finale (P6): the galaxy is regenerated from seed each start, so an already-revealed save needs its Guardian
         // system re-appended — but the story state is not loaded yet at this point (the "registries" boot stage
@@ -7053,7 +7058,7 @@ public sealed partial class GameServer
         return new NetBody
         {
             Id = b.Id,
-            Name = CruiserWreckNameFor(receiver, b.Id, b.Name), // #3902: a cruiser's wreck is named in the receiver's language
+            Name = CruiserWreckNameFor(receiver, b.Id, StarMapBodyName(receiver, b)), // #3902, #3969: a cruiser's wreck and a fixed body in the receiver's language
             Kind = b.Kind.ToString(),
             PlanetType = b.PlanetType,
             Status = b.Status.ToString(),

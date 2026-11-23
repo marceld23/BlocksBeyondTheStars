@@ -83,6 +83,12 @@ public static class SystemBodyLayout
     /// (a planet; a lone giant reaches ~81).</summary>
     public static float OrbitDiameter(int circumference) => 8f + (circumference / 220f);
 
+    /// <summary>#3969: a body's drawn diameter — the one its data fixes (<paramref name="fixedDiameter"/> above 0: Jupiter looks
+    /// far bigger than its walkable size), else the one its circumference gives (<see cref="OrbitDiameter"/>). The server
+    /// (<see cref="BodyProfile"/>) and the client (<c>NetBody.VisibleDiameter</c>) both draw and fly by it.</summary>
+    public static float VisibleDiameter(float fixedDiameter, int circumference)
+        => fixedDiameter > 0f ? fixedDiameter : OrbitDiameter(circumference);
+
     /// <summary>Centre distance at which a ship is well inside a body's landing range — where the autopilot stops and
     /// where an NPC ship begins its descent.</summary>
     public static float LandApproachDistance(float bodyRadius) => bodyRadius + KeepOutMargin + (LandBand * 0.5f);

@@ -43,14 +43,14 @@ public sealed partial class GameServer
         }
 
         var homeCentre = new Vector3f(SystemBodyLayout.HomeX, SystemBodyLayout.HomeY, SystemBodyLayout.HomeZ);
-        float homeRadius = SystemBodyLayout.OrbitDiameter(WorldCircumferenceOf(home)) * SystemBodyLayout.HomeDiameterFactor * 0.5f;
+        float homeRadius = VisibleDiameterOf(home) * SystemBodyLayout.HomeDiameterFactor * 0.5f;
         if (body.Id == home.Id)
         {
             (centre, radius) = (homeCentre, homeRadius);
             return true;
         }
 
-        radius = SystemBodyLayout.OrbitDiameter(WorldCircumferenceOf(body)) * 0.5f;
+        radius = VisibleDiameterOf(body) * 0.5f;
         const float scale = SystemBodyLayout.FlightViewScale;
         var parent = body.Kind == CelestialKind.Moon && body.ParentId.Length > 0 ? _galaxy!.FindBody(body.ParentId) : null;
         if (parent is null)
@@ -61,7 +61,7 @@ public sealed partial class GameServer
 
         // A moon: outside its planet's surface (the client's first orbit slot; further moons step outward from it).
         bool ofHome = parent.Id == home.Id;
-        float parentRadius = ofHome ? homeRadius : SystemBodyLayout.OrbitDiameter(WorldCircumferenceOf(parent)) * 0.5f;
+        float parentRadius = ofHome ? homeRadius : VisibleDiameterOf(parent) * 0.5f;
         var parentCentre = ofHome ? homeCentre : PlanetInScene(home, parent, parentRadius);
         float rx = (body.SystemX - parent.SystemX) * scale, rz = (body.SystemZ - parent.SystemZ) * scale;
         float len = System.MathF.Sqrt((rx * rx) + (rz * rz));
@@ -99,7 +99,7 @@ public sealed partial class GameServer
 
     /// <summary>The launch body's true drawn radius — what it is drawn at in another body's flight, not the oversized
     /// launch-body drawing (<see cref="SystemBodyLayout.HomeDiameterFactor"/>).</summary>
-    private float HomeTrueRadius(CelestialBody home) => SystemBodyLayout.OrbitDiameter(WorldCircumferenceOf(home)) * 0.5f;
+    private float HomeTrueRadius(CelestialBody home) => VisibleDiameterOf(home) * 0.5f;
 
     /// <summary>The point a trader coming from <paramref name="from"/> flies to before it lands on
     /// <paramref name="bodyId"/>: on the body's landing shell, on the side it comes from. False when the body is not in

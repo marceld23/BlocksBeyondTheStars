@@ -64,21 +64,25 @@ public sealed class StoryPackSystem
     [JsonConverter(typeof(StoryConditionListConverter))]
     public List<string> VisibleIf { get; set; } = new();
 
+    /// <summary>The id of the system's one body inside it (#3969: a pack system is a fixed system with this one body).</summary>
+    public const string BodyId = "world";
+
     /// <summary>The body id of the system's one body (<c>&lt;id&gt;-world</c>).</summary>
-    public static string BodyIdOf(string systemId) => systemId + "-world";
+    public static string BodyIdOf(string systemId) => World.FixedSystemDefinition.BodyIdOf(systemId, BodyId);
 }
 
-/// <summary>The values of <see cref="StoryPackSystem.Placement"/> (#3357).</summary>
+/// <summary>The values of <see cref="StoryPackSystem.Placement"/> (#3357) — those of every fixed system
+/// (<see cref="World.FixedSystemPlacements"/>, #3969).</summary>
 public static class StoryPackSystemPlacements
 {
     /// <summary>Out past every other star, on a bearing of its own (seed-stable) — "beyond the frontier", like the Guardian's.</summary>
-    public const string Edge = "edge";
+    public const string Edge = World.FixedSystemPlacements.Edge;
 
     /// <summary>Inside the galaxy, at the emptiest spot among the stars (seed-stable) — "hidden among them, detuned".</summary>
-    public const string Inside = "inside";
+    public const string Inside = World.FixedSystemPlacements.Inside;
 
     /// <summary>Every placement.</summary>
-    public static readonly IReadOnlyList<string> All = new[] { Edge, Inside };
+    public static readonly IReadOnlyList<string> All = World.FixedSystemPlacements.All;
 }
 
 /// <summary>The milestones a pack's dialog may set with a <c>milestone:&lt;key&gt;</c> consequence (#3347): only keys in the

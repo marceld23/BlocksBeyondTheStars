@@ -688,9 +688,12 @@ public sealed partial class GameServer
     /// <summary>The star colour of <paramref name="system"/> (#3123): dealt per galaxy from the world seed and the system
     /// index (<see cref="StarColors"/>), the same value for the star map, the planet sky and the ship interior. A location
     /// outside the galaxy (null) still gets a star of this world. From generation 48 the galaxy holds one red and one blue
-    /// sun for sure and rarely more, never in the start system (<see cref="WorldDescription.RareStarsGeneration"/>).</summary>
-    internal int StarColorOf(StarSystem? system) => StarColors.ForSystem(_meta.Seed, system?.Id, system?.Name,
-        _meta.Description.TerrainGeneration, _meta.Description.StarSystemCount, StartSystemId);
+    /// sun for sure and rarely more, never in the start system (<see cref="WorldDescription.RareStarsGeneration"/>).
+    /// #3969: a fixed system's star (Sol's yellow-white) keeps the colour its data names.</summary>
+    internal int StarColorOf(StarSystem? system) => system?.Fixed?.Star is { ColorRgb: > 0 } star
+        ? star.ColorRgb
+        : StarColors.ForSystem(_meta.Seed, system?.Id, system?.Name,
+            _meta.Description.TerrainGeneration, _meta.Description.StarSystemCount, StartSystemId);
 
     // The world's flora base hue moved to Shared.World.FloraTints.ForWorld (#1716); the sky hue and the cloud
     // tint moved to Shared.World.AtmosphereTints (#2170).

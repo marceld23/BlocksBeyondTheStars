@@ -153,6 +153,7 @@ public sealed partial class GameServer
             }
         }
 
+        RevealFixedSystemsByGrowth(); // #3969: a fixed system whose growth rule the galaxy meets now joins it (Sol after the 6th)
         _repo.SaveMetadata(_meta);
         BroadcastStarMap();
         Send(session, new ServerMessage

@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Story;
@@ -30,9 +29,6 @@ public sealed partial class GameServer
 
     /// <summary>The narrator line of a <c>story_system:&lt;id&gt;</c> step's marker ({0} = the system's name).</summary>
     internal const string StepMarkedSystemLine = "vega.step.marked_system";
-
-    /// <summary>How far out an <c>edge</c> pack system sits at least (map units) — a little inside the Guardian's ring.</summary>
-    private const float PackSystemEdgeDistance = 1450f;
 
     /// <summary>Sites the gameplay code registered for packs (#3349, <c>pack_site:&lt;id&gt;</c>), by site id. RAM only — the code
     /// that places a site registers it again whenever it finds it (a world load).</summary>
@@ -101,20 +97,19 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>The save's record of an appended pack system (its feature entry), or null.</summary>
-    private string? PackSystemRecord(string systemId)
-        => _meta.StampedFeatures.FirstOrDefault(f => f.StartsWith(PackSystemFeaturePrefix + systemId + "|", StringComparison.Ordinal));
+    // ---------------------------------------------------------------------------------------------
+    // Appending — through the fixed-system mechanism (GameServerFixedSystems.cs, #3969).
+    // ---------------------------------------------------------------------------------------------
 
-    // ---------------------------------------------------------------------------------------------
-    // Appending.
-    // ---------------------------------------------------------------------------------------------
+    /// <summary>The orbit radius of a pack system's body — a calm second orbit (the generator's planets sit 420 + n·520 out).</summary>
+    private const float PackBodyOrbitRadius = 940f;
 
     /// <summary>At start (after the galaxy is built): re-appends every pack system the save recorded, at its pinned spot.</summary>
     private void EnsurePackSystemsInGalaxy()
     {
         foreach (var (pack, system) in DeclaredPackSystems())
         {
-            if (PackSystemRecord(system.Id) is { } record)
+            if (SystemRecord(PackSystemFeaturePrefix, system.Id) is { } record)
             {
                 AppendPackSystem(system, record);
             }
@@ -135,12 +130,7 @@ public sealed partial class GameServer
             return true;
         }
 
-        var (x, y) = PackSystemMapPosition(_galaxy, system, _meta.Seed);
-        string record = PackSystemFeaturePrefix + system.Id + "|"
-                        + x.ToString("R", CultureInfo.InvariantCulture) + "|" + y.ToString("R", CultureInfo.InvariantCulture);
-        _meta.StampedFeatures.RemoveAll(f => f.StartsWith(PackSystemFeaturePrefix + system.Id + "|", StringComparison.Ordinal));
-        _meta.StampedFeatures.Add(record);
-        _repo.SaveMetadata(_meta);
+        string record = PinSystemSpot(PackSystemFeaturePrefix, system.Id, FixedSystemMapPosition(_galaxy, system.Id, system.Placement, _meta.Seed));
         AppendPackSystem(system, record);
         _log.Info($"Pack system '{system.Id}' of '{pack.Id}' joined the galaxy.");
         BroadcastStarMap();
@@ -155,103 +145,38 @@ public sealed partial class GameServer
             return;
         }
 
-        var parts = record.Split('|');
-        var (mapX, mapY) = parts.Length >= 4
-                           && float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float px)
-                           && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float py)
-            ? (px, py)
-            : PackSystemMapPosition(_galaxy, def, _meta.Seed);
-        string name = PackSystemName(def, "en");
-        var system = new StarSystem { Id = def.Id, Origin = StarSystemOrigin.Pack, Name = name, MapX = mapX, MapY = mapY };
-        float angle = (BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("packsystem-orbit:" + def.Id) % 360) * MathF.PI / 180f;
-        system.Bodies.Add(new CelestialBody
-        {
-            Id = StoryPackSystem.BodyIdOf(def.Id),
-            Name = string.IsNullOrEmpty(def.BodyName) ? name : def.BodyName,
-            Kind = CelestialKind.Planet,
-            PlanetType = _content.GetPlanet(def.PlanetType ?? string.Empty) is not null ? def.PlanetType : GuardianCorePlanetType(),
-            SystemId = def.Id,
-            SystemX = 940f * MathF.Cos(angle), // a calm second orbit (the generator's planets sit 420 + n·520 out)
-            SystemZ = 940f * MathF.Sin(angle),
-        });
-        _galaxy.Systems.Add(system);
+        var spot = RecordedSpot(record) ?? FixedSystemMapPosition(_galaxy, def.Id, def.Placement, _meta.Seed);
+        AppendFixedSystem(PackSystemDefinition(def), StarSystemOrigin.Pack, spot);
     }
+
+    /// <summary>A pack system as a fixed system (#3969): its names and placement, one landable planet of its type (an unknown
+    /// type becomes a stark rocky world) on a calm orbit at a bearing of its own, everything else rolled.</summary>
+    private FixedSystemDefinition PackSystemDefinition(StoryPackSystem def) => new()
+    {
+        Key = def.Id,
+        Id = def.Id,
+        NameKey = def.NameKey ?? string.Empty,
+        Name = def.Name ?? string.Empty,
+        Placement = def.Placement,
+        Appear = new FixedSystemAppearance { VisibleIf = def.VisibleIf },
+        Bodies =
+        {
+            new FixedBodyDefinition
+            {
+                Id = StoryPackSystem.BodyId,
+                Kind = nameof(CelestialKind.Planet),
+                PlanetType = _content.GetPlanet(def.PlanetType ?? string.Empty) is not null ? def.PlanetType! : GuardianCorePlanetType(),
+                OrbitRadius = PackBodyOrbitRadius,
+                OrbitAngle = BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("packsystem-orbit:" + def.Id) % 360,
+                Name = def.BodyName ?? string.Empty,
+            },
+        },
+    };
 
     /// <summary>A pack system's name in a language: its <see cref="StoryPackSystem.NameKey"/>'s text, else the fixed name, else
     /// the id.</summary>
     private string PackSystemName(StoryPackSystem def, string localeCode)
-    {
-        if (!string.IsNullOrEmpty(def.NameKey))
-        {
-            string text = Localize(localeCode, def.NameKey);
-            if (!string.IsNullOrEmpty(text) && text != def.NameKey && !text.StartsWith("[", StringComparison.Ordinal))
-            {
-                return text;
-            }
-        }
-
-        return string.IsNullOrEmpty(def.Name) ? def.Id : def.Name;
-    }
-
-    /// <summary>
-    /// Where a pack system goes on the star map (seed-stable; pinned in the save at the first append). <c>edge</c>: out past
-    /// every procedural star like the Guardian's, but on a bearing of its own (turned 60°–300° from the Guardian's by the id).
-    /// <c>inside</c>: the emptiest of 96 seeded spots inside the stars' box. Only the procedural systems count, so a pack
-    /// system never moves the Guardian's spot (and the Guardian never moves this one).
-    /// </summary>
-    internal static (float X, float Y) PackSystemMapPosition(Galaxy galaxy, StoryPackSystem def, long seed)
-    {
-        var stars = galaxy.Systems.Where(s => s.IsRolled).ToList();
-        var home = stars.FirstOrDefault(s => s.Id == "sys0") ?? stars.FirstOrDefault();
-        if (home is null)
-        {
-            return (-PackSystemEdgeDistance, PackSystemEdgeDistance);
-        }
-
-        uint hash = unchecked((uint)(BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("packsystem:" + def.Id) ^ seed));
-        if (string.Equals(def.Placement, StoryPackSystemPlacements.Inside, StringComparison.Ordinal) && stars.Count > 1)
-        {
-            return EmptiestSpot(galaxy, stars, hash);
-        }
-
-        float sumX = 0f, sumY = 0f, farthest = 0f;
-        foreach (var s in stars)
-        {
-            sumX += s.MapX;
-            sumY += s.MapY;
-            float dx = s.MapX - home.MapX, dy = s.MapY - home.MapY;
-            farthest = MathF.Max(farthest, MathF.Sqrt((dx * dx) + (dy * dy)));
-        }
-
-        float dirX = home.MapX - (sumX / stars.Count), dirY = home.MapY - (sumY / stars.Count);
-        float baseAngle = (MathF.Abs(dirX) + MathF.Abs(dirY)) < 1f ? MathF.PI / 4f : MathF.Atan2(dirY, dirX);
-        float turn = (60f + (hash % 241)) * MathF.PI / 180f;
-        float distance = MathF.Max(PackSystemEdgeDistance, farthest + 150f);
-        return (home.MapX + (MathF.Cos(baseAngle + turn) * distance), home.MapY + (MathF.Sin(baseAngle + turn) * distance));
-    }
-
-    /// <summary>The <c>inside</c> placement: of 96 seeded spots in the stars' box, the one farthest from every system.</summary>
-    private static (float X, float Y) EmptiestSpot(Galaxy galaxy, List<StarSystem> stars, uint hash)
-    {
-        float minX = stars.Min(s => s.MapX), maxX = stars.Max(s => s.MapX);
-        float minY = stars.Min(s => s.MapY), maxY = stars.Max(s => s.MapY);
-        var rng = new Random(unchecked((int)hash));
-        (float X, float Y) best = (minX, minY);
-        double bestGap = -1;
-        for (int i = 0; i < 96; i++)
-        {
-            float x = minX + ((float)rng.NextDouble() * (maxX - minX));
-            float y = minY + ((float)rng.NextDouble() * (maxY - minY));
-            double gap = galaxy.Systems.Min(s => ((s.MapX - x) * (double)(s.MapX - x)) + ((s.MapY - y) * (double)(s.MapY - y)));
-            if (gap > bestGap)
-            {
-                bestGap = gap;
-                best = (x, y);
-            }
-        }
-
-        return best;
-    }
+        => LocalizedOr(localeCode, def.NameKey, string.IsNullOrEmpty(def.Name) ? def.Id : def.Name);
 
     // ---------------------------------------------------------------------------------------------
     // Per player.
@@ -284,9 +209,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2506 + #3357: the one per-player gate of the star map, the hyperjump and the travel screen — the Guardian's
-    /// system while the story is off, a pack system the player may not see.</summary>
+    /// system while the story is off, a pack system the player may not see, a data system whose story condition they do not
+    /// meet (#3969).</summary>
     internal bool SystemHiddenFor(PlayerSession s, string? systemId)
-        => GuardianSystemHidden(systemId) || PackSystemHiddenFor(s, systemId);
+        => GuardianSystemHidden(systemId) || PackSystemHiddenFor(s, systemId) || FixedSystemHiddenFor(s, systemId);
 
     /// <summary>The 1 Hz part of <see cref="TickPackExtrasFor"/>: a pack system this player may see joins the galaxy (the first
     /// time anyone may), and a change in what they may see re-sends their star map.</summary>
@@ -301,6 +227,8 @@ public sealed partial class GameServer
             }
         }
 
+        TickFixedStorySystemsFor(s, visible); // #3969: a data system with a story condition, the same way
+
         string now = string.Join(",", visible);
         if (!string.Equals(now, state.PackSystems, StringComparison.Ordinal))
         {
@@ -312,10 +240,6 @@ public sealed partial class GameServer
             }
         }
     }
-
-    /// <summary>The star-map name of a system for this player: a pack system's in their language.</summary>
-    private string StarMapSystemName(PlayerSession s, StarSystem sys)
-        => !sys.IsRolled && TryGetPackSystem(sys.Id, out _, out var def) ? PackSystemName(def, s.Locale) : sys.Name;
 
     // ---------------------------------------------------------------------------------------------
     // Marker providers (#3349).

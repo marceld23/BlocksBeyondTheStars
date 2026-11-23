@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Shared.Content;
 /// </code>
 /// Each definition file is a JSON array; each locale file is a flat key→text object.
 /// </summary>
-public static class ContentLoader
+public static partial class ContentLoader
 {
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -158,6 +158,10 @@ public static class ContentLoader
         // its subfolder — set after the loot tables and the planets, which they are checked against. Optional: no folder → none.
         var (civilizations, civilizationTemplates) = LoadCivilizations(Path.Combine(dataDir, CivilizationRules.DataFolder), warn);
         content.SetCivilizations(civilizations, civilizationTemplates, warn);
+
+        // Fixed star systems (#3969, Sol): one file per system under data/systems — checked against the planets; a broken file
+        // is reported and dropped. Optional: no folder → none.
+        content.SetFixedSystems(LoadFixedSystems(Path.Combine(dataDir, World.FixedSystemRules.DataFolder), warn), warn);
         content.SetStories(stories);
         content.SetFailedStoryPacks(failedPacks);
 
