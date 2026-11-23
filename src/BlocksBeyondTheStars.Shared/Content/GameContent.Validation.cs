@@ -635,6 +635,8 @@ public sealed partial class GameContent
             {
                 problems.Add($"Planet '{planet.Key}' has creatureAbundance \"authored\" but names no authored creature.");
             }
+
+            problems.AddRange(PlanetMapProblems(planet)); // #3978
             // Terrain tags (#1644): resolved once here so worldgen reads a flags enum, never the string list.
             planet.Tags = TerrainTags.Parse(planet.TerrainTags, out var unknownTag);
             // City worlds (#1793): the composer key must be one the server knows, and every authored outfit

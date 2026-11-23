@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Story;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Shared.Content;
 
@@ -230,6 +231,7 @@ public static class ContentLoader
             : null);
 
         content.Validate();
+        SetPlanetMaps(content, Path.Combine(dataDir, PlanetMapCodec.DataFolder), warn);
 
         // User ships (#3520): one file per ship from the ship editor. Checked against the validated content and kept apart
         // from the shipped Ships (warn and drop, never a failed load).
@@ -239,6 +241,28 @@ public static class ContentLoader
         }
 
         return content;
+    }
+
+    /// <summary>#3978: the planet maps are read on first use, never during the load — the content only learns the folder
+    /// (<c>data/maps/&lt;key&gt;.bbmap</c>). A planet type naming a map that is not there is reported; its worlds cannot
+    /// generate until the map arrives.</summary>
+    private static void SetPlanetMaps(GameContent content, string mapDir, Action<string>? warn)
+    {
+        content.SetPlanetMapSource(key =>
+        {
+            string file = Path.Combine(mapDir, key + PlanetMapCodec.Extension);
+            return File.Exists(file) ? File.ReadAllBytes(file) : null;
+        });
+
+        foreach (var planet in content.Planets.Values)
+        {
+            if (planet.HasTerrainMap && GameContent.IsPlanetMapKey(planet.TerrainMap)
+                && !File.Exists(Path.Combine(mapDir, planet.TerrainMap + PlanetMapCodec.Extension)))
+            {
+                warn?.Invoke($"Planet '{planet.Key}' names terrain map '{planet.TerrainMap}', but {PlanetMapCodec.DataFolder}/"
+                             + $"{planet.TerrainMap}{PlanetMapCodec.Extension} is missing.");
+            }
+        }
     }
 
     /// <summary>Loads every voxel ship layout from <c>data/ship_layouts/*.json</c> (key = file name).</summary>
