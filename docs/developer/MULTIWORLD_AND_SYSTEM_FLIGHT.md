@@ -142,6 +142,10 @@ them**; between systems you hyperjump. This combines two originally separate ide
   generator or a lane). `edge` placement sits past the frontier on a bearing of its own, `inside` at the emptiest spot
   among the stars; only procedural `sys*` systems count for both, and the Guardian's spot ignores pack systems.
   Code: `GameServerStoryPacks.Systems.cs`; authors: [STORY_PACK_AUTHORING.md §16](STORY_PACK_AUTHORING.md#16-what-a-side-pack-brings-besides-chapters-3347-3357).
+- **Fixed star systems (#3969, #3970).** A pack system is one case of a fixed system: `data/systems/<key>.json` (Sol)
+  declares a star, bodies with fixed orbits, sizes, gravity and drawn diameters, and when it joins (after the galaxy's
+  N-th growth, or a story condition); it is pinned as `fixedsystem|<id>|<x>|<y>`. Every system carries its
+  `StarSystem.Origin`; the body profile (`BodyProfile`) sizes every body. See [FIXED_SYSTEMS.md](FIXED_SYSTEMS.md).
 - **Wormholes (#2242)** are the second way between systems: a `WormholeTransitIntent` (NetCodec 285) moves just
   that player's flight space to the twin system, next to the other rift, like a hyperjump without the module —
   see [WORMHOLES.md](WORMHOLES.md).

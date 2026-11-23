@@ -119,6 +119,9 @@ refreshed 2026-10-23.
 - [SHIP_SCANNER.md](SHIP_SCANNER.md) — the ship scanner (#2243): every ship's hold-to-scan slot in the flight
   hotbar, server-checked readouts for every space object, the planet overview card, the three data-driven tiers
   (cockpit · Deep · Quantum) with module replacement, and the life-pod and anomaly models.
+- [FIXED_SYSTEMS.md](FIXED_SYSTEMS.md) — fixed star systems (#3969, #3970): a system's origin, `data/systems/<key>.json`,
+  joining by growth or story condition, the pinned map spot, the body profile (fixed size, gravity, drawn diameter) and
+  Sol, our solar system.
 - [WORMHOLES.md](WORMHOLES.md) — wormholes (#2242): seed-pure pair placement beyond the outer orbit, the story-system
   lock, the world option, the transit gates and pose, the scanner reading, and the rift shader and transit effect.
 - [DEBRIS_FIELDS.md](DEBRIS_FIELDS.md) — debris fields (#2351): seed-pure placement after the generator, the field in

@@ -1,0 +1,57 @@
+// #3970: Sol — our own solar system as a fixed star system (#3969, docs/developer/FIXED_SYSTEMS.md). It joins a growing
+// galaxy with its sixth growth, out past the rim. The order and the names are real; distances and orbit periods follow the
+// order, not the true ratios (the flight view must keep its clear gaps), and gravity is pressed into the tested 0.35–1.6.
+// One block is about 2.5 km: Earth is 16,000 blocks around. The gas giants are drawn far bigger than they walk
+// (visibleDiameter; Earth's own drawn size from 16,000 blocks is about 81).
+{
+  "id": "sol",
+  "nameKey": "system.sol.name",
+  "name": "Sol",
+  "star": { "name": "Sol", "color": "0xFFF4E0", "visibleSize": 1.0 },
+  "placement": "edge",
+  "appear": { "afterGrowth": 6 },
+  "bodies": [
+    { "id": "mercury", "kind": "planet", "planetType": "sol_mercury", "orbitRadius": 420, "orbitAngle": 20, "orbitPeriodDays": 6,
+      "circumference": 6128, "gravity": 0.5, "nameKey": "body.sol_mercury.name", "name": "Mercury" },
+    { "id": "venus", "kind": "planet", "planetType": "sol_venus", "orbitRadius": 900, "orbitAngle": 110, "orbitPeriodDays": 9,
+      "circumference": 15200, "gravity": 0.9, "nameKey": "body.sol_venus.name", "name": "Venus" },
+    { "id": "earth", "kind": "planet", "planetType": "sol_earth", "orbitRadius": 1400, "orbitAngle": 160, "orbitPeriodDays": 12,
+      "circumference": 16000, "gravity": 1.0, "nameKey": "body.sol_earth.name", "name": "Earth" },
+    { "id": "moon", "kind": "moon", "planetType": "sol_moon", "parent": "earth", "orbitRadius": 90, "orbitAngle": 300, "orbitPeriodDays": 2.5,
+      "circumference": 4368, "gravity": 0.35, "nameKey": "body.sol_moon.name", "name": "Moon" },
+    { "id": "mars", "kind": "planet", "planetType": "sol_mars", "orbitRadius": 1900, "orbitAngle": 290, "orbitPeriodDays": 16,
+      "circumference": 8512, "gravity": 0.5, "nameKey": "body.sol_mars.name", "name": "Mars" },
+    { "id": "phobos", "kind": "moon", "planetType": "sol_phobos", "parent": "mars", "orbitRadius": 90, "orbitAngle": 40, "orbitPeriodDays": 0.4,
+      "circumference": 800, "gravity": 0.35, "nameKey": "body.sol_phobos.name", "name": "Phobos" },
+    { "id": "deimos", "kind": "moon", "planetType": "sol_deimos", "parent": "mars", "orbitRadius": 145, "orbitAngle": 200, "orbitPeriodDays": 0.9,
+      "circumference": 800, "gravity": 0.35, "nameKey": "body.sol_deimos.name", "name": "Deimos" },
+    { "id": "ceres", "kind": "asteroidField", "planetType": "sol_ceres", "orbitRadius": 2350, "orbitAngle": 10, "orbitPeriodDays": 21,
+      "circumference": 1200, "gravity": 0.35, "nameKey": "body.sol_ceres.name", "name": "Ceres" },
+    { "id": "vesta", "kind": "asteroidField", "planetType": "sol_vesta", "orbitRadius": 2450, "orbitAngle": 150, "orbitPeriodDays": 19,
+      "circumference": 896, "gravity": 0.35, "nameKey": "body.sol_vesta.name", "name": "Vesta" },
+    { "id": "jupiter", "kind": "planet", "planetType": "sol_jupiter", "orbitRadius": 3300, "orbitAngle": 240, "orbitPeriodDays": 26,
+      "circumference": 16000, "gravity": 1.6, "visibleDiameter": 242, "nameKey": "body.sol_jupiter.name", "name": "Jupiter" },
+    { "id": "io", "kind": "moon", "planetType": "sol_io", "parent": "jupiter", "orbitRadius": 90, "orbitAngle": 0, "orbitPeriodDays": 0.6,
+      "circumference": 5776, "gravity": 0.4, "nameKey": "body.sol_io.name", "name": "Io" },
+    { "id": "europa", "kind": "moon", "planetType": "sol_europa", "parent": "jupiter", "orbitRadius": 145, "orbitAngle": 90, "orbitPeriodDays": 0.9,
+      "circumference": 4896, "gravity": 0.35, "nameKey": "body.sol_europa.name", "name": "Europa" },
+    { "id": "ganymede", "kind": "moon", "planetType": "sol_ganymede", "parent": "jupiter", "orbitRadius": 200, "orbitAngle": 180, "orbitPeriodDays": 1.4,
+      "circumference": 6592, "gravity": 0.4, "nameKey": "body.sol_ganymede.name", "name": "Ganymede" },
+    { "id": "callisto", "kind": "moon", "planetType": "sol_callisto", "parent": "jupiter", "orbitRadius": 255, "orbitAngle": 270, "orbitPeriodDays": 2.3,
+      "circumference": 6048, "gravity": 0.4, "nameKey": "body.sol_callisto.name", "name": "Callisto" },
+    { "id": "saturn", "kind": "planet", "planetType": "sol_saturn", "orbitRadius": 4500, "orbitAngle": 60, "orbitPeriodDays": 31,
+      "circumference": 14400, "gravity": 1.1, "visibleDiameter": 202, "ring": true, "nameKey": "body.sol_saturn.name", "name": "Saturn" },
+    { "id": "titan", "kind": "moon", "planetType": "sol_titan", "parent": "saturn", "orbitRadius": 90, "orbitAngle": 220, "orbitPeriodDays": 1.8,
+      "circumference": 6464, "gravity": 0.35, "nameKey": "body.sol_titan.name", "name": "Titan" },
+    { "id": "uranus", "kind": "planet", "planetType": "sol_uranus", "orbitRadius": 5600, "orbitAngle": 140, "orbitPeriodDays": 35,
+      "circumference": 12000, "gravity": 0.9, "visibleDiameter": 129, "nameKey": "body.sol_uranus.name", "name": "Uranus" },
+    { "id": "neptune", "kind": "planet", "planetType": "sol_neptune", "orbitRadius": 6600, "orbitAngle": 300, "orbitPeriodDays": 38,
+      "circumference": 12000, "gravity": 1.15, "visibleDiameter": 129, "nameKey": "body.sol_neptune.name", "name": "Neptune" },
+    { "id": "triton", "kind": "moon", "planetType": "sol_triton", "parent": "neptune", "orbitRadius": 90, "orbitAngle": 120, "orbitPeriodDays": -1.0,
+      "circumference": 3392, "gravity": 0.35, "nameKey": "body.sol_triton.name", "name": "Triton" },
+    { "id": "pluto", "kind": "planet", "planetType": "sol_pluto", "orbitRadius": 7600, "orbitAngle": 20, "orbitPeriodDays": 40,
+      "circumference": 2976, "gravity": 0.35, "nameKey": "body.sol_pluto.name", "name": "Pluto" },
+    { "id": "charon", "kind": "moon", "planetType": "sol_charon", "parent": "pluto", "orbitRadius": 90, "orbitAngle": 180, "orbitPeriodDays": 1.2,
+      "circumference": 1520, "gravity": 0.35, "nameKey": "body.sol_charon.name", "name": "Charon" }
+  ]
+}
