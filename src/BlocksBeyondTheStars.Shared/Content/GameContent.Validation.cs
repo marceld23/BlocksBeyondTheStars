@@ -573,10 +573,8 @@ public sealed partial class GameContent
 
             foreach (var kind in planet.AllowedStructures)
             {
-                // #3358: Soaniri keeps its rune monuments. #3500: + its landmarks, and the buried ruins the stamper already asked for.
-                // #3608: + the giant wrecks. #3893: + the guide towers.
-                if (kind is not ("sps_labs" or "net_fragments" or "monuments" or LandmarkRules.StructureKind or "gds_ruins"
-                    or GiantShipRules.StructureKind or SpsTowerRules.StructureKind))
+                // A whitelist names the kinds' whitelist keys (data/structure_types.json) and the chunk-level ones.
+                if (!StructureTypes.IsWhitelistKey(kind))
                 {
                     problems.Add($"Planet '{planet.Key}' allows unknown structure kind '{kind}'.");
                 }

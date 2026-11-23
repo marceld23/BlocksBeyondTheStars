@@ -177,6 +177,11 @@ public sealed partial class StructureTypeRules
     public static bool AllowedOn(StructureTypeDefinition type, PlanetType planet, bool restricted)
         => !restricted || (type.Whitelist.Length > 0 && planet.AllowedStructures.Contains(type.Whitelist));
 
+    /// <summary>Whether a planet type's structure whitelist (<see cref="PlanetType.AllowedStructures"/>) may name
+    /// <paramref name="key"/>: the whitelist key of a kind of these rules.</summary>
+    public bool IsWhitelistKey(string key)
+        => key.Length > 0 && All.Any(t => string.Equals(t.Whitelist, key, StringComparison.Ordinal));
+
     /// <summary>Rules from a kind → definition map; kinds not in it keep their defaults.</summary>
     internal static StructureTypeRules From(Dictionary<string, StructureTypeDefinition> types) => new(types);
 
