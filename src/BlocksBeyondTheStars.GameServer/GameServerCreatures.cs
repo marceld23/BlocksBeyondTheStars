@@ -979,6 +979,7 @@ public sealed partial class GameServer
             HullMax = sp.MaxHealth,
             Position = pos,
             DamagePerSecond = sp.AttackDamage,
+            AnimalSeed = CoatVariants.AnimalSeedOf("wild:" + id), // #3972: picks a coat variant, like the size below
             SizeScale = Shared.Sounders.SoundersFauna.SizeScaleFor(sp, FaunaSizeScale(id)), // this individual's own size (cosmetic; #3359: the giants of Soaniri vary less)
             Loot = { new ItemAmount(sp.DropItem, sp.DropCount) },
         });
@@ -3755,6 +3756,7 @@ public sealed partial class GameServer
 
             Id = e.Id,
             SpeciesId = e.SpeciesId,
+            AnimalSeed = e.AnimalSeed, // #3972: this animal's own seed
             Hostile = !e.IsCompanion && (e.Hostile || e.ProvokeTimer > 0), // provoked creatures read as hostile (red tint); companions never
             Asleep = asleep || SoundelingCurled(e), // #3366: a Soundeling hiding in the dark by day is curled up like a sleeper
             CarriesLight = e.Soundeling is { Item.Length: > 0 }, // #3366: the light a Soundeling carries to a dark spot
@@ -3776,7 +3778,7 @@ public sealed partial class GameServer
 
         // #3971: the species traits through the one species→wire mapping; ActiveFaunaLook is cached per world (#2868) — a
         // species that carries no home look wears this one.
-        CreatureWireMapping.WriteSpecies(n, sp, ActiveFaunaLook());
+        CreatureWireMapping.WriteSpecies(n, sp, ActiveFaunaLook(), e.AnimalSeed);
         n.Size = n.SpeciesSize * e.SizeScale; // species size × this individual's own variance (cosmetic)
         return n;
     }

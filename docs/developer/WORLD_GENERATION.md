@@ -1502,6 +1502,17 @@ and `GiftsWhenCalm`. Leni rides on `glacier`, `icecap`, `frozen_ocean` and `bore
 flower fields' only species (`CreatureBodyPlan.Floral`: a petal ring around the head, a grin while calm, a
 toothed maw while hostile — the view rebuilds the body on the hostility flip).
 
+**Coat variants (#3972).** A record may list `coats`: `[{ "weight": 3, "bodyRgb": …, "bellyRgb": …, "pattern":
+"Tabby", "patternRgb": …, "hide": "fur" }, …]` — the coats the species comes in (a cat: black, grey tabby, ginger
+tabby, …). Empty on every record so far, which keeps the designed colours. Each animal carries its own `AnimalSeed`
+(`CombatEntity`, from its entity id; a pen animal from its pen and place, a village or keeper's pet from its owner, a
+companion from `TamedCreature.AnimalSeed`, which taming copies like the size); `CoatVariants.Pick` chooses its coat by
+weight and `CoatVariants.MaskVariant` one of four mask layouts from the same seed. The server sends the picked coat's
+colours on `ColorRgb`/`BellyRgb`, its hide on `Hide` and its pattern on `NetCreature.CoatPattern` / `CoatPatternRgb` /
+`CoatMask` (additive fields; `NetCreature.AnimalSeed` too); the client's `CreatureLookResolver` wears it as sent. Pattern
+names are the client's `CoatPattern` names, hide names the hide tiles (`CreatureLookNames`, shared, checked at content
+load — an unknown name or a weight below 1 fails the load).
+
 **The flowerling's rules (#1760, `GameServerFlowerling.cs`).** Every block break is reported to
 `CreaturesOnBlockBroken`: a mining-angered species within 16 blocks WITH line of sight takes a 60 s grudge
 (`ProvokeTimer`; the species is Territorial, so the provoked path hunts and bites with its own damage).

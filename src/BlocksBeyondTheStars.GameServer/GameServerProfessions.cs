@@ -459,6 +459,7 @@ public sealed partial class GameServer
                 Position = CompanionSpotNear(sp, owner, npc.Pos),
                 DamagePerSecond = 0f,
                 SizeScale = PetScaleFor(sp, TamerPetScale),
+                AnimalSeed = CoatVariants.AnimalSeedOf(owner), // #3972: always the same pet
                 OwnerId = owner,
                 CompanionId = owner,
             });

@@ -120,7 +120,7 @@ public sealed class CreatureSpeciesMappingTests
     private static NetCreature Wire(CreatureSpecies sp)
     {
         var n = new NetCreature();
-        CreatureWireMapping.WriteSpecies(n, sp, ("world_type", 4711));
+        CreatureWireMapping.WriteSpecies(n, sp, ("world_type", 4711), animalSeed: 12345);
         CreatureWireMapping.WriteGiantSpecies(n, sp);
         return n;
     }

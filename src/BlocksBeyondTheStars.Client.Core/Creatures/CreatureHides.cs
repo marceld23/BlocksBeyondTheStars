@@ -27,17 +27,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The tile key prefix: hide <c>fur</c> is the tile <c>creature_fur</c>.</summary>
         public const string TilePrefix = "creature_";
 
-        /// <summary>Every hide the client knows, in a stable order. The first 25 are the original set (#1760 petal, #2083
-        /// skin, #2111/#2112 slick); the 24 after them are the hide-variety wave (#2831).</summary>
-        public static readonly IReadOnlyList<string> All = new[]
-        {
-            "scales", "fur", "chitin", "hide", "slime", "feathers", "spots", "stripes", "warty", "plated",
-            "finned", "tentacled", "mossy", "crystalline", "metallic", "banded", "shaggy", "spined", "mottled",
-            "iridescent", "barkskin", "veined", "petal", "skin", "slick",
-            "finefeathers", "down", "wool", "leather", "quilted", "fungal", "barkmoss", "coarsescales", "finescales",
-            "lizard", "bristles", "crystalveins", "cracked", "honeycomb", "ridged", "velvet", "snake", "roughbark",
-            "pebbled", "knobbly", "coralskin", "wrinkled", "featherscales", "lichen",
-        };
+        /// <summary>Every hide the client knows, in a stable order — the shared name table (#3972,
+        /// <see cref="CreatureLookNames.Hides"/>), so the server checks a data file's hide names against the same list.</summary>
+        public static readonly IReadOnlyList<string> All = CreatureLookNames.Hides;
 
         /// <summary>Hides whose shapes are big (plates, bands, big scales): they repeat every
         /// <see cref="CoarseTileMetres"/> instead of <see cref="TiledCube.TileMetres"/>, so the shapes read at a distance

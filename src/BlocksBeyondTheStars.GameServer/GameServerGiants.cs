@@ -296,9 +296,11 @@ public sealed partial class GameServer
 
     private CombatEntity SpawnGiantEntity(CreatureSpecies sp, GiantRuntime g, Vector3f pos)
     {
+        string id = NextEntityId();
         var e = new CombatEntity
         {
-            Id = NextEntityId(),
+            Id = id,
+            AnimalSeed = CoatVariants.AnimalSeedOf("giant:" + id), // #3972: every animal has its own seed
             Kind = sp.Hostile ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature,
             SpeciesId = sp.Id,
             Hostile = sp.Hostile,

@@ -53,6 +53,10 @@ with the property's name when a new `AuthoredCreature` property is neither read 
 `AuthoredSpeciesMapping.RecordOnly`, when `Clone` misses a property or shares a collection, and when a new
 `CreatureSpecies` property neither reaches `NetCreature` nor is listed in `CreatureWireMapping.ServerOnly`.
 
+**The animal's own seed (#3972).** A companion keeps the wild animal's `AnimalSeed` (`TamedCreature.AnimalSeed`, copied
+at taming like `SizeScale`, saved in the player blob and by `Snapshots.CloneTamed`), so a species with coat variants keeps
+its coat for good; a companion saved before the field existed (0) derives one from its companion id on spawn.
+
 **A pet keeps its home look (#2868).** The client dresses an animal by a planet hide theme and a per-world random
 motif, and the server tells it per creature which world that look belongs to (`NetCreature.LookPlanet` = a planet
 type key, `NetCreature.LookSeed` = `FaunaLooks.WorldLookSeed(world seed, "system · body")`). A rolled roster species

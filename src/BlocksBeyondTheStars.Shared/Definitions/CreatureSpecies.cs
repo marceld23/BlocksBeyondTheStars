@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
+
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
 /// <summary>Where a creature lives — governs spawning, movement and survival.</summary>
@@ -359,6 +361,11 @@ public sealed class CreatureSpecies
     /// then they calm down. See <see cref="CreatureBehaviour.DefendsKin"/>.</summary>
     public bool PackDefender { get; set; }
 
+    /// <summary>#3972: the fixed coats of the species (from an authored record's <c>coats</c>); each animal wears the one its
+    /// <c>AnimalSeed</c> picks (<see cref="CoatVariants.Pick"/>), sent as its colours, hide and explicit pattern. Empty on
+    /// every rolled species and every record so far — those keep the classic look.</summary>
+    public List<CoatVariant> Coats { get; set; } = new();
+
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;
 
@@ -383,6 +390,7 @@ public sealed class CreatureSpecies
     {
         var copy = (CreatureSpecies)MemberwiseClone();
         copy.BiomeSurfaces = (string[])BiomeSurfaces.Clone();
+        copy.Coats = Coats?.ConvertAll(v => v.Clone()) ?? new List<CoatVariant>(); // #3972
         copy.HasFins = CreatureMotion.HasFins(this);
         copy.Heads = System.Math.Max(1, Heads);
         copy.WingPairs = System.Math.Max(1, WingPairs);

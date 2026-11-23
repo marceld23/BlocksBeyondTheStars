@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -86,6 +87,11 @@ namespace BlocksBeyondTheStars.Client
             Func<string, bool> hideAvailable)
         {
             uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
+            if (!string.IsNullOrEmpty(c.CoatPattern))
+            {
+                return ResolveCoat(c, seed, world, patternTileAvailable, hideAvailable);
+            }
+
             bool authored = CreatureCoat.IsAuthored(c.SpeciesId);
             var pattern = authored ? CoatPattern.None : CreatureCoat.RolledPattern(c, world, patternTileAvailable);
             return new CreatureLook(
@@ -100,6 +106,35 @@ namespace BlocksBeyondTheStars.Client
                 CreatureCoat.MaskSeed(c),
                 GlowMasks.PatternFor(c),
                 GlowMasks.ColourFor(seed, c.ColorRgb));
+        }
+
+        /// <summary>The explicit coat the server picked (#3972): its pattern by name (an unknown name, or a tile pattern whose
+        /// tile did not load, wears none), its pattern colour, its hide head to tail (the species' pick when the hide did not
+        /// load), and masks drawn from the species seed and the animal's mask variant — at most
+        /// <see cref="CoatVariants.MaskVariants"/> layouts per coat.</summary>
+        private static CreatureLook ResolveCoat(NetCreature c, uint seed, FaunaThemes.Look? world,
+            Func<string, bool>? patternTileAvailable, Func<string, bool> hideAvailable)
+        {
+            var pattern = ExplicitPattern(c.CoatPattern, patternTileAvailable);
+            string? hide = CreatureHides.IsKnown(c.Hide) && hideAvailable(c.Hide) ? c.Hide : null;
+            var hides = hide != null ? new CreatureHides.HideSet(hide, hide, hide, hide) : CreatureHides.Pick(c, hideAvailable, world);
+            int variant = Math.Max(0, Math.Min(CoatVariants.MaskVariants - 1, c.CoatMask));
+            uint maskSeed = CoatMix.Mix(CreatureCoat.MaskSeed(c) ^ (uint)variant, CoatMix.SaltMaskVariant);
+            return new CreatureLook(CreatureLookSource.Coat, seed, world, c.ColorRgb, c.BellyRgb, pattern, c.CoatPatternRgb,
+                hides, maskSeed, GlowMasks.PatternFor(c), GlowMasks.ColourFor(seed, c.ColorRgb));
+        }
+
+        /// <summary>The pattern an explicit coat names, or <see cref="CoatPattern.None"/>.</summary>
+        public static CoatPattern ExplicitPattern(string? name, Func<string, bool>? patternTileAvailable)
+        {
+            if (!CreatureLookNames.IsPattern(name) || !Enum.TryParse(name!, out CoatPattern pattern))
+            {
+                return CoatPattern.None;
+            }
+
+            bool tileMissing = CreatureCoat.IsTilePattern(pattern)
+                && (patternTileAvailable == null || !patternTileAvailable(CoatMasks.TileKey(pattern)));
+            return tileMissing ? CoatPattern.None : pattern;
         }
     }
 }

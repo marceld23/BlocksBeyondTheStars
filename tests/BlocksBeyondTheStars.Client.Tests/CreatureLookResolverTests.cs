@@ -60,6 +60,44 @@ public sealed class CreatureLookResolverTests
         Assert.Same(CreatureBodyPlans.Of(CreatureBodyPlan.Standard), CreatureBodyPlans.Of(""));
     }
 
+    [Fact]
+    public void TheSharedPatternNames_AreTheClientPatterns()
+    {
+        var names = Enum.GetNames(typeof(CoatPattern)).Where(n => n != nameof(CoatPattern.None));
+        Assert.Equal(names, CreatureLookNames.Patterns);
+        Assert.Same(CreatureLookNames.Hides, CreatureHides.All);
+    }
+
+    [Fact]
+    public void AnExplicitCoat_IsWornAsSent_EvenByAnAuthoredSpecies_WithAtMostFourMaskLayouts()
+    {
+        var masks = new HashSet<uint>();
+        for (int i = 0; i < 64; i++)
+        {
+            var c = new NetCreature
+            {
+                Id = "e" + i, SpeciesId = "au_cat", VoiceSeed = 1234, ColorRgb = 0x888888, BellyRgb = 0xDDDDDD, Hide = "fur",
+                CoatPattern = "Tabby", CoatPatternRgb = 0x333333, CoatMask = i % 7, AnimalSeed = 100 + i,
+            };
+            var look = CreatureLookResolver.Resolve(c, null, _ => true, _ => true);
+            Assert.Equal(CreatureLookSource.Coat, look.Source);
+            Assert.Equal(CoatPattern.Tabby, look.Pattern);
+            Assert.Equal(0x333333, look.PatternRgb);
+            Assert.Equal(0x888888, look.BodyRgb);
+            Assert.True(look.Hides.Uniform && look.Hides.Torso == "fur");
+            masks.Add(look.MaskSeed);
+        }
+
+        Assert.Equal(CoatVariants.MaskVariants, masks.Count); // the wire's mask index is clamped to 0..3
+
+        var plain = new NetCreature { SpeciesId = "au_cat", CoatPattern = CoatVariants.PlainPattern, Hide = "fur" };
+        Assert.Equal(CoatPattern.None, CreatureLookResolver.Resolve(plain, null, _ => true, _ => true).Pattern);
+        var noTile = new NetCreature { SpeciesId = "au_cat", CoatPattern = "Tabby", Hide = "fur" };
+        Assert.Equal(CoatPattern.None, CreatureLookResolver.Resolve(noTile, null, null, _ => true).Pattern); // tile missing
+        var unknown = new NetCreature { SpeciesId = "au_cat", CoatPattern = "Stripy", Hide = "fur" };
+        Assert.Equal(CoatPattern.None, CreatureLookResolver.Resolve(unknown, null, _ => true, _ => true).Pattern);
+    }
+
     /// <summary>Many creatures, each with a world look (or none) and a tile availability.</summary>
     private static IEnumerable<(NetCreature C, FaunaThemes.Look? Look, bool AllTiles)> Cases()
     {

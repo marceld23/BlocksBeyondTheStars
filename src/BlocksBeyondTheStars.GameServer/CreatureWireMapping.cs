@@ -49,8 +49,9 @@ internal static class CreatureWireMapping
 
     /// <summary>Writes the species traits of a live animal onto <paramref name="n"/>. <paramref name="sp"/> null (a species the
     /// roster no longer holds) writes the classic defaults. <paramref name="worldLook"/> is the world's own fauna look, which a
-    /// species without a home look (#2868) wears.</summary>
-    internal static void WriteSpecies(NetCreature n, CreatureSpecies? sp, (string Planet, int Seed) worldLook)
+    /// species without a home look (#2868) wears. <paramref name="animalSeed"/> is the animal's own seed (#3972): a species
+    /// with coat variants dresses the animal in the one it picks.</summary>
+    internal static void WriteSpecies(NetCreature n, CreatureSpecies? sp, (string Planet, int Seed) worldLook, int animalSeed)
     {
         n.NameKey = sp?.NameKey ?? "creature.generic.name";
         n.Name = sp?.Name ?? string.Empty;
@@ -60,6 +61,7 @@ internal static class CreatureWireMapping
         n.SpeciesSize = sp?.Size ?? 1f; // #2565: the size the bite reach (CreatureReach) is measured by
         WriteBody(n, sp);
         WriteLook(n, sp, worldLook);
+        WriteCoat(n, sp, animalSeed);
         n.VoiceSeed = sp?.VoiceSeed ?? 0; // 0 → client falls back to hashing the trait tuple (#907)
     }
 
@@ -114,6 +116,28 @@ internal static class CreatureWireMapping
         n.Hide = sp?.Hide ?? string.Empty; // #1763: an authored species' fixed hide tile
         n.LookPlanet = sp is { LookPlanet.Length: > 0 } ? sp.LookPlanet : worldLook.Planet; // #2868: a pet's, a clone's home world
         n.LookSeed = sp is { LookSeed: not 0 } ? sp.LookSeed : worldLook.Seed;
+    }
+
+    /// <summary>#3972: the coat variant the animal's seed picks, when the species has any — its colours and hide over the
+    /// species', its pattern, pattern colour and mask layout on the explicit-coat fields. A species without variants leaves
+    /// the explicit coat empty (the client rolls the pattern as always).</summary>
+    private static void WriteCoat(NetCreature n, CreatureSpecies? sp, int animalSeed)
+    {
+        if (CoatVariants.Pick(sp?.Coats, animalSeed) is not { } coat)
+        {
+            return;
+        }
+
+        n.ColorRgb = coat.BodyRgb;
+        n.BellyRgb = coat.BellyRgb;
+        if (coat.Hide.Length > 0)
+        {
+            n.Hide = coat.Hide;
+        }
+
+        n.CoatPattern = coat.Pattern.Length > 0 ? coat.Pattern : CoatVariants.PlainPattern;
+        n.CoatPatternRgb = coat.PatternRgb;
+        n.CoatMask = CoatVariants.MaskVariant(animalSeed);
     }
 
     /// <summary>The distant-fauna roster entry of a species (#3245): its voice and when it is awake.</summary>

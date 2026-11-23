@@ -107,6 +107,7 @@ internal static class AuthoredSpeciesMapping
             SwallowsCreatures = a.SwallowsCreatures, // #2076: an authored worm says whether it hunts the animals
             DuelTame = a.DuelTame,         // #3365: the Soundi is tamed in a duel …
             PackDefender = a.PackDefender, // … and its pack defends it outside one
+            Coats = a.Coats?.ConvertAll(v => v.Clone()) ?? new List<CoatVariant>(), // #3972: the fixed coats each animal picks from
         };
 
         if (species.GiantHeight > 0f)

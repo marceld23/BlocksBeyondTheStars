@@ -107,6 +107,7 @@ namespace BlocksBeyondTheStars.Client
         public const uint SaltHorn = 22;
         public const uint SaltHornColour = 23;
         public const uint SaltPatternChoice = 24;
+        public const uint SaltMaskVariant = 25;
 
         /// <summary>The seed mixed with a salt: <c>fmix32(seed ^ salt·φ)</c>.</summary>
         public static uint Mix(uint seed, uint salt)

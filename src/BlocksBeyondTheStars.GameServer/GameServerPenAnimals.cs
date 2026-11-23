@@ -58,6 +58,7 @@ public sealed partial class GameServer
                 Position = PenSpot(sp, pen, i),
                 DamagePerSecond = 0f,
                 SizeScale = 0.8f,
+                AnimalSeed = CoatVariants.AnimalSeedOf($"pen:{pen.Key}:{i}"), // #3972: the same animal on every visit
                 OwnerId = owner,
                 CompanionId = owner,
                 HomeSpot = PenCentre(pen),

@@ -275,6 +275,7 @@ public sealed partial class GameServer
             SpeciesId = creature.SpeciesId,
             Species = SnapshotSpecies(sp), // #2868: tamed at home, so the pet keeps this world's look (a clone its origin's)
             SizeScale = creature.SizeScale,
+            AnimalSeed = creature.AnimalSeed, // #3972: the tamed animal keeps its coat
             Bond = System.Math.Clamp(40 + attempt.Trust * 8, 0, 100),
             TamedAtUtc = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         };
@@ -737,6 +738,7 @@ public sealed partial class GameServer
             Position = pos,
             DamagePerSecond = 0f,
             SizeScale = tc.SizeScale,
+            AnimalSeed = tc.AnimalSeed != 0 ? tc.AnimalSeed : CoatVariants.AnimalSeedOf("companion:" + tc.Id), // #3972
             OwnerId = ownerId,
             CompanionId = tc.Id,
             CustomName = tc.Name,
