@@ -223,7 +223,9 @@ deterministic `tools/ai-assets/cut_mural.py` — and the Labyrinth Builders' `ma
 tiles of the sky-lights and the other side (#3912, 2026-11-21: the relay console's front `sps_console`, the capsule tank
 cell `capsule_tank` with its opened twin `capsule_tank_open` — the sealed tile with its window taken out and its lamp
 switched off by the deterministic `tools/ai-assets/open_capsule_tank.py`, no model — and the other side's `sound_block`,
-turned into pure greys by a post-process step of `gen_textures.py`)) are
+turned into pure greys by a post-process step of `gen_textures.py`), and the four tiles of the SPS headquarters (#3986,
+2026-11-24: the ancient server rack's front `server_rack` and its still-blinking twin `server_rack_lit`, the `cable_tray`
+and the dead `core_pillar`)) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.
