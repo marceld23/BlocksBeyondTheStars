@@ -11,6 +11,75 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.28] — 2026-11-23
+
+The finer-ground release. On **Medium and High** the natural ground is **no longer a field of smooth cubes**: rock,
+earth, sand, snow and grass get **broken edges, steps, ledges, grooves and niches**, and flat ground carries **patterns
+that suit its material** — joints and cracks in rock and ice, wind ripples in sand and snow. In the far view **floating
+islands float again** with sky beneath them, **waterfalls fall from their rims**, and a house on an island stays on the
+island. Besides: a **brighter headlamp**, **calmer crystal worlds**, and fixes from your reports — **Justus**'s drill
+**holds still** while it mines and figures and animals are **a little less round**, and **Lyxette**'s flooded tunnel
+**lets you sink to the bottom** again.
+
+ℹ️ **Compatibility:** nothing to convert. The **save version stays 18**, the **terrain generation stays 48** and the
+**network protocol stays at version 12**; the list of blocks is unchanged, so a 2026.11.27 game can still join a
+2026.11.28 server and the other way round. Everything below shows up **in every world, old or new** — the ground forms
+are only a different way of drawing the same blocks.
+
+### 🪨 Finer ground (#3964)
+
+- On **Medium and High** (desktop), part of the natural ground is drawn as a **form made of small cubes** instead of a
+  smooth cube: **broken edges, steps, missing corners and a grass lip** on edges; **layered grooves, niches, ledges and
+  chips** on cliffs and cave walls; **breakouts** on cave ceilings.
+- **Flat ground carries patterns that suit its material**: flagstone joints and cracks on rock and ice, wind ripples and
+  dips on sand, snow, ash and earth, shallow dips in grass. Some regions are rough, others calm, and every world has its
+  own strength.
+- It is **only how the ground is drawn**: walking, mining, aiming and building work on the same cubes as before.
+  **Blocks you placed, painted, dyed or shaped stay smooth**, and so do ores and ground beside water or lava.
+- **Low, Potato and the browser keep the smooth cubes** and pay nothing for it.
+
+### 🏝️ Floating islands in the far view (#3958, #3959, #3960)
+
+- In the distance every **floating island looked like a mountain** — a pale column from its top down to the ground.
+  Now **islands float with sky beneath them**, on all three kinds of sky island and on both far-view levels (#3958).
+- **Waterfalls** under the rims of pond islands **show in the far view too** (#3959).
+- **A house built on an island** stays on the island when you see it from afar, instead of turning into a pillar (#3960).
+- Arches and the caps of rock towers float the same way.
+
+### 🧒 Justus's reports (#3961, #3962)
+
+- **The drill holds still while it mines** (#3961): only the bit spins — no more bobbing up and down in first person,
+  and in third person the arm holds the drill steady ahead. The pickaxe still chops.
+- **Figures and animals are a little less round** (#3962): the soft edges of the new look stay, just less of them.
+
+### 🏊 Sinking in a flooded tunnel (#3956)
+
+- In a **fully flooded tunnel or underwater cave** you hovered under the ceiling instead of sinking slowly to the
+  bottom: the game took the ceiling for the water's surface. Now only **open air above your head** is a surface — under
+  a ceiling you sink slowly again, **Space** still rises and **Ctrl** still dives. An air pocket under a ceiling still
+  lets you float at its waterline.
+
+### ✨ Light
+
+- **The headlamp is about a third brighter** (#3965).
+- **Crystal worlds glow a little less**: their whole ground is crystal, and with the new look's wider light they nearly
+  burnt out. The crystals still glow, just calmer.
+
+### 🐞 Fixes
+
+- **The Resonance Blaster has one name** in every language: in ten languages its blueprint had a different name from
+  the tool in your inventory (#3952). The Chinese label of the quality preset lost a stray space.
+
+### 🔧 Under the hood
+
+- **PerfProbe** (the frame-time measuring tool) now skips the prologue's camera flight before it measures (#3954), and
+  the frame cost of the new look was measured against v2026.11.26 on every preset and in the browser (#3947).
+- The docs for custom shapes now say what the code does: which bits a multi-block form uses, that a save holds 42
+  player forms, and that only a full cube seals a room (#3966).
+
+Thank you, **Justus**, for your drill and rounding reports, and **Lyxette** for the flooded tunnel — and thank you to
+everyone who sends us ideas and reports!
+
 ## [2026.11.27] — 2026-11-23
 
 The new-look release. **The whole world looks new**: a **lower sun** that lights the sides of your blocks all day, a
@@ -11791,7 +11860,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.27...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.28...HEAD
+[2026.11.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.27...v2026.11.28
 [2026.11.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.26...v2026.11.27
 [2026.11.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.25...v2026.11.26
 [2026.11.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.24...v2026.11.25
