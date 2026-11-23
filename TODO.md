@@ -26,7 +26,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📏 PerfProbe skips the prologue before it measures — #3954 — ✅ 2026-11-23 (client tooling only; no gameplay, protocol or save change)
+### 🏊 A flooded tunnel sinks you again: a ceiling is no water surface — #3956 — ✅ 2026-11-23 (client only; no protocol or save change)
+
+- **The report.** Lyxette, 2026-11-22, v2026.11.26: since swimming no longer bounces, he hovers in the water instead of
+  slowly sinking to the bottom. He was swimming in a fully flooded tunnel — water three cells high under a stone ceiling.
+- **The cause.** The swimmer counted as "at the surface" whenever the cell over the head was not water or another liquid
+  — a solid ceiling passed. Since #3860 the surface floats, and since #3923 the float settles 1.3 m under the first cell
+  that is not water, so in every flooded tunnel or underwater cave the body hung under the ceiling for good (and the
+  climb-out hop treated the ceiling as a bank's surface).
+- **The fix.** `SwimRules.OpenSurface`: the surface needs open air over the head — no water, no other liquid (a submerged
+  kelp stalk or ladder counts as water, #1902) and no block with a collider. Under a ceiling the body sinks slowly again;
+  Jump rises and Ctrl dives as before. Tests: `SwimRulesTests` (the rule, the reported tunnel sinks to its floor, Jump
+  still rises, an air gap under the ceiling still floats).
+- **Docs:** USER_MANUAL (Space in water).
+- ⚠ **Playtest:** a flooded tunnel or cave: idle sinks, Space rises to the ceiling, Ctrl dives; an air pocket under a
+  ceiling floats; the open sea floats as before; lily pads on the water do not stop the float.
+
+### 📏 PerfProbe skips the prologue before it measures — #3954, PR #3955 (`e87af5bd`) — ✅ 2026-11-23 (client tooling only; no gameplay, protocol or save change)
 
 - **The finding.** While measuring the new look for #3947, all 16 probe runs (desktop and browser, v2026.11.26 and
   v2026.11.27) logged `[Cutscene] Begin vega_protocol/prologue` right before the idle phase and never an `End`: the probe
@@ -48,7 +64,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - **The fix.** The blueprint takes the item's name in those ten tables, so all fourteen tables now have one name for the
   tool. The Chinese quality preset label (`ui.settings.preset`) loses a stray space ("画质预设").
 
-### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946), PR #3949 (`8d0ef990`) — ✅ released in v2026.11.27 (frame cost measured 2026-11-23 against v2026.11.26 on all four presets and in the browser — Medium/High cost more, accepted; ⚠ nobody has looked at the look in a browser yet — #3947; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
+### 🎨 The game look: light and sky, calm tiles, plants and crowns as bodies, fur and feathers, devices as forms, colour harmony — epic #3948 (#3927–#3946), PR #3949 (`8d0ef990`) — ✅ released in v2026.11.27 (frame cost measured 2026-11-23 against v2026.11.26 on all four presets and in the browser — Medium/High cost more, accepted; #3947 closed by Marcel 2026-11-23; client + Client.Core + shared + worldgen + one server weather fix; **terrain generation 48**, save version stays 18, protocol stays 12 (two appended fields); new texts in all 14 languages)
 
 The game gets the look of its four concept pictures, in one package: the old look is gone, there is no switch and no
 setting; the quality preset decides how much of it a player gets. How every part works, its files, what High, Medium,
@@ -116,7 +132,7 @@ forms* / *Appearance*, §6 Editors.
   are in [docs/developer/LOOK.md](docs/developer/LOOK.md) "Frame cost". Desktop Potato and Low keep 60 fps; Medium and
   High cost about 40 % more GPU time and nearly twice the main-thread time (the reference laptop drops from 60 to ~40 fps
   on Medium). **Accepted by Marcel 2026-11-23**, no optimisation planned. The browser (Potato and Low, WebGPU and WebGL 2)
-  shows no difference and no new error. Still open: Marcel's own look at the browser build (#3947 stays open for it).
+  shows no difference and no new error. #3947 closed by Marcel 2026-11-23.
 - ⚠ **Playtest:** a NEW world (generation 48) on High, Medium, Low and Potato: noon and evening light, a meadow, a
   conifer and a palm forest near and far, plants at the end of their range, a furry herd, the star map (one red, one blue
   sun, neither at home), a gloomy world, Arena Nigra; aboard: the cockpit desk faces the pilot, the terminals face the
@@ -125,8 +141,6 @@ forms* / *Appearance*, §6 Editors.
   tools and *Calm when saving*, a painted ground tile in the world (as painted); a form with all five colour slots, dyed
   and undyed; `/setweather rain` in several biomes, acid rain on the visor.
 - **Open (backlog):**
-  - ★ **#3947: look at the look in a browser build** (WebGPU and WebGL 2, Low and Potato) — the frame cost part is done
-    (2026-11-23, see above);
   - round primitives (cylinders, spheres) inside player forms — needs a format extension with server validation and a
     design of its own;
   - new furniture blocks (shelf, planter, window frame …) — new blocks shift the block ids (save version bump), plus
@@ -17670,7 +17684,7 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-### ★ Before the next release: the game look in a browser build, and its frame cost on all four presets — #3947 (2026-11-22)
+### ✅ Before the next release: the game look in a browser build, and its frame cost on all four presets — #3947 (2026-11-22, closed 2026-11-23)
 The game look shipped in one package (see the entry "🎨 The game look" at the top, and
 [docs/developer/LOOK.md](docs/developer/LOOK.md) "Frame cost") without a frame-time measurement on High, Medium,
 Low or Potato and without ever running in a browser build. Build WebGL (WebGPU and the WebGL 2 fallback) and look at it
@@ -17679,7 +17693,7 @@ shader — and take frame times on the same worlds on all four presets (a dense 
 Release-blocking. The look's other open items are listed in that entry.
 **Status 2026-11-23:** frame cost measured (PerfProbe, release builds v2026.11.26 against v2026.11.27, all four desktop
 presets + the browser on Potato and Low, WebGPU and WebGL 2; numbers in LOOK.md "Frame cost"); the Medium/High extra cost
-is accepted. The browser build ran without new errors (console only). Open: Marcel's own look at it in a browser.
+is accepted. The browser build ran without new errors (console only). Marcel closed #3947 the same day.
 
 ### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't (#588, 2026-07-29, branch fix/menu-dialog-opacity)
 **Report:** "Some dialogs are see-through (e.g. the world-options dialog), others black out the menu behind

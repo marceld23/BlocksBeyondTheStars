@@ -347,9 +347,13 @@ namespace BlocksBeyondTheStars.Client
                 // #3860: never in open water, where it used to chain into a row of dolphin hops.
                 bool pushing = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
                 // Open air above the head — #2134: a still liquid (a gas giant's gas, oil) over the head is no "surface" either;
-                // it used to hand out the climb-out hop at any depth in the gas.
-                string aboveHead = BlockKeyAt(transform.position + Vector3.up * 1.9f);
-                bool atSurface = aboveHead != "water" && !LiquidKeys.Contains(aboveHead ?? string.Empty);
+                // it used to hand out the climb-out hop at any depth in the gas. #3956: nor is a ceiling over flooded water
+                // (the swimmer hung under it), nor a submerged kelp stalk or ladder, which counts as water (#1902).
+                Vector3 headCell = transform.position + Vector3.up * 1.9f;
+                string aboveHead = BlockKeyAt(headCell);
+                bool aboveLiquid = aboveHead == "water" || LiquidKeys.Contains(aboveHead ?? string.Empty)
+                                   || (Game != null && Game.IsWaterAt(headCell));
+                bool atSurface = SwimRules.OpenSurface(aboveLiquid, IsCollidingKey(aboveHead));
                 bool climbingOut = SwimRules.ClimbOutHop(pushing, atSurface, InputMap.JumpHeld(), LedgeAhead(move), BankAhead(move));
                 if (climbingOut)
                 {

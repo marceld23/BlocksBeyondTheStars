@@ -656,5 +656,5 @@ walking on both builds, differences within run-to-run noise. No new console erro
 warm-up warnings as v2026.11.26 (all before the join). The preset stays at Low (#3946), where v2026.11.26 still rose to
 Medium. At the cap these numbers show that the frame fits, not how much room is left.
 
-Still open (#3947): nobody has looked at the look in a browser — only its console was read. The block shader reads one
-texture more than before (the plants' far atlas), and the browser limits textures per shader.
+The block shader reads one texture more than before (the plants' far atlas), and the browser limits textures per shader;
+the browser runs above logged no shader or texture error on WebGPU or WebGL 2. #3947 was closed on 2026-11-23.

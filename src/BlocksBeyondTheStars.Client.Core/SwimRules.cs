@@ -86,6 +86,15 @@ namespace BlocksBeyondTheStars.Client
             => pushing && atSurface && (ledgeAhead || (jumpHeld && bankAhead));
 
         /// <summary>
+        /// #3956: whether the swimmer is at the surface — open air over the head (the cell at feet + 1.9): neither water nor
+        /// another liquid (<paramref name="aboveLiquid"/>) nor a block with a collider (<paramref name="aboveColliding"/>).
+        /// A ceiling over flooded water used to count as the surface: since the surface floats (#3860) and the float settles
+        /// <see cref="FloatDepth"/> under the first cell that is not water (#3923), a swimmer in a flooded tunnel hung under
+        /// its ceiling instead of sinking. Under a ceiling the body now sinks slowly like anywhere below the surface.
+        /// </summary>
+        public static bool OpenSurface(bool aboveLiquid, bool aboveColliding) => !aboveLiquid && !aboveColliding;
+
+        /// <summary>
         /// The vertical speed the body eases toward in water: Descend dives; at the surface the body floats (Jump or not —
         /// it is already up) toward <see cref="FloatDepth"/> (<see cref="FloatTarget"/>; <paramref name="feetDepth"/> is how
         /// far the feet are under the surface); below it Jump rises and nothing held sinks slowly. <paramref name="upSpeed"/>
