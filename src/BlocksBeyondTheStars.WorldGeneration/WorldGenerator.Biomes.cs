@@ -76,7 +76,7 @@ public sealed partial class WorldGenerator
             order[i] = i;
         }
 
-        if (pool > 1)
+        if (pool > 1 && !planet.HasTerrainMap) // #3978: a map world keeps its whole list in order — the map's class i is biome i
         {
             long s = PlanetSeed(planet) ^ 0x0B10C0;
             count = 2 + (int)((ulong)(s < 0 ? -s : s) % (ulong)(pool - 1)); // 2..pool, seed-derived

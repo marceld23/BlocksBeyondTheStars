@@ -6,8 +6,8 @@ using BlocksBeyondTheStars.Shared.Primitives;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
 
-/// <summary>The terrain base form of a world (#3977) — the abstraction and the two procedural forms (partial of
-/// <see cref="WorldGenerator"/>).</summary>
+/// <summary>The terrain base form of a world (#3977) — the abstraction and the two procedural forms; the map form is in
+/// <c>WorldGenerator.MapBaseForm.cs</c> (partial of <see cref="WorldGenerator"/>).</summary>
 public sealed partial class WorldGenerator
 {
     /// <summary>
@@ -63,11 +63,6 @@ public sealed partial class WorldGenerator
         public override int RawHeight(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ)
             => g.CrateredRawHeight(planet, w, worldX, worldZ);
     }
-
-    /// <summary>The base form a world of <paramref name="planet"/> uses: cratered when the type or the body is cratered
-    /// (<paramref name="cratered"/> = the profile's <see cref="WonderProfile.Cratered"/>), else rolled.</summary>
-    private static TerrainBaseForm BaseFormFor(PlanetType planet, bool cratered)
-        => cratered ? CrateredBaseForm.Instance : RolledBaseForm.Instance;
 
     /// <summary>The base swell of a column in [-1, 1]: the world's 4-octave torus FBM at the profile's relief
     /// wavelength — what both procedural forms shape.</summary>
