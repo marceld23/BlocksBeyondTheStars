@@ -2469,6 +2469,7 @@
   "poi.rail_ruin": "Abandoned station",
   "rail.atlantic.name": "Atlantic Line",
   "rail.orient.name": "Orient Line",
+  "rail.americas.name": "Americas Line",
   "srv.encounter.pod": "Faint distress signal — a life pod is drifting somewhere nearby. Fly close to take them aboard.",
   "srv.encounter.anomaly": "Sensor contact: an unidentified anomaly shimmers in this system. Read it with your ship scanner!",
   "srv.encounter.rescued": "You pulled {name} out of the pod. They won't forget it.",
