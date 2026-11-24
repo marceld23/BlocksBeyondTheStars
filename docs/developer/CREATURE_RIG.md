@@ -493,6 +493,10 @@ the Soundi); the calling rate is the body's. A client without the takes keeps th
 `AnimalCalls.All` lists the 22 recorded calls; content load rejects any other name, and `EarthAnimalsTests` keeps the list
 and the bundled files in step.
 
+**Away from Earth (#3976, generation 49).** The dog and the cat may be a villager's pet and live wild on other habitable
+worlds, the cow, the sheep and the chicken may stand in a village pen — always the record's body, coats and calls
+([WORLD_GENERATION.md](WORLD_GENERATION.md) §64).
+
 ### The birds and the sea animals (#3974, #3975)
 
 The last five Earth animals bring three body parts and one body plan, all data-driven and absent on every older species:
