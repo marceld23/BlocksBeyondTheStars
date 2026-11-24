@@ -296,6 +296,10 @@ public sealed class PlanetType
     /// Beaches only form where the shore's fluid is water — lava seas keep their volcanic coasts.</summary>
     public string BeachBlock { get; set; } = string.Empty;
 
+    /// <summary>The loose sand the generation-1 paints lay on this type's ground where a classic world gets plain sand — the
+    /// dry riverbeds and the floor under a playa (#4018: Mars's red sand). Empty = sand.</summary>
+    public string SandBlock { get; set; } = string.Empty;
+
     // --- School club wave 3 (#1756, generation 5). Every field defaults to its classic no-op. ---
 
     /// <summary>The floor block of every submerged column beyond the beach apron (#1757: a seabed of sand you can
@@ -488,6 +492,11 @@ public sealed class PlanetType
 
     /// <summary>A fixed ice sheet this many blocks thick over liquid water (Titas 5); 0 = the classic freezing rule.</summary>
     public int IceSheetDepth { get; set; }
+
+    /// <summary>Whether the altitude climate (#476) lays snow and solid ice over ground colder than its snow and ice lines.
+    /// False keeps the biome ground bare however cold (#4018, Mars at −40 °C: a dry world with nothing to freeze — its ice
+    /// is the map's polar caps). Frozen water follows its own rule either way.</summary>
+    public bool AltitudeSnow { get; set; } = true;
 
     /// <summary>Share of the surface that is hot zone (Titas 0.15) — needs one <see cref="Biome.HotZone"/> biome; 0 = none.</summary>
     public double HotZoneShare { get; set; }

@@ -555,6 +555,7 @@ public sealed partial class GameContent
             RequireBlock($"Planet '{planet.Key}' sub-surface", planet.SubSurfaceBlock);
             RequireBlock($"Planet '{planet.Key}' deep", planet.DeepBlock);
             RequireBlock($"Planet '{planet.Key}' beach", planet.BeachBlock);
+            RequireBlock($"Planet '{planet.Key}' sand", planet.SandBlock); // #4018
             RequireBlock($"Planet '{planet.Key}' seabed", planet.SeabedBlock); // #1757
             if (planet.RuinsBias < 0 || planet.FactoriesBias < 0)
             {

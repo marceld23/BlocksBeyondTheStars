@@ -154,7 +154,8 @@ public sealed partial class WorldGenerator
         var grassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
         var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
         var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
-        var sandId = _content.GetBlock("sand")?.NumericId ?? BlockId.Air;
+        var sandId = _content.GetBlock(string.IsNullOrWhiteSpace(planet.SandBlock) ? "sand" : planet.SandBlock)?.NumericId
+                     ?? BlockId.Air; // #4018: the type's own sand (Mars's red sand), plain sand by default
         var seaSandId = _content.GetBlock(GiantRules.SeaSandBlock(planet))?.NumericId ?? sandId; // #2074: the sea's own sand
         var stoneId = _content.GetBlock("stone")?.NumericId ?? BlockId.Air;
         var mossStoneId = _content.GetBlock("moss_stone")?.NumericId ?? BlockId.Air;
