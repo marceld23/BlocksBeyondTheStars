@@ -47,6 +47,11 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - Tests: `GardenPlantsTests` (mixed bed per cell, dirt only gives the flowers that root there, stone none, the cutting, the
   bush shapes and growth, the market), the save-version row 20. Translations of the 12 community languages by a Sonnet
   agent with each locale's existing terms (Marcel's wish).
+- Unity EditMode: the two goldens that move with the block ids are re-pinned (`ChunkMesherGoldenEditModeTests`,
+  `BlockAtlasLooksGoldenEditModeTests` "all blocks"; geometry unchanged) — they had not been re-pinned for the four SPS
+  blocks of #3986 either.
+- **Found on the way — open:** #4004, 13 Unity EditMode tests red since the new look (avatar paint orientation, the
+  workbench's faces, the form editor header, the main-menu golden); the suite runs in no CI job.
 - **Open:** playtest the look of the new rock and ore tiles in a world (Marcel's visual check), and a bed of flower seeds.
 
 ### 🌗 Seasons per planet: four, summer/winter, wet/dry, one or none; northern and southern hemispheres with tropics — #3993, #3994, #3995, #3996 — ✅ done 2026-11-24 (⚠ playtest open; shared + server + client + Client.Core + data; no save-version, protocol or terrain-generation bump — three additive `WorldEnvironment` fields; 18 new texts in all 14 languages; one new HUD icon `ov_seasons`)

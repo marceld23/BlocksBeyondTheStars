@@ -83,10 +83,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Re-pinned 2026-11-21 (the sky-lights and the other side, #3894): six more blocks (the blue lamp pair, the relay
         // console, the capsule tank pair, the sound block) shifted the block ids and atlas slots again.
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
+        // Re-pinned 2026-11-24 (the bush sapling, #4003, on top of the SPS headquarters' four blocks of #3986, which had not
+        // been re-pinned): five more blocks shifted the block ids and atlas slots again.
+        // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xf1e1826c0ae89d09UL,
-            ["surface (5,2,7)"] = 0x012e655e55ac4ffdUL,
+            ["deep (5,1,7)"] = 0xa8ae26a954787f4dUL,
+            ["surface (5,2,7)"] = 0xeccafb205df503f9UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 
