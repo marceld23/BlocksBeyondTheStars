@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### ☀️ Sol: our solar system, Earth from real maps, animals, metropolises, rail and the SPS headquarters — epic #3988 (#3969–#3987), PR #3991 — ✅ merged (⚠ playtest open; server + client + Client.Core + shared + worldgen + data + tools; **terrain generation 49, save version 19**, protocol unchanged (additive fields); all new texts in 14 languages)
+### ☀️ Sol: our solar system, Earth from real maps, animals, metropolises, rail and the SPS headquarters — epic #3988 (#3969–#3987), PR #3991 (`f632b27e`) — ✅ merged (⚠ playtest open; server + client + Client.Core + shared + worldgen + data + tools; **terrain generation 49, save version 19**, protocol unchanged (additive fields); all new texts in 14 languages)
 
 - **The idea.** Marcel, 2026-11-23: bring our own solar system into the game, revealed late through the growing galaxy,
   with Earth and its neighbours generated from real maps instead of noise; on Earth the ruined SPS headquarters where
