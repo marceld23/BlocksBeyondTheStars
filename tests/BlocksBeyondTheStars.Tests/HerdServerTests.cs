@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// The begging herds on a live server (#2018): a beggar comes to a player holding food and orbits, leaves when the food is
-/// stowed, ignores poison and baits, never begs while it sleeps; a skittish species never begs; the Feed action throws one piece
+/// stowed, ignores poison and baits, never begs while it sleeps; a rolled skittish species never begs; the Feed action throws one piece
 /// the herd rushes, squabbles over and eats while the thrower cannot pick it up; and a herd of twelve is cheap for the budget.
 /// </summary>
 public sealed class HerdServerTests : IDisposable
@@ -187,7 +187,7 @@ public sealed class HerdServerTests : IDisposable
     }
 
     [Fact]
-    public void PoisonAndBait_LureNobody_AndASkittishSpeciesNeverBegs()
+    public void PoisonAndBait_LureNobody_AndARolledSkittishSpeciesNeverBegs()
     {
         var server = Started(out var repo);
         using (repo)
@@ -209,8 +209,10 @@ public sealed class HerdServerTests : IDisposable
             Tick(server, 30);
             Assert.Equal("None", server.BegPhaseForTest(id));
 
-            // A skittish species with the flag: the rule says no — it flees like it always did.
+            // A rolled skittish species (the generator never gives it the flag — only an authored record makes a shy beggar,
+            // #3973): it flees like it always did.
             sp.Temperament = CreatureTemperament.Skittish;
+            sp.BegsForFood = false;
             p.State.Inventory.SetSlot(2, new ItemStack("berries", 5));
             p.State.SelectedHotbarSlot = 2;
             var before = Pos(server, id);

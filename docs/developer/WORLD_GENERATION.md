@@ -392,8 +392,9 @@ Schuppenhund `.Hound.cs`); spawned live by `GameServerCreatures.cs` and its `Gam
   (`CreatureGenerator.ApplyBigHerds`) and only on a generation-12 world, so older rosters stay bit for bit.
   Peaceful standard-plan Land species only: a **passive** one begs with **30 %** (`CreatureSpecies.BegsForFood`)
   and then always lives in a herd of **8–12**; the other passive ones and the skittish ones roll a herd of
-  **6–9** with **20 %**. Skittish species never beg (`HerdRules.BegsForFood` = flag ∧ Land ∧ Passive ∧ not a
-  giant). Because a "few" world holds about a dozen animals in total, a herd is **cheap for the population
+  **6–9** with **20 %**. A rolled skittish species never begs: the generator sets the flag on passive species
+  only (`HerdRules.BegsForFood` = flag ∧ Land ∧ (Passive ∨ Skittish) ∧ not a giant — the skittish branch is for
+  authored shy beggars such as the dog and the cat, #3973). Because a "few" world holds about a dozen animals in total, a herd is **cheap for the population
   model**: members of a species with a group ≥ 6 count **one per three** toward the world cap and the species
   share (`HerdRules.WeightedCount`, read by the spawner AND the crowding prune — the two must agree or the prune
   sheds the herd the spawner just placed); the hard cap of 64 stays a real body count; a big-herd species
