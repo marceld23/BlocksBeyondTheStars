@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 
@@ -25,13 +26,56 @@ public sealed class ModuleMaterials
     public int RoofTint;
     public int AccentTint;
 
+    /// <summary>#3983: the dyes a metropolis's theme palette gives its walls, floors and paths (0 = none — every other place).</summary>
+    public int WallTint;
+    public int FloorTint;
+    public int PathTint;
+
     /// <summary>The dye of a token cell (0 for a token that carries none, and for anything that is not a token).</summary>
     public int TintOf(string id) => id switch
     {
         MaterialTokens.Roof => RoofTint,
         MaterialTokens.Accent => AccentTint,
+        MaterialTokens.Wall => WallTint,
+        MaterialTokens.Floor => FloorTint,
+        MaterialTokens.Path => PathTint,
         _ => 0,
     };
+
+    /// <summary>
+    /// #3983: a metropolis's materials from its theme palette — per token (<c>wall</c>, <c>accent</c>, <c>roof</c>,
+    /// <c>floor</c>, <c>path</c>, the token names without the <c>@</c>) a block key with an optional dye, <c>concrete#F2E8D0</c>
+    /// (<see cref="PlaceRules.TryParsePaletteEntry"/>). A token the palette does not name keeps the G.D.S. city's block
+    /// (<see cref="ForCity"/>), an unknown block key too.
+    /// </summary>
+    public static ModuleMaterials FromPalette(GameContent content, IReadOnlyDictionary<string, string>? palette)
+    {
+        var m = ForCity(content);
+        if (palette is null)
+        {
+            return m;
+        }
+
+        foreach (var kv in palette)
+        {
+            if (!PlaceRules.TryParsePaletteEntry(kv.Value, out string block, out int tint) || content.GetBlock(block) is not { } def)
+            {
+                continue;
+            }
+
+            ushort id = def.NumericId.Value;
+            switch ("@" + kv.Key)
+            {
+                case MaterialTokens.Wall: (m.Wall, m.WallTint) = (id, tint); break;
+                case MaterialTokens.Accent: (m.Accent, m.AccentTint) = (id, tint); break;
+                case MaterialTokens.Roof: (m.Roof, m.RoofTint) = (id, tint); break;
+                case MaterialTokens.Floor: (m.Floor, m.FloorTint) = (id, tint); break;
+                case MaterialTokens.Path: (m.Path, m.PathTint) = (id, tint); break;
+            }
+        }
+
+        return m;
+    }
 
     /// <summary>
     /// The lively places (plan revision 2): a settlement's materials with its own colour and a wall of its own. The colour

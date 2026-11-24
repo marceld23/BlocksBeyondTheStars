@@ -47,11 +47,34 @@ public sealed class CityPlace
     /// <summary>The city's name; empty = the G.D.S. name roll.</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Later (coastlines): whether a world column is land the city may build on. Null = everywhere. Not read yet.</summary>
-    public System.Func<int, int, bool>? LandMask { get; set; }
+    /// <summary>#3983: the locale key of the city's name (a place-list city), empty = none (<see cref="Name"/> is shown).</summary>
+    public string NameKey { get; set; } = string.Empty;
 
-    /// <summary>Later (landmarks in cities): the district (grid cell) kept free for a landmark. Not read yet.</summary>
-    public (int Gx, int Gz)? LandmarkSquare { get; set; }
+    /// <summary>#3983: a metropolis of a place list — laid out on the land (<see cref="MetropolisPlanner"/>): its districts
+    /// follow the coast, its landmarks stand on squares of their own, its plaza (<see cref="Plaza"/>) holds the place's landing
+    /// pad, and its cells are stored as one structure overlay. False for the G.D.S. city.</summary>
+    public bool Metro { get; set; }
+
+    /// <summary>#3983: a metropolis's plaza district (column = X index, row = Z index); null = the centre district.</summary>
+    public (int Gx, int Gz)? Plaza { get; set; }
+
+    /// <summary>#3983: how many free squares a metropolis keeps for rail halls.</summary>
+    public int Stations { get; set; } = 1;
+
+    /// <summary>#3983: the landmark templates that stand in a metropolis, each on a square of its own.</summary>
+    public List<string> Landmarks { get; } = new();
+
+    /// <summary>#3983: a metropolis's theme palette — material token name (no <c>@</c>) → block key with an optional dye
+    /// (<see cref="ModuleMaterials.FromPalette"/>); null = the G.D.S. city's materials.</summary>
+    public IReadOnlyDictionary<string, string>? Palette { get; set; }
+
+    /// <summary>The plaza district the city is laid round: <see cref="Plaza"/> or the centre of the grid.</summary>
+    public (int Gx, int Gz) PlazaCell => Plaza is { } p
+        ? (System.Math.Clamp(p.Gx, 0, MetroGrid - 1), System.Math.Clamp(p.Gz, 0, MetroGrid - 1))
+        : (MetroGrid / 2, MetroGrid / 2);
+
+    /// <summary>A metropolis's districts per side (3..12, even sizes too: its plaza need not be the middle one).</summary>
+    public int MetroGrid => System.Math.Clamp(Grid, 3, 12);
 
     /// <summary>World rectangles (inclusive) the composer keeps as open ground — a landing pad, the wreck's crash site.</summary>
     public List<(int MinX, int MinZ, int MaxX, int MaxZ)> OpenZones { get; } = new();
