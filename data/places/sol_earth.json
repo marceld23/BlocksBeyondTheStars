@@ -19,16 +19,39 @@
     { "key": "pad_rio",      "kind": "pad", "latitude": -22.496, "longitude": -42.823 }, // real 22.91 S 43.17 W
     { "key": "pad_sps_hq",   "kind": "pad", "latitude": -5.0,   "longitude": -59.37 },
 
-    // The cities, centred on their pads — stored for the metropolis package, not stamped yet. Their landmarks stand in them.
-    { "key": "london",   "kind": "city", "latitude": 51.51,  "longitude": -0.13,   "landmarks": ["earth_london_clock_tower"] },
-    { "key": "paris",    "kind": "city", "latitude": 48.86,  "longitude": 2.35,    "landmarks": ["earth_eiffel_tower"] },
-    { "key": "berlin",   "kind": "city", "latitude": 52.52,  "longitude": 13.40,   "landmarks": ["earth_brandenburg_gate", "earth_berlin_tv_tower"] },
-    { "key": "cairo",    "kind": "city", "latitude": 29.871, "longitude": 31.178,  "landmarks": [] },
-    { "key": "tokyo",    "kind": "city", "latitude": 35.834, "longitude": 139.267, "landmarks": ["earth_tokyo_tower"] },
-    { "key": "sydney",   "kind": "city", "latitude": -33.594, "longitude": 150.979, "landmarks": ["earth_sydney_opera"] },
-    { "key": "toronto",  "kind": "city", "latitude": 44.01,  "longitude": -79.38,  "landmarks": ["earth_toronto_tower"] },
-    { "key": "new_york", "kind": "city", "latitude": 41.242, "longitude": -73.916, "landmarks": ["earth_new_york_statue", "earth_gds_tower"] },
-    { "key": "rio",      "kind": "city", "latitude": -22.496, "longitude": -42.823, "landmarks": ["earth_rio_statue"] },
+    // The metropolises (#3983, docs/developer/MAP_PLANETS.md §8): each laid out round its pad (the pad lies in the middle
+    // of the `plaza` district [column, row] — X index, Z index — of its `grid` of 32-block districts with 4-block streets),
+    // following the coast; its landmarks stand on squares of their own inside it. Europe's three are smaller (Paris needs five
+    // districts for its tower); London's grid reaches over the whole island, the land decides what is built. The plazas sit
+    // off-centre where the sea or a neighbour is close (London and Paris are 161 blocks apart, Toronto and New York 272). A
+    // palette gives each city its colours: per material token a block and a dye.
+    { "key": "london",   "kind": "city", "latitude": 51.51,  "longitude": -0.13,   "nameKey": "city.london.name", "grid": 11, "plaza": [7, 1],
+      "palette": { "wall": "concrete#9C4A36", "accent": "glass#B8D0C4", "roof": "metal_panel#2F5A3C", "floor": "steel_floor", "path": "concrete#8C8C88" },
+      "landmarks": ["earth_london_clock_tower"] },
+    { "key": "paris",    "kind": "city", "latitude": 48.86,  "longitude": 2.35,    "nameKey": "city.paris.name", "grid": 5, "plaza": [2, 3], "stations": 2,
+      "palette": { "wall": "concrete#F0E2C0", "accent": "glass#A9C2E0", "roof": "metal_panel#4C6684", "floor": "steel_floor", "path": "concrete#CFC6B0" },
+      "landmarks": ["earth_eiffel_tower"] },
+    { "key": "berlin",   "kind": "city", "latitude": 52.52,  "longitude": 13.40,   "nameKey": "city.berlin.name", "grid": 4, "plaza": [1, 1],
+      "palette": { "wall": "concrete#F4F4F0", "accent": "glass#C9DCEB", "roof": "metal_panel#B0262C", "floor": "steel_floor", "path": "concrete#BDBDB8" },
+      "landmarks": ["earth_brandenburg_gate", "earth_berlin_tv_tower"] },
+    { "key": "cairo",    "kind": "city", "latitude": 29.871, "longitude": 31.178,  "nameKey": "city.cairo.name", "grid": 6, "plaza": [3, 4],
+      "palette": { "wall": "concrete#E3C98F", "accent": "glass#F0D890", "roof": "metal_panel#C9A23A", "floor": "steel_floor", "path": "concrete#D8C49A" },
+      "landmarks": [] },
+    { "key": "tokyo",    "kind": "city", "latitude": 35.834, "longitude": 139.267, "nameKey": "city.tokyo.name", "grid": 6, "plaza": [4, 1],
+      "palette": { "wall": "concrete#F6F4F0", "accent": "glass#F2B8A0", "roof": "metal_panel#E0502A", "floor": "steel_floor", "path": "concrete#C0BEB8" },
+      "landmarks": ["earth_tokyo_tower"] },
+    { "key": "sydney",   "kind": "city", "latitude": -33.594, "longitude": 150.979, "nameKey": "city.sydney.name", "grid": 6, "plaza": [5, 2],
+      "palette": { "wall": "concrete#F7F7F4", "accent": "glass#9ED8D4", "roof": "metal_panel#1E9A94", "floor": "steel_floor", "path": "concrete#D0D0CA" },
+      "landmarks": ["earth_sydney_opera"] },
+    { "key": "toronto",  "kind": "city", "latitude": 44.01,  "longitude": -79.38,  "nameKey": "city.toronto.name", "grid": 6, "plaza": [3, 3],
+      "palette": { "wall": "concrete#8FB4D8", "accent": "glass#BFDDF5", "roof": "metal_panel#C8CCD2", "floor": "steel_floor", "path": "concrete#B4B8BC" },
+      "landmarks": ["earth_toronto_tower"] },
+    { "key": "new_york", "kind": "city", "latitude": 41.242, "longitude": -73.916, "nameKey": "city.new_york.name", "grid": 6, "plaza": [3, 2],
+      "palette": { "wall": "concrete#8A929C", "accent": "glass#F2C060", "roof": "metal_panel#5A6068", "floor": "steel_floor", "path": "concrete#9A9A96" },
+      "landmarks": ["earth_new_york_statue", "earth_gds_tower"] },
+    { "key": "rio",      "kind": "city", "latitude": -22.496, "longitude": -42.823, "nameKey": "city.rio.name", "grid": 6, "plaza": [3, 1],
+      "palette": { "wall": "concrete#F8F8F4", "accent": "glass#A8E8A0", "roof": "metal_panel#2EC24A", "floor": "steel_floor", "path": "concrete#D6D2C4" },
+      "landmarks": ["earth_rio_statue"] },
 
     // The three pyramids of Giza (real 29.98 N 31.13 E), west of Cairo in their real arrangement — the great one north-east,
     // the second south-west of it, the third further south-west. They are built 1:1 (the great one 231 × 238 blocks), so at

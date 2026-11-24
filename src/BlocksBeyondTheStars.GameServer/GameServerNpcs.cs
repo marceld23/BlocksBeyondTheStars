@@ -273,6 +273,13 @@ public sealed partial class GameServer
             SpawnSettlementResidents(settlement, rng);
         }
 
+        // #3983: the landmarks stamped before the settlements (the given ones — a city's landmarks among them) lost their
+        // residents to the clear above: staff them again (idempotent; a world without such a landmark spawns nothing more).
+        foreach (var lm in _landmarks)
+        {
+            SpawnLandmarkResidents(lm);
+        }
+
         if (_npcs.Count > 0)
         {
             _log.Info($"Spawned {_npcs.Count} NPCs across {_settlements.Count(s => !s.Ruined)} inhabited settlement(s).");

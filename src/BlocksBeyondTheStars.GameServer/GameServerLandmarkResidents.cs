@@ -31,6 +31,9 @@ public sealed partial class GameServer
     /// <summary>How far a landmark's keeper strays from its post.</summary>
     private const float LandmarkKeeperLeash = 1.5f;
 
+    /// <summary>The marker a G.D.S. guardian stands at — in the G.D.S. city and, from #3983, in a landmark.</summary>
+    internal const string GuardPostMarker = "guard_post";
+
     /// <summary>Whether the cell lies in an inhabited landmark's protected box (the footprint, from the plinth's foot to
     /// the roof) — the rule of the worlds below terrain generation 39; from 39 a protected landmark's box is in the footprint
     /// registry (<see cref="IsProtectedStructureCell(Vector3i)"/>) and this rule holds none.</summary>
@@ -82,7 +85,7 @@ public sealed partial class GameServer
         foreach (var marker in lm.Structure.Markers)
         {
             var profession = NpcProfessions.ByMarker(marker.Type);
-            if (profession is null && marker.Type is not ("vendor" or "npc"))
+            if (profession is null && marker.Type is not ("vendor" or "npc" or GuardPostMarker))
             {
                 continue;
             }
@@ -98,6 +101,14 @@ public sealed partial class GameServer
             {
                 npc = MakeNpc(profession.Role, profession.Trades ? profession.Theme : "settlers", robotic: false, post, rng);
                 ApplyProfession(npc, profession);
+            }
+            else if (marker.Type == GuardPostMarker)
+            {
+                // #3983: a G.D.S. guardian at a landmark's guard post (the G.D.S. tower of New York) — the city's machines: the
+                // look, no routine, no bed.
+                npc = MakeNpc("guardian", "settlers", robotic: true, post, rng);
+                DressGuardian(npc);
+                npc.RoutineEnabled = false;
             }
             else if (marker.Type == "vendor")
             {

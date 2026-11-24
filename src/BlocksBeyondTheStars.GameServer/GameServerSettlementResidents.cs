@@ -147,7 +147,7 @@ public sealed partial class GameServer
         // The G.D.S. guardians (#1793): machines at their posts, never asleep, no bed.
         foreach (var (type, pos) in settlement.Markers)
         {
-            if (type != "guard_post")
+            if (type != GuardPostMarker)
             {
                 continue;
             }

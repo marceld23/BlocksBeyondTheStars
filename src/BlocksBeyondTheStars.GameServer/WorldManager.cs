@@ -21,6 +21,10 @@ internal sealed class SettlementInstance
     public bool Ruined { get; set; }
     public string Tier { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>#3983: the locale key of the name (a metropolis — shown in each player's language), empty = none.</summary>
+    public string NameKey { get; set; } = string.Empty;
+
     public string Inhabitant { get; set; } = string.Empty;
     public bool OnIsland { get; set; } // stands on a floating sky island rather than the terrain surface
     public int GroundY { get; set; }   // world Y of structure-local y = 0 (the foundation row)

@@ -107,7 +107,7 @@ public sealed partial class GameServer
             pois.Add(new NetPoi
             {
                 Type = s.Ruined ? "settlement_ruin" : "settlement",
-                Name = s.Name,
+                Name = SettlementNameFor(s, session.Locale), // #3983: a metropolis in the player's language
                 X = (s.Min.X + s.Max.X) * 0.5f,
                 Z = (s.Min.Z + s.Max.Z) * 0.5f,
             });
@@ -240,6 +240,13 @@ public sealed partial class GameServer
         /// <see cref="ServerWorld.SetBlock"/> per cell (every structure but a place-list city, which collects them into one
         /// structure overlay).</summary>
         public IStructureCellSink? Cells { get; set; }
+
+        /// <summary>#3983: the structure-overlay key the cells are stored under (a metropolis, <c>city:&lt;index&gt;</c>); null
+        /// = block edits, as every other structure.</summary>
+        public string? OverlayKey { get; set; }
+
+        /// <summary>#3983: the locale key of the name (a metropolis), empty = none.</summary>
+        public string NameKey { get; set; } = string.Empty;
     }
 
     /// <summary>The sink a settlement's stamp writes through: its own (<see cref="PlacedSettlement.Cells"/>) or the active
@@ -276,10 +283,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3983: the metropolises of the body's place list first (GameServerMetropolis.cs) — the roll keeps clear of them and
+        // both are committed together. No place list, no metropolis: nothing is drawn, the roll below is unchanged.
+        var metros = factor > 0 ? PlanMetropolises(rng, kitPool) : new List<MetroCity>();
         double h = Hospitability(planet);
         if (factor <= 0 || h <= 0 || !StructureConditionsHold(StructureTypeRules.Settlement, planet))
         {
-            return; // airless / no atmosphere (the shipped condition), or settlements switched off ⇒ none
+            CommitMetropolises(metros, new List<PlacedSettlement>(), rng); // airless / no atmosphere, or settlements switched off ⇒ no roll
+            return;
         }
 
         // Count = hospitability × world size × base density × frequency × a per-world "character" multiplier
@@ -295,6 +306,7 @@ public sealed partial class GameServer
         int requested = PinnedCount("settlement", DrawCount(rng, lambda, rules.Cap));
         if (requested <= 0)
         {
+            CommitMetropolises(metros, new List<PlacedSettlement>(), rng);
             return;
         }
 
@@ -312,10 +324,11 @@ public sealed partial class GameServer
         var (wreckX, wreckZ) = WreckAnchorFor(_landingPads); // one shared rule, not a second copy of the offset (#1684)
         reserved.Add((wreckX, wreckZ, WreckReservedHalfExtent, WreckReservedHalfExtent));
         reserved = KeepClearFor(StructureTypeRules.Settlement, reserved); // #3514: generation 38 keeps clear through the registry
+        reserved.AddRange(metros.Select(m => MetroReservation(m.City))); // #3983: not in the registry before the commit
 
         // Phase A — decide each settlement's design + a collision-free, dry/flat (or sky-island) spot.
         var placed = new List<PlacedSettlement>();
-        var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        var usedNames = new HashSet<string>(metros.Select(m => m.City.Name), System.StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < requested; i++)
         {
             long instSeed = sSeed ^ unchecked((long)(i + 1) * (long)0x9E3779B97F4A7C15);
@@ -576,10 +589,18 @@ public sealed partial class GameServer
         ReportStamp("settlement", requested, placed.Count);
         if (placed.Count == 0)
         {
+            CommitMetropolises(metros, placed, rng);
             return;
         }
 
-        CommitSettlements(placed, surface, rng);
+        if (metros.Count > 0)
+        {
+            CommitMetropolises(metros, placed, rng); // #3983: the cities first, then the rolled settlements, in one commit
+        }
+        else
+        {
+            CommitSettlements(placed, surface, rng);
+        }
 
         int ruins = _settlements.Count(s => s.Ruined);
         _log.Info($"Stamped {placed.Count}/{requested} settlement(s) on '{_world.LocationId}' " +
@@ -600,7 +621,7 @@ public sealed partial class GameServer
             {
                 foreach (var p in fresh)
                 {
-                    StampSettlementBlocks(p, surface);
+                    StampSettlementCells(p, surface);
                 }
             });
 
@@ -625,6 +646,7 @@ public sealed partial class GameServer
                 Ruined = p.Ruined,
                 Tier = p.Tier,
                 Name = p.Name,
+                NameKey = p.NameKey,
                 Inhabitant = p.Structure.Inhabitant,
                 OnIsland = p.OnIsland,
                 GroundY = p.GroundY,

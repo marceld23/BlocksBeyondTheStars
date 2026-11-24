@@ -63,6 +63,13 @@ public sealed partial class GameServer
         int wx = p.Origin.X + x, wz = p.Origin.Z + z, floorY = p.GroundY + f;
         int natural = _generator.SurfaceHeight(_world.Planet, wx, wz);
         int clearTop = System.Math.Min(System.Math.Max(floorY + 3, natural + 1), floorY + 96);
+        if (p.OverlayKey is not null)
+        {
+            // #3983: a metropolis's overlay clears its columns up to tree height instead of carving the trees out of them — the
+            // carve reads the world and would generate every chunk of a city several hundred blocks across.
+            clearTop = System.Math.Min(System.Math.Max(floorY, natural) + SettlementVegetationRise, floorY + 96);
+        }
+
         for (int y = floorY + 1; y <= clearTop; y++)
         {
             cells.Put(wx, y, wz, BlockId.Air);
@@ -99,6 +106,11 @@ public sealed partial class GameServer
     /// tree height and out of the crown margin round the claimed columns — left alone where a player has built.</summary>
     private void CarvePlannedVegetation(PlacedSettlement p, bool crownRing)
     {
+        if (p.OverlayKey is not null)
+        {
+            return; // #3983: a metropolis's ground already cleared its columns to tree height (StampPlannedGround)
+        }
+
         var s = p.Structure;
         int margin = crownRing ? SettlementCrownMargin : 0;
         bool someonesBuild = crownRing && FootprintHasPlayerEdits(p.Origin.X - margin, p.Origin.Z - margin, p.GroundY,
