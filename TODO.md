@@ -26,7 +26,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🌻 Lyxette's afternoon reports of 2026-11-24: carved rock stays smooth, flower pictures from dyed seeds — #4011, #4012, PR pending — ✅ done 2026-11-24 (server + shared + client + shaders + data; protocol: one additive chunk field, no version bump; no save change; 1 changed text in all 14 languages)
+### 🚝 Sol follow-ups: Earth's rail keeps clear of buildings, the Earth animals where they belong, a red Mars without ruins — #4014–#4018, PR pending — ✅ done 2026-11-24 (server + shared + worldgen + client + data + tools; **save version 21** (two new blocks shift the ids), terrain generation unchanged (49), protocol unchanged; 9 new texts in all 14 languages; ⚠ playtest open)
+
+- **#4014 Rail keeps clear.** A ride along the real train curve after stamping found Earth's listed lines inside city
+  buildings on 5 of 6 seeds (New York, Toronto, Paris), in the pavement and scraping the Alps. Now a line's halls are chosen
+  together (`ListedRailHallChain`), every leg is routed around the districts of every city, landmarks, villages and every
+  registered footprint (`RailLegRouter`, 5.5 blocks clearance), turns are rounded into arcs (`RailTurnRounding`), the town
+  floor counts as ground, no free pylon stands in lava, the corridor is carved along the curve, and the whole curve is
+  checked before a line is pinned (`ListedRailCurveProblem`: a failing line stays off with a warning). Tests
+  `RailLegRoutingTests`, `EarthRailClearanceTests` (slow: 6 seeds planned, 2 ridden after stamping — 0 solid cells).
+- **#4015 Topology.** Atlantic Line Berlin – Paris – London – New York – Toronto (Toronto a terminus), new *Americas Line*
+  New York – Rio de Janeiro, New York with two halls (`"stations": 2`). `EarthRailNetworkTests` adapted.
+- **#4016 Existing worlds.** Line records carry a planner pin (`listed:routed`); older ones are retired and re-planned, and
+  their stamped cells are cleaned up cell-exact (only rows that still hold what the stamp left; player cells, town columns
+  and other structures stay). A listed line's stamp never overwrites a player's cell (the train may run through it).
+- **#4017 Earth animals.** A record's affinity is the biome of its first listed climate zone (only the rabbit changes — now
+  seen in temperate Europe); the cat keeps to temperate and savanna; `seaOnly` (dolphin, whale) through
+  `WorldGenerator.IsSeaColumn` — no dolphin in a lake; a metropolis keeps 6 household pets (was 2). Tests
+  `EarthFaunaZonesTests`, `EarthFaunaSpawnTests` (slow, the real Earth at eight places).
+- **#4018 Mars.** `restrictStructures` with only `net_fragments` (no ruins, wrecks, monuments; ruins stamped on an
+  existing Mars stay — no safe removal); new blocks `red_sand` and `red_rock` (tiles recoloured from the calm sand/stone
+  tiles by `tools/ai-assets/calm_tiles/make_mars_tiles.py`); new type fields `altitudeSnow` (Mars was solid ice at −40 °C)
+  and `sandBlock`. Mars's ground changes on every world. Tests `MarsTests`; atlas and mesher EditMode goldens re-pinned.
+
+### 🌻 Lyxette's afternoon reports of 2026-11-24: carved rock stays smooth, flower pictures from dyed seeds — #4011, #4012, PR #4013 (`3b8abf26`) — ✅ done 2026-11-24 (server + shared + client + shaders + data; protocol: one additive chunk field, no version bump; no save change; 1 changed text in all 14 languages)
 
 - **#4011 Carved rock keeps flat walls.** Lyxette (v2026.11.28) carved a room out of a mountain and its walls and pillar grew
   the terrain forms' grooves (#3964). Placed blocks were never formed, but mined air carries no edited mark, so the client
