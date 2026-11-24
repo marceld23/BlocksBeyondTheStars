@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧪 Unity EditMode suite green again after the new look — #4004 — ✅ done 2026-11-24 (PR pending; EditMode tests + one client refactor; no gameplay, protocol or save change, no new texts)
+### 🧪 Unity EditMode suite green again after the new look — #4004, PR #4007 (`3fdc77a8`) — ✅ released in v2026.11.29 (EditMode tests + one client refactor; no gameplay, protocol or save change, no new texts)
 
 - **What.** The EditMode suite runs in no CI job, so 13 tests had been red since the new look (epic #3948, PR #3949) unseen. None was a
   game bug — each test still described the look before it:
@@ -39,7 +39,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
     switch.
   - **Main-menu golden (1):** the name chip's mark and running light (#3945) — golden updated.
 
-### 🗺️ The hidden star map: the whole galaxy at creation, charted per player — epic #3997 (#3998, #3999), branch `feat/hidden-star-map` — 🚧 PR open (server + shared + worldgen + client + Client.Core + data + docs; no new terrain generation, no save version, protocol unchanged; all new texts in 14 languages)
+### 🗺️ The hidden star map: the whole galaxy at creation, charted per player — epic #3997 (#3998, #3999), PR #4006 (`0b9e786e`) — ✅ released in v2026.11.29 (⚠ playtest open; server + shared + worldgen + client + Client.Core + data + docs; no new terrain generation, no save version, protocol unchanged; all new texts in 14 languages)
 - **The idea.** Marcel, 2026-11-24: choose how big the universe can become, and uncover the map by flying instead of the
   "Growing" step. Done as a whole galaxy behind a per-player map, because every special feature (wormholes, debris
   fields, derelicts, giant wrecks, civilisation homes, guaranteed types, unique sites, the red/blue sun) is placed over
@@ -58,7 +58,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - Open, not in this PR: scale the map area with the size, stop sending worlds of never-entered systems, a "still N
   hidden" line on the chart, an admin "whole map" command.
 
-### 🌸 Lyxette's reports of 2026-11-24: natural rock and ore tiles, flower seeds, bush cuttings and bush saplings — #4000, #4001, #4003, PR #4005 (`7ca02afd`) — ✅ merged 2026-11-24 (client tiles + server + shared + worldgen + data; **save version 20** (one new block, ids shift), protocol unchanged; 8 new texts in all 14 languages, 2 new item icons, 40 tiles)
+### 🌸 Lyxette's reports of 2026-11-24: natural rock and ore tiles, flower seeds, bush cuttings and bush saplings — #4000, #4001, #4003, PR #4005 (`7ca02afd`) — ✅ released in v2026.11.29 (client tiles + server + shared + worldgen + data; **save version 20** (one new block, ids shift), protocol unchanged; 8 new texts in all 14 languages, 2 new item icons, 40 tiles)
 
 - **#4000 Rock and ore tiles.** Lyxette (v2026.11.28): the new look made leaves and grass better but rock flat — granite
   lost its pink/white/grey mix, ores read as paint. Cause: the calm set built rock as one generated form with one or two
@@ -88,7 +88,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   workbench's faces, the form editor header, the main-menu golden); the suite runs in no CI job.
 - **Open:** playtest the look of the new rock and ore tiles in a world (Marcel's visual check), and a bed of flower seeds.
 
-### 🌗 Seasons per planet: four, summer/winter, wet/dry, one or none; northern and southern hemispheres with tropics — #3993, #3994, #3995, #3996 — ✅ done 2026-11-24 (⚠ playtest open; shared + server + client + Client.Core + data; no save-version, protocol or terrain-generation bump — three additive `WorldEnvironment` fields; 18 new texts in all 14 languages; one new HUD icon `ov_seasons`)
+### 🌗 Seasons per planet: four, summer/winter, wet/dry, one or none; northern and southern hemispheres with tropics — #3993, #3994, #3995, #3996, PR #4002 (`7f6fd3aa`) — ✅ released in v2026.11.29 (⚠ playtest open; shared + server + client + Client.Core + data; no save-version, protocol or terrain-generation bump — three additive `WorldEnvironment` fields; 18 new texts in all 14 languages; one new HUD icon `ov_seasons`)
 
 - **The idea.** Marcel, 2026-11-24: planets should differ in their year — some with only summer and winter, some with one
   season, and north and south with opposite seasons. His decisions: hemispheres on Earth and rolled elsewhere; tropics
@@ -110,7 +110,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   the far terrain beyond the tropics still shows the player's own season (a per-pixel hemisphere in the plant shaders
   would fix it); colder poles would need a world-generation change.
 
-### ☀️ Sol: our solar system, Earth from real maps, animals, metropolises, rail and the SPS headquarters — epic #3988 (#3969–#3987), PR #3991 (`f632b27e`) — ✅ merged (⚠ playtest open; server + client + Client.Core + shared + worldgen + data + tools; **terrain generation 49, save version 19**, protocol unchanged (additive fields); all new texts in 14 languages)
+### ☀️ Sol: our solar system, Earth from real maps, animals, metropolises, rail and the SPS headquarters — epic #3988 (#3969–#3987), PR #3991 (`f632b27e`) — ✅ released in v2026.11.29 (⚠ playtest open; server + client + Client.Core + shared + worldgen + data + tools; **terrain generation 49, save version 19**, protocol unchanged (additive fields); all new texts in 14 languages)
 
 - **The idea.** Marcel, 2026-11-23: bring our own solar system into the game, revealed late through the growing galaxy,
   with Earth and its neighbours generated from real maps instead of noise; on Earth the ruined SPS headquarters where
@@ -1251,7 +1251,7 @@ Two code reads done with the symbol package ("does everything the lab shows real
   a shell form), `MenuFeedbackButtonTests` (wiring, tip only in the menu form, placeholder in every language).
 - 📋 Playtest: click the button with mouse and pad; check the labels of the narrow row in the long languages (ru, tr).
 
-### 📸 Screenshots re-shot for the new look (2026-11-23/24) — ✅
+### 📸 Screenshots re-shot for the new look (2026-11-23/24) — PR #3990 (`405d76b2`) — ✅ released in v2026.11.29
 
 - ✅ All 77 pictures under `docs/screenshots` re-shot for the look rework (#3949) and reviewed by Marcel picture by picture
   (two rounds); new world stills `creature_savanna.jpg` and `life_village.jpg`. Most come from v2026.11.27; the nine

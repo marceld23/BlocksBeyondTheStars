@@ -11,6 +11,116 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.29] — 2026-11-24
+
+The home-system release. **Our own solar system is in the game**: **Sol** with its 21 real bodies, and **Earth, the
+Moon, Mars, Venus and Mercury made from real maps** — the continents, seas, mountains and climate zones are where they
+really are. On Earth stand **nine cities of the space age** with their landmarks, **hover trains** run between them,
+**twelve real animals** live in their climate zones, and deep in the Amazon lie the **ruins of the SPS headquarters**,
+where the first CORE lived. New worlds get a **hidden star map**: the whole galaxy is there from the start, and you
+**uncover it by flying**. **Every planet has its own kind of year** now, with **opposite seasons in the north and the
+south** on some of them. And from **Lyxette**'s reports: **rock and ores look natural again**, and the gatherers' market
+sells **flower seeds, bush cuttings and bush saplings** for your garden.
+
+ℹ️ **Compatibility:** Sol's headquarters and the bush sapling bring five new blocks — the **save version rises from 18
+to 20**: a world is converted the first time you open it (the game makes a backup first), and the previous version of
+the game can no longer open it afterwards. The **terrain generation rises from 48 to 49** (the Earth's animals, and wild
+dogs and cats on other worlds) — that comes with **worlds you create from now on**. The **hidden star map** and the new
+universe sizes are for **new worlds** too; an older world keeps the star map it was created with. **Every world, old or
+new**, gets the new rock and ore textures, the garden seeds, the kinds of year and the hemispheres. The **network
+protocol stays at version 12**, but because the list of blocks changed, game and server must both be on 2026.11.29: an
+older game is asked to update when it joins.
+
+### ☀️ Sol — our own solar system (#3970)
+
+- In a world with the hidden star map, **Sol appears once you have flown to eight star systems**: faint signals come in
+  from far out, and Sol is on your star map — and on your allies' — past the rim. In an older world whose galaxy
+  **grows**, Sol appears after the galaxy has grown six times.
+- **21 real bodies**: Mercury, Venus, Earth and its Moon, Mars with Phobos and Deimos, Ceres and Vesta, Jupiter with
+  Io, Europa, Ganymede and Callisto, Saturn with its ring and Titan, Uranus, Neptune with Triton, Pluto and Charon. The
+  gas giants look much bigger than the Earth in the flight view.
+- Admins can call Sol at once with **`/sol`**, and any hand-made star system with **`/system <key>`**.
+
+### 🌍 Planets from real maps (#3978, #3979)
+
+- **Earth, the Moon, Mars, Venus and Mercury** are built from real maps: the Sahara is desert, the Amazon rain forest,
+  Siberia boreal forest, Greenland ice — and the Moon and Mercury have their craters.
+- One block is about 2.5 km, so a city covers a whole region and the mountains are much steeper than in reality.
+- In the browser the maps load only when you fly there.
+
+### 🏙️ Nine cities and the hover trains (#3983, #3985)
+
+- **London** (the whole island), **Paris**, **Berlin**, **Cairo**, **Tokyo**, **Sydney**, **Toronto**, **New York** and
+  **Rio de Janeiro** — each with its landing pad, its own colours and its landmarks: the Tech Eiffel Tower, the
+  Brandenburg Gate, the pyramids of Giza, the Statue of the Stars and the G.D.S. Tower in New York, and more.
+- Two **hover-train lines** on pylons across land and sea: the **Atlantic Line** (Berlin – Paris – London – Toronto –
+  New York – Rio) and the **Orient Line** (Paris – Cairo – Tokyo – Sydney). Each has a **public train** that stops at
+  every city and that anyone may ride; the boards show the next stops.
+- Earth is the biggest world in the game: **the first landing there takes a while** (the game builds the cities once),
+  later visits are quicker. We have not yet played it on every preset — tell us how it runs on your computer and in
+  the browser.
+
+### 🦁 Earth's animals (#3973–#3976)
+
+- **Dogs, cats, rabbits, cows, sheep, chickens, monkeys, parrots, elephants, eagles, dolphins and whales**, each in its
+  climate zone, with their own calls — and every animal looks a little different (a cat may be black, tabby, ginger or
+  tortoiseshell).
+- Tame dogs and cats with meat or milk; monkeys beg for bananas. Villagers keep dogs and cats, and the pens keep cows,
+  sheep and chickens.
+- In **worlds you create from now on**, dogs and cats also live wild on some other worlds with breathable air.
+
+### 🏛️ The SPS headquarters (#3986)
+
+- Deep in the **Amazon rain forest** lie the ruins of the **SPS headquarters**: the main building, a hangar with old
+  ships, three levels of huge broken servers with the chamber where the first CORE lived, and a great hall with a fallen
+  guardian giant. The nearest landing pad is a long walk away.
+
+### 🗺️ The hidden star map — new worlds (#3997, #3998, #3999)
+
+- **The whole galaxy is there from the start**, but your star map shows only what you have **charted** — at first your
+  home system and at least two stars near it.
+- Your map grows as you fly: the **first visit to a system** charts 1 to 4 nearby stars, a **radar array** charts two
+  more with every hyperjump, **scanning a wormhole** charts its other end, and when **VEGA, the story, a villager or a
+  mission names a place**, its system goes on your map. **Allies share their maps**, and you never get stuck.
+- New **universe sizes**: **Small 24 · Normal 36 · Large 48 · Huge 64** star systems. The old "Growing" size is gone —
+  a world that already grows keeps growing.
+- For server hosts: a new world and a first `server.json` start with 36 systems and the hidden map; an existing
+  `server.json` keeps its values (`--systems`, `--hidden-map`).
+
+### 🌗 A year of its own on every planet (#3993–#3996)
+
+- A planet has **four seasons**, only **summer and winter**, a **wet and a dry season**, **one season all year** or **no
+  seasons**. Your **start planet always has all four**; the ship scanner's planet card shows the kind in its new
+  **Seasons** row.
+- On some planets — **Earth** among them — **north and south have opposite seasons**: winter in London is summer in the
+  far south. Around the equator lie the **tropics** with only the wet and the dry season. The clock panel shows the half
+  of the planet ("Winter · S"), and the seasons change gently as you travel.
+- The wet/dry season of the forecast is part of the same year now, so it comes back at the same point of every year.
+- In an older world your start planet keeps its four seasons; other planets may get a different kind of year.
+
+### 🪨 Lyxette's reports: rock, flowers and bushes (#4000, #4001, #4003)
+
+- **Rock and ores look natural again** (#4000): with the new look granite had lost its pink, white and grey mix and ores
+  looked painted on. The 14 rocks, bedrock, obsidian and all 23 ores are redrawn as natural stone of up to three
+  materials — in every world.
+- **Flower seeds** (#4001): every seed grows into one of seven meadow flowers in this world's colours, so a bed comes
+  out **mixed and colourful**. The same spot always gives the same flower.
+- **Bush cuttings and bush saplings** (#4003): a cutting plants this world's wild bush at once; a sapling grows into a
+  leafy bush without a trunk — plant a row of them for a hedge.
+- All three are sold at the **gatherers' market**: 4 berries → 4 flower seeds, 4 plant fibre → 2 cuttings, 2 iron ore →
+  2 bush saplings.
+
+### 🔧 Under the hood
+
+- Before Sol, the code was tidied so that hand-made star systems, map planets, places and rail lines are data and run
+  through the same paths as everything else (#3969, #3971, #3972, #3977, #3980, #3984, #3987).
+- Every screenshot in the README and the docs was taken again for the new look (#3990), and the Unity EditMode tests
+  are green again after it (#4004). A timing test of the Earth's rail no longer fails on a single slow moment of the
+  test machine (#4008).
+
+Thank you, **Lyxette**, for your reports about the rock and the garden — and thank you to everyone who sends us ideas
+and reports!
+
 ## [2026.11.28] — 2026-11-23
 
 The finer-ground release. On **Medium and High** the natural ground is **no longer a field of smooth cubes**: rock,
@@ -11860,7 +11970,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.28...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.29...HEAD
+[2026.11.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.28...v2026.11.29
 [2026.11.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.27...v2026.11.28
 [2026.11.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.26...v2026.11.27
 [2026.11.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.25...v2026.11.26
