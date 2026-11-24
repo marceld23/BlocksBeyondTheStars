@@ -88,7 +88,7 @@
     "earStyle": "Pointed", "snoutLength": 0.25, "hasClaws": true,
     "socialGroupSize": 1, "begsForFood": true, "favouriteFood": "milk", "feedsToTame": 2,
     "dropItem": "plant_fiber", "dropCount": 1, "dropKind": "Material",
-    "floraThemes": ["temperate"], "biomeExclusive": false, "hide": "fur",
+    "floraThemes": ["temperate", "savanna"], "biomeExclusive": true, "hide": "fur",
     "voices": { "calm": ["animal_cat_meow"], "alarm": ["animal_cat_hiss"], "friendly": ["animal_cat_purr"] },
     "coats": [
       { "weight": 2, "bodyRgb": 1710360, "bellyRgb": 2368031, "hide": "fur" },
