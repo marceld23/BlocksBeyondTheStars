@@ -3454,6 +3454,12 @@ worlds created with a game version that has generation 43 have them; an older wo
   zones are where they are on the real planets (the Sahara is desert, the Amazon rain forest, Siberia boreal forest,
   Greenland ice). The scale is small — one block is about 2.5 km — so a city covers a whole region and the mountains
   are much steeper than in reality. The other bodies are generated like every other world.
+- **Mars** is the red planet. Its ground is **Red Sand** — the rusty regolith that covers Mars; you clear it by hand
+  and it trickles down like sand — over **Red Rock**, which you drill like stone. Both drop themselves, so you can build
+  with them. Only the poles carry ice, and the high Tharsis volcanoes are dark basalt. Nobody ever lived on Mars: you
+  will find no ruins, monuments, rune stones, wrecks or other buildings there, only the scattered net fragments. If you
+  visited Mars before this update, anything already standing there stays, but no new ruins appear, and the ground
+  everywhere you have not dug looks red now.
 - **The Earth** has nine big, inhabited cities of the space age, each with its landing pad in the middle, its own
   colours and its landmarks: **London** (covers the whole island), **Paris** (the Tech Eiffel Tower), **Berlin** (the
   Brandenburg Gate and the TV tower), **Cairo** (the pyramids of Giza stand in the desert south-west of it), **Tokyo**
