@@ -116,7 +116,7 @@ public sealed class MarsTests : IDisposable
                 int y = gen.SurfaceHeight(Mars, x, z);
                 var chunk = gen.Generate(Mars, WorldConstants.WorldToChunk(new Vector3i(x, y, z)));
                 int cs = WorldConstants.ChunkSize;
-                string key = Content.BlockById(chunk.Get(Mod(x, cs), Mod(y, cs), Mod(z, cs)))?.Key ?? "air";                counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
+                string key = Content.BlockById(chunk.Get(Mod(x, cs), Mod(y, cs), Mod(z, cs)))?.Key ?? "air"; counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
                 samples++;
             }
         }
