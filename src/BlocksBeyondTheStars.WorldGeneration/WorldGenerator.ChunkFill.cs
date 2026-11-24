@@ -83,9 +83,7 @@ public sealed partial class WorldGenerator
         // stamps. Precomputed gate: hot flat worlds skip the per-column check entirely.
         var snowId = _content.GetBlock("snow")?.NumericId ?? BlockId.Air;
         var iceId = _content.GetBlock("ice")?.NumericId ?? BlockId.Air;
-        bool hasAtmosphere = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
-        bool snowPossible = hasAtmosphere && !airlessBody && !snowId.IsAir
-            && TempAt(calib, calib.MaxHeight) < SnowLineC + 2.0;
+        bool snowPossible = SnowClimate(planet, calib); // the one gate the column pass, the map and the far view share
         bool freezeWater = CanFreezeWater(planet, calib); // #494: cold water columns freeze from the top
 
         // Volcanoes (#477): watery worlds may carry basalt cones with molten summit craters.
