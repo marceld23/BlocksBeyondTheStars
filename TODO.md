@@ -26,6 +26,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌸 Lyxette's reports of 2026-11-24: natural rock and ore tiles, flower seeds, bush cuttings and bush saplings — #4000, #4001, #4003 — ✅ done 2026-11-24 (PR pending; client tiles + server + shared + worldgen + data; **save version 20** (one new block, ids shift), protocol unchanged; 8 new texts in all 14 languages, 2 new item icons, 40 tiles)
+
+- **#4000 Rock and ore tiles.** Lyxette (v2026.11.28): the new look made leaves and grass better but rock flat — granite
+  lost its pink/white/grey mix, ores read as paint. Cause: the calm set built rock as one generated form with one or two
+  flat colours (granite 3675 → 524 colours, stone 884 → 39). Round 6 of the calm set
+  (`tools/ai-assets/calm_tiles/rock_tiles.py`, approved from a preview sheet): 39 tiles redrawn as natural stone of up to
+  three materials — the 14 rocks, bedrock and obsidian (new bundled keys; the code painter stays the fallback), the 23
+  ores (carbon and the tainted ores included); previous mean colour kept, rock contrast 0.6 × the old tile's, ores 0.85 ×
+  and never below the calm tile's. `build_tiles.py --bundle` skips these keys now. Older worlds show the new tiles.
+- **#4001 Flower seeds.** A new item `flower_seed` (`placesAnyOf`, checked at load) plants one of seven meadow flowers
+  (flower, daisy, tulip, bellflower, sunblossom, orchid, lupine) per cell, among those that root on the ground there —
+  each its own species, so each world gives each its own form and colours and a bed comes out mixed; the same cell
+  always gives the same flower (`GameServerMixedSeeds`). No new block.
+- **#4003 Bushes.** `bush_cutting` plants the world's wild bush (`flora_bush`); the bush sapling (new block
+  `flora_sapling_bush`, `SaplingShape.Bush`) grows into a leafy bush without a trunk (6 or 14 leaf cells, one or two
+  high). Its tile redrawn from the calm fruit sapling (`make_bush_sapling.py`) and cut by `bake_leaf_alpha.py`.
+- **Source:** the gatherers' market only (Marcel's choice): 4 berries → 4 flower seeds, 4 plant fibre → 2 cuttings,
+  2 iron ore → 2 bush saplings. Wild flowers and bushes still drop what they did.
+- Tests: `GardenPlantsTests` (mixed bed per cell, dirt only gives the flowers that root there, stone none, the cutting, the
+  bush shapes and growth, the market), the save-version row 20. Translations of the 12 community languages by a Sonnet
+  agent with each locale's existing terms (Marcel's wish).
+- **Open:** playtest the look of the new rock and ore tiles in a world (Marcel's visual check), and a bed of flower seeds.
+
 ### 🌗 Seasons per planet: four, summer/winter, wet/dry, one or none; northern and southern hemispheres with tropics — #3993, #3994, #3995, #3996 — ✅ done 2026-11-24 (⚠ playtest open; shared + server + client + Client.Core + data; no save-version, protocol or terrain-generation bump — three additive `WorldEnvironment` fields; 18 new texts in all 14 languages; one new HUD icon `ov_seasons`)
 
 - **The idea.** Marcel, 2026-11-24: planets should differ in their year — some with only summer and winter, some with one

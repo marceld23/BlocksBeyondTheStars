@@ -161,6 +161,11 @@ public sealed partial class GameServer
         }
 
         var pos = WorldConstants.CanonicalBlock(new Vector3i(place.X, place.Y, place.Z), _world.Circumference); // wraps at THIS world's seam
+        if (item.PlacesAnyOf is { Count: > 0 })
+        {
+            blockDef = MixedSeedBlock(item, blockDef, pos); // #4001: the flower seeds plant one meadow flower per cell
+        }
+
         return new PlacementRequest(place, blockDef, pos);
     }
 

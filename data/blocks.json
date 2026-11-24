@@ -243,6 +243,7 @@
   { "key": "flora_sapling_fruit_banana", "nameKey": "block.flora_sapling_fruit_banana.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling_fruit_banana", "count": 1 } ] },
   { "key": "flora_sapling_fifi", "nameKey": "block.flora_sapling_fifi.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling_fifi", "count": 1 } ] },
   { "key": "flora_sapling_mahogany", "nameKey": "block.flora_sapling_mahogany.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling_mahogany", "count": 1 } ] },
+  { "key": "flora_sapling_bush", "nameKey": "block.flora_sapling_bush.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling_bush", "count": 1 } ] },
   // Fruit trees (#2038, generation 14): the four fruit shapes that hang under a tree crown (FloraCatalog, Hanging). Picked
   // by hand, one fruit each; the harvest swaps the fruit for its toxic twin when the world's tree species is toxic
   // (GameServer.BreakBlockAt), and the fruit grows back on its leaf after two minutes in the colour its tree kind rolled.

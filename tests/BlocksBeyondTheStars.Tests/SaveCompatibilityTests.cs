@@ -1017,6 +1017,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [17] = "c01c649f196d25c8", // the abandoned bed (terrain generation 44): bed_abandoned, a ruin's or a wreck's bed that works as none
         [18] = "41dc307baefed548", // the sky-lights and the other side (#3894): light_blue(_off), sps_console, capsule_tank(_open), sound_block
         [19] = "56e9d4f49abe976a", // the SPS headquarters (#3986): server_rack(_lit), cable_tray, core_pillar
+        [20] = "89ff95baa396039a", // the bush sapling (#4003): flora_sapling_bush
     };
 
     [Fact]

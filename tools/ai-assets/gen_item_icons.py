@@ -100,6 +100,10 @@ ITEMS = [
     ("paper_lantern", "a round red paper lantern with golden top and bottom caps and a short red tassel, glowing softly"),
     ("diya_lamp", "a small round terracotta clay oil lamp painted with white dots, with one tiny bright flame"),
     ("marigold_seed", "a small heap of thin dark slender marigold seeds with pale tips"),
+    ("flower_seed", ("a small open paper seed bag with a few mixed flower seeds of different shapes spilling out, "
+                     "a colourful drawn flower on the bag")),  # #4001
+    ("bush_cutting", ("a short green leafy twig cutting with five or six small round fresh leaves and a cleanly "
+                      "cut woody end at the bottom")),  # #4003
     ("emergency_ration", "a sealed silver foil ration food pack"),
     ("algae_ration", "a pressed rectangular bar of green cultured algae with a subtle sheen, sci-fi survival food"),
     ("medpack", "a white medical kit box with a red cross"),

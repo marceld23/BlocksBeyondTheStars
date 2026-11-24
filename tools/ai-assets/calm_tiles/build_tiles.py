@@ -18,13 +18,14 @@ The strength is the one chosen on 2026-11-22: half of the first round's.
 from __future__ import annotations
 
 import argparse
+import json
 
 import numpy as np
 from PIL import Image
 
 from make_sheet import CALM, RAW, colourise, crossfade, form_of, mean_of, periodic, seam_ratio, wall
 from restyle_tiles import LIQUIDS, SOFT_ALPHA, cutout_reference
-from tilelib import BUILT, PREVIOUS, REDRAWS, SHEETS, TEXTURES, TILE, luma, read_previous, repeat, scale, sheet
+from tilelib import BUILT, PREVIOUS, REDRAWS, REPO, SHEETS, TEXTURES, TILE, luma, read_previous, repeat, scale, sheet
 
 STRENGTH = CALM * 0.5
 DONE = BUILT
@@ -350,6 +351,10 @@ def main() -> None:
 
     if args.bundle:
         DEST.mkdir(parents=True, exist_ok=True)
+        # Round 6 (rock_tiles.py, #4000) replaced the rock and ore tiles: never write the older build over them.
+        provenance = json.loads((REPO / "tools" / "ai-assets" / "texture_provenance.json").read_text(encoding="utf-8"))
+        later = {k for k, v in provenance["textures"].items() if "rock_tiles.py" in v}
+        tiles = {k: v for k, v in tiles.items() if k not in later}
         for key, tile in tiles.items():
             raw = tile.convert("RGBA").transpose(Image.FLIP_TOP_BOTTOM).tobytes()
             assert len(raw) == TILE * TILE * 4

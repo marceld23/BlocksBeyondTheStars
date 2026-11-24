@@ -121,7 +121,7 @@
       "key": "garden", "nameKey": "category.garden.name", "group": "building", "icon": "cat_planet", "iconItem": "sapling",
       "items": [ "plant_seed", "crystal_seed", "berry_seed", "grain_seed", "shroom_seed", "pumpkin_seed", "sapling", "sapling_conifer",
                  "sapling_fruit_round", "sapling_fruit_long", "sapling_fruit_grape", "sapling_fruit_banana", "sapling_fifi",
-                 "sapling_mahogany", "marigold_seed", "seedling", "tree_leaves", "tree_leaves_b", "tree_leaves_c", "blossom_leaves",
+                 "sapling_mahogany", "sapling_bush", "marigold_seed", "flower_seed", "bush_cutting", "seedling", "tree_leaves", "tree_leaves_b", "tree_leaves_c", "blossom_leaves",
                  "pine_needles", "palm_frond", "mushroom_stem", "mushroom_cap", "fifi_leaf", "fifi_blossom", "flower_pot", "hydro_tray",
                  "algae_tank", "water_spout", "water", "bio_lab", "bio_sampler", "forage_bait", "meat_bait", "nectar_lure", "plant_fiber",
                  "biofuel", "berries", "fruit_round", "fruit_long", "fruit_grape", "fruit_banana", "pumpkin", "tamer_post",

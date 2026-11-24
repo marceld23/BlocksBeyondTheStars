@@ -13,6 +13,7 @@ public enum SaplingShape
     Conifer,    // a trunk under a cone of needle rings
     Fifi,       // the Fifi plant's smaller shape: green stem, yellow crown, pink blossoms, berries
     YoungGiant, // a 2×2 trunk of giant logs under a wide crown (the mahogany sapling)
+    Bush,       // a small leafy bush without a trunk: its leaves take the sapling's own cell (the bush sapling, #4003)
 }
 
 /// <summary>One plantable sapling: its block and item, the shape it grows, the blocks the tree is made of and how long it
@@ -23,7 +24,7 @@ public sealed record SaplingKind(string BlockKey, string ItemKey, SaplingShape S
 
 /// <summary>
 /// The saplings of the game (#1774 the classic one; #2977 one per fruit; #2978 the conifer; #2979 the Fifi plant; #2980 the
-/// mahogany). Every sapling is a flora block that roots in dirt, grass or mud, is picked up as itself, and turns into its
+/// mahogany; #4003 the bush). Every sapling is a flora block that roots in dirt, grass or mud, is picked up as itself, and turns into its
 /// tree once there is room (<c>GameServerSaplings</c>). Where a sapling COMES FROM is data: leaf drops and hand recipes in
 /// <c>data/blocks.json</c> and <c>data/recipes.json</c>.
 /// </summary>
@@ -48,6 +49,8 @@ public static class SaplingCatalog
             Blossom: FifiPlant.BlossomKey, Berries: FifiPlant.BerriesKey),
         new SaplingKind("flora_sapling_mahogany", "sapling_mahogany", SaplingShape.YoungGiant, "giant_log", "giant_leaves",
             GrowSeconds: GiantGrowSeconds),
+        // #4003: a bush is leaves all through — its "trunk" is the one leaf cell the sapling stood in.
+        new SaplingKind("flora_sapling_bush", "sapling_bush", SaplingShape.Bush, "tree_leaves", "tree_leaves"),
     };
 
     /// <summary>The sapling planted as <paramref name="blockKey"/>, or null.</summary>
