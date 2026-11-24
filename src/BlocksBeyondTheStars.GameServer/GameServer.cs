@@ -3519,6 +3519,7 @@ public sealed partial class GameServer
 
         PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
         msg.EditRuns = chunk.EditedRuns(); // #3118: built vs natural ground for the client's ground details
+        msg.DugRuns = chunk.DugRuns(); // #4011: carved-out cells — the terrain forms stay off the walls around them
         return msg;
     }
 
@@ -5400,9 +5401,10 @@ public sealed partial class GameServer
             && _floraSpeciesByBlock.TryGetValue(current.Value, out var toxSp) && toxSp.Toxic;
         // #2209: a bred plant yields what its body parent's form yields (its own toxic twin already applied).
         uint bredSeed = IsBredPlant(current.Value) ? BredSeedAt(pos) : 0;
-        foreach (var drop in bredSeed != 0 ? BredYield(bredSeed) : def.Drops)
+        var dyedFlower = DyedFlowerYield(def, current.Value, dropTint); // #4012: a dyed flower gives its dyed seed back
+        foreach (var drop in dyedFlower ?? (bredSeed != 0 ? BredYield(bredSeed) : def.Drops))
         {
-            string item = toxicFloraDrop ? ToxicCounterpart(drop.Item) : drop.Item;
+            string item = toxicFloraDrop && dyedFlower is null ? ToxicCounterpart(drop.Item) : drop.Item;
             if ((dropTint != 0 || dropGlow != 0 || dropShape != 0 || dropDesign != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
             {
                 item = ItemKey.Compose(item, dropTint, dropGlow, dropShape, dropDesign);
@@ -5487,7 +5489,7 @@ public sealed partial class GameServer
         {
             // #3006: a festival's plant stays harvested — the deposit is struck off, nothing regrows, the cell is plain air again.
         }
-        else if (floraHarvest)
+        else if (floraHarvest && dyedFlower is null) // #4012: a picked dyed flower is in the pocket as its seed — nothing regrows
         {
             ScheduleFloraRegrow(pos, current.Value, dropTint); // regrows if the host stays intact — a fruit in its colour (#2038)
         }
@@ -5810,7 +5812,9 @@ public sealed partial class GameServer
         }
 
         var blockDef = _content.GetBlock(item.PlacesBlock!);
-        if (blockDef is null || !blockDef.Tintable)
+        // #4012: a dyeable seed (the flower seed) takes the colour too — the colour only, never a glow.
+        bool dyeOnly = GameContent.IsDyeOnly(item);
+        if (blockDef is null || !_content.IsDyeable(item) || (dyeOnly && (intent.Glow & 0xFFFFFF) != 0))
         {
             CraftFail(session, "tint", "@srv.craft.tint_material");
             return;

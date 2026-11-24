@@ -26,6 +26,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌻 Lyxette's afternoon reports of 2026-11-24: carved rock stays smooth, flower pictures from dyed seeds — #4011, #4012, PR pending — ✅ done 2026-11-24 (server + shared + client + shaders + data; protocol: one additive chunk field, no version bump; no save change; 1 changed text in all 14 languages)
+
+- **#4011 Carved rock keeps flat walls.** Lyxette (v2026.11.28) carved a room out of a mountain and its walls and pillar grew
+  the terrain forms' grooves (#3964). Placed blocks were never formed, but mined air carries no edited mark, so the client
+  could not tell a dug room from a natural cave. Now the chunk keeps **dug cells** (`ChunkData.IsDugLocal`; rule in
+  `Shared/World/DugCells.cs`: natural solid terrain or ore a stored edit replaced — picked plants, felled trees, drained
+  water and melted weather snow do not count). The server derives them from the edit rows at load (an edit over counting
+  generated terrain) and marks live mines in `ServerWorld.SetBlock`; `ChunkDataMessage.DugRuns` (additive) streams them;
+  `ClientWorld.ApplyBlockChange` marks a live mine with the same rule. `TerrainFormContext.FormAt` keeps a natural cell a
+  cube when an open side faces a dug cell (other chunks through `Neighbourhood.DugFn`). Old worlds are covered — every mined
+  cell already has its row. Tests `CarvedRockDugCellsTests`, `CarvedRockDugCellsClientTests`; LOOK.md §17, USER_MANUAL.
+- **#4012 Flower pictures.** Lyxette wants to choose the flower colours to plant pictures. The flower seed takes the Dye
+  action (`ItemDefinition.DyedPlaces`, `GameContent.IsDyeable`/`IsDyeOnly`: the colour only — no glow, no design, no form;
+  the hotbar wheel and the crafting menu hide glow and designs). A dyed seed always plants the **sunblossom** with the dye in
+  its cell tint (`GameServerDyedFlowers.cs`); picking it gives the dyed seed back and nothing regrows. The mesher marks a
+  dyed accent flower with pick 4 (`ChunkMesher.DyedBlossomCode`), `BbtsDyedBlossom` (both BlockAtlas passes) colours only
+  the blossom texels, and the plant body wears the dye as accent with the tile's own leaves (`PlantCell.DyedBlossom`) —
+  no planet tint and no season. `item.flower_seed.desc` updated in all 14 languages. Tests `DyedFlowerSeedTests`,
+  `DyedFlowerClientTests`; USER_MANUAL, ART_BIBLE.
+
 ### 🧪 Unity EditMode suite green again after the new look — #4004, PR #4007 (`3fdc77a8`) — ✅ released in v2026.11.29 (EditMode tests + one client refactor; no gameplay, protocol or save change, no new texts)
 
 - **What.** The EditMode suite runs in no CI job, so 13 tests had been red since the new look (epic #3948, PR #3949) unseen. None was a

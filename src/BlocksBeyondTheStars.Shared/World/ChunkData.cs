@@ -52,6 +52,16 @@ public sealed class ChunkData
     private ulong[]? _edited;
     private int _editedCount;
 
+    /// <summary>
+    /// #4011: the DUG cells — cells whose natural terrain (rock, soil, ore; <see cref="DugCells.Counts"/>) a stored edit
+    /// replaced: a mined tunnel, a room carved out of a mountain, a crater. Sticky: a block placed into a dug cell keeps
+    /// the mark (the cell is not natural either way). The client keeps the terrain forms off natural rock that faces such a
+    /// cell, so the walls a player cut out of a mountain stay flat. Derived, never persisted: the server rebuilds it from
+    /// the edit rows when a chunk loads and streams it with the chunk, the client marks a live change itself.
+    /// </summary>
+    private ulong[]? _dug;
+    private int _dugCount;
+
     public ChunkData(ChunkCoord coord)
     {
         Coord = coord;
@@ -191,19 +201,54 @@ public sealed class ChunkData
     /// <summary>True if any cell in this chunk is marked as edited.</summary>
     public bool HasEdits => _editedCount > 0;
 
-    /// <summary>Takes over another chunk's edited cells (the client's mesh-worker copy of a chunk).</summary>
+    /// <summary>Takes over another chunk's edited and dug cells (the client's mesh-worker copy of a chunk).</summary>
     public void CopyEditsFrom(ChunkData source)
     {
         _edited = source._edited is null ? null : (ulong[])source._edited.Clone();
         _editedCount = source._editedCount;
+        _dug = source._dug is null ? null : (ulong[])source._dug.Clone();
+        _dugCount = source._dugCount;
         Touch();
     }
 
     /// <summary>The edited cells as flat (start, length) runs over the ascending local indices — the wire form: a
     /// settlement chunk with thousands of stamped cells packs into a few hundred numbers. Empty when none.</summary>
-    public ushort[] EditedRuns()
+    public ushort[] EditedRuns() => RunsOf(_edited, _editedCount);
+
+    /// <summary>Marks the cells of (start, length) runs as edited (<see cref="EditedRuns"/>' form). Odd trailing or
+    /// out-of-range entries are ignored, so a malformed payload can only under-mark, never throw.</summary>
+    public void MarkEditedRuns(ushort[]? runs) => ForEachRunCell(runs, MarkEditedLocal);
+
+    // --- Dug cells (#4011: natural terrain a stored edit replaced) ---
+
+    /// <summary>Whether the cell at a flat local index is a dug cell (see <see cref="_dug"/>), whatever it holds now.</summary>
+    public bool IsDugLocal(int localIndex) => _dug is not null && (_dug[localIndex >> 6] & (1UL << (localIndex & 63))) != 0;
+
+    /// <summary>Marks the cell at a flat local index as dug. The mark stays when the cell is set again.</summary>
+    public void MarkDugLocal(int localIndex)
     {
-        if (_edited is null || _editedCount == 0)
+        if (IsDugLocal(localIndex))
+        {
+            return;
+        }
+
+        (_dug ??= new ulong[WorldConstants.BlocksPerChunk / 64])[localIndex >> 6] |= 1UL << (localIndex & 63);
+        _dugCount++;
+        Touch();
+    }
+
+    /// <summary>True if any cell in this chunk is marked as dug.</summary>
+    public bool HasDug => _dugCount > 0;
+
+    /// <summary>The dug cells as flat (start, length) runs (<see cref="EditedRuns"/>' wire form). Empty when none.</summary>
+    public ushort[] DugRuns() => RunsOf(_dug, _dugCount);
+
+    /// <summary>Marks the cells of (start, length) runs as dug; malformed entries can only under-mark, never throw.</summary>
+    public void MarkDugRuns(ushort[]? runs) => ForEachRunCell(runs, MarkDugLocal);
+
+    private static ushort[] RunsOf(ulong[]? bits, int count)
+    {
+        if (bits is null || count == 0)
         {
             return Array.Empty<ushort>();
         }
@@ -212,7 +257,7 @@ public sealed class ChunkData
         int start = -1;
         for (int i = 0; i <= WorldConstants.BlocksPerChunk; i++)
         {
-            bool on = i < WorldConstants.BlocksPerChunk && IsEditedLocal(i);
+            bool on = i < WorldConstants.BlocksPerChunk && (bits[i >> 6] & (1UL << (i & 63))) != 0;
             if (on && start < 0)
             {
                 start = i;
@@ -228,9 +273,7 @@ public sealed class ChunkData
         return runs.ToArray();
     }
 
-    /// <summary>Marks the cells of (start, length) runs as edited (<see cref="EditedRuns"/>' form). Odd trailing or
-    /// out-of-range entries are ignored, so a malformed payload can only under-mark, never throw.</summary>
-    public void MarkEditedRuns(ushort[]? runs)
+    private static void ForEachRunCell(ushort[]? runs, Action<int> mark)
     {
         if (runs is null)
         {
@@ -242,7 +285,7 @@ public sealed class ChunkData
             int end = Math.Min(runs[r] + runs[r + 1], WorldConstants.BlocksPerChunk);
             for (int i = runs[r]; i < end; i++)
             {
-                MarkEditedLocal(i);
+                mark(i);
             }
         }
     }

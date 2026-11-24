@@ -239,12 +239,14 @@ namespace BlocksBeyondTheStars.Client
             public readonly System.Func<int, int, int, BlockId> BlockFn;
             public readonly System.Func<int, int, int, bool> LoadedFn;
             public readonly System.Func<int, int, int, int> ShapeFn;
+            public readonly System.Func<int, int, int, bool> DugFn; // #4011: carved-out cells, for the terrain forms
 
             public Neighbourhood(ChunkCoord center)
             {
                 BlockFn = Block;
                 LoadedFn = Loaded;
                 ShapeFn = Shape;
+                DugFn = Dug;
                 Reset(center);
             }
 
@@ -312,6 +314,14 @@ namespace BlocksBeyondTheStars.Client
                 var sh = s >= 0 ? _shapes[s] : null;
                 return sh != null && sh.TryGetValue(WorldConstants.LocalIndex(wx & 15, wy & 15, wz & 15), out var v) ? v : 0;
             }
+
+            /// <summary>#4011: whether a world cell is a dug cell (<see cref="ChunkData.IsDugLocal"/>); false when unloaded.</summary>
+            public bool Dug(int wx, int wy, int wz)
+            {
+                int s = SlotOf(wx, wy, wz);
+                var ch = s >= 0 ? _chunks[s] : null;
+                return ch != null && ch.IsDugLocal(WorldConstants.LocalIndex(wx & 15, wy & 15, wz & 15));
+            }
         }
 
         public static ChunkMeshData BuildGeometry(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
@@ -321,7 +331,8 @@ namespace BlocksBeyondTheStars.Client
             System.Func<int, Rect?> designUv = null,
             System.Func<int, int, int, bool> worldLoaded = null,
             System.Func<int, int, int> biomePalette = null, // #3289: column → biome palette (planet chunks only), ChunkMesher.BiomeLooks.cs
-            bool terrainForms = false) // #3964 terrain forms (ChunkMesher.TerrainForms.cs): planet streaming only
+            bool terrainForms = false, // #3964 terrain forms (ChunkMesher.TerrainForms.cs): planet streaming only
+            System.Func<int, int, int, bool> worldDug = null) // #4011: dug cells of the neighbour chunks (the forms stay off them)
         {
             // Pooled output buffers: every build used to allocate ~13 fresh List<>s whose backing arrays are
             // large (a dense chunk's vertex list alone runs to six figures of bytes), making chunk (re)meshing
@@ -464,7 +475,7 @@ namespace BlocksBeyondTheStars.Client
             bool FormOnlyOpens(int px, int py, int pz)
                 => deviceForms && traits.DeviceFormOf(worldBlock(px, py, pz)) != null
                    && (worldShape == null || ShapeCode.IsCube(worldShape(px, py, pz)));
-            var terrainCtx = BeginTerrainForms(terrainForms && atlas != null && GameLook.TerrainFormsNow, chunk, origin, worldBlock, traits);
+            var terrainCtx = BeginTerrainForms(terrainForms && atlas != null && GameLook.TerrainFormsNow, chunk, origin, worldBlock, traits, worldDug);
 
             WaterSurfaceData WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
@@ -925,6 +936,13 @@ namespace BlocksBeyondTheStars.Client
                 // only (the shader derives the accent from the species tint, which only they carry).
                 float accentCode = floraTinted && !dyed && floraTint != null && (tf & TraitAccentFlora) != 0
                     ? AccentCodeAt(wx, wz) : 0f;
+                // #4012: a flower the player dyed (a dyed flower seed): drawn in the dye mode (3), but only its blossom takes
+                // the colour — the pick DyedBlossomCode tells the shader to keep the tile's own stem and leaves.
+                bool dyedBlossom = dyed && isFlora && !bred && (tf & TraitAccentFlora) != 0;
+                if (dyedBlossom)
+                {
+                    accentCode = DyedBlossomCode;
+                }
 
                 // Ground detail on open-topped planet ground cells: the T0 tufts and the #3056 grass carpet.
                 // Render-only, drawn instanced (ChunkMesher.HighDetails.cs → GroundScatter / GrassShells).
@@ -1244,7 +1262,8 @@ namespace BlocksBeyondTheStars.Client
                             Size = FloraScale(wx, wy, wz, 0x1, 0.35f) * plantOutlier,
                             Lean = plantLean, Jitter = plantJitter, Sky = plantSky, Light = plantBl, Emission = emission,
                             Flags = (byte)((hangingPlant ? PlantCell.Hanging : 0) | (propWet ? PlantCell.Aquatic : 0)
-                                | (ownColour ? PlantCell.OwnColour : 0) | (goesOn ? PlantCell.Continues : 0)),
+                                | (ownColour ? PlantCell.OwnColour : 0) | (goesOn ? PlantCell.Continues : 0)
+                                | (dyedBlossom ? PlantCell.DyedBlossom : 0)), // #4012: the dye on the blossom only
                         });
                         plantCode += PlantBodies.StagedMark;
                     }
@@ -2174,6 +2193,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2834: the accent pick an accent plant adds to its cutout code — 0.1, 0.2 or 0.3 for the first, second
         /// or third of the species' accent colours (the block shaders decode <c>round(frac × 10)</c>). Per COLUMN, so the
         /// two halves of a tall plant agree; a hash of the world column, so every client picks the same.</summary>
+        /// <summary>#4012: the accent pick of a DYED accent plant (a flower from a dyed flower seed): 0.4, decoded as pick 4 —
+        /// in the dye mode (3) the block shaders colour only the blossom texels with the dye (<c>BbtsDyedBlossom</c>) and keep
+        /// the tile's own stem and leaves. Still inside the cutout code's ±0.5 window, with room for the 0.04 body mark.</summary>
+        public const float DyedBlossomCode = 0.4f;
+
         public static float AccentCodeAt(int wx, int wz)
         {
             uint h = unchecked((uint)(wx * 73856093) ^ (uint)(wz * 83492791) ^ 0x2834u);

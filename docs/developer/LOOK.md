@@ -662,7 +662,14 @@ has its own strength from its seed. Walking, mining, aiming and building are unc
 basalt, granite, sandstone, moss stone, deepslate, dark and blackened sandstone, coral rock, sulfur stone, tainted stone,
 ice), soft ground (dirt, mud, peat, ash, salt, sand, black sand, snow) and grass (grass, alien grass, mycelium). Never
 formed: a cell with an edited mark (placed, stamped or weather snow, #3118), a shape, front or paint descriptor or a dye;
-ores, devices, plants, wood, leaves, glass; a cell beside water or lava (shores and sea floors stay cubes). The choice is a
+ores, devices, plants, wood, leaves, glass; a cell beside water or lava (shores and sea floors stay cubes); and a cell with an
+open side into a **dug cell** (#4011) — natural rock, soil or ore that a stored edit replaced (`ChunkData.IsDugLocal`,
+the rule in `Shared/World/DugCells.cs`), so the walls of a tunnel or a room a player cut out of a mountain stay flat. The
+server rebuilds the dug marks from the edit rows when it loads a chunk (an edit whose block differs from the generated one
+over counting terrain) and on every live mine (`ServerWorld.SetBlock`), and streams them as `ChunkDataMessage.DugRuns`; the
+client marks a live mine itself with the same rule (`ClientWorld.ApplyBlockChange`). Picked plants, felled trees, drained
+water and melted weather snow leave the cell natural. Existing worlds are covered — every mined cell already has its row.
+The choice is a
 hash of the world cell and the world seed (`GameLook.TerrainFormsSalt`, set on join), so every client draws the same.
 
 **How.**

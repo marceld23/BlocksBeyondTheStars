@@ -161,7 +161,11 @@ public sealed partial class GameServer
         }
 
         var pos = WorldConstants.CanonicalBlock(new Vector3i(place.X, place.Y, place.Z), _world.Circumference); // wraps at THIS world's seam
-        if (item.PlacesAnyOf is { Count: > 0 })
+        if (DyedSeedBlock(item, place.ItemKey) is { } dyedFlower)
+        {
+            blockDef = dyedFlower; // #4012: a dyed flower seed plants its one flower, for pictures (GameServerDyedFlowers.cs)
+        }
+        else if (item.PlacesAnyOf is { Count: > 0 })
         {
             blockDef = MixedSeedBlock(item, blockDef, pos); // #4001: the flower seeds plant one meadow flower per cell
         }
@@ -576,6 +580,10 @@ public sealed partial class GameServer
         {
             r.Tint = ItemKey.Tint(r.Intent.ItemKey);
             r.Glow = ItemKey.Glow(r.Intent.ItemKey);
+        }
+        else if (PlantsDyedSeed(r))
+        {
+            r.Tint = ItemKey.Tint(r.Intent.ItemKey); // #4012: a dyed flower seed — the colour of the blossom, nothing else
         }
 
         // #2209: a bred plant's look rides on its voxel — its colour in the tint, its form in the glow channel.

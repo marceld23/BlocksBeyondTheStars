@@ -97,7 +97,7 @@ public sealed class ClientServerHarness : IDisposable
             World.StoreChunk(
                 new Shared.World.ChunkCoord(m.Cx, m.Cy, m.Cz),
                 m.DecodeBlocks(Shared.World.WorldConstants.BlocksPerChunk)!, // server sends RLE or dense
-                m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
+                m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData, m.EditRuns, m.DugRuns);
         };
     }
 

@@ -31,7 +31,7 @@ float3 BbtsRgbToHsv(float3 c)
     return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
-// 0 = no accent, 1..3 = which of the species' three accent colours the plant wears.
+// 0 = no accent, 1..3 = which of the species' three accent colours the plant wears, 4 = a dyed blossom (#4012, the dye mode).
 float BbtsAccentPick(float leafCode)
 {
     return round((leafCode - round(leafCode)) * 10.0);
@@ -51,6 +51,35 @@ float3 BbtsSeasonTint(float3 tint)
     return lerp(tint, lumT * float3(1.05, 1.1, 1.2), saturate(_Sc_Season.y) * 0.45);
 }
 
+// How much a texel is blossom or berry: bright, saturated and not green — the tile's own accent texels (leaves and stems
+// are not). g = the texel's gamma-encoded colour.
+float BbtsBlossomMask(float3 g)
+{
+    float mx = max(g.r, max(g.g, g.b));
+    float mn = min(g.r, min(g.g, g.b));
+    float sat = mx > 1.0e-4 ? (mx - mn) / mx : 0.0;
+    float green = g.g - max(g.r, g.b);
+    return smoothstep(0.28, 0.5, sat) * smoothstep(0.32, 0.55, mx) * (1.0 - smoothstep(-0.04, 0.06, green));
+}
+
+// #4012: a flower the player dyed (the dye mode, accent pick 4). Its blossom texels take the dye, shaded by their own
+// brightness; stem and leaves keep the tile's colours. No season and no planet tint: a planted picture stays as it was
+// planted. `dye` = the dye colour as the mesh carries it (sRGB values).
+float3 BbtsDyedBlossom(float3 albedo, float3 dye)
+{
+#ifdef UNITY_COLORSPACE_GAMMA
+    float3 g = albedo;
+#else
+    float3 g = sqrt(max(albedo, 0.0));
+#endif
+    float mx = max(g.r, max(g.g, g.b));
+    float3 acc = saturate(dye * (0.35 + 0.85 * mx));
+#ifndef UNITY_COLORSPACE_GAMMA
+    acc = acc * acc; // back to linear (the inverse of the sqrt above)
+#endif
+    return lerp(albedo, acc, BbtsBlossomMask(g));
+}
+
 // The re-tinted albedo of a wild plant: luminance x species tint (85 %), accent texels in their own colour.
 float3 BbtsFloraTint(float3 albedo, float3 tint, float leafCode)
 {
@@ -68,10 +97,7 @@ float3 BbtsFloraTint(float3 albedo, float3 tint, float leafCode)
         float3 tg = sqrt(max(tint, 0.0));
 #endif
         float mx = max(g.r, max(g.g, g.b));
-        float mn = min(g.r, min(g.g, g.b));
-        float sat = mx > 1.0e-4 ? (mx - mn) / mx : 0.0;
-        float green = g.g - max(g.r, g.b);
-        float m = smoothstep(0.28, 0.5, sat) * smoothstep(0.32, 0.55, mx) * (1.0 - smoothstep(-0.04, 0.06, green));
+        float m = BbtsBlossomMask(g);
         m = saturate(m * (1.0 + saturate(_Sc_Season.z) * 0.8)); // #3042: spring — the blossoms open
 
         float3 hsv = BbtsRgbToHsv(tg);

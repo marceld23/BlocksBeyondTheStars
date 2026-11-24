@@ -334,7 +334,7 @@ namespace BlocksBeyondTheStars.Client
                 try
                 {
                     Data = ChunkMesher.BuildGeometry(Center, Content, Hood.BlockFn, Atlas, FloraTintFn, null, Lights, Hood.ShapeFn, DesignUv, Hood.LoadedFn,
-                        BiomePalette, terrainForms: true);
+                        BiomePalette, terrainForms: true, worldDug: Hood.DugFn);
                 }
                 catch (System.Exception ex)
                 {
@@ -584,7 +584,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData, m.EditRuns);
+            World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData, m.EditRuns, m.DugRuns);
             var canonical = WorldConstants.CanonicalChunk(coord, Circumference);
             RetireChunkArray(canonical); // a re-sent chunk replaces its array; the old one goes back after the grace period
             _chunkArrays[canonical] = blocks;
@@ -920,9 +920,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (src.HasEdits)
+            if (src.HasEdits || src.HasDug)
             {
-                copy.CopyEditsFrom(src); // #3118: the mesher keeps the ground details off built cells
+                copy.CopyEditsFrom(src); // #3118: the mesher keeps the ground details off built cells; #4011 the forms off dug cells
             }
 
             return copy;

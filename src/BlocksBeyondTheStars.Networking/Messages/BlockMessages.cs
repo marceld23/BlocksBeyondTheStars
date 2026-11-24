@@ -99,6 +99,11 @@ public sealed class ChunkDataMessage
     /// indices (<c>ChunkData.EditedRuns</c>). The client keeps its ground details off them. Empty for untouched
     /// terrain and from an older server (the client then treats every cell as natural, as before).</summary>
     public ushort[] EditRuns { get; set; } = System.Array.Empty<ushort>();
+
+    /// <summary>#4011 (additive): the chunk's DUG cells — natural rock, soil or ore a stored edit replaced (a mined tunnel,
+    /// a carved room) — in <see cref="EditRuns"/>' run form (<c>ChunkData.DugRuns</c>). The client keeps the terrain forms
+    /// off natural rock facing them, so carved walls stay flat. Empty for untouched terrain and from an older server.</summary>
+    public ushort[] DugRuns { get; set; } = System.Array.Empty<ushort>();
 }
 
 public sealed class BlockChanged

@@ -154,7 +154,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     var blk = Game.Content.GetBlock(item.PlacesBlock);
-                    if (blk == null || !blk.Tintable || !MatchesSearch(ItemName(s.Item)))
+                    if (blk == null || !Game.Content.IsDyeable(item) || !MatchesSearch(ItemName(s.Item))) // #4012: dyeable seeds too
                     {
                         continue;
                     }
@@ -191,6 +191,10 @@ namespace BlocksBeyondTheStars.Client
             y += 34f;
             y = AddSwatchGrid(y, src, glow: false);
             y += 14f;
+            if (BlocksBeyondTheStars.Shared.Content.GameContent.IsDyeOnly(Game.Content.GetItem(src)))
+            {
+                return y + 8f; // #4012: a flower seed takes a colour only — no glow
+            }
 
             // Glow (coloured light source) — consumes a crystal per unit.
             UiKit.AddText(_detail, 8, y, 620, 28, L("ui.color.glow"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);

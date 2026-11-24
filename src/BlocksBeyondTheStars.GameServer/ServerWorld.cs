@@ -171,7 +171,13 @@ public sealed partial class ServerWorld
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {
             var local = WorldConstants.WorldToLocal(edit.WorldPosition);
+            var natural = chunk.Get(local.X, local.Y, local.Z);
             chunk.Set(local.X, local.Y, local.Z, new BlockId(edit.Block));
+            if (edit.Block != natural.Value && DugCells.Counts(_content.BlockById(natural)))
+            {
+                chunk.MarkDugLocal(WorldConstants.LocalIndex(local.X, local.Y, local.Z)); // #4011: natural rock replaced (mined, carved)
+            }
+
             // A generated chunk carries no dye or shape under an edit, so zeros need no write there; an overlay cell does
             // (a stair, a dyed stone, a coloured light) — a plain block a player put in its place must not inherit them.
             if (overlaid || edit.Tint != 0 || edit.Glow != 0)
@@ -256,6 +262,8 @@ public sealed partial class ServerWorld
         var previous = chunk.Get(local.X, local.Y, local.Z);
         var previousModifier = chunk.GetModifier(local.X, local.Y, local.Z);
         int previousShape = chunk.GetShape(local.X, local.Y, local.Z);
+        int index = WorldConstants.LocalIndex(local.X, local.Y, local.Z);
+        bool digs = DugCells.DigsLive(_content.BlockById(previous), chunk.IsEditedLocal(index), block.IsAir); // #4011
 
         // #1990: a cell that already holds exactly this block needs no delta row. Settlements and stations
         // re-stamp their whole structure on every server start — a 256×256 city wrote 405 332 identical rows
@@ -274,8 +282,14 @@ public sealed partial class ServerWorld
         if (!unchanged || !string.IsNullOrEmpty(owner))
         {
             _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
-            chunk.MarkEditedLocal(WorldConstants.LocalIndex(local.X, local.Y, local.Z)); // #3118: the delta row makes it built
+            chunk.MarkEditedLocal(index); // #3118: the delta row makes it built
         }
+
+        if (digs)
+        {
+            chunk.MarkDugLocal(index); // #4011: natural rock mined out — the forms around it stay off (ClientWorld marks the same)
+        }
+
         BlockSet?.Invoke(world);
         if (!string.IsNullOrEmpty(owner))
         {

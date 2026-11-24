@@ -147,6 +147,12 @@ public sealed class ItemDefinition
     /// Null for every other item.</summary>
     public List<string>? PlacesAnyOf { get; set; }
 
+    /// <summary>#4012: the one flora block a DYED copy of this seed plants (the flower seeds: the sun blossom), so a picture
+    /// sown from dyed seeds reads evenly. Setting it makes the seed take the always-available Dye action — the colour only,
+    /// no glow, no design, no form (<see cref="Content.GameContent.IsDyeable"/>); the planted flower wears the colour on
+    /// its blossom and gives the dyed seed back when picked. Null for every other item.</summary>
+    public string? DyedPlaces { get; set; }
+
     /// <summary>#2958: the item group this item belongs to (<c>logs</c>: every wood log, <c>leaves</c>: every leaf kind),
     /// or empty. A recipe ingredient that names the group (<see cref="ItemAmount.Group"/>) takes any member.</summary>
     public string Group { get; set; } = string.Empty;

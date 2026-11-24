@@ -174,7 +174,7 @@ namespace BlocksBeyondTheStars.Client
                     var selDef = selItemDef != null && !string.IsNullOrEmpty(selItemDef.PlacesBlock)
                         ? Game.Content?.GetBlock(selItemDef.PlacesBlock)
                         : null;
-                    selQualifies = selDef != null && (selDef.Tintable || selDef.Shapeable);
+                    selQualifies = selDef != null && (Game.Content.IsDyeable(selItemDef) || selDef.Shapeable); // #4012: dyeable seeds
                 }
 
                 // A shaped block (sphere/pyramid/…) shows a form-specific icon instead of a plain cube tile (#125).

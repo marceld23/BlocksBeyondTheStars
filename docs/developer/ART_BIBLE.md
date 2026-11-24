@@ -107,6 +107,11 @@ New planet types: add data (`planets.json`) + a `GradeFor` entry; never hardcode
   species tint turned by a species-dependent hue. Each plant wears one of three related accents
   (`ChunkMesher.AccentCodeAt`, carried as the fraction of the cutout code in TEXCOORD2.x), so a meadow of one species
   is mixed.
+- **Dyed blossoms (#4012, 2026-11-24).** A flower planted from a dyed flower seed (`dyedPlaces` in `data/items.json`)
+  carries the dye in its cell and is drawn in the dye mode (3) with the accent pick 4 (`ChunkMesher.DyedBlossomCode`):
+  `BbtsDyedBlossom` gives the accent texels the dye and leaves stem and leaves in the tile's own colours — no planet
+  tint, no season. The plant body near the eye does the same (`PlantCell.DyedBlossom`: the tile's leaf colour as main,
+  the dye as accent). The flower needs accent texels for it, so the dyed seed plants an `accent` species (the sunblossom).
 - **Art rules for new flora tiles.** Billboards are one side-view plant on pure black (`ON_BLACK` in
   `gen_textures.py`), cut by the dark-ground bake and rooted on the bottom edge. Crowns are dense canopies edge to edge.
   Leaves are drawn green (the planet recolours them). Blossoms and berries are bright and saturated, so the accent
