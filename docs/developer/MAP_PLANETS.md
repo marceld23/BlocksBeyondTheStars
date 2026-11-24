@@ -231,17 +231,22 @@ A map world's type may carry a **place list**: `data/places/<planetType>.json` (
   { "key": "pad_london", "kind": "pad",      "latitude": 51.51,  "longitude": -0.13 },
   { "key": "berlin",     "kind": "city",     "latitude": 52.52,  "longitude": 13.40,
     "landmarks": ["earth_brandenburg_gate", "earth_berlin_tv_tower"] },
-  { "key": "giza_great", "kind": "landmark", "latitude": 25.821, "longitude": 25.328, "template": "earth_pyramid_great", "turn": 0 }
+  { "key": "giza_great", "kind": "landmark", "latitude": 25.821, "longitude": 25.328, "template": "earth_pyramid_great", "turn": 0 },
+  { "key": "sps_hq",     "kind": "complex",  "latitude": -5.0,   "longitude": -65.0, "members": [
+    { "template": "earth_sps_hq_main",   "east": -180, "north": -135 },
+    { "template": "earth_sps_hq_hangar", "east": -20,  "north": -135 }
+  ] }
 ] }
 ```
 
 | Field | Kinds | Meaning |
 |---|---|---|
 | `key` | all | unique in the list, lower-case letters, digits, underscores |
-| `kind` | all | `landmark`, `city` or `pad` (`PlaceListKinds`; a later kind, e.g. a rail stop, is one more constant and one more check) |
-| `longitude`, `latitude` | all | degrees, east and north positive: −180 ≤ longitude < 360, −90 < latitude < 90 |
+| `kind` | all | `landmark`, `complex`, `city` or `pad` (`PlaceListKinds`; a later kind, e.g. a rail stop, is one more constant and one more check) |
+| `longitude`, `latitude` | all | degrees, east and north positive: −180 ≤ longitude < 360, −90 < latitude < 90; a complex's are its **anchor** |
 | `template` | landmark | a landmark template that is `pinOnly` (in no pool) |
-| `turn` | landmark (city later) | the quarter turn, 0..3 |
+| `turn` | landmark (city later) | the quarter turn, 0..3; a complex stands unturned (0) |
+| `members` | complex | its parts, in pinned order (`PlaceMember`): each a `pinOnly` `template` whose footprint's low (south-west) corner lies `east` blocks east and `north` blocks north of the anchor |
 | `theme`, `grid`, `kit`, `nameKey`, `landmarks` | city | stored for the metropolis package (theme = the key when empty, grid 0 = the composer's default, the landmark keys `pinOnly`); not stamped yet |
 
 **The projection** (`PlaceRules.BlockOf`, `PlaceDefinition.BlockOn(C)`): X = longitude / 360 · C wrapped to [0, C), Z =
@@ -250,19 +255,27 @@ latitude / 180 · P with P = `WorldConstants.LatitudePeriodFor(C)`, rounded to t
 per degree both ways.
 
 **Load checks** (`GameContent.ValidatePlaces`, `PlaceRules.Problems`, a content validation error): the list's type exists and
-has a terrain map; keys unique; kinds known; coordinates in range; turns 0..3; every named template exists and is `pinOnly`.
+has a terrain map; keys unique; kinds known; coordinates in range; turns 0..3; every named template exists and is `pinOnly`;
+`members` only on a complex, and a complex has members, no template of its own, no turn and no two members whose
+footprints overlap (they may meet edge to edge).
 **The place-only guard** (`PlaceListTests`, #3982): every template a list names is `pinOnly`, and every `earth_*` landmark is
 named by a place (a landmark entry or a city's `landmarks`).
 
-**The order is pinned.** A landmark place's record index and a pad's index follow the list, so a place is only ever
-appended.
+**The order is pinned.** A landmark's record index and a pad's index follow the list, so a place is only ever appended —
+and a complex that was played on never gains or loses a member. The landmarks in record order
+(`PlaceRules.ListedLandmarks`) are every `landmark` place and every member of a `complex`, as they come in the list.
 
 What the server does with it (`GameServerPlaceLists.cs`):
 
-- **Landmarks** — the default `GivenLandmarkSource` (`PlaceListLandmarks`): each `landmark` place, in order, is a given
-  landmark at its block column and turn, pinned under record 1000 + its position among the landmark places, stamped first
-  in the structures stage, its ground graded ([LANDMARKS.md](LANDMARKS.md) §2, [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md)
-  §4, *the given seat*).
+- **Landmarks** — the default `GivenLandmarkSource` (`PlaceListLandmarks`): each listed landmark, in record order, is a given
+  landmark, pinned under record 1000 + its position (`ListedLandmarks`), stamped first in the structures stage, its ground
+  graded ([LANDMARKS.md](LANDMARKS.md) §2, [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4, *the given seat*). A
+  `landmark` place stands at its block column and turn on the footprint's median ground. A **complex** (#3986) is several
+  templates built in one frame that must meet edge to edge — the SPS headquarters' corridors run from one part into the
+  next: each member's footprint corner is the anchor column plus its offset (`ListedLandmark.CentreOn` hands the given seat
+  the centre), unturned, and ALL members take one ground row, decided once for the whole complex (`ComplexGroundY`: the
+  median natural ground over the samples of every member's footprint together), so each part is graded to the same row.
+  Each member is still a landmark record of its own (its own seed lane, overlay, protection and replay).
 - **Landing pads** — a type with `pad` places has exactly that many pads (`PadCountFor`), at those columns, in list order:
   pad 0, the home touchdown, is the first (`ListedPads`, from `ComputeLandingPadsUncached`). A listed pad is never nudged;
   `DecidePad` decides it on its own ground (dry, wet, an islet) and the pad is pinned in `WorldMetadata.BodyLandingPads` like
@@ -275,10 +288,14 @@ headquarters site (5.0 S 65.0 W); the nine cities on the same centres with their
 Giza as landmark places west of Cairo in their real arrangement (great north-east, second south-west of it, third further
 south-west). The pyramids are built 1:1 (the great one 231 × 238 blocks), so at this scale they stand hundreds of blocks
 from where they really are: each footprint 16 blocks clear of the next and outside a 120-block circle round Cairo's centre
-(a city is up to 216 across), on dry desert. **Coastal centres** are listed moved inland, each until a pad's footprint
+(a city is up to 216 across), on dry desert. After them the **SPS headquarters** as the complex `sps_hq` (records
+1003–1007): its anchor at 5.0 S 65.0 W is the centre of the five parts' 360 × 270 frame ([LANDMARKS.md](LANDMARKS.md) §7),
+so the rain-forest pad 250 blocks east stands 70 blocks beyond the frame's east edge
+(`PlaceListTests.EveryPad_KeepsClearOfEveryListedLandmark`). **Coastal centres** are listed moved inland, each until a pad's footprint
 (radius 16) lies at least 20 m above the sea on the built map; the real coordinates are in the file's comments.
-`PlaceListTests.EveryPlaceAndPad_StandsOnLand_OnTheRealMap` holds every pad square and landmark footprint above the sea, and
-`EarthPlacesTests` stamps them on a real Earth (and on a generation-30 save) and replays them after a restart.
+`PlaceListTests.EveryPlaceAndPad_StandsOnLand_OnTheRealMap` holds every pad square and landmark footprint (complex members
+included) above the sea, and `EarthPlacesTests` stamps them on a real Earth (and on a generation-30 save) and replays them
+after a restart — the headquarters' five parts on one ground row, their corridor joints open, the great hall's giant record.
 
 **Earth's structure list.** `sol_earth` restricts its structures (`restrictStructures`, on every save — a hand-made system's
 type, `StructuresRestricted`) to settlements, lodges, SPS labs and guide towers, fallen guardian giants, giant ship wrecks and

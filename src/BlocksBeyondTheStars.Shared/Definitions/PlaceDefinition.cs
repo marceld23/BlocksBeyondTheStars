@@ -11,8 +11,9 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <summary>
 /// The fixed places of a body (#3981): <c>data/places/&lt;planetType&gt;.json</c>, one file per planet type, read by every body
 /// of that type (a map planet: Sol's Earth). Each entry stands at a longitude and latitude and is one <see cref="PlaceListKinds"/>
-/// kind: a landmark at a given seat, a city, a landing pad. The list order is part of the data — a landmark's record index and
-/// a pad's index follow it, so a place is only ever appended.
+/// kind: a landmark at a given seat, a complex of landmarks side by side, a city, a landing pad. The list order is part of the
+/// data — a landmark's record index (<see cref="PlaceRules.ListedLandmarks"/>) and a pad's index follow it, so a place is only
+/// ever appended.
 /// </summary>
 public sealed class PlaceListDefinition
 {
@@ -63,11 +64,64 @@ public sealed class PlaceDefinition
     /// <summary>A <c>city</c>: the landmark templates that stand in it (each <c>pinOnly</c>).</summary>
     public List<string> Landmarks { get; set; } = new();
 
+    /// <summary>A <c>complex</c>: its parts, in their pinned order (each part's landmark record follows it), placed around the
+    /// place's column as the anchor.</summary>
+    public List<PlaceMember> Members { get; set; } = new();
+
     /// <summary>The city's theme: <see cref="Theme"/>, else the key.</summary>
     public string ThemeOrKey => Theme.Length > 0 ? Theme : Key;
 
     /// <summary>The block column of the place on a body of <paramref name="circumference"/> (<see cref="PlaceRules.BlockOf"/>).</summary>
     public (int X, int Z) BlockOn(int circumference) => PlaceRules.BlockOf(Longitude, Latitude, circumference);
+}
+
+/// <summary>
+/// One part of a <c>complex</c> place (#3986): a landmark template whose footprint's low (south-west) corner lies
+/// <see cref="East"/> blocks east and <see cref="North"/> blocks north of the complex's anchor column. Every part of one complex
+/// stands on the same ground row and unturned, so parts built in one frame (the SPS headquarters) meet edge to edge.
+/// </summary>
+public sealed class PlaceMember
+{
+    /// <summary>The landmark template's key (a <c>pinOnly</c> one).</summary>
+    public string Template { get; set; } = string.Empty;
+
+    /// <summary>Blocks east (+X) of the anchor to the footprint's low corner.</summary>
+    public int East { get; set; }
+
+    /// <summary>Blocks north (+Z) of the anchor to the footprint's low corner.</summary>
+    public int North { get; set; }
+}
+
+/// <summary>
+/// One landmark a place list stands, in record order (<see cref="PlaceRules.ListedLandmarks"/>): a <c>landmark</c> place, or
+/// one part of a <c>complex</c>.
+/// </summary>
+public readonly struct ListedLandmark
+{
+    public ListedLandmark(PlaceDefinition place, PlaceMember? member)
+    {
+        Place = place;
+        Member = member;
+    }
+
+    /// <summary>The place: the landmark place itself, or the complex the part belongs to.</summary>
+    public PlaceDefinition Place { get; }
+
+    /// <summary>The complex's part, null for a landmark place.</summary>
+    public PlaceMember? Member { get; }
+
+    /// <summary>The landmark template's key.</summary>
+    public string Template => Member?.Template ?? Place.Template;
+
+    /// <summary>The footprint's centre column on a body of <paramref name="circumference"/>, for a footprint of
+    /// <paramref name="width"/> × <paramref name="length"/>: a landmark place's block column; a part's low corner (the anchor
+    /// plus its offset) plus half its footprint — the centre <c>GivenSeat.OriginFor</c> turns back into that corner.</summary>
+    public (int X, int Z) CentreOn(int circumference, int width, int length)
+    {
+        var (x, z) = Place.BlockOn(circumference);
+        return Member is not { } m ? (x, z)
+            : (WorldConstants.WrapX(x + m.East + (width / 2), circumference), z + m.North + (length / 2));
+    }
 }
 
 /// <summary>The kinds a place may be (#3981). The format is open: a later kind (a rail stop) is one more constant here and one
@@ -77,13 +131,18 @@ public static class PlaceListKinds
     /// <summary>A landmark template at a given seat (<c>GivenSeat</c>), stamped first in the structures stage.</summary>
     public const string Landmark = "landmark";
 
+    /// <summary>A group of landmark templates placed side by side around one anchor (#3986, <see cref="PlaceMember"/>): all on
+    /// one ground row — the median ground under all their footprints together — and unturned. Each part is a landmark record
+    /// of its own, stamped like a <see cref="Landmark"/> place.</summary>
+    public const string Complex = "complex";
+
     /// <summary>A city (a <c>CityPlace</c> of the metropolis package): stored now, stamped later.</summary>
     public const string City = "city";
 
     /// <summary>A landing pad: a body with pad places takes exactly these pads, in list order (the first is the home touchdown).</summary>
     public const string Pad = "pad";
 
-    public static readonly string[] All = { Landmark, City, Pad };
+    public static readonly string[] All = { Landmark, Complex, City, Pad };
 }
 
 /// <summary>The place-list rules (#3981): the block column of a longitude and latitude, and the checks of a list.</summary>
@@ -144,12 +203,24 @@ public static class PlaceRules
     /// <summary>The checks of the fields a kind owns.</summary>
     private static IEnumerable<string> KindProblems(PlaceDefinition place, Func<string, StructureTemplate?> landmark)
     {
+        if (place.Kind != PlaceListKinds.Complex && place.Members.Count > 0)
+        {
+            yield return "names members, which only a complex has";
+        }
+
         switch (place.Kind)
         {
             case PlaceListKinds.Landmark:
                 if (TemplateProblem(place.Template, landmark) is { } problem)
                 {
                     yield return problem;
+                }
+
+                break;
+            case PlaceListKinds.Complex:
+                foreach (string complexProblem in ComplexProblems(place, landmark))
+                {
+                    yield return complexProblem;
                 }
 
                 break;
@@ -178,6 +249,46 @@ public static class PlaceRules
         }
     }
 
+    /// <summary>The checks of a complex (#3986): it names no template of its own, stands unturned, has parts, each part names a
+    /// place-only template, and no two parts' footprints overlap (they may meet edge to edge).</summary>
+    private static IEnumerable<string> ComplexProblems(PlaceDefinition place, Func<string, StructureTemplate?> landmark)
+    {
+        if (place.Template.Length > 0)
+        {
+            yield return "is a complex and names a template (its members name theirs)";
+        }
+
+        if (place.Turn != 0)
+        {
+            yield return "is a complex with a turn (its members stand unturned, in their shared frame)";
+        }
+
+        if (place.Members.Count == 0)
+        {
+            yield return "is a complex without members";
+        }
+
+        var boxes = new List<(string Key, int X0, int Z0, int X1, int Z1)>();
+        foreach (var member in place.Members)
+        {
+            if (TemplateProblem(member.Template, landmark) is { } problem)
+            {
+                yield return problem;
+                continue;
+            }
+
+            var t = landmark(member.Template)!;
+            (string Key, int X0, int Z0, int X1, int Z1) box =
+                (member.Template, member.East, member.North, member.East + t.Width, member.North + t.Length);
+            foreach (var other in boxes.Where(b => b.X0 < box.X1 && box.X0 < b.X1 && b.Z0 < box.Z1 && box.Z0 < b.Z1))
+            {
+                yield return $"has the members '{other.Key}' and '{member.Template}' overlapping";
+            }
+
+            boxes.Add(box);
+        }
+    }
+
     /// <summary>A place may name only a landmark template that no pool offers (<c>pinOnly</c>): the list is the one place it
     /// stands in.</summary>
     private static string? TemplateProblem(string key, Func<string, StructureTemplate?> landmark)
@@ -188,7 +299,28 @@ public static class PlaceRules
 
     private static bool IsKeySafe(string key) => key.Length > 0 && key.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
 
-    /// <summary>Every landmark template a list names: its landmark places' and its cities' landmarks.</summary>
+    /// <summary>Every landmark template a list names: its landmark places', its complexes' members and its cities' landmarks.</summary>
     public static IEnumerable<string> NamedTemplates(PlaceListDefinition list)
-        => list.OfKind(PlaceListKinds.Landmark).Select(p => p.Template).Concat(list.OfKind(PlaceListKinds.City).SelectMany(p => p.Landmarks));
+        => ListedLandmarks(list).Select(l => l.Template).Concat(list.OfKind(PlaceListKinds.City).SelectMany(p => p.Landmarks));
+
+    /// <summary>The landmarks a list stands at given seats, in record order: every <c>landmark</c> place, and every member of a
+    /// <c>complex</c> in its member order, as they come in the list. The <c>i</c>-th is pinned under landmark record
+    /// <c>1000 + i</c> on the server, so a list only ever appends — places, and members to no complex once played.</summary>
+    public static IEnumerable<ListedLandmark> ListedLandmarks(PlaceListDefinition list)
+    {
+        foreach (var place in list.Places)
+        {
+            if (string.Equals(place.Kind, PlaceListKinds.Landmark, StringComparison.Ordinal))
+            {
+                yield return new ListedLandmark(place, null);
+            }
+            else if (string.Equals(place.Kind, PlaceListKinds.Complex, StringComparison.Ordinal))
+            {
+                foreach (var member in place.Members)
+                {
+                    yield return new ListedLandmark(place, member);
+                }
+            }
+        }
+    }
 }
