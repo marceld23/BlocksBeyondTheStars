@@ -39,7 +39,7 @@ public sealed partial class WorldGenerator
         {
             long elevation = _terrain.ElevationFixed(worldX, worldZ, g._circumference, g.LatPeriod);
             int blocks = MapTerrain.HeightBlocks(elevation, planet);
-            return planet.MapSeaLevelY + blocks + g.MapDetail(planet, w, worldX, worldZ, blocks);
+            return planet.MapSeaLevelY + blocks + g.MapDetail(planet, w, worldX, worldZ, blocks) + g.MapCraters(planet, w, worldX, worldZ);
         }
 
         public override (int Level, BlockId Fluid) Sea(WorldGenerator g, PlanetType planet, WorldCalibration calib)
@@ -98,6 +98,16 @@ public sealed partial class WorldGenerator
             ? (planet.MapSeaLevelY, water.NumericId)
             : (int.MinValue, default);
     }
+
+    /// <summary>The small rolled craters over a map column (blocks, #3979): on a cratered world — the type's <c>cratered</c> (an
+    /// airless map planet, Mercury) or an airless moon (the Moon) — the cratered form's impact bowls and crater chains
+    /// (<see cref="CraterCarve"/>, <see cref="CraterChainCarve"/>, the body's own crater profile) laid on top of the map; 0
+    /// elsewhere. Such a body is dry (a map world floods only with water, and an airless type has none), so no crater crosses
+    /// a waterline.</summary>
+    private int MapCraters(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+        => w.Cratered
+            ? (int)System.Math.Round(CraterCarve(w.Seed, worldX, worldZ, planet) + CraterChainCarve(w.Seed, worldX, worldZ))
+            : 0;
 
     /// <summary>The rolled detail over a map column (blocks): the world's torus FBM at <see cref="MapDetailScale"/>,
     /// ±<see cref="PlanetType.MapDetailAmplitude"/>, scaled down within that many blocks of 0 m so it never moves a column
