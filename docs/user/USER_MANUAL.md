@@ -3467,11 +3467,14 @@ worlds created with a game version that has generation 43 have them; an older wo
   of the Stars and the red-and-purple **G.D.S. Tower**, guarded by the G.D.S. machines, with traders inside) and **Rio
   de Janeiro** (the Statue on the Mountain). The city landmarks are protected; the pyramids are ancient ruins you can
   walk into. You land at London first.
-- **Hover trains** connect the cities: the *Atlantic Line* (Berlin – Paris – London – Toronto – New York – Rio) and
-  the *Orient Line* (Paris – Cairo – Tokyo – Sydney), on pylons across land and sea. Each has a public train that
-  stops at every city for 30 seconds; anyone may ride it. The station halls stand at the cities' edges (Paris has
-  one for each line — change on foot). The boards show the line and the next stops. On the long lines the train
-  runs faster than a player's own train.
+- **Hover trains** connect the cities: the *Atlantic Line* (Berlin – Paris – London – New York – Toronto), the
+  *Orient Line* (Paris – Cairo – Tokyo – Sydney) and the *Americas Line* (New York – Rio de Janeiro), on pylons across
+  land and sea. Each has a public train that stops at every city for 30 seconds; anyone may ride it. The station halls
+  stand beside the cities' streets; the lines run along the streets and around the cities, never through a building.
+  Paris and New York have one hall for each of their lines — change on foot. The boards show the line and the next
+  stops. On the long lines the train runs faster than a player's own train; it slows down in the bends. On a world that
+  reached Earth before this update, the lines are laid anew: the old pylons and halls disappear, and the new ones are
+  built as you come near. What you built in a line's way stays — the train may run through it.
 - **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep and chickens on the
   temperate meadows (dogs, cats and cows also in the savanna, sheep also high in the mountains, rabbits also in the
   tundra), monkeys and parrots in the rain forests, elephants in the savanna, eagles in the high mountains, and dolphins
