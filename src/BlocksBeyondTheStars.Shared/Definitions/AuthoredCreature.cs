@@ -172,6 +172,24 @@ public sealed class AuthoredCreature
     public int MinWaterDepth { get; set; }
     public int MaxWaterDepth { get; set; }
 
+    // --- People's animals and strays (#3976, terrain generation 49): off on every older record, which behaves as before. ---
+
+    /// <summary>#3976: people keep this species as a pet (<c>pet</c> — the dog, the cat): from generation 49 a household's or
+    /// the animal tamer's pet may be one on any world with air to breathe, also where the roster does not hold it
+    /// (<c>KeptAnimals</c>). A pet species is a peaceful land animal (validated).</summary>
+    public bool Pet { get; set; }
+
+    /// <summary>#3976: the item a pen of this species lays (<c>pen</c> — <c>milk</c>, <c>wool</c>, <c>egg</c>; empty = no pen
+    /// animal): from generation 49 a pen may keep it on any world with air to breathe, and then lays this item instead of
+    /// the one the shape rule gives. A known item and a peaceful land animal (validated).</summary>
+    public string Pen { get; set; } = string.Empty;
+
+    /// <summary>#3976: the chance (0..1) that a habitable world which is not one of its <see cref="Homes"/> hosts this species
+    /// wild (<c>wildElsewhere</c> — the dog and the cat 0.15): rolled per world from the species' own salted seed, from
+    /// generation 49 (<c>StrayAnimals</c>). Where it lives there follows the rest of the record (its climate zones, its
+    /// exclusive rule). 0 = only at home.</summary>
+    public double WildElsewhere { get; set; }
+
     /// <summary>#3973: the English text of <see cref="NameKey"/> — the species' language-neutral fallback name (logs, saves, an
     /// older client). Filled at content load from the English locale; empty without a name key.</summary>
     public string EnglishName => _englishName;

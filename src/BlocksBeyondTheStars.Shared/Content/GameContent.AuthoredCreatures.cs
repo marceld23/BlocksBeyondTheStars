@@ -67,8 +67,42 @@ public sealed partial class GameContent
             {
                 problems.Add($"{ctx} loves unknown item '{record.FavouriteFood}'.");
             }
+
+            ValidatePeopleAnimal(record, ctx, problems);
         }
     }
+
+    /// <summary>#3976: a pet or pen species is a peaceful land animal (the pet rule would never pick another), a pen lays a known
+    /// item, and the chance to live wild elsewhere is a share.</summary>
+    private void ValidatePeopleAnimal(AuthoredCreature record, string ctx, List<string> problems)
+    {
+        if (!string.IsNullOrEmpty(record.Pen) && !_items.ContainsKey(record.Pen))
+        {
+            problems.Add($"{ctx} pen lays unknown item '{record.Pen}'.");
+        }
+
+        if ((record.Pet || !string.IsNullOrEmpty(record.Pen))
+            && (record.Habitat != CreatureHabitat.Land
+                || record.Temperament is not (CreatureTemperament.Passive or CreatureTemperament.Skittish)))
+        {
+            problems.Add($"{ctx} is a pet or pen animal but no peaceful land animal (habitat {record.Habitat}, {record.Temperament}).");
+        }
+
+        if (record.WildElsewhere is < 0.0 or > 1.0 || double.IsNaN(record.WildElsewhere))
+        {
+            problems.Add($"{ctx} wildElsewhere {record.WildElsewhere.ToString(System.Globalization.CultureInfo.InvariantCulture)} is no chance between 0 and 1.");
+        }
+    }
+
+    /// <summary>#3976: the records people keep — a pet (<see cref="AuthoredCreature.Pet"/>) or a pen animal
+    /// (<see cref="AuthoredCreature.Pen"/>) — in the order of <c>data/creatures.json</c>.</summary>
+    public IReadOnlyList<AuthoredCreature> KeptAnimalRecords
+        => _authoredCreatureOrder.FindAll(r => r.Pet || !string.IsNullOrEmpty(r.Pen));
+
+    /// <summary>#3976: the records that may live wild away from their homes (<see cref="AuthoredCreature.WildElsewhere"/> above
+    /// 0), in the order of <c>data/creatures.json</c> — the strays every roster caller passes to the generator.</summary>
+    public IReadOnlyList<AuthoredCreature> StrayAnimalRecords
+        => _authoredCreatureOrder.FindAll(r => r.WildElsewhere > 0.0);
 
     /// <summary>#3973: one warning per home that names a planet type the content does not have — never a failed load (the
     /// type may come with another pack, or later). Returns how many there were.</summary>

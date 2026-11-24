@@ -265,8 +265,20 @@ public sealed class WorldDescription
     /// work as none, the lively places: a settlement's own colour and shells, street furniture, lamps that shine, a
     /// landmark, stations with a purpose and a colour, #3893 the sky-lights: the ruins of the Scout and Pioneer Service's
     /// guide towers on inhabited worlds, the colour harmony: a world's plants, clouds, mist and water answer its sky, the flora
-    /// groups: the small surface plants stand in clumps with open ground between them).</summary>
-    public const int CurrentTerrainGeneration = ColourHarmonyGeneration;
+    /// groups: the small surface plants stand in clumps with open ground between them, #3976 the Earth species: dogs and cats
+    /// as pets, cows, sheep and chickens in pens, and dogs and cats living wild on other habitable worlds).</summary>
+    public const int CurrentTerrainGeneration = EarthSpeciesGeneration;
+
+    /// <summary>The generation of the Earth species away from Earth (#3976, docs/developer/WORLD_GENERATION.md §64): in a world of
+    /// this generation or later a person's pet (a household's, the animal tamer's) may be a species the record marks
+    /// <c>pet</c> (the dog, the cat) and a pen may keep one it marks <c>pen</c> (the cow for milk, the sheep for wool, the
+    /// chicken for eggs) although the world's roster does not hold it — half of them, by a stable hash of the person or the
+    /// pen, where the world has a candidate of its own (<c>KeptAnimals</c>); and a species with <c>wildElsewhere</c> joins the
+    /// roster of a habitable world that is not one of its homes with that chance, rolled from its own salted sub-seed and
+    /// appended after every other species (<c>StrayAnimals</c>), so no rolled or authored species moves. On a home world of
+    /// such a species (Earth) every pet and pen animal is one of them, whatever the generation. Server-side and roster only:
+    /// every chunk of every older generation stays bit-identical, and an older world keeps its rosters, pets and pens.</summary>
+    public const int EarthSpeciesGeneration = 49;
 
     /// <summary>The generation of the flora groups (#3931, the scatter rules): in a world of this generation
     /// or later the small surface plants (one flower, tuft or bush above the ground) no longer sprinkle evenly but stand in

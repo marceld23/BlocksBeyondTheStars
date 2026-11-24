@@ -160,6 +160,7 @@ public sealed partial class GameServer
             _locoProfiles[sp.Id] = LocomotionController.ForSpecies(sp);
         }
 
+        InitKeptAnimals(planet); // #3976: the Earth animals people keep, known to the species table beside the roster
         _creatures.Clear();
         _creatureSpawnTimer = 0;
         _creatureClock = 0;

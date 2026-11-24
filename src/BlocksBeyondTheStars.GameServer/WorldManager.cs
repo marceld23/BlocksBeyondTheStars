@@ -199,6 +199,10 @@ internal sealed class LoadedWorld
     public Dictionary<string, CreatureSpecies> SpeciesById { get; } = new();
     public Dictionary<string, LocomotionProfile> LocoProfiles { get; } = new();
 
+    /// <summary>#3976: the Earth animals the people of THIS world keep — pets and pen animals, also where the roster does not
+    /// hold them (their species then sit in <see cref="SpeciesById"/> only). Filled with the roster (<c>InitKeptAnimals</c>).</summary>
+    public BlocksBeyondTheStars.WorldGeneration.KeptAnimals Kept { get; set; } = BlocksBeyondTheStars.WorldGeneration.KeptAnimals.None;
+
     /// <summary>#2868: the look this world gives its animals — its planet type key and its world look seed. Worked out on
     /// first need and kept for the residency: the creature list asks for it once per creature on every send.</summary>
     public (string Planet, int Seed)? FaunaLook { get; set; }

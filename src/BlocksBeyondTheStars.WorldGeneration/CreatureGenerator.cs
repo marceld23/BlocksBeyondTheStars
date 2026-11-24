@@ -19,9 +19,11 @@ public static class CreatureGenerator
     /// <summary>This world's roster. <paramref name="terrainGeneration"/> and <paramref name="authored"/> are the
     /// school club wave (#1763): on a generation-5 world the type's authored species are appended AFTER the
     /// procedural slots, so no rolled species ever moves; older worlds and callers of the two-argument form get
-    /// the procedural roster exactly as before.</summary>
+    /// the procedural roster exactly as before. <paramref name="strays"/> (#3976, generation 49) are the records that may live
+    /// wild away from their homes (<c>GameContent.StrayAnimalRecords</c>): the ones this world hosts join last
+    /// (<see cref="StrayAnimals"/>).</summary>
     public static IReadOnlyList<CreatureSpecies> GenerateRoster(PlanetType planet, long worldSeed,
-        int terrainGeneration = 0, IReadOnlyList<AuthoredCreature>? authored = null)
+        int terrainGeneration = 0, IReadOnlyList<AuthoredCreature>? authored = null, IReadOnlyList<AuthoredCreature>? strays = null)
     {
         int count = planet.IsAirless ? 0 : AbundanceCount(planet.CreatureAbundance);
         var list = new List<CreatureSpecies>(count);
@@ -133,6 +135,10 @@ public static class CreatureGenerator
         {
             list.Add(GenerateScaleHound(planet, worldSeed));
         }
+
+        // Generation 49 (#3976): the Earth animals that live wild elsewhere (the dog, the cat) — each by the world's own salted
+        // roll, appended after every other slot, so no species moves; older generations never roll them.
+        StrayAnimals.AppendTo(list, planet, worldSeed, terrainGeneration, strays);
 
         // Generation 16 (#2082): every begging species loves one food — a post-pass, so no rolled trait moves.
         if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration)
