@@ -92,6 +92,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (style == CreatureEarStyle.Floppy)
+            {
+                AddFloppyEars(unit, w, h, headZ, d);
+                return;
+            }
+
             float earH = unit * (style == CreatureEarStyle.Tall ? 0.6f : 0.38f);
             float earW = unit * 0.2f;
             float earD = unit * 0.09f;
@@ -105,6 +111,23 @@ namespace BlocksBeyondTheStars.Client
                     new Vector3(0f, earH * 0.5f, 0f), new Vector3(earW, earH, earD), mat);
                 ear.localRotation = Quaternion.Euler(tilt, 0f, -sx * 9f); // a slight outward splay
                 AddPartTo(ear, "EarTip", new Vector3(0f, earH + earW * 0.2f, 0f), new Vector3(earW * 0.5f, earW * 0.45f, earD), mat);
+                _ears.Add(ear);
+            }
+        }
+
+        /// <summary>#3973: two floppy ears — flat flaps on pivots at the top edges of the skull that hang down beside the head,
+        /// a little outward (a dog's). Registered as the rig's ears, so the animator sways them from that rest.</summary>
+        private void AddFloppyEars(float unit, float w, float h, float headZ, float d)
+        {
+            float earH = unit * 0.42f;
+            var mat = _coat.Mat(CoatPart.Ornament);
+            for (int e = 0; e < 2; e++)
+            {
+                float sx = e == 0 ? -1f : 1f;
+                var ear = AddPivotPart(_headPivot, e == 0 ? "EarL" : "EarR",
+                    new Vector3(sx * w * 0.47f, h * 0.42f, headZ - d * 0.08f),
+                    new Vector3(0f, earH * 0.5f, 0f), new Vector3(unit * 0.07f, earH, unit * 0.24f), mat);
+                ear.localRotation = Quaternion.Euler(0f, 0f, -sx * 165f); // flipped to hang down, splayed a touch outward
                 _ears.Add(ear);
             }
         }
