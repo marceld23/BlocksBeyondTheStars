@@ -3129,6 +3129,15 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     around it (it grows its trunk into whichever corner has room) and about eleven free blocks above, and it takes
     longer. It grows into a young giant tree of **mahogany trunks**, the same wood as the old giants, so you can grow
     matching wood for repairs.
+  - **Bush sapling** — buy it at the **gatherers' market** (2 iron ore → 2). Plant it on soil, grass or mud and after
+    a couple of minutes it becomes a small **leafy bush without a trunk**: the sapling's own cell turns into leaves with
+    a ring of leaves around it, one or two blocks high and three wide. Plant a row of them for a hedge along a path.
+- **Garden flowers and bushes (for beds and paths).** The **gatherers' market** also sells:
+  - **Flower seeds** (4 berries → 4). Every seed you plant on grass grows into one of the meadow flowers — flower,
+    daisy, tulip, bellflower, sunblossom, orchid or lupine — each in its own form and in this world's colours, so a bed
+    sown from one bag comes out **mixed and colourful**. Which flower comes up belongs to the spot: pick it and sow
+    again, and the same flower returns. On soil only the flowers that root on soil come up; on stone nothing grows.
+  - **Bush cuttings** (4 plant fibre → 2). A cutting plants this world's **wild bush** on grass at once.
 - **Plants and lamps need something to stand on.** Dig away the block under a plant, a sapling, a torch or a
   lantern — or the block a hanging plant or a fruit hangs from — and it falls: a wild plant is simply gone, while a
   fruit, a sapling, a bred plant (as its seedling), a torch or a lantern lies on the ground for you to pick up. A torch or

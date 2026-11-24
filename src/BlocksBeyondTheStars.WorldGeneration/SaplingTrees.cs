@@ -46,8 +46,38 @@ public static class SaplingTrees
             SaplingShape.Palm => Palm(5 + variant % 2),
             SaplingShape.Fifi => Fifi(treeHash),
             SaplingShape.YoungGiant => YoungGiant(9 + variant % 3),
+            SaplingShape.Bush => Bush(variant % 2 == 1),
             _ => Broadleaf(4 + variant % 2),
         };
+    }
+
+    /// <summary>A small bush (#4003, the bush sapling): no trunk — the sapling's own cell turns into leaves (the kind's log
+    /// IS its leaf), with a ring of four leaves around it and one on top; every second cell grows a fuller bush with the
+    /// corners filled and a ring on its second layer too. One to two blocks high, three wide: a hedge plant.</summary>
+    private static Shape Bush(bool full)
+    {
+        var s = new Shape();
+        s.Trunk.Add((0, 0, 0));
+        foreach (var (dx, dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+        {
+            s.Crown.Add((dx, 0, dz));
+        }
+
+        s.Crown.Add((0, 1, 0));
+        if (full)
+        {
+            foreach (var (dx, dz) in new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) })
+            {
+                s.Crown.Add((dx, 0, dz));
+            }
+
+            foreach (var (dx, dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+            {
+                s.Crown.Add((dx, 1, dz));
+            }
+        }
+
+        return s;
     }
 
     /// <summary>The classic sapling tree (#1774): a trunk of 4–5 logs, two full rings around its top two cells (corners

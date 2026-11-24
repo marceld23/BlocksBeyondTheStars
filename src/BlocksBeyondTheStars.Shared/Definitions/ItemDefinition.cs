@@ -141,6 +141,12 @@ public sealed class ItemDefinition
     /// <summary>If this item places a block, the block key it places (else null/empty).</summary>
     public string? PlacesBlock { get; set; }
 
+    /// <summary>#4001: the flora blocks a mixed seed plants, one per cell (the flower seeds: the meadow flowers). The server
+    /// picks the block by the cell among those that root on the ground there, so a bed comes out mixed and the same cell
+    /// always gives the same flower; <see cref="PlacesBlock"/> stays the item's face (icon, preview) and is one of them.
+    /// Null for every other item.</summary>
+    public List<string>? PlacesAnyOf { get; set; }
+
     /// <summary>#2958: the item group this item belongs to (<c>logs</c>: every wood log, <c>leaves</c>: every leaf kind),
     /// or empty. A recipe ingredient that names the group (<see cref="ItemAmount.Group"/>) takes any member.</summary>
     public string Group { get; set; } = string.Empty;

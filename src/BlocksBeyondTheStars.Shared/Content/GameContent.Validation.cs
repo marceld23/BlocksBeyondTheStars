@@ -417,6 +417,8 @@ public sealed partial class GameContent
                 problems.Add($"Item '{item.Key}' places unknown block '{item.PlacesBlock}'.");
             }
 
+            ValidateMixedSeed(item, problems);
+
             if (string.IsNullOrWhiteSpace(item.Key))
             {
                 problems.Add("Item definition has an empty or whitespace key.");

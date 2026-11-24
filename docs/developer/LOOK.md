@@ -156,7 +156,10 @@ distance fog). Very densely planted types (flower fields) show hardly any groups
 
 **What the player sees.** The bundled tiles are redrawn in a calm style: soft forms instead of busy pixel noise, with a
 deliberately weak pattern. The light draws the grain (relief, fine grain, soft edges, §4), the tile gives
-the colour. A tile a player painted (their own pack or a world texture) shows exactly as painted.
+the colour. A tile a player painted (their own pack or a world texture) shows exactly as painted. Rock and ore are the
+exception since #4000: they read as natural stone of up to three materials with their own grain (granite as pink
+feldspar, pale quartz and dark mica; an ore as deposits seated in the rock with a darker rim and a lighter glint),
+because the calm one- and two-colour rocks read as flat paint.
 
 **How.**
 
@@ -169,7 +172,11 @@ the colour. A tile a player painted (their own pack or a world texture) shows ex
   (plants, leaves, critter sprites, fire) keep their exact old alpha; surfaces (hides, the suit, the held materials,
   liquids) wrap and keep their mean colour. The scripts, their order and which steps cost money are in
   [tools/ai-assets/calm_tiles/README.md](../../tools/ai-assets/calm_tiles/README.md) — a record of how the set was made,
-  not a build step: the committed `.bytes` are the source of truth. Per-key origin in
+  not a build step: the committed `.bytes` are the source of truth. Round 6 (#4000, `rock_tiles.py`) redrew the 39
+  rock and ore tiles from the tiles before the calm set: the 14 rocks, the 23 ores (carbon and the tainted ores
+  included) and two new bundled keys, `bedrock` and `obsidian` (painted in code before; the code painter stays as the
+  fallback). Rocks keep 0.6 × the old tile's contrast, ores 0.85 × and never less than the calm tile's, and every tile
+  keeps the old mean colour, so the far terrain and the map do not change. Per-key origin in
   `tools/ai-assets/texture_provenance.json` (it also keeps the other bundlers off these keys), licence notes in
   `NOTICES.md`. The art rule for tiles used on built objects:
   a tile that becomes a building piece of a larger generated object (a giant mushroom's cap, a trunk, a burger) shows

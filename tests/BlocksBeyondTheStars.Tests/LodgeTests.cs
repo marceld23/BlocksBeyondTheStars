@@ -92,7 +92,9 @@ public sealed class LodgeTests : IDisposable
             Assert.Equal("npc.activity." + l.Activity, l.ActivityKey);
             Assert.Contains(l.Activity, new[] { "gathering", "mining", "chopping", "hunting" });
             int deals = Content.Recipes.Values.Count(r => MarketStock.IsTrade(r) && r.MarketTheme == l.Theme);
-            Assert.InRange(deals, 2, 6);
+            // A handful of the profession's own goods; the vendor list scrolls. #4001/#4003 took the gatherers to eight (the
+            // flower seeds, the bush cuttings and the bush saplings as three deals of their own, not one cramped bundle row).
+            Assert.InRange(deals, 2, 8);
             if (l.Partner.Length > 0)
             {
                 Assert.NotEqual(LodgeRules.WorkMine, Content.LodgeProfession(l.Partner)!.Work); // only the lodge's own profession has the face

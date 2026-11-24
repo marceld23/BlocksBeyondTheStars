@@ -57,5 +57,14 @@ already exists in `out/`, and has `--dry-run`.
 10. `make_raster_tiles.py` — the device tiles drawn by rule on the 8 px micro-cell grid: `devform_metal_dark`,
     `devform_metal_light`, `devform_deck`, `devform_screen`, `devform_vent`, `devform_lamp_amber`. No model.
 
+11. `rock_tiles.py --generate` — **paid** (round 6, 2026-11-24, #4000). Players found the calm rocks flat (granite one
+    pink with black dots, ores like paint on the rock), so the 39 rock and ore tiles are redrawn as natural stone of up
+    to three materials: an image edit per tile with the `previous` tile as the reference (bedrock and obsidian, which had
+    no bundled tile, from text), into `out/calm_tiles/rocks/`. `rock_tiles.py --build --bundle` reduces them to 64 px,
+    heals the seams, keeps the previous mean colour, sets the contrast (rocks 0.6 × the previous tile's, ores 0.85 × and
+    never below the calm tile's, so they stay easy to spot) and writes the approval sheets (previous | calm | new) and
+    the tiles. It keeps a copy of the calm tiles it replaces in `out/calm_tiles/rocks_calm/`, so a later build compares
+    with them. `build_tiles.py --bundle` leaves these keys alone (their provenance names `rock_tiles.py`).
+
 `tilelib.py` holds the paths and the sheet helper. After a change of the set: update `texture_provenance.json` and
 `NOTICES.md`, and run the tile tests (`BlockTileAlphaTests`, `CreatureCoatTilesTests`, `CalmTileRuleTests`, …).

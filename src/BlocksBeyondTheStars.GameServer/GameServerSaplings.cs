@@ -11,7 +11,7 @@ using BlocksBeyondTheStars.WorldGeneration;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// The saplings (#1774; #2977 the fruit trees, #2978 the conifer, #2979 the Fifi plant, #2980 the mahogany), partial of
+/// The saplings (#1774; #2977 the fruit trees, #2978 the conifer, #2979 the Fifi plant, #2980 the mahogany, #4003 the bush), partial of
 /// <see cref="GameServer"/>. A sapling is flora for placement and harvest (host and hull rules) but no catalog species: it
 /// sits in no world roster, no greenhouse grows it, and instead of regrowing it turns into its tree. Its clock rides the
 /// flora regrow queue (persisted like a harvest), so a tree planted before a restart still comes. The tree's shape is

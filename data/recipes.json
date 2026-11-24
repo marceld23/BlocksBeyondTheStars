@@ -463,6 +463,9 @@
   { "key": "paper_lantern",   "station": "hand", "inputs": [ { "item": "plant_fiber", "count": 2 }, { "item": "torch", "count": 1 } ], "outputs": [ { "item": "paper_lantern", "count": 1 } ] },
   { "key": "diya_lamp",       "station": "hand", "inputs": [ { "item": "dirt", "count": 1 }, { "item": "torch", "count": 1 } ], "outputs": [ { "item": "diya_lamp", "count": 2 } ] },
   { "key": "market_gatherers_marigold", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "berries", "count": 4 } ], "outputs": [ { "item": "marigold_seed", "count": 3 } ] },
+  { "key": "market_gatherers_flower_seeds", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "berries", "count": 4 } ], "outputs": [ { "item": "flower_seed", "count": 4 } ] },
+  { "key": "market_gatherers_bush_cuttings", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "bush_cutting", "count": 2 } ] },
+  { "key": "market_gatherers_bush_saplings", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "sapling_bush", "count": 2 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 
