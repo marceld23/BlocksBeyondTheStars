@@ -415,6 +415,11 @@ public sealed class CreatureSpecies
     /// bound. The dolphin: the coastal shallows.</summary>
     public int MaxWaterDepth { get; set; }
 
+    /// <summary>#4017: this swimmer lives in the open sea only — the spawner seats it in water of the world's sea (the generator's
+    /// sea columns, at or below its sea level), never in an upland pond, a lake or a river (<see cref="WaterDepthBand"/> still
+    /// applies). The dolphin and the whale. False on every other species.</summary>
+    public bool SeaOnly { get; set; }
+
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;
 

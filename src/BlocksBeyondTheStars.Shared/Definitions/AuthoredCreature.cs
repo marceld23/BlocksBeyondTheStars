@@ -172,6 +172,10 @@ public sealed class AuthoredCreature
     public int MinWaterDepth { get; set; }
     public int MaxWaterDepth { get; set; }
 
+    /// <summary>#4017: a sea animal (<c>seaOnly</c> — the dolphin, the whale) — see <see cref="CreatureSpecies.SeaOnly"/>. A water
+    /// or amphibian species only (validated).</summary>
+    public bool SeaOnly { get; set; }
+
     // --- People's animals and strays (#3976, terrain generation 49): off on every older record, which behaves as before. ---
 
     /// <summary>#3976: people keep this species as a pet (<c>pet</c> — the dog, the cat): from generation 49 a household's or
