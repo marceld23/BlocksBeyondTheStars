@@ -394,7 +394,7 @@ public sealed partial class GameServer
         var msg = new TameProgress
         {
             CreatureId = creature.Id,
-            CreatureName = sp.Name,
+            CreatureName = SpeciesDisplayName(sp, session.Locale), // #3973: a dog is "Hund" in German
             Active = true,
             MoodKey = MoodForNeed(need),
             NeedKey = "creature.tame.need." + need,
@@ -979,6 +979,7 @@ public sealed partial class GameServer
                 GearJetpack = tc.GearJetpack ?? string.Empty,
             };
             CreatureWireMapping.WriteCompanionSpecies(entry, tc.Species, tc.SizeScale); // #3971: the one species→wire mapping
+            entry.SpeciesName = SpeciesDisplayName(tc.Species, session.Locale); // #3973: in the owner's language
             return entry;
         }).ToArray();
 

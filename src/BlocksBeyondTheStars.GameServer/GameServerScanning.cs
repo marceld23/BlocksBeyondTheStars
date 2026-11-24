@@ -133,7 +133,7 @@ public sealed partial class GameServer
             readout.LegacyInfo = $"{sp.Habitat} · {sp.Activity} · {sp.Temperament}";
             readout.LegacyThreat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;
-            readout.Display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
+            readout.Display = SpeciesDisplayName(sp, session.Locale) is { Length: > 0 } shown ? shown : subjectKey; // the coined name, or (#3973) the species name in the player's language
             bool disguise = string.IsNullOrEmpty(entityId)
                 ? SreekmakraAnomalyFor(session, subjectKey)          // an older client: the nearest of that kind is it
                 : SreekmakraDisguisedAs(entityId, subjectKey);       // #1926: exactly the creature under the crosshair

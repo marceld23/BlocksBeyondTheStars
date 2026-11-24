@@ -203,6 +203,21 @@ public static class FloraThemes
             Strict: true),
     };
 
+    /// <summary>Whether <paramref name="name"/> names a theme (case-insensitive) — content validation (#3973) rejects any other
+    /// name, because <see cref="Resolve"/> would silently read it as temperate.</summary>
+    public static bool IsKnown(string? name)
+    {
+        foreach (var t in AllThemes)
+        {
+            if (string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Resolves a theme by name (case-insensitive); empty/unknown → temperate.</summary>
     public static Theme Resolve(string? name)
     {

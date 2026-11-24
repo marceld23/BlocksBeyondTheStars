@@ -135,4 +135,38 @@ public sealed class AuthoredCreature
     /// <summary>#3972: the coats this species comes in (<c>coats</c>) — each animal wears one, picked by its own seed. Empty
     /// (every record so far) = the designed <see cref="ColorRgb"/>/<see cref="BellyRgb"/>/<see cref="Hide"/> on every animal.</summary>
     public List<CoatVariant> Coats { get; set; } = new();
+
+    // --- Fixed species of a home world (#3973, the animals of Earth). Empty on every older record, which behaves as before. ---
+
+    /// <summary>#3973: the species' localized name (<c>creature.&lt;key&gt;.name</c>, <see cref="CreatureNames"/>) instead of a
+    /// coined or fixed proper name — "Hund" in German, "Dog" in English. Empty = <see cref="NamePrefix"/> and the coined word.</summary>
+    public string NameKey { get; set; } = string.Empty;
+
+    /// <summary>#3973: the planet types this species lives on (keys of <c>data/planets.json</c>), beside the types that list it in
+    /// their <see cref="PlanetType.AuthoredCreatures"/>: the roster of such a type appends it after the type's own list
+    /// (<c>GameContent.AuthoredCreaturesFor</c>). An unknown type is a load warning (the type may come with another pack).</summary>
+    public List<string> Homes { get; set; } = new();
+
+    /// <summary>#3973: the climate zones (flora theme names, <see cref="Definitions.FloraThemes"/>) this species is native to,
+    /// beside <see cref="BiomeSurfaces"/> — the biome affinity and the exclusive rule accept either (<see cref="CreatureBiomes"/>).</summary>
+    public List<string> FloraThemes { get; set; } = new();
+
+    /// <summary>#3973: the species' own recorded calls by mood (<see cref="SpeciesVoices"/>, JSON
+    /// <c>{"calm": [...], "alarm": [...], "friendly": [...]}</c>) instead of the body plan's voice; null = the body plan's.</summary>
+    public SpeciesVoices? Voices { get; set; }
+
+    /// <summary>#3973: the titan body carries a trunk (the elephant) — see <see cref="CreatureSpecies.HasTrunk"/>.</summary>
+    public bool HasTrunk { get; set; }
+
+    /// <summary>#3973: a shy animal that bites back when hit — see <see cref="CreatureSpecies.DefendsItself"/>.</summary>
+    public bool DefendsItself { get; set; }
+
+    /// <summary>#3973: the English text of <see cref="NameKey"/> — the species' language-neutral fallback name (logs, saves, an
+    /// older client). Filled at content load from the English locale; empty without a name key.</summary>
+    public string EnglishName => _englishName;
+
+    private string _englishName = string.Empty;
+
+    /// <summary>Sets <see cref="EnglishName"/> (the content loader, from the English locale).</summary>
+    internal void SetEnglishName(string name) => _englishName = name ?? string.Empty;
 }

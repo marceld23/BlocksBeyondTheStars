@@ -53,4 +53,8 @@ public sealed class NetFaunaSpecies
 
     /// <summary>"Diurnal" | "Nocturnal" | "Crepuscular" | "Cathemeral" — when the species is awake.</summary>
     public string Activity { get; set; } = "Diurnal";
+
+    /// <summary>#3973: the species' own recorded calls (<c>SpeciesVoices.Encode</c>, "calm|alarm|friendly"); empty = the
+    /// generated voice. Additive (contractless): an older client ignores it.</summary>
+    public string Voices { get; set; } = string.Empty;
 }

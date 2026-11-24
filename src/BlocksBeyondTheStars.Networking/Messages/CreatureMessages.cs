@@ -250,6 +250,11 @@ public sealed class NetCreature
 
     /// <summary>#3972: the mask layout 0..3 the explicit coat's pattern is drawn with (<c>CoatVariants.MaskVariant</c>).</summary>
     public int CoatMask { get; set; }
+
+    /// <summary>#3973: the species' own recorded calls by mood (<c>SpeciesVoices.Encode</c>: "calm|alarm|friendly", each a
+    /// comma list of call ids); empty = the generated voice from <see cref="VoiceSeed"/>. Additive (contractless): an older
+    /// client ignores it, an older server sends nothing.</summary>
+    public string Voices { get; set; } = string.Empty;
 }
 
 /// <summary>A world effect at a spot (#1998): a thumper's thump, a colossus stomp, a sandworm breaching or striking. The

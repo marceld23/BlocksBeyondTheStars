@@ -787,16 +787,25 @@ public sealed partial class GameServer
         return !CrowdedByCreatures(sp, pos);
     }
 
-    /// <summary>#1763: whether the ground under a spawn cell is one of the species' <see cref="CreatureSpecies.BiomeSurfaces"/>.
-    /// Real blocks first (a snow field the player paved over is not Leni country any more); where the column is
-    /// not loaded, the generator's biome surface answers. An empty surface list never rejects.</summary>
+    /// <summary>#1763: whether the ground under a spawn cell is one of the species' <see cref="CreatureSpecies.BiomeSurfaces"/>
+    /// or (#3973) lies in a biome of one of its climate zones (<see cref="CreatureSpecies.FloraThemes"/>) — the one rule of
+    /// <see cref="CreatureBiomes.OnOwnGround"/>. A species that names neither never rejects.</summary>
     private bool OnExclusiveGround(CreatureSpecies sp, Vector3i cell)
     {
-        if (sp.BiomeSurfaces.Length == 0)
+        bool surfaces = sp.BiomeSurfaces is { Length: > 0 }, zones = sp.FloraThemes is { Length: > 0 };
+        if (!surfaces && !zones)
         {
             return true;
         }
 
+        string theme = zones ? CreatureBiomes.ThemeAt(_world.Planet, _generator.BiomePoolIndexAt(_world.Planet, cell.X, cell.Z)) : string.Empty;
+        return CreatureBiomes.OnOwnGround(sp, surfaces ? GroundKeyAt(cell) : null, theme);
+    }
+
+    /// <summary>The block key of the ground under a spawn cell: real blocks first (a snow field the player paved over is not
+    /// Leni country any more); where the column is not loaded, the generator's biome surface answers.</summary>
+    private string? GroundKeyAt(Vector3i cell)
+    {
         string? ground = null;
         if (_world.IsChunkLoaded(WorldConstants.WorldToChunk(cell)))
         {
@@ -810,8 +819,7 @@ public sealed partial class GameServer
             }
         }
 
-        ground ??= _generator.BiomeSurfaceKeyAt(_world.Planet, cell.X, cell.Z);
-        return ground is not null && System.Array.IndexOf(sp.BiomeSurfaces, ground) >= 0;
+        return ground ?? _generator.BiomeSurfaceKeyAt(_world.Planet, cell.X, cell.Z);
     }
 
     /// <summary>#1747: player block edits in the 3×5×3 box around a cave spawn spot — the floor row, the two
@@ -1308,8 +1316,8 @@ public sealed partial class GameServer
             var intent = MoveMode.Roam;
             Vector3f? target = null;
             // #2018: a begging herd animal (food in a nearby hand, a thrown piece, the trot away) decides its own intent and the
-            // temperament intents below are skipped while it does. Only passive species beg, so nothing they would otherwise
-            // do is lost; frozen, sleeping and panicked animals never reach this line with a live phase (TryBegIntent drops it).
+            // temperament intents below are skipped while it does. Only peaceful species beg (a skittish beggar, #3973, flees
+            // again once the food is gone); frozen, sleeping and panicked animals never reach this line with a live phase.
             bool begging = !hunting && (TryBegIntent(creature, sp, nearest, ref profile, ref intent, ref target)
                 || TryCallerIntent(creature, sp, nearest, ref profile, ref intent, ref target) // #2057: a caller block calls the peaceful ones
                 || TrySoundelingIntent(creature, sp, ref intent, ref target)); // #3366: a Soundeling carries a light, or walks to one in the dark

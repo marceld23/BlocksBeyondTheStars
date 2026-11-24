@@ -342,9 +342,9 @@ namespace BlocksBeyondTheStars.Client
                     CreatureVoiceBank.Prewarm(voice, bank, echo, c.Hostile);
                     float sizePitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f);
                     float speciesOffset = 0.82f + voice.PitchStep / 37f * 0.45f; // 0.82..1.27 per species
-                    if (CreatureVoices.KeepsNaturalPitch(c.BodyPlan))
+                    if (CreatureVoices.KeepsNaturalPitch(voice, c.BodyPlan))
                     {
-                        sizePitch = 1f; // #3359: a recorded voice of Soaniri keeps its own pitch (±4 % per species)
+                        sizePitch = 1f; // #3359/#3973: a recorded voice keeps its own pitch (±4 % per species)
                         speciesOffset = 0.96f + voice.PitchStep / 37f * 0.08f;
                     }
 
@@ -726,7 +726,9 @@ namespace BlocksBeyondTheStars.Client
             if (!e.Nameplate.activeSelf) e.Nameplate.SetActive(true);
 
             // #1210: a companion growling at a hostile in sight poses alert — amber label with a bobbing "!".
-            string label = string.IsNullOrEmpty(c.CustomName) ? c.Name : c.CustomName;
+            var loc = Game?.Localizer; // #3973: a fixed species (a dog) is named in the player's language
+            string label = !string.IsNullOrEmpty(c.CustomName) ? c.CustomName
+                : loc != null ? CreatureNames.Display(c.Name, c.NameKey, loc.Get, loc.Has) : c.Name;
             if (c.Alerting) label = "! " + label + " !";
             if (e.NameText.text != label) e.NameText.text = label;
 
