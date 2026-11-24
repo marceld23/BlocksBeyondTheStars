@@ -198,25 +198,38 @@ public sealed class EarthRailNetworkTests : IDisposable
     }
 
     /// <summary>Starts the tick's stamp of the section round <paramref name="at"/> and drives it until its station stands and
-    /// its pylons are being written; returns which section it is (not built yet).</summary>
+    /// its pylons are being written; returns which section it is (not built yet). The tick's budget is cut to a sliver
+    /// meanwhile: with the shipped 4 ms a fast machine stamped a short section's pylons and corridor in the very tick that
+    /// finished its station (main CI, 2026-11-24), so there was no half-written section left to cut.</summary>
     private static (int Line, int Section) BeginStampByTheTick(SvGameServer server, Vector3i at)
     {
         var point = new Vector3f(at.X, at.Y, at.Z);
-        for (int i = 0; i < MaxSectionTicks; i++)
+        server.SectionBudgetMsForTest = HalfStampBudgetMs;
+        try
         {
-            server.TickRailSectionsForTest(point, SectionReachBlocks, 1.0 / 15);
-            if (server.RailSectionStampForTest is { Step: not SvGameServer.IntercityStampStep.Stations } s)
+            for (int i = 0; i < MaxSectionTicks; i++)
             {
-                Assert.NotEqual(SvGameServer.IntercityStampStep.Done, s.Step);
-                Assert.DoesNotContain(server.RailSectionsForTest, b => (b.Line, b.Section) == (s.Line, s.Section) && b.Built);
-                return (s.Line, s.Section);
-            }
+                server.TickRailSectionsForTest(point, SectionReachBlocks, 1.0 / 15);
+                if (server.RailSectionStampForTest is { Step: not SvGameServer.IntercityStampStep.Stations } s)
+                {
+                    Assert.NotEqual(SvGameServer.IntercityStampStep.Done, s.Step);
+                    Assert.DoesNotContain(server.RailSectionsForTest, b => (b.Line, b.Section) == (s.Line, s.Section) && b.Built);
+                    return (s.Line, s.Section);
+                }
 
-            System.Threading.Thread.Sleep(1);
+                System.Threading.Thread.Sleep(1);
+            }
+        }
+        finally
+        {
+            server.SectionBudgetMsForTest = null;
         }
 
         throw new Xunit.Sdk.XunitException("the tick never got to the section's pylons");
     }
+
+    /// <summary>The per-tick budget while a section is begun to be cut short: one pylon or one batch of corridor cells a tick.</summary>
+    private const double HalfStampBudgetMs = 0.01;
 
     /// <summary>A player's reach at the default view: (4 chunks + the load-ahead ring + 3 chunks) × 16 blocks.</summary>
     private const double SectionReachBlocks = (4 + 1 + 3) * 16;
