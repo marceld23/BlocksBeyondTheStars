@@ -10,7 +10,7 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 
 /// <summary>
 /// The fixed places of a body (#3981): <c>data/places/&lt;planetType&gt;.json</c>, one file per planet type, read by every body
-/// of that type (a map planet: Sol's Earth). Each entry stands at a longitude and latitude and is one <see cref="PlaceKinds"/>
+/// of that type (a map planet: Sol's Earth). Each entry stands at a longitude and latitude and is one <see cref="PlaceListKinds"/>
 /// kind: a landmark at a given seat, a city, a landing pad. The list order is part of the data — a landmark's record index and
 /// a pad's index follow it, so a place is only ever appended.
 /// </summary>
@@ -32,7 +32,7 @@ public sealed class PlaceDefinition
     /// <summary>The place's key, unique within its list (key-safe: lower-case letters, digits, underscores).</summary>
     public string Key { get; set; } = string.Empty;
 
-    /// <summary>What stands there: one of <see cref="PlaceKinds.All"/>.</summary>
+    /// <summary>What stands there: one of <see cref="PlaceListKinds.All"/>.</summary>
     public string Kind { get; set; } = string.Empty;
 
     /// <summary>Degrees east of the prime meridian (west negative), −180 ≤ longitude &lt; 360.</summary>
@@ -72,7 +72,7 @@ public sealed class PlaceDefinition
 
 /// <summary>The kinds a place may be (#3981). The format is open: a later kind (a rail stop) is one more constant here and one
 /// more branch in <see cref="PlaceRules.Problems"/>.</summary>
-public static class PlaceKinds
+public static class PlaceListKinds
 {
     /// <summary>A landmark template at a given seat (<c>GivenSeat</c>), stamped first in the structures stage.</summary>
     public const string Landmark = "landmark";
@@ -120,9 +120,9 @@ public static class PlaceRules
                 problems.Add($"{at} needs a key of lower-case letters, digits and underscores, unique in its list");
             }
 
-            if (Array.IndexOf(PlaceKinds.All, place.Kind) < 0)
+            if (Array.IndexOf(PlaceListKinds.All, place.Kind) < 0)
             {
-                problems.Add($"{at} has the unknown kind '{place.Kind}' ({string.Join(" | ", PlaceKinds.All)})");
+                problems.Add($"{at} has the unknown kind '{place.Kind}' ({string.Join(" | ", PlaceListKinds.All)})");
             }
 
             if (!(place.Latitude > -90.0 && place.Latitude < 90.0) || !(place.Longitude >= -180.0 && place.Longitude < 360.0))
@@ -146,14 +146,14 @@ public static class PlaceRules
     {
         switch (place.Kind)
         {
-            case PlaceKinds.Landmark:
+            case PlaceListKinds.Landmark:
                 if (TemplateProblem(place.Template, landmark) is { } problem)
                 {
                     yield return problem;
                 }
 
                 break;
-            case PlaceKinds.City:
+            case PlaceListKinds.City:
                 if (place.Grid < 0)
                 {
                     yield return "has a negative grid";
@@ -168,7 +168,7 @@ public static class PlaceRules
                 }
 
                 break;
-            case PlaceKinds.Pad:
+            case PlaceListKinds.Pad:
                 if (place.Template.Length > 0)
                 {
                     yield return "is a pad and names a template";
@@ -190,5 +190,5 @@ public static class PlaceRules
 
     /// <summary>Every landmark template a list names: its landmark places' and its cities' landmarks.</summary>
     public static IEnumerable<string> NamedTemplates(PlaceListDefinition list)
-        => list.OfKind(PlaceKinds.Landmark).Select(p => p.Template).Concat(list.OfKind(PlaceKinds.City).SelectMany(p => p.Landmarks));
+        => list.OfKind(PlaceListKinds.Landmark).Select(p => p.Template).Concat(list.OfKind(PlaceListKinds.City).SelectMany(p => p.Landmarks));
 }

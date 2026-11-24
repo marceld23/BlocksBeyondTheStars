@@ -31,15 +31,16 @@ public sealed partial class GameContent
         }
     }
 
-    /// <summary>The load checks of the place lists: each belongs to a loaded planet type and passes
+    /// <summary>The load checks of the place lists: each belongs to a loaded map planet type and passes
     /// <see cref="PlaceRules.Problems"/> (known kinds, coordinates in range, templates that exist and are <c>pinOnly</c>).</summary>
     private void ValidatePlaces(List<string> problems)
     {
         foreach (var list in _placeLists.Values)
         {
-            if (!_planets.ContainsKey(list.PlanetType))
+            // A longitude and latitude mean a spot on a planet map; a map world's pipeline also runs on a save of any generation.
+            if (!_planets.TryGetValue(list.PlanetType, out var planet) || !planet.HasTerrainMap)
             {
-                problems.Add($"The place list '{list.PlanetType}' names no loaded planet type.");
+                problems.Add($"The place list '{list.PlanetType}' names no loaded planet type with a terrain map.");
             }
 
             problems.AddRange(PlaceRules.Problems(list, LandmarkByKey).Select(p => $"Place list '{list.PlanetType}': {p}."));

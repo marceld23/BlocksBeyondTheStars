@@ -32,8 +32,8 @@ public sealed partial class GameServer
     private const int SpanSeatAttempts = 2000;
 
     /// <summary>Whether the active world takes the school club's landmark rules: fixed landmarks, the span seat, protection from
-    /// the template (terrain generation 39).</summary>
-    private bool SchoolClubLandmarkWorld => _generator.TerrainGeneration >= WorldDescription.SchoolClubLandmarksGeneration;
+    /// the template (terrain generation 39; every map world, #3981).</summary>
+    private bool SchoolClubLandmarkWorld => PipelineGeneration(_generator.TerrainGeneration) >= WorldDescription.SchoolClubLandmarksGeneration;
 
     // ---------------------------------------------------------------- fixed landmarks
 

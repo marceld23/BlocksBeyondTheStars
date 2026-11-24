@@ -42,8 +42,9 @@ public sealed partial class GameServer
     /// <summary>… and its value for the structure overlay (absent = block edits).</summary>
     internal const string LandmarkOverlayStorage = "overlay";
 
-    /// <summary>Whether a landmark stamped on the active world now stores its cells as a structure overlay.</summary>
-    private bool LandmarkOverlayWorld => _meta.Description.TerrainGeneration >= WorldDescription.SchoolClubLandmarksGeneration;
+    /// <summary>Whether a landmark stamped on the active world now stores its cells as a structure overlay (generation 39; every
+    /// map world, #3981).</summary>
+    private bool LandmarkOverlayWorld => PipelineGeneration(_meta.Description.TerrainGeneration) >= WorldDescription.SchoolClubLandmarksGeneration;
 
     internal sealed partial class LandmarkInstance
     {

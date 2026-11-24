@@ -289,12 +289,12 @@ public sealed partial class GameServer
 
     /// <summary>The plan's layout: the authored body, or (#3518) a generator entry's build — null (warned) when its source can
     /// no longer build it. A fresh plan first takes its world's ruin revision (generation 39: revision 2, the lattice breaks;
-    /// an older world: revision 1, as it always stamped).</summary>
+    /// an older world: revision 1, as it always stamped; a map world at least its pipeline generation's, #3981).</summary>
     private LandmarkLayout? BuildLandmarkLayout(LandmarkPlan plan)
     {
         if (plan.Fresh)
         {
-            plan.Revision = LandmarkGenerator.RuinRevisionFor(_generator.TerrainGeneration);
+            plan.Revision = LandmarkGenerator.RuinRevisionFor(PipelineGeneration(_generator.TerrainGeneration));
         }
 
         return plan.Template.IsSource
