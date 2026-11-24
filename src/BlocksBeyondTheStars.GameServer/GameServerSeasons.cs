@@ -78,7 +78,7 @@ public sealed partial class GameServer
     /// episodes keep their sequence.</summary>
     private void TieWetnessToYear(WeatherSim sim, string bodyId, PlanetType? planet)
     {
-        if (planet is null || !PlanetSeasons.HasSeasons(planet))
+        if (SeasonsOffForTest || planet is null || !PlanetSeasons.HasSeasons(planet))
         {
             return;
         }
@@ -108,7 +108,8 @@ public sealed partial class GameServer
     public string StartBodyIdForTest => _startBodyId;
 
     /// <summary>Test seam (#3041): no seasons on any world — for tests that time plant growth or temperatures to the second
-    /// and are about something else (the season's growth factor would otherwise depend on the world seed's year).</summary>
+    /// and are about something else (the season's growth factor would otherwise depend on the world seed's year). Set before
+    /// <c>Start</c> it also keeps the weather's own wet/dry roll (#3995: no tie to the year).</summary>
     public bool SeasonsOffForTest { get; set; }
 
     /// <summary>Test seam (#3041): moves the system clock (the seasons run on it).</summary>
