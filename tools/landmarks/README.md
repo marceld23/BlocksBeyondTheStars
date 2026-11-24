@@ -19,6 +19,7 @@ the result without Unity. Python 3.10+, standard library only.
 | `civ.py` | `CivDesign` — the CIVILIZATION template toolkit (see [Civilizations](#civilizations)): air pockets as diving bells, `prop` markers, murals, pieces in any of the 24 orientations |
 | `_sps_tower_parts.py`, `sps_tower_*.py` | the SPS GUIDE TOWER ruins (#3893, [docs/developer/SPS_TOWERS.md](../../docs/developer/SPS_TOWERS.md)): `TowerDesign` — a `Design` that writes to `data/sps_towers/`, draws the mast through a mapping (standing, leaning, lying, folded over) and knows the tower markers (`sps_console`, `sps_lamp`, `sps_tank`, `sps_guard_post`) — and one script per ruin |
 | `_earth.py`, `earth_*.py` | the EARTH landmarks (#3982): `earth_design()` (the pin-only header every one carries, intact and protected unless it is a ruin), `ladder_shaft()` (a ship's `lift_shaft` for a landmark), railings, square rings, light rings; eight scripts writing twelve `earth_*` templates (see [LANDMARKS.md](../../docs/developer/LANDMARKS.md) §7) |
+| `_sps_hq.py`, `_sps_hq_below.py`, `earth_sps_hq.py` | the SPS HEADQUARTERS in the Amazon (#3986): five templates side by side in one complex frame (`PLACES`, the joints between them, the Service's blue-grey palette, server racks, consoles, cable trays, overgrowth); `earth_sps_hq.py` writes all five (main building, hangar with three small ships, great hall with a fallen giant, server halls, CORE chamber) and checks each template's size against `PLACES` |
 | `<key>.py` | one script per landmark, with a `build()` that returns its `Design` (or a list; `civ_*.py` return `CivDesign`s); a script that writes several templates lists their keys in `KEYS` |
 
 ```bash
@@ -242,9 +243,10 @@ with the building; markers come along.
 | `vendor(x, y, z, theme, inside=False, name=None)` | `theme=burgers;inside=1` |
 | `door(x, y, z, kind="hinge")` | marker `door_hinge` / `door_slide` / `door_energy`, the opening measured from the solid cells around it |
 | `npc(x, y, z, post="npc", config="")` | a resident or a profession post (`doctor`, `grocer`, ...) |
+| `guardian_giant(x, y, z, facing=0, wake=False)` | `facing=3` (#3986): a fallen guardian giant lying on the floor the marker stands on — 0 = head toward -z, 1 -x, 2 +z, 3 +x; 12 wide, 14 long, its back sunk one row into the floor; `wake` = it can still wake. The server writes the body and pins its giant record |
 | `marker(x, y, z, marker, settings="")` | anything else (original API; does not free the cell) |
 
-A ruin keeps only chests, loot markers, sounds and dens; vendors, doors and residents need an intact landmark.
+A ruin keeps only chests, loot markers, sounds, dens and fallen giants; vendors, doors and residents need an intact landmark.
 
 ### Output
 `problems()` -> (errors, warnings); `template()` -> the dict; `stats()` -> the line; `write(out=None, check=True)` ->
