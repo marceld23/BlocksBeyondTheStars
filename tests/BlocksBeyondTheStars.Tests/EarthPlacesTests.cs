@@ -207,6 +207,11 @@ public sealed class EarthPlacesTests : IDisposable
         Assert.True(foreign.Count == 0, "foreign blocks in the joints (frame x,Y,z): " + string.Join(" ", foreign.Take(16)));
     }
 
+    /// <summary>A record of one of Earth's listed rail lines (#3985): line <c>100 + i</c>, its stations <c>line × 64 + stop</c>.</summary>
+    private static bool IsListedRail(string kind, int index)
+        => (kind == "rail_line" && index >= SvGameServer.ListedRailLineIndexBase)
+           || (kind == "rail_station" && index >= SvGameServer.ListedRailLineIndexBase * 64);
+
     [Fact]
     public void Earth_StampsThePyramidsAtTheirPlaces_TakesItsPadsFromTheList_AndReplaysAfterARestart()
     {
@@ -218,7 +223,9 @@ public sealed class EarthPlacesTests : IDisposable
             before = Pyramids(server);
 
             // Only the whitelisted rolled kinds stand on Earth: no G.D.S. ruin, monument, camp, factory, rail ruin, civilization.
-            var kinds = server.PlacementRecordsForTest.Where(r => r.Placed && r.Kind != LandmarkRules.RecordKind).Select(r => r.Kind).Distinct().ToList();
+            // Earth's own listed rail lines (#3985) are no rolled kind: their records sit from line ListedRailLineIndexBase on.
+            var kinds = server.PlacementRecordsForTest.Where(r => r.Placed && r.Kind != LandmarkRules.RecordKind && !IsListedRail(r.Kind, r.Index))
+                .Select(r => r.Kind).Distinct().ToList();
             _output.WriteLine("rolled kinds on Earth: " + string.Join(", ", kinds));
             _output.WriteLine("stamp report: " + string.Join(", ", server.StampReportForTest.Select(r => $"{r.Kind} {r.Placed}/{r.Requested}")));
             Assert.All(kinds, k => Assert.True(AllowedRolledKinds.Contains(k), $"'{k}' stands on Earth"));
