@@ -46,7 +46,7 @@
     { "key": "toronto",  "kind": "city", "latitude": 44.01,  "longitude": -79.38,  "nameKey": "city.toronto.name", "grid": 6, "plaza": [3, 3],
       "palette": { "wall": "concrete#8FB4D8", "accent": "glass#BFDDF5", "roof": "metal_panel#C8CCD2", "floor": "steel_floor", "path": "concrete#B4B8BC" },
       "landmarks": ["earth_toronto_tower"] },
-    { "key": "new_york", "kind": "city", "latitude": 41.242, "longitude": -73.916, "nameKey": "city.new_york.name", "grid": 6, "plaza": [3, 2],
+    { "key": "new_york", "kind": "city", "latitude": 41.242, "longitude": -73.916, "nameKey": "city.new_york.name", "grid": 6, "plaza": [3, 2], "stations": 2,
       "palette": { "wall": "concrete#8A929C", "accent": "glass#F2C060", "roof": "metal_panel#5A6068", "floor": "steel_floor", "path": "concrete#9A9A96" },
       "landmarks": ["earth_new_york_statue", "earth_gds_tower"] },
     { "key": "rio",      "kind": "city", "latitude": -22.496, "longitude": -42.823, "nameKey": "city.rio.name", "grid": 6, "plaza": [3, 1],
@@ -73,23 +73,28 @@
       { "template": "earth_sps_hq_hall",    "east": 20,   "north": -15 }
     ] },
 
-    // The hover-rail network (#3985, docs/developer/MONORAIL.md "The rail network"): two lines, each a public train shuttling
-    // end to end and halting at every stop. Each stop's hall stands on one of its city's rail-hall squares (Paris keeps two,
-    // one per line — change on foot, there are no switches), the line runs out of the city along the street beside it, then
-    // through the waypoints ([longitude, latitude]) toward the next stop: over the sea and round the high mountains.
+    // The hover-rail network (#3985, docs/developer/MONORAIL.md "The rail network"): three lines, each a public train shuttling
+    // end to end and halting at every stop. Each stop's hall stands on one of its city's rail-hall squares (Paris and New York keep
+    // two, one per line — change on foot, there are no switches), the line runs out of the city along the street beside it,
+    // then — routed round every city, landmark and village (#4014) — through the waypoints ([longitude, latitude], none needed
+    // today) toward the next stop. Toronto is the Atlantic line's end (#4015): London and New York both lie east of it, so a
+    // line through it would have to double back across the city.
     { "key": "rail_atlantic", "kind": "rail", "nameKey": "rail.atlantic.name", "stops": [
       { "city": "berlin" },
       { "city": "paris" },
       { "city": "london" },
-      { "city": "toronto" },
       { "city": "new_york" },
-      { "city": "rio" }
+      { "city": "toronto" }
     ] },
     { "key": "rail_orient", "kind": "rail", "nameKey": "rail.orient.name", "stops": [
       { "city": "paris" },
       { "city": "cairo" },
       { "city": "tokyo" },
       { "city": "sydney" }
+    ] },
+    { "key": "rail_americas", "kind": "rail", "nameKey": "rail.americas.name", "stops": [
+      { "city": "new_york" },
+      { "city": "rio" }
     ] }
   ]
 }

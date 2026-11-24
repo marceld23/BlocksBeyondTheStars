@@ -1547,7 +1547,8 @@ public sealed partial class GameServer
         }
 
         rails.Loaded = true;
-        bool generated = EnsureIntercityGraph(); // #2125: the intercity line's stops, nodes and links, when missing
+        bool purged = PurgeRetiredRailLines(); // #4016: a re-planned listed line's old graph and train go first
+        bool generated = EnsureIntercityGraph() || purged; // #2125: the intercity line's stops, nodes and links, when missing
         RebuildRailLines();
         if (EnsureIntercityTrain() || generated)
         {

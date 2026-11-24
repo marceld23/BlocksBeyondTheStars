@@ -23,7 +23,7 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Earth's hover-rail network on a real Earth (#3985): the Atlantic and the Orient line plan on the first boot from the
+/// Earth's hover-rail network on a real Earth (#3985): the Atlantic, the Orient and the Americas line (#4015) plan on the first boot from the
 /// metropolises' records — every hall on a rail-hall square of its city with its track in the street beside it, Paris's two
 /// halls on two squares, a through station's halted train inside its hall, the Atlantic line over the X seam — and their
 /// public trains run at the express step on lines whose voxels are not stamped yet. Sections stamp by the tick round Paris
@@ -88,7 +88,7 @@ public sealed class EarthRailNetworkTests : IDisposable
     {
         var server = BootOnEarth("earth_rail");
         var lines = server.IntercityLinesForTest;
-        Assert.Equal(new[] { SvGameServer.ListedRailLineIndexForTest(0), SvGameServer.ListedRailLineIndexForTest(1) }, lines.Select(l => l.Index));
+        Assert.Equal(new[] { SvGameServer.ListedRailLineIndexForTest(0), SvGameServer.ListedRailLineIndexForTest(1), SvGameServer.ListedRailLineIndexForTest(2) }, lines.Select(l => l.Index));
         var metros = server.MetropolisesForTest;
         var list = Content.PlacesFor("sol_earth")!;
         var cities = list.OfKind(PlaceListKinds.City).ToList();
@@ -112,6 +112,12 @@ public sealed class EarthRailNetworkTests : IDisposable
         var paris = lines.SelectMany(l => l.Stations).Where(s => s.SettlementName == "Paris").ToList();
         Assert.Equal(2, paris.Count);
         Assert.NotEqual(paris[0].Origin, paris[1].Origin);
+
+        // #4015: New York too — the Atlantic line's through station and the Americas line's terminus.
+        var newYork = lines.SelectMany(l => l.Stations).Where(s => s.SettlementName == "New York").ToList();
+        Assert.Equal(2, newYork.Count);
+        Assert.NotEqual(newYork[0].Origin, newYork[1].Origin);
+        Assert.Equal(new[] { true, false }, newYork.Select(s => s.Through));
 
         // The Atlantic line crosses the X seam (London's box spans it).
         var atlantic = lines[0].Pylons;
@@ -139,7 +145,7 @@ public sealed class EarthRailNetworkTests : IDisposable
         Assert.Equal(before, again.IntercityLinesForTest.Select(l => l.Pylons.ToList()).ToList());
         Assert.Equal(built.OrderBy(b => b), again.RailSectionsForTest.Where(s => s.Built).Select(s => (s.Line, s.Section)).OrderBy(b => b));
         Assert.Empty(again.RailSectionMillisForTest); // replayed, nothing stamped again
-        Assert.Equal(2, again.TrainsForTest().Count(t => RailRules.IsPublic(t.OwnerId)));
+        Assert.Equal(3, again.TrainsForTest().Count(t => RailRules.IsPublic(t.OwnerId)));
 
         // The section the restart cut short is stamped again from its start, and stands whole.
         ticks.AddRange(StampByTheTick(again, berlin.Stop, "Berlin's section again after the restart"));
@@ -304,8 +310,11 @@ public sealed class EarthRailNetworkTests : IDisposable
     private static void AssertPublicTrainsAtTheExpressStep(SvGameServer server)
     {
         var trains = server.TrainsForTest().Where(t => RailRules.IsPublic(t.OwnerId)).ToList();
-        Assert.Equal(2, trains.Count);
-        Assert.All(trains, t => Assert.Equal(RailRules.PublicTrainExpressSpeed, t.Speed));
+        Assert.Equal(3, trains.Count);
+        // The Atlantic and the Orient line run at the express step; the shorter Americas line (#4015) at its length's step.
+        var arcs = server.RailLinesForTest().ToDictionary(l => l.Id, l => l.TotalArc);
+        Assert.All(trains, t => Assert.Equal(RailRules.PublicTrainSpeedFor(arcs[t.LineId]), t.Speed));
+        Assert.Equal(2, trains.Count(t => t.Speed == RailRules.PublicTrainExpressSpeed));
         Assert.All(trains, t => Assert.True(t.Halted, "each starts halted at its first station"));
     }
 

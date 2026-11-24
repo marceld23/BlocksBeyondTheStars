@@ -18,16 +18,20 @@ namespace BlocksBeyondTheStars.GameServer;
 /// among the list's lines), its records, its public train.
 /// <list type="bullet">
 /// <item><b>Its stations</b> stand in the metropolises (GameServerMetropolis.cs), each on a rail-hall square of the city's
-/// pinned district map: <see cref="MetroRailHalls"/> picks the square, the street beside it and the direction the line leaves
-/// along that street — a side-platform hall on the square's edge, the track in the street, the line straight out of the city
-/// (a city's streets are open, its districts built to their edges). Two lines in one city take different squares.</item>
-/// <item><b>Its route</b> runs from each city's street run through the place's waypoints to the next city's, under
+/// pinned district map: a side-platform hall on the square's edge, the track in the street beside it, the line straight out
+/// of the city along that street (a city's streets are open, its districts built to their edges). Two lines in one city
+/// take different squares.</item>
+/// <item><b>Its route</b> (#4014, GameServerRailNetworkRoutes.cs): the halls of all stops are chosen together, and each leg
+/// between two cities is routed round every city's districts, the landmarks, the villages and the other registered boxes;
+/// its turns are rounded and the curve the train rides is checked against the same obstacles before the line is pinned
+/// (GameServerRailNetworkChecks.cs). Inside a city the city's floor is the ground the line keeps over. The limits are
 /// <see cref="IntercityLimits.Listed"/>: no length cap, pylons on the sea bed however deep, a pylon every 32 blocks over
 /// open water.</item>
 /// <item><b>Its own step.</b> The lines plan after the cities (the stamp-chain step, whatever the settlement options say) on
 /// every save generation (a map world's rule), from the cities' records alone, and are replayed from their own records on
-/// every later load. A line that cannot be planned (a city that is not there) is left off that load and tried again on the
-/// next; nothing is pinned for it.</item>
+/// every later load. A line that cannot be planned (a city that is not there, no clear way) is left off that load with a
+/// warning and tried again on the next; nothing is pinned for it. A line pinned by an older planner or for other stops is
+/// re-planned, and what it stamped is taken back (#4016, GameServerRailNetworkMigration.cs).</item>
 /// <item><b>Its voxels</b> are stamped section by section the first time a player comes near (GameServerRailSections.cs);
 /// the graph, the line and its public train exist for the whole line from the first load.</item>
 /// </list>
@@ -43,10 +47,7 @@ public sealed partial class GameServer
 
     /// <summary>A city a listed line stops at, from its metropolis record: its key, name, box corner (Y = the floor) and
     /// district map.</summary>
-    private sealed record ListedRailCity(string Key, string Name, Vector3i Origin, CityLayoutSpec Spec)
-    {
-        public (double X, double Z) Centre => (Origin.X + (Spec.Footprint / 2.0), Origin.Z + (Spec.Footprint / 2.0));
-    }
+    private sealed record ListedRailCity(string Key, string Name, Vector3i Origin, CityLayoutSpec Spec);
 
     /// <summary>The body's listed lines, in list order: replayed from their records, or planned and pinned now.</summary>
     private List<IntercityPlan> ListedRailLines(PlanetType planet)
@@ -58,13 +59,15 @@ public sealed partial class GameServer
         }
 
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        int i = 0;
-        foreach (var place in list.OfKind(PlaceListKinds.Rail))
+        var places = list.OfKind(PlaceListKinds.Rail).ToList();
+        RetireOutdatedListedRailLines(list, places); // #4016: an older planner's lines go before any line is planned
+        ListedRailObstacles? obstacles = null;
+        for (int i = 0; i < places.Count; i++)
         {
-            if (ListedRailLine(list, place, ListedRailLineIndexBase + i++, lines) is { } plan)
+            if (ListedRailLine(list, places[i], ListedRailLineIndexBase + i, lines, () => obstacles ??= ListedRailObstaclesOf(list)) is { } plan)
             {
                 plan.Listed = true;
-                plan.NameKey = place.NameKey;
+                plan.NameKey = places[i].NameKey;
                 lines.Add(plan);
             }
         }
@@ -81,7 +84,8 @@ public sealed partial class GameServer
 
     /// <summary>One listed line: replayed from its record, or — on a body that never planned it — planned and pinned. Null
     /// when it is not built this load.</summary>
-    private IntercityPlan? ListedRailLine(PlaceListDefinition list, PlaceDefinition place, int index, List<IntercityPlan> earlier)
+    private IntercityPlan? ListedRailLine(PlaceListDefinition list, PlaceDefinition place, int index, List<IntercityPlan> earlier,
+        Func<ListedRailObstacles> obstacles)
     {
         var rec = FindPlacementRecord(IntercityLineKind, index);
         if (rec is not null)
@@ -95,23 +99,31 @@ public sealed partial class GameServer
             return replayed;
         }
 
-        var route = ListedRailRoute(list, place, index, earlier, out string why);
+        var route = ListedRailRoute(list, place, index, earlier, obstacles(), out string why);
         var plan = route is null ? null : PlanGivenIntercityRoute(route, IntercityLimits.Listed, out why);
+        if (plan is not null && ListedRailCurveProblem(plan, obstacles()) is { } problem)
+        {
+            why = problem;
+            plan = null;
+        }
+
         if (plan is null)
         {
             _log.Warn($"The rail line '{place.Key}' on '{_world.LocationId}' cannot be planned ({why}) — it stays off this load.");
             return null;
         }
 
-        PinIntercityPlan(plan);
+        PinIntercityPlan(plan, ListedRailPlanPin);
         SavePlacementRecords();
         return plan;
     }
 
-    /// <summary>A listed line as a given route: each stop's hall in its city (<see cref="MetroRailHalls.Choose"/>, the stops
-    /// in line order, each looking at the previous stop's way out and the next stop), and per leg the previous city's way out
-    /// along its street, the place's waypoints and this city's way in.</summary>
-    private IntercityGivenRoute? ListedRailRoute(PlaceListDefinition list, PlaceDefinition place, int index, List<IntercityPlan> earlier, out string why)
+    /// <summary>A listed line as a given route: each stop's hall in its city and each leg's way round the obstacles, chosen
+    /// together (<see cref="ListedRailChain"/>); a leg's points (its street run's end beyond the city before, the corners it
+    /// turns at, the place's waypoints, the street run's start beyond this city) are the stop's waypoints. Its turns are
+    /// rounded when the columns are laid out.</summary>
+    private IntercityGivenRoute? ListedRailRoute(PlaceListDefinition list, PlaceDefinition place, int index, List<IntercityPlan> earlier,
+        ListedRailObstacles obstacles, out string why)
     {
         var cities = new List<ListedRailCity>();
         foreach (var stop in place.Stops)
@@ -125,13 +137,14 @@ public sealed partial class GameServer
             cities.Add(city);
         }
 
-        var halls = ListedRailHalls(place, cities, earlier, out why);
-        if (halls is null)
+        var chain = ListedRailChain(place, cities, earlier, obstacles, out why);
+        if (chain is null)
         {
             return null;
         }
 
-        var route = new IntercityGivenRoute(index);
+        var (halls, legs) = chain.Value;
+        var route = new IntercityGivenRoute(index) { Listed = true };
         for (int k = 0; k < cities.Count; k++)
         {
             var (city, hall) = (cities[k], halls[k]);
@@ -141,51 +154,13 @@ public sealed partial class GameServer
             { Platforms = hall.Platforms };
             if (k > 0)
             {
-                stop.Via.Add(ListedRailWorld(cities[k - 1], halls[k - 1].Exit));
-                stop.Via.AddRange(ListedRailWaypoints(place.Stops[k]));
-                stop.Via.Add(ListedRailWorld(city, k == cities.Count - 1 ? hall.Exit : hall.Entry));
+                stop.Via.AddRange(legs[k - 1].Select(p => (WorldConstants.WrapX((int)Math.Round(p.X), _world.Circumference), (int)Math.Round(p.Z))));
             }
 
             route.Stops.Add(stop);
         }
 
         return route;
-    }
-
-    /// <summary>Each stop's hall, in line order: a terminus looks toward its one neighbour, a through station toward both —
-    /// the previous stop's way out (already chosen) and the next stop's first waypoint or its city's centre.</summary>
-    private List<MetroRailHalls.Hall>? ListedRailHalls(PlaceDefinition place, List<ListedRailCity> cities, List<IntercityPlan> earlier, out string why)
-    {
-        var halls = new List<MetroRailHalls.Hall>();
-        for (int k = 0; k < cities.Count; k++)
-        {
-            var city = cities[k];
-            (double X, double Z)? prev = null, next = null;
-            if (k > 0)
-            {
-                var via = ListedRailWaypoints(place.Stops[k]);
-                var from = via.Count > 0 ? via[^1] : ListedRailWorld(cities[k - 1], halls[k - 1].Exit);
-                prev = ListedRailLocal(city, from.X, from.Z);
-            }
-
-            if (k < cities.Count - 1)
-            {
-                var via = ListedRailWaypoints(place.Stops[k + 1]);
-                var (tx, tz) = via.Count > 0 ? (via[0].X, (double)via[0].Z) : cities[k + 1].Centre;
-                next = ListedRailLocal(city, tx, tz);
-            }
-
-            if (MetroRailHalls.Choose(city.Spec, prev, next, ListedRailTaken(city, earlier)) is not { } hall)
-            {
-                why = $"no rail-hall square of '{city.Key}' has an open street for the line";
-                return null;
-            }
-
-            halls.Add(hall);
-        }
-
-        why = string.Empty;
-        return halls;
     }
 
     /// <summary>A city place of the list as the line sees it: its metropolis record (settlement

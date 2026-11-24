@@ -20,8 +20,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// Between two stops the route runs from the one's lead through the waypoints to the other's lead, a pylon every ≤
 /// <see cref="IntercityPylonSpacing"/> blocks (over open water every <see cref="IntercityLimits.SeaPylonSpacing"/> when the
 /// limits allow more); the heights, the pylon and cut checks are the shared core under the limits the caller hands in. The
-/// route keeps clear of nothing on its own (its stops and waypoints are where the data puts them). A place list's rail lines
-/// feed it (GameServerRailNetwork.cs, #3985).
+/// route keeps clear of nothing on its own (its stops and waypoints are where the caller puts them). A place list's rail lines
+/// feed it (GameServerRailNetwork.cs, #3985) with legs already routed round the obstacles (#4014) and
+/// <see cref="IntercityGivenRoute.Listed"/> set: their turns are rounded, their pylons moved off lava, a town's floor is
+/// their ground, and a player's build on the way does not refuse them (their stamp keeps it).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -67,6 +69,11 @@ public sealed partial class GameServer
         public int LineIndex { get; }
 
         public List<IntercityGivenStop> Stops { get; } = new();
+
+        /// <summary>#4014 (a place list's line, its legs routed): its turns are rounded into short arcs before the pylons are set,
+        /// its pylons moved off lava, a town's floor is the ground it keeps over in the town's columns, and — as its stamp keeps
+        /// every cell a player wrote (#4016) — a player's build on its way does not refuse it. False for a route a test hands in.</summary>
+        public bool Listed { get; init; }
     }
 
     /// <summary>Plans a given route on the active world under <paramref name="limits"/>. Null (with the reason) when it has
@@ -84,7 +91,7 @@ public sealed partial class GameServer
         for (int i = 0; i < route.Stops.Count; i++)
         {
             var st = GivenStation(planet, route, i);
-            if (!IntercityStationSeats(planet, st, out why))
+            if (!IntercityStationSeats(planet, st, out why, route.Listed))
             {
                 return null;
             }
@@ -140,7 +147,7 @@ public sealed partial class GameServer
     private IntercityColumns? GivenColumns(IntercityGivenRoute route, IntercityPlan plan, IntercityLimits limits, out string why)
     {
         int circ = _world.Circumference;
-        var c = new IntercityColumns();
+        var c = new IntercityColumns { TownFloor = route.Listed ? TownFloorAt : null, KeepsPlayerCells = route.Listed };
         double near = plan.Stops[0].EndPylon.X;
         double U(double x) => near = near + WorldConstants.WrapDeltaX(x - near, circ);
         var first = plan.Stops[0];
@@ -160,7 +167,18 @@ public sealed partial class GameServer
 
             var entry = GivenLead(st, leaving: last);
             points.Add((U(entry.X), entry.Z));
+            if (route.Listed)
+            {
+                points = RoundListedRailTurns(points);
+            }
+
+            int before = c.Count;
             free += limits.SeaPylonSpacing > IntercityPylonSpacing ? AddGivenLegOverSea(c, points, limits.SeaPylonSpacing) : AddGivenLeg(c, points);
+            if (route.Listed)
+            {
+                NudgeListedPylonsOffLava(c, before);
+            }
+
             var (a, b) = last ? (st.ExitPylon, st.EndPylon) : (st.EndPylon, st.ExitPylon);
             c.Add(U(a.X), a.Z, i, st.Origin.Y);
             c.Add(U(b.X), b.Z, i, st.Origin.Y);

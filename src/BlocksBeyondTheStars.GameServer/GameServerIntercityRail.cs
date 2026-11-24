@@ -242,9 +242,13 @@ public sealed partial class GameServer
         /// <summary>The section the tick is stamping now (#3985), null when none.</summary>
         public RailSectionStamp? SectionStamp { get; set; }
 
+        /// <summary>The listed lines retired on this load (#4016): their graph goes when the rail state loads.</summary>
+        public List<IntercityPlan> Retired { get; } = new();
+
         public void Clear()
         {
             SectionStamp = null;
+            Retired.Clear();
             Lines.Clear();
             Stations.Clear();
             PylonTops.Clear();
@@ -269,6 +273,10 @@ public sealed partial class GameServer
 
         /// <summary>A listed line's name key (its place's <c>nameKey</c>); empty for every other line.</summary>
         public string NameKey = string.Empty;
+
+        /// <summary>The curve the line's trains ride, built once when first asked for (#4014: a listed line is checked and carved
+        /// along it).</summary>
+        public RailSpline? Spline;
 
         /// <summary>Whether pylon <paramref name="j"/> stands inside a stop's hall (its height is the station's floor).</summary>
         public bool IsStationPylon(int j) => Stops.Exists(s => s.OwnsPylon(Pylons[j]));

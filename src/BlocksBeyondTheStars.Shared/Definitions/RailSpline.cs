@@ -136,6 +136,11 @@ public sealed class RailSpline
         return Math.Clamp(s, 0f, total);
     }
 
+    /// <summary>The arc length at control point <paramref name="j"/> (#4014: where a stretch of pylons begins and ends on the
+    /// curve), clamped to the curve.</summary>
+    public float ArcAtControl(int j)
+        => _arc.Count == 0 ? 0f : _arc[Math.Clamp(j * SamplesPerSpan, 0, _arc.Count - 1)];
+
     /// <summary>The unwrapped point at arc length <paramref name="s"/>.</summary>
     public Vector3f PointAtUnwrapped(float s)
     {
