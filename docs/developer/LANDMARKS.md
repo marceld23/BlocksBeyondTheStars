@@ -241,7 +241,12 @@ generation 38+ the footprint registry, #3514, which also replaces the landmark's
   when the list no longer names it; the rolled landmark and the admin's stamps keep the indices below 1000. A list may name
   only `pinOnly` templates (checked at load; the place-only guard test also holds that every `earth_*` template is named by
   a place). A map world runs this path on a save of any generation (`MapWorldRules.PipelineGeneration`). See
-  [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4.
+  [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4. **Landmarks in a city** (#3983): a `city` place's `landmarks` stand on
+  squares inside the metropolis ([MAP_PLANETS.md](MAP_PLANETS.md) §8) — given landmarks too, at the square's centre, the
+  city's floor and the square's turn, stamped right after the city under record `1500 + 10 × city + position` and replayed
+  with the other given landmarks.
+- **Guard posts** (#3983): an intact landmark's `guard_post` markers are staffed like the G.D.S. city's — a G.D.S. guardian
+  (role `guardian`, `NetNpc.Look = "gds_guard"`, no routine, no bed) at each (the G.D.S. tower of New York).
 - **Pinned.** One placement record (`landmark`, index 0): the template key, the seat, and `turns`, `rev`, `seed` in
   its layout field. A body that was visited before, a roll that said no and a failed seat all record a skip.
 - **Written once** (feature `landmark:<index>`), in one transaction:

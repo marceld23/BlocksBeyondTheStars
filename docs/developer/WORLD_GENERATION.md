@@ -1694,8 +1694,9 @@ one settlement, centred on landing pad 0, `GroundY` = the pad's ground, seat `sh
 with template `city:gds`; `CommitSettlements` (phases B–D, shared with the roll) does the rest. The footprint
 is kept on `LoadedWorld.CityFootprint`. Since #3980 this is "the G.D.S. world has one **city place** at pad 0"
 (`GdsCityPlace`): a `CityPlace` (centre as a given seat, theme `gds`, the settlement seed, grid 7, the pad ring and the
-crash site as open zones) stamped through `StampCityPlaces`, the one path for every composed city — several places per
-world, each under its own settlement index, are possible; nothing creates a second one yet. `CityGenerator.Generate`
+crash site as open zones) stamped through `StampCityPlaces`, the one path for every composed G.D.S.-style city — several
+places per world, each under its own settlement index, are possible. Earth's nine metropolises (#3983) are city places too,
+laid out on the land and stored as overlays ([MAP_PLANETS.md](MAP_PLANETS.md) §8). `CityGenerator.Generate`
 takes the place's theme (its rng lane `city:<theme>`) and its layout (the grid), the defaults composing exactly as before
 ([STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4).
 

@@ -204,13 +204,18 @@ The prop markers stay in the layout.
 - **City places** (#3980, `WorldGeneration/CityPlace.cs`, `GameServerCityPlaces.cs`): a city is a place, not a planet flag. A
   `CityPlace` holds the settlement index it is pinned under, its centre (`GivenSeat`), its theme key (the record's
   `city:<theme>`, the composer's rng lane), its seed, its grid (default 7×7), an optional kit and name, the open zones the
-  composer leaves clear (world rectangles) and — not read yet — a land mask (coastlines) and a district kept free for a
-  landmark. `StampCityPlaces` is the one path that stamps cities: each place is designed (pinned kit / generator entry / a
+  composer leaves clear (world rectangles) and — a metropolis (#3983) — its plaza district, station squares, landmark keys,
+  palette and name key. `StampCityPlaces` is the one path that stamps cities: each place is designed (pinned kit / generator entry / a
   fresh draw on the place's seed / the place's own layout), seated on its centre, pinned, composed and reserves its graded
   ground; all of them are committed together. The city world is `GdsCityPlace`: one place at pad 0 (index 0, theme
   `gds`, the settlement seed, the pad ring and the crash site open) — byte-identical to the composer before (`CityWorldTests`,
-  the structure goldens). Nothing creates a second place yet; `LoadedWorld.CityFootprint` (the G.D.S. cool rooms) is the
-  first city's.
+  the structure goldens). `LoadedWorld.CityFootprints` holds one footprint per composed city; only the G.D.S. theme's has
+  cool rooms. **Metropolises** (#3983, `GameServerMetropolis.cs`, [MAP_PLANETS.md](MAP_PLANETS.md) §8): every `city` place of
+  a body type's place list is a `CityPlace` with `Metro` set — laid out on the land by `MetropolisPlanner` (its plaza district
+  round the place's pad, the sea and the land out of the floor's reach left out, a square per landmark), composed from the
+  Earth city kit in its palette's colours, pinned as settlement `1000 + i`, stored as ONE structure overlay `city:<index>` and
+  planned before the hospitality roll, which keeps clear of it and is committed with it. The settlement stamper writes through
+  an `IStructureCellSink` (`PlacedSettlement.Cells`: the world by default, an overlay sink for a metropolis).
 - **Planned settlements** (generation 41): a planned kit (grid or grown) seats first and is planned into the site's ground
   (`SettlementPlanner`); the plan is pinned in `StructurePlacementRecord.Plan` and baked on every replay
   (`SettlementPlanBaker`). The structure carries a column map (`SettlementStructure.ColumnFloors`): the stamper, the

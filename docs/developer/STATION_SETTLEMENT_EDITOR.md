@@ -401,6 +401,15 @@ per-instance stream is still drawn so `ruined` / `island` never shift). Shipped:
 (43 station modules, 5 station kits) and `tools/gen_settlement_modules.py` (the default settlement kits + the G.D.S.
 city kit).
 
+**The Earth city kit (#3983).** `city_earth_1` (pin-only, `planetTypes: [sol_earth]`) composes all nine metropolises of
+Earth; `tools/gen_earth_city_modules.py` builds its fourteen district modules (pin-only, Earth-only): the landing plaza, two
+market halls, the notice house, the inn and the workshop (function `city_hall`), three sizes of high-rise (glass curtain walls,
+a light in every ceiling, roof gardens and masts — the large ones `city_tower`), a housing block, two parks and a quay. Two
+district functions are new — `city_plaza` (map letter `P`: only a kit with a plaza module fills it, so every G.D.S. city keeps
+its procedural plaza) and `city_quay` (`Q`) — and a metropolis's district map knows `L` (a landmark square: paving only) and
+`S` (the rail hall's free square: paving and lamps), see [MAP_PLANETS.md](MAP_PLANETS.md) §8. The cities differ by their
+palettes (the place's token → block and dye), not by kits.
+
 **Planned kits (#3602, generation 41).** A settlement kit's `layout` picks the composer: `""` the plot grid above, `grid`
 a grown grid, `grown` road first (`forms`: street, green, round, cluster, cross, bank). `mainStreet`, `spacing` (largest
 setback), `extent` (box side, 0 = by tier) and `flat` shape a planned layout; its entries are drawn like a station kit's
