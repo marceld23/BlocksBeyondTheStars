@@ -3434,6 +3434,11 @@ worlds created with a game version that has generation 43 have them; an older wo
   of the Stars and the red-and-purple **G.D.S. Tower**, guarded by the G.D.S. machines, with traders inside) and **Rio
   de Janeiro** (the Statue on the Mountain). The city landmarks are protected; the pyramids are ancient ruins you can
   walk into. You land at London first.
+- **Hover trains** connect the cities: the *Atlantic Line* (Berlin – Paris – London – Toronto – New York – Rio) and
+  the *Orient Line* (Paris – Cairo – Tokyo – Sydney), on pylons across land and sea. Each has a public train that
+  stops at every city for 30 seconds; anyone may ride it. The station halls stand at the cities' edges (Paris has
+  one for each line — change on foot). The boards show the line and the next stops. On the long lines the train
+  runs faster than a player's own train.
 - **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep, chickens, monkeys,
   parrots, elephants, eagles, dolphins and whales. Every animal looks a little different (a cat may be black, tabby,
   ginger or tortoiseshell). Dogs and cats are tamed by feeding them (meat or milk), monkeys beg for bananas. In the

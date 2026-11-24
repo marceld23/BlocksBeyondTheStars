@@ -26,6 +26,40 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ☀️ Sol: our solar system, Earth from real maps, animals, metropolises, rail and the SPS headquarters — epic #3988 (#3969–#3987), PR #3991 — ✅ merged (⚠ playtest open; server + client + Client.Core + shared + worldgen + data + tools; **terrain generation 49, save version 19**, protocol unchanged (additive fields); all new texts in 14 languages)
+
+- **The idea.** Marcel, 2026-11-23: bring our own solar system into the game, revealed late through the growing galaxy,
+  with Earth and its neighbours generated from real maps instead of noise; on Earth the ruined SPS headquarters where
+  the first CORE lived, nine inhabited space-age cities with their landmarks and hover trains, the pyramids, the Amazon,
+  and twelve real animals with their own palettes. Clean code first: refactor where the code would grow a special case.
+- **Refactors (behaviour-identical).** Star systems carry their origin, fixed systems are data (`data/systems/`), pack
+  systems run through the same builder, a body profile for size/gravity/drawn size (#3969). One species copy and
+  mapping with completeness tests (#3971); the client look resolver and the body-plan profile table (#3972). The terrain
+  base form rolled / cratered / map (#3977). A given placement seat, a city is a place (#3980). The intercity line
+  split into planner / builder / runtime (#3984). The big creature and galaxy files split (#3987).
+- **Sol (#3970).** 21 real bodies after the galaxy's sixth growth (`afterGrowth: 6`), drawn sizes apart from walkable
+  sizes (`NetBody.VisibleDiameter`), `/sol` and `/system <key>` for admins. Docs: FIXED_SYSTEMS.md.
+- **Map planets (#3978, #3979).** `.bbmap` maps of Earth (2048 × 1024, climate zones from Köppen–Geiger), Moon, Mars,
+  Venus and Mercury, built by `tools/planet_maps/` from public-domain / CC BY data (NOTICES.md); integer interpolation,
+  fixed sea level, giant landforms off, craters on airless maps; maps load on demand in the browser. Docs: MAP_PLANETS.md.
+- **Places (#3981, #3982).** Place lists per planet type (`data/places/`): landmarks, complexes, cities, pads, rail
+  lines; map worlds run the structure pipeline at generation ≥ 40 on every save; Earth's structure whitelist (no G.D.S.
+  ruins, rune monuments, rune shrines). Twelve Earth landmark templates, place-only by test.
+- **Metropolises (#3983).** Paris, Berlin, London (the whole island), Cairo, Tokyo, Sydney, Toronto, New York, Rio: one
+  Earth kit (`city_earth_1`, `tools/gen_earth_city_modules.py`), nine palettes, coastline masks, landmark squares, one
+  overlay per city; the active G.D.S. tower in New York. Earth's first boot about 40 s, a restart about 9 s.
+- **Rail (#3985).** The Atlantic and Orient lines (about 17,500 blocks), side-platform and through halls on the cities'
+  rail squares, sea pylons, the express step (32 blocks/s on lines ≥ 4,000 blocks), stamped section by section near
+  players, boards with the next stops.
+- **SPS headquarters (#3986).** Five templates in one place complex in the Amazon; blocks `server_rack`,
+  `server_rack_lit`, `cable_tray`, `core_pillar` (save version 19); a never-waking guardian giant as a template marker.
+- **Animals (#3973–#3976).** Dog, cat, rabbit, cow, sheep, chicken, monkey, parrot, elephant, eagle, dolphin, whale with
+  coat variants per animal (`coats`, `AnimalSeed`), localized names, own recorded calls (44 signed-off clips), beak,
+  fluke, a whale body; Earth species as village pets and pen animals, wild dogs and cats on other worlds
+  (generation 49).
+- **Open / later:** the story around Sol and CORE (own task); a playtest on Earth (cities on the low-end preset and in
+  the browser, the rail ride, the HQ); the whale checks terrain only at its centre; the bald eagle's head is a mask band.
+
 ### 🪨 Terrain forms: natural ground drawn as micro-cube forms; a brighter headlamp; shape docs corrected — #3964, #3965, #3966, PR #3967 (`edc4bfe5`) — ✅ released in v2026.11.28 (client + Client.Core; display only — no protocol, save, data or world-generation change, no new texts)
 
 - **The idea.** Marcel, 2026-11-23: the terrain is too coarse — every material should also come "differently filled"
