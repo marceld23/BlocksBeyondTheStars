@@ -18,6 +18,8 @@ namespace BlocksBeyondTheStars.Client
     //     form leaves a micro cell empty against such a neighbour, this cell draws the back wall itself. A formed neighbour
     //     in the same chunk is read micro cell by micro cell, so steps and grooves run on across blocks; a neighbour in
     //     another chunk counts as full (this build cannot see its edited marks) — a back wall too many, never a hole;
+    //   - carved rock (#4011): a natural cell with an open side into a DUG cell (ChunkData.IsDugLocal — natural terrain a
+    //     stored edit replaced: a tunnel, a room cut out of a mountain) keeps its cube, so player-cut walls stay flat;
     //   - tiles and light: each face takes the tile the cube shows on the side it looks to, sliced by position; faces on
     //     the cell's surface take that cube face's light and corner AO, inner faces the light of the cell's first open
     //     side and the device forms' inner shade.
@@ -63,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
             public System.Func<int, int, int, BlockId> World;
             public BlockTraits Traits;
             public long Salt;
+            public System.Func<int, int, int, bool> WorldDug; // #4011: dug cells of the other chunks (null = none known)
 
             public readonly bool[] Own = new bool[TerrainForms.Cells];
             public readonly bool[][] Side =
@@ -86,7 +89,8 @@ namespace BlocksBeyondTheStars.Client
                     return false;
                 }
 
-                // Natural ground only: a placed, stamped, snowed-on (#3118), shaped, fronted, painted or dyed cell keeps its cube.
+                // Natural ground only: a placed, stamped, snowed-on (#3118), shaped, fronted, painted or dyed cell keeps its cube,
+                // and so does natural rock facing a dug cell (#4011, below).
                 int idx = WorldConstants.LocalIndex(lx, ly, lz);
                 byte family = Traits.TerrainFamilyOf(Chunk.Get(lx, ly, lz));
                 if (family == TerrainForms.FamilyNone || Chunk.IsEditedLocal(idx) || Chunk.GetShapeLocal(idx) != 0
@@ -102,6 +106,11 @@ namespace BlocksBeyondTheStars.Client
                     var nb = World(wx + d.X, wy + d.Y, wz + d.Z);
                     if (nb.IsAir)
                     {
+                        if (DugAt(wx + d.X, wy + d.Y, wz + d.Z))
+                        {
+                            return false; // #4011: rock that faces a carved-out cell is a wall a player cut — it stays flat
+                        }
+
                         open |= 1 << f;
                     }
                     else if ((Traits.FlagsOf(nb) & TraitFluid) != 0)
@@ -111,6 +120,19 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return TerrainForms.TrySelect(family, open, wx, wy, wz, Salt, GameLook.TerrainFormsDensity, vox, out topCarved);
+            }
+
+            /// <summary>#4011: whether a world cell is a dug cell — this chunk's own mark, else the neighbourhood's.</summary>
+            private bool DugAt(int wx, int wy, int wz)
+            {
+                int n = WorldConstants.ChunkSize;
+                int lx = wx - Origin.X, ly = wy - Origin.Y, lz = wz - Origin.Z;
+                if (lx >= 0 && ly >= 0 && lz >= 0 && lx < n && ly < n && lz < n)
+                {
+                    return Chunk.IsDugLocal(WorldConstants.LocalIndex(lx, ly, lz));
+                }
+
+                return WorldDug != null && WorldDug(wx, wy, wz);
             }
 
             /// <summary>The faces of the formed cell (its form already in <see cref="Own"/>) into <see cref="Rects"/>;
@@ -134,7 +156,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The build's terrain-form state, or null when this build forms no terrain.</summary>
         private static TerrainFormContext BeginTerrainForms(bool enabled, ChunkData chunk, Vector3i origin,
-            System.Func<int, int, int, BlockId> world, BlockTraits traits)
+            System.Func<int, int, int, BlockId> world, BlockTraits traits, System.Func<int, int, int, bool> worldDug)
         {
             if (!enabled)
             {
@@ -147,6 +169,7 @@ namespace BlocksBeyondTheStars.Client
             c.World = world;
             c.Traits = traits;
             c.Salt = GameLook.TerrainFormsSalt;
+            c.WorldDug = worldDug;
             return c;
         }
 

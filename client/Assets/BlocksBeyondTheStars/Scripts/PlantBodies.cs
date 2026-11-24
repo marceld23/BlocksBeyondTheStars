@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client
         public const byte Continues = 8; // the same plant fills the next cell toward its tip (a stacked strand)
         public const byte Exact = 16;    // its size is given, not rolled (a part of a bred plant, the flower in a pot)
         public const byte Solid = 32;    // a solid plant (cactus, cap, crystal): scaled like its collider, never leaned
+        public const byte DyedBlossom = 64; // #4012: a dyed flower — its blossom wears the dye (Tint), its leaves the tile's own colour
     }
 
     /// <summary>
@@ -378,6 +379,15 @@ namespace BlocksBeyondTheStars.Client
                 tint = new Vector4(palette.Main.r, palette.Main.g, palette.Main.b, phase);
                 accent = new Vector4(palette.Accent.r, palette.Accent.g, palette.Accent.b, 1f);
                 pick = 8f; // the shader's mark for "these are the colours themselves"
+            }
+            else if ((cell.Flags & PlantCell.DyedBlossom) != 0)
+            {
+                // #4012: a dyed flower keeps the leaves of its own tile and wears the dye on the blossom — given as its own
+                // colours, so neither the planet's tint nor the season turns a planted picture.
+                var dye = ShaderColor.Srgb(cell.Tint);
+                tint = new Vector4(palette.Main.r, palette.Main.g, palette.Main.b, phase);
+                accent = new Vector4(dye.r, dye.g, dye.b, 1f);
+                pick = 8f;
             }
             else
             {

@@ -418,6 +418,7 @@ public sealed partial class GameContent
             }
 
             ValidateMixedSeed(item, problems);
+            ValidateDyedSeed(item, problems);
 
             if (string.IsNullOrWhiteSpace(item.Key))
             {

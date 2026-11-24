@@ -77,6 +77,13 @@ namespace BlocksBeyondTheStars.Client
         /// world's chunks are stored, like <see cref="SetCellLightResolver"/>.</summary>
         public void SetGlowLookBlocks(IEnumerable<ushort>? ids) => _glowLookIds = IdFlags(ids);
 
+        // #4011: the natural terrain whose removal digs a cell (DugCells.Counts) — the live twin of the server's rule.
+        private bool[]? _dugTerrainIds;
+
+        /// <summary>Registers the blocks whose natural cell, mined to air, becomes a dug cell (<see cref="DugCells.Counts"/>;
+        /// <see cref="DugCells.CountingIds"/> lists them); null clears it, and then no live change digs a cell.</summary>
+        public void SetDugTerrainBlocks(IEnumerable<ushort>? ids) => _dugTerrainIds = IdFlags(ids);
+
         /// <summary>The light a bred plant casts as 0xRRGGBB (0 = none): its colour, dimmed to the share its glow level
         /// casts (<see cref="FloraForm.LightOf"/>) — a dim colour is a short reach in the mesher's flood fill. A plant
         /// without a colour of its own glows white. Shared with the mesher's own light scan (ships, stations).</summary>
@@ -114,6 +121,9 @@ namespace BlocksBeyondTheStars.Client
 
             return size > 0 ? flags : null;
         }
+
+        /// <summary>Whether a block id is in an <see cref="IdFlags"/> table (false for a missing table).</summary>
+        private static bool IdFlagged(bool[]? flags, ushort id) => flags != null && id < flags.Length && flags[id];
 
         /// <summary>The inherent light colour of a block at a canonical cell (0 = no light source): for a registered
         /// plant the per-cell resolver's, else (or when that says 0) the block's own colour. #2858: the resolver asks
@@ -207,7 +217,7 @@ namespace BlocksBeyondTheStars.Client
         // north — is the same chunk), and block lookups canonicalize X AND Z so an unbounded player
         // coordinate still resolves after laps in any direction.
         public void StoreChunk(ChunkCoord coord, ushort[] blocks, int[]? modIndex = null, int[]? modTint = null, int[]? modGlow = null,
-            int[]? shapeIndex = null, int[]? shapeData = null, ushort[]? editRuns = null)
+            int[]? shapeIndex = null, int[]? shapeData = null, ushort[]? editRuns = null, ushort[]? dugRuns = null)
         {
             coord = WorldConstants.CanonicalChunk(coord, _circumference);
             var chunk = ChunkData.FromRaw(coord, blocks);
@@ -234,6 +244,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             chunk.MarkEditedRuns(editRuns); // #3118: the built cells — the ground details stay off them
+            chunk.MarkDugRuns(dugRuns); // #4011: the carved-out cells — the terrain forms stay off the rock around them
 
             _chunks[coord] = chunk;
             ScanChunkLightSources(coord, chunk);
@@ -356,10 +367,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var local = WorldConstants.WorldToLocal(pos);
+            int index = WorldConstants.LocalIndex(local.X, local.Y, local.Z);
+            ushort previous = chunk.Get(local.X, local.Y, local.Z).Value;
+            bool digs = block == BlockId.AirValue && !chunk.IsEditedLocal(index) && IdFlagged(_dugTerrainIds, previous);
             chunk.Set(local.X, local.Y, local.Z, new BlockId(block)); // clears any old modifier/shape when set to air
             chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
             chunk.SetShape(local.X, local.Y, local.Z, shape);
-            chunk.MarkEditedLocal(WorldConstants.LocalIndex(local.X, local.Y, local.Z)); // #3118: every server change is a delta (air stays unmarked)
+            chunk.MarkEditedLocal(index); // #3118: every server change is a delta (air stays unmarked)
+            if (digs)
+            {
+                chunk.MarkDugLocal(index); // #4011: natural rock mined out (DugCells.DigsLive, as the server marks it)
+            }
 
             int rgb = CellLight(block, pos, tint, glow);
             IndexLightSource(affected, pos, rgb != 0 && CastsLight(rgb, pos) ? rgb : 0);

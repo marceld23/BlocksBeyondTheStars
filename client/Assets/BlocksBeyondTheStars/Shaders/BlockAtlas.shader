@@ -480,6 +480,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                         albedo = lerp(albedo, lum * i.leaf.yzw * 1.4, 0.72);
                     }
                 }
+                else if (i.skyl.y > 2.5 && BbtsAccentPick(i.leaf.x) > 3.5)
+                {
+                    albedo = BbtsDyedBlossom(albedo, i.leaf.yzw); // #4012: a dyed flower — the dye on the blossom only
+                }
                 else if (i.skyl.y > 2.5)
                 {
                     // Player dye (mode 3): a luminance-based recolour applied everywhere (independent of the
@@ -1080,6 +1084,11 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                         float lum = dot(albedo, float3(0.299, 0.587, 0.114));
                         albedo = lerp(albedo, lum * i.leaf.yzw * 1.4, 0.72);
                     }
+                }
+                // #4012: a dyed flower (pick 4) — the dye on the blossom only, stem and leaves in the tile's colours.
+                else if (i.skyl.y > 2.5 && BbtsAccentPick(i.leaf.x) > 3.5)
+                {
+                    albedo = BbtsDyedBlossom(albedo, i.leaf.yzw);
                 }
                 // Player dye (mode 3): a luminance-based recolour applied everywhere (independent of the
                 // flora-tint global), so dyed building blocks read vividly on any world and in caves.

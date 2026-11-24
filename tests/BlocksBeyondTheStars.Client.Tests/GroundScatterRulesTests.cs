@@ -74,7 +74,7 @@ public sealed class GroundScatterRulesTests
     [Fact]
     public void TheEditRuns_TravelFromTheChunkMessage_ToTheMesher()
     {
-        Assert.Contains("m.ShapeIndex, m.ShapeData, m.EditRuns);", Script("GameBootstrap.ChunkStreaming.cs"));
+        Assert.Contains("m.ShapeIndex, m.ShapeData, m.EditRuns, m.DugRuns);", Script("GameBootstrap.ChunkStreaming.cs")); // #4011: + the dug runs
         Assert.Contains("copy.CopyEditsFrom(src);", Script("GameBootstrap.ChunkStreaming.cs")); // the worker's chunk copy
         // The mesher hands the cell's edit flag to the ground detail (whatever else the call carries).
         var editFlag = new Regex(@"AddGroundDetail\(data, [^;]*chunk\.IsEditedLocal\(WorldConstants\.LocalIndex\(x, y, z\)\)[^;]*\);",

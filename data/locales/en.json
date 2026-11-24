@@ -9547,7 +9547,7 @@
   "item.marigold_seed.name": "Marigold seeds",
   "item.marigold_seed.desc": "Plant them on grass, soil, in a hydroponic tray or a flower pot and bright orange marigolds grow — the flowers of Día de los Muertos and of Diwali garlands.",
   "item.flower_seed.name": "Flower seeds",
-  "item.flower_seed.desc": "A bag of mixed meadow flower seeds. Every seed you plant on grass grows into another flower in this world's colours — sow a whole bed for a colourful garden.",
+  "item.flower_seed.desc": "A bag of mixed meadow flower seeds. Every seed you plant on grass grows into another flower in this world's colours — sow a whole bed for a colourful garden. Colour the seeds in the hotbar wheel and every one grows into a Sunblossom with a blossom in your colour: plant pictures out of flowers. Picking such a flower gives its seed back.",
   "item.bush_cutting.name": "Bush cutting",
   "item.bush_cutting.desc": "A cutting of this world's wild bush. Plant it on grass and the bush takes root at once.",
   "achv.category.festival": "Festivals",

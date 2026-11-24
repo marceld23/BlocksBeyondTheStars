@@ -896,6 +896,9 @@ The game's look has no switch of its own; the **quality preset** decides how muc
   are cones of boughs under a spire and palms have long fronds; strands hang from the crowns; animals have rounded
   edges, wear fur and feathers and have toes; shallow water is clear, with the bed and the sun's light on it; the edges
   of devices and of your own forms are softened; lava, crystals and glowing plants light their surroundings farther.
+  Natural rock, soil and grass show **terrain forms** — steps, ledges, grooves and flagstones carved into the block
+  faces. Only nature's own ground gets them: a block you placed stays a plain cube, and so does the rock around a
+  tunnel or a room you **dug out yourself** — walls you cut out of a mountain stay flat (in old worlds too).
   The view focuses on what is in the middle of the picture, and the background well behind it goes soft (a look into
   the distance stays sharp; off with **Reduced effects**). **High** reaches farther than Medium and adds ten more low
   clouds.
@@ -3143,6 +3146,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     daisy, tulip, bellflower, sunblossom, orchid or lupine — each in its own form and in this world's colours, so a bed
     sown from one bag comes out **mixed and colourful**. Which flower comes up belongs to the spot: pick it and sow
     again, and the same flower returns. On soil only the flowers that root on soil come up; on stone nothing grows.
+  - **Flower pictures (dyed flower seeds).** Open the hotbar wheel on a stack of flower seeds and choose **Colour**
+    (or the **Dye** action in the crafting menu): the whole stack takes one of the 20 colours, free of charge — the
+    colour only, seeds do not glow. Every **dyed** seed grows into a **sunblossom** whose blossom wears your colour; its
+    stem and leaves stay green, and neither the planet's colours nor the seasons change it. Dye several stacks and plant
+    whole **pictures out of flowers**. Picking a dyed flower gives you its dyed seed back and nothing grows in its place,
+    so you can rearrange a picture freely.
   - **Bush cuttings** (4 plant fibre → 2). A cutting plants this world's **wild bush** on grass at once.
 - **Plants and lamps need something to stand on.** Dig away the block under a plant, a sapling, a torch or a
   lantern — or the block a hanging plant or a fruit hangs from — and it falls: a wild plant is simply gone, while a

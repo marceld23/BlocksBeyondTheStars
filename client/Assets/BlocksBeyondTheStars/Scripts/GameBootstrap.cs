@@ -304,6 +304,7 @@ namespace BlocksBeyondTheStars.Client
             // Index dedicated light blocks (+ placed glow blocks) as coloured light sources for the mesher.
             GameLook.LatchWorldTier(); // #3946: the natural emitters' reach for this world, fixed before the first chunk is indexed
             World.SetBlockLightResolver(id => ChunkMesher.BlockLightColor(Content, new BlockId(id), 0));
+            World.SetDugTerrainBlocks(DugCells.CountingIds(Content.Blocks.Values)); // #4011: mined rock digs its cell
 
             // Procedurally generate the block texture atlas and a material that samples it
             // (M27). Falls back to whatever WorldRig assigned if the shader is missing.

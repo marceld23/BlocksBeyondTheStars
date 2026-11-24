@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
@@ -197,7 +198,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddOutline(head);
 
             var blockDef = HeldBlockDef();
-            bool tintable = blockDef != null && blockDef.Tintable;
+            bool tintable = blockDef != null && Game.Content.IsDyeable(HeldItemDef()); // #4012: a dyeable seed too
             bool shapeable = blockDef != null && blockDef.Shapeable;
 
             // Swap is always available (an empty slot can still receive something from the backpack);
@@ -432,8 +433,10 @@ namespace BlocksBeyondTheStars.Client
             // Dye/Glow mode toggle. Glow shows what it costs so the wheel never books crystals silently.
             int stack = Game.CountInSlot(_slot);
             int crystals = OwnedCount("crystal");
+            bool dyeOnly = GameContent.IsDyeOnly(HeldItemDef()); // #4012: a flower seed takes a colour only — no glow, no design
+            _glowMode &= !dyeOnly;
             var dyeBtn = UiKit.AddButton(panel, 32f, 92f, 260f, 48f, L("ui.color.dye"), () => { _glowMode = false; Rebuild(BuildColour); });
-            var glowBtn = UiKit.AddButton(panel, 308f, 92f, 380f, 48f,
+            var glowBtn = dyeOnly ? null : UiKit.AddButton(panel, 308f, 92f, 380f, 48f,
                 string.Format(L("ui.hotbar_action.glow_cost"), stack, crystals), () => { _glowMode = true; Rebuild(BuildColour); });
             Highlight(_glowMode ? glowBtn : dyeBtn);
 
@@ -462,6 +465,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     img.color = new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
                 }
+            }
+
+            if (dyeOnly)
+            {
+                BackClose(panel, 900f, 780f);
+                return;
             }
 
             int swatchRows = (ColorPalette.Length + cols - 1) / cols;
@@ -640,15 +649,13 @@ namespace BlocksBeyondTheStars.Client
 
         private BlocksBeyondTheStars.Shared.Definitions.BlockDefinition HeldBlockDef()
         {
-            if (string.IsNullOrEmpty(_item) || Game.Content == null)
-            {
-                return null;
-            }
-
-            string baseKey = ItemKey.Base(_item);
-            var item = Game.Content.GetItem(baseKey);
+            var item = HeldItemDef();
             return item != null && !string.IsNullOrEmpty(item.PlacesBlock) ? Game.Content.GetBlock(item.PlacesBlock) : null;
         }
+
+        /// <summary>The held stack's item definition (its base key: a dyed or shaped stack carries its modifiers in the key), or null.</summary>
+        private BlocksBeyondTheStars.Shared.Definitions.ItemDefinition HeldItemDef()
+            => string.IsNullOrEmpty(_item) || Game.Content == null ? null : Game.Content.GetItem(ItemKey.Base(_item));
 
         private ushort HeldBlockTile()
         {

@@ -76,6 +76,7 @@ public sealed partial class GameServer
         PackChunkModifiers(chunk, msg);
         AppendSoundGlow(chunk, sound, msg, shown);
         msg.EditRuns = chunk.EditedRuns();
+        msg.DugRuns = chunk.DugRuns();
         return msg;
     }
 
