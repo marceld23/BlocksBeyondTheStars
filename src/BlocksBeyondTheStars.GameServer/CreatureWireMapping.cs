@@ -49,6 +49,7 @@ internal static class CreatureWireMapping
         nameof(CreatureSpecies.DefendsItself),    // #3973: the provoke rule; the wire carries the hostility itself
         nameof(CreatureSpecies.MinWaterDepth),    // #3975: the spawner's and the step gate's water band
         nameof(CreatureSpecies.MaxWaterDepth),
+        nameof(CreatureSpecies.SeaOnly),          // #4017: the spawner's sea rule
     };
 
     /// <summary>Writes the species traits of a live animal onto <paramref name="n"/>. <paramref name="sp"/> null (a species the

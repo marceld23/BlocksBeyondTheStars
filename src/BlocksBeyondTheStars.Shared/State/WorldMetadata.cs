@@ -62,9 +62,10 @@ public sealed class WorldMetadata
     /// unlit twin <c>light_blue_off</c>, the guide towers' <c>sps_console</c>, the guard posts' <c>capsule_tank</c> and
     /// <c>capsule_tank_open</c>, and the other side's <c>sound_block</c>). 19 = the Sol system's SPS headquarters (#3986, epic
     /// #3988: the ancient <c>server_rack</c> and its blinking <c>server_rack_lit</c>, the <c>cable_tray</c> and the dead
-    /// <c>core_pillar</c>). 20 = the bush sapling (#4003: <c>flora_sapling_bush</c>).</para>
+    /// <c>core_pillar</c>). 20 = the bush sapling (#4003: <c>flora_sapling_bush</c>). 21 = Mars's ground (#4018: <c>red_sand</c>,
+    /// <c>red_rock</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 20;
+    public const int CurrentSaveVersion = 21;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

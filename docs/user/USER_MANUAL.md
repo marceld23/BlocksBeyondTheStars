@@ -3454,6 +3454,12 @@ worlds created with a game version that has generation 43 have them; an older wo
   zones are where they are on the real planets (the Sahara is desert, the Amazon rain forest, Siberia boreal forest,
   Greenland ice). The scale is small — one block is about 2.5 km — so a city covers a whole region and the mountains
   are much steeper than in reality. The other bodies are generated like every other world.
+- **Mars** is the red planet. Its ground is **Red Sand** — the rusty regolith that covers Mars; you clear it by hand
+  and it trickles down like sand — over **Red Rock**, which you drill like stone. Both drop themselves, so you can build
+  with them. Only the poles carry ice, and the high Tharsis volcanoes are dark basalt. Nobody ever lived on Mars: you
+  will find no ruins, monuments, rune stones, wrecks or other buildings there, only the scattered net fragments. If you
+  visited Mars before this update, anything already standing there stays, but no new ruins appear, and the ground
+  everywhere you have not dug looks red now.
 - **The Earth** has nine big, inhabited cities of the space age, each with its landing pad in the middle, its own
   colours and its landmarks: **London** (covers the whole island), **Paris** (the Tech Eiffel Tower), **Berlin** (the
   Brandenburg Gate and the TV tower), **Cairo** (the pyramids of Giza stand in the desert south-west of it), **Tokyo**
@@ -3461,15 +3467,21 @@ worlds created with a game version that has generation 43 have them; an older wo
   of the Stars and the red-and-purple **G.D.S. Tower**, guarded by the G.D.S. machines, with traders inside) and **Rio
   de Janeiro** (the Statue on the Mountain). The city landmarks are protected; the pyramids are ancient ruins you can
   walk into. You land at London first.
-- **Hover trains** connect the cities: the *Atlantic Line* (Berlin – Paris – London – Toronto – New York – Rio) and
-  the *Orient Line* (Paris – Cairo – Tokyo – Sydney), on pylons across land and sea. Each has a public train that
-  stops at every city for 30 seconds; anyone may ride it. The station halls stand at the cities' edges (Paris has
-  one for each line — change on foot). The boards show the line and the next stops. On the long lines the train
-  runs faster than a player's own train.
-- **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep, chickens, monkeys,
-  parrots, elephants, eagles, dolphins and whales. Every animal looks a little different (a cat may be black, tabby,
-  ginger or tortoiseshell). Dogs and cats are tamed by feeding them (meat or milk), monkeys beg for bananas. In the
-  villages people keep dogs and cats, and the pens keep cows (milk), sheep (wool) and chickens (eggs).
+- **Hover trains** connect the cities: the *Atlantic Line* (Berlin – Paris – London – New York – Toronto), the
+  *Orient Line* (Paris – Cairo – Tokyo – Sydney) and the *Americas Line* (New York – Rio de Janeiro), on pylons across
+  land and sea. Each has a public train that stops at every city for 30 seconds; anyone may ride it. The station halls
+  stand beside the cities' streets; the lines run along the streets and around the cities, never through a building.
+  Paris and New York have one hall for each of their lines — change on foot. The boards show the line and the next
+  stops. On the long lines the train runs faster than a player's own train; it slows down in the bends. On a world that
+  reached Earth before this update, the lines are laid anew: the old pylons and halls disappear, and the new ones are
+  built as you come near. What you built in a line's way stays — the train may run through it.
+- **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep and chickens on the
+  temperate meadows (dogs, cats and cows also in the savanna, sheep also high in the mountains, rabbits also in the
+  tundra), monkeys and parrots in the rain forests, elephants in the savanna, eagles in the high mountains, and dolphins
+  and whales out at sea — never in a lake or a river. Every animal looks a little different (a cat may be black, tabby,
+  ginger or tortoiseshell). Dogs and cats are tamed by feeding them (meat or milk), monkeys beg for bananas. People keep
+  dogs and cats as pets — in the villages and in the big cities, where you meet them walking beside their owners — and
+  the pens keep cows (milk), sheep (wool) and chickens (eggs).
 - **Dogs and cats on other worlds** (worlds created since generation 49): on some worlds with breathable air they live
   wild, and villagers keep them as pets.
 - Somewhere deep in the **Amazon rain forest** lie the ruins of the **SPS headquarters**: the main building, a hangar

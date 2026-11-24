@@ -57,13 +57,46 @@ public static class CreatureBiomes
         return themes.Count > 0 && NamesTheme(themes, ThemeOf(biome, planet));
     }
 
-    /// <summary>The roster's biome affinity of a fixed species: the first of the type's pool biomes it names, or −1 (at home
-    /// anywhere). The spawner's native pass prefers it there; the hard rule is <see cref="OnOwnGround"/>.</summary>
+    /// <summary>The roster's biome affinity of a fixed species, or −1 (at home anywhere). A species that names climate zones
+    /// lives first in the zone it lists FIRST (#4017): the first of the type's pool biomes of that zone — the rabbit's
+    /// temperate meadows on Earth, not the tundra the type happens to list before them; when the type has no biome of that
+    /// zone, the next listed zone's, and so on. Otherwise (no zone found, or none named) the first of the type's pool biomes
+    /// it names by surface or zone, as before. The spawner's native pass prefers it there; the hard rule is
+    /// <see cref="OnOwnGround"/>.</summary>
     public static int AffinityIn(IReadOnlyList<string> surfaces, IReadOnlyList<string> themes, PlanetType planet)
     {
+        foreach (var theme in themes)
+        {
+            if (FirstBiomeOfTheme(theme, planet) is var zone and >= 0)
+            {
+                return zone;
+            }
+        }
+
         for (int i = 0; i < planet.Biomes.Count; i++)
         {
             if (NamesBiome(surfaces, themes, planet.Biomes[i], planet))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>The first of the type's pool biomes in the climate zone <paramref name="theme"/>, or −1 (an unknown name, or a
+    /// type without a biome of that zone).</summary>
+    private static int FirstBiomeOfTheme(string theme, PlanetType planet)
+    {
+        if (!FloraThemes.IsKnown(theme))
+        {
+            return -1;
+        }
+
+        string name = FloraThemes.Resolve(theme).Name;
+        for (int i = 0; i < planet.Biomes.Count; i++)
+        {
+            if (string.Equals(ThemeOf(planet.Biomes[i], planet), name, StringComparison.Ordinal))
             {
                 return i;
             }

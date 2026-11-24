@@ -1018,6 +1018,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [18] = "41dc307baefed548", // the sky-lights and the other side (#3894): light_blue(_off), sps_console, capsule_tank(_open), sound_block
         [19] = "56e9d4f49abe976a", // the SPS headquarters (#3986): server_rack(_lit), cable_tray, core_pillar
         [20] = "89ff95baa396039a", // the bush sapling (#4003): flora_sapling_bush
+        [21] = "9344395caf01293f", // Mars's ground (#4018): red_sand, red_rock
     };
 
     [Fact]

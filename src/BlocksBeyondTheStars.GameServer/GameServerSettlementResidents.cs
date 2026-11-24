@@ -136,7 +136,7 @@ public sealed partial class GameServer
         }
 
         AssignNightWatch(settlement, plainResidents);
-        AssignHouseholdPets(plainResidents); // after the watch: its people sleep by day
+        AssignHouseholdPets(plainResidents, settlement.Tier); // after the watch: its people sleep by day
 
         // The professions (2026-09): one extra resident per profession post, after everyone above and with a generator of
         // their own — a settlement without these posts (every settlement of an older world) spawns exactly the people it

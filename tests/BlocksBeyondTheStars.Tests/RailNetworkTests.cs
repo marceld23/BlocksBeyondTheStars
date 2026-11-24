@@ -47,14 +47,17 @@ public sealed class RailNetworkTests
     }
 
     [Fact]
-    public void EarthsData_ListsTheAtlanticAndTheOrientLine_AndPassesTheChecks()
+    public void EarthsData_ListsTheAtlanticTheOrientAndTheAmericasLine_AndPassesTheChecks()
     {
         var list = Content.PlacesFor("sol_earth")!;
         var lines = list.OfKind(PlaceListKinds.Rail).ToList();
-        Assert.Equal(new[] { "berlin", "paris", "london", "toronto", "new_york", "rio" }, lines[0].Stops.Select(s => s.City));
+        // #4015: Toronto ends the Atlantic line — London and New York both lie east of it — and Rio has a line of its own.
+        Assert.Equal(new[] { "berlin", "paris", "london", "new_york", "toronto" }, lines[0].Stops.Select(s => s.City));
         Assert.Equal(new[] { "paris", "cairo", "tokyo", "sydney" }, lines[1].Stops.Select(s => s.City));
+        Assert.Equal(new[] { "new_york", "rio" }, lines[2].Stops.Select(s => s.City));
         Assert.Empty(PlaceRules.RailProblems(list));
         Assert.Equal(2, list.Places.Single(p => p.Key == "paris").Stations); // a hall per line, change on foot
+        Assert.Equal(2, list.Places.Single(p => p.Key == "new_york").Stations);
     }
 
     /// <summary>A 4 × 4 city: a landmark square over the middle four districts, its one rail-hall square on the north edge.

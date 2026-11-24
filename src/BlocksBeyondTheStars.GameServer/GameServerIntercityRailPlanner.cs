@@ -41,7 +41,26 @@ public sealed partial class GameServer
 
         /// <summary>The span from column <paramref name="j"/> to the next runs inside one station's hall.</summary>
         public bool IsStationSpan(int j) => StationOf[j] >= 0 && StationOf[j] == StationOf[j + 1];
+
+        /// <summary>#4014 (a listed line): the floor row of the town whose column (x, z) is (null outside every town) — there the
+        /// town's floor is the ground the line keeps over and its pylons stand on, not the terrain under the town. Null for a
+        /// line that ignores towns (the rolled line keeps clear of them, a given test route plans as it always did).</summary>
+        public Func<int, int, int?>? TownFloor { get; init; }
+
+        /// <summary>#4016 (a listed line): its stamp keeps every cell a player wrote, so a player's build on its way does not
+        /// refuse the line (on a played body a listed line may be re-planned over ground players built on).</summary>
+        public bool KeepsPlayerCells { get; init; }
     }
+
+    /// <summary>The ground a line's span must clear at a column: a listed line's town floor in a town (#4014), else the
+    /// terrain (<see cref="IntercityGroundAt"/>).</summary>
+    private int IntercityGround(IntercityColumns c, PlanetType planet, int x, int z)
+        => c.TownFloor?.Invoke(x, z) ?? IntercityGroundAt(planet, x, z);
+
+    /// <summary>The first cell of a free pylon column: on a listed line's town floor in a town (#4014), else
+    /// <see cref="PylonFoot"/>.</summary>
+    private int IntercityFoot(IntercityColumns c, PlanetType planet, int x, int z)
+        => c.TownFloor?.Invoke(x, z) is int floor ? floor + 1 : PylonFoot(planet, x, z);
 
     // =====================================================================================================
     // The rolled planner
@@ -209,8 +228,9 @@ public sealed partial class GameServer
         return others;
     }
 
-    /// <summary>A station's seat (never in lava) and — on a body that was played on — no build where it would stand.</summary>
-    private bool IntercityStationSeats(PlanetType planet, IntercityStation st, out string why)
+    /// <summary>A station's seat (never in lava) and — on a body that was played on — no build where it would stand (unless
+    /// its stamp keeps the players' cells, <paramref name="keepsPlayerCells"/>, #4016).</summary>
+    private bool IntercityStationSeats(PlanetType planet, IntercityStation st, out string why, bool keepsPlayerCells = false)
     {
         if (!SeatIntercityStation(planet, st))
         {
@@ -218,7 +238,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!_worlds.Active.VirginAtLoad && FootprintHasPlayerEdits(st.Origin.X, st.Origin.Z, st.Origin.Y, st.W, RailStationGenerator.Height, st.L))
+        if (!_worlds.Active.VirginAtLoad && !keepsPlayerCells && FootprintHasPlayerEdits(st.Origin.X, st.Origin.Z, st.Origin.Y, st.W, RailStationGenerator.Height, st.L))
         {
             why = "somebody built where a station would stand";
             return false;
@@ -336,7 +356,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!_worlds.Active.VirginAtLoad && IntercityRouteHasPlayerEdits(c, tops))
+        if (!_worlds.Active.VirginAtLoad && !c.KeepsPlayerCells && IntercityRouteHasPlayerEdits(c, tops))
         {
             why = "somebody built on the route";
             return false;
@@ -429,7 +449,7 @@ public sealed partial class GameServer
                 {
                     int gx = (int)Math.Floor(p.X + (q.X - p.X) * t + 0.5 + rx * side * 1.5);
                     int gz = (int)Math.Floor(p.Z + (q.Z - p.Z) * t + 0.5 + rz * side * 1.5);
-                    spanMax[j] = Math.Max(spanMax[j], IntercityGroundAt(planet, gx, gz));
+                    spanMax[j] = Math.Max(spanMax[j], IntercityGround(c, planet, gx, gz));
                 }
             }
         }
@@ -454,7 +474,7 @@ public sealed partial class GameServer
                 return false;
             }
 
-            int foot = PylonFoot(planet, px, pz);
+            int foot = IntercityFoot(c, planet, px, pz);
             if (tops[j] - foot + 1 > limits.MaxPylon)
             {
                 why = $"a pylon would be {tops[j] - foot + 1} blocks tall";
@@ -489,7 +509,7 @@ public sealed partial class GameServer
                 {
                     int gx = (int)Math.Floor(p.X + (q.X - p.X) * t + 0.5 + rx * side);
                     int gz = (int)Math.Floor(p.Z + (q.Z - p.Z) * t + 0.5 + rz * side);
-                    int g = _generator.SurfaceHeight(planet, gx, gz);
+                    int g = c.TownFloor?.Invoke(gx, gz) ?? _generator.SurfaceHeight(planet, gx, gz);
                     cut += Math.Clamp(g - bottom + 1, 0, 4);
                 }
             }

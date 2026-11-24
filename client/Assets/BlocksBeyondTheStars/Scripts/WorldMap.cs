@@ -1016,6 +1016,8 @@ namespace BlocksBeyondTheStars.Client
                 case "dirt": return new Color(0.45f, 0.33f, 0.20f);
                 case "stone": return new Color(0.50f, 0.50f, 0.52f);
                 case "sand": return new Color(0.80f, 0.72f, 0.45f);
+                case "red_sand": return new Color(0.76f, 0.38f, 0.22f); // #4018: Mars
+                case "red_rock": return new Color(0.56f, 0.25f, 0.17f);
                 case "mud": return new Color(0.35f, 0.28f, 0.20f);
                 case "basalt": return new Color(0.24f, 0.24f, 0.27f);
                 case "ice": return new Color(0.72f, 0.86f, 0.95f);

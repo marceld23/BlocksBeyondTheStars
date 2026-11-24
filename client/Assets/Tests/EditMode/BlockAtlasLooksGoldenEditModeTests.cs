@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             ["light_white"] = 0x8ad9ac33d897e9d5UL,
             ["light_red"] = 0x532e9caef6687ac5UL,
             ["light_green"] = 0x6725b9a585b93bd5UL,
-            [AllBlocks] = 0xeb3fc18aa34a7f30UL, // the bush sapling (#4003) and the SPS headquarters' four blocks (#3986): five more blocks joined the content; every per-key pin still passed
+            [AllBlocks] = 0xfad2d1a32c9a6442UL, // Mars's red sand and red rock (#4018): two more blocks joined the content; every per-key pin still passed
         };
 
         private static GameContent LoadContentOrIgnore()

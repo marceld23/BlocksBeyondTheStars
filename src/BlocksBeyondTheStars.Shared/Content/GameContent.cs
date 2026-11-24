@@ -696,6 +696,7 @@ public sealed partial class GameContent
         // #3644 / #3645: the lost civilizations' stone — a glyph stair keeps its carvings. Their eye and mural tiles are
         // pictures and keep their cube.
         "glyph_stone", "glyph_stone_band", "dark_sandstone", "maze_stone", "maze_stone_carved",
+        "red_sand", "red_rock", // #4018: Mars's ground
     };
 
     /// <summary>
@@ -743,7 +744,7 @@ public sealed partial class GameContent
     /// </summary>
     private static readonly HashSet<string> AirtightExceptions = new(StringComparer.Ordinal)
     {
-        "dirt", "grass", "sand", "mud", "snow", "salt", "ash", "mycelium", "alien_grass",
+        "dirt", "grass", "sand", "red_sand", "mud", "snow", "salt", "ash", "mycelium", "alien_grass",
         "fire", "geyser_vent", "torch", "ladder", "stairs",
         // Low-tech furniture (#803-#809): props with gaps (or an open flame) — never an airtight wall.
         // The wood crate is deliberately absent: a closed box seals like the iron crate does.

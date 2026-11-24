@@ -176,7 +176,9 @@ because the calm one- and two-colour rocks read as flat paint.
   rock and ore tiles from the tiles before the calm set: the 14 rocks, the 23 ores (carbon and the tainted ores
   included) and two new bundled keys, `bedrock` and `obsidian` (painted in code before; the code painter stays as the
   fallback). Rocks keep 0.6 × the old tile's contrast, ores 0.85 × and never less than the calm tile's, and every tile
-  keeps the old mean colour, so the far terrain and the map do not change. Per-key origin in
+  keeps the old mean colour, so the far terrain and the map do not change. Mars's ground (#4018, `make_mars_tiles.py`, no
+  model): `red_sand` is the calm `sand` tile and `red_rock` the natural `stone` tile, recoloured pixel by pixel to the
+  blocks' data colours (form and seams kept). Per-key origin in
   `tools/ai-assets/texture_provenance.json` (it also keeps the other bundlers off these keys), licence notes in
   `NOTICES.md`. The art rule for tiles used on built objects:
   a tile that becomes a building piece of a larger generated object (a giant mushroom's cap, a trunk, a burger) shows
@@ -274,8 +276,8 @@ a plant with leaves near the ground. Strands hang from the underside of tree cro
   so their far picture follows the body. Left out on purpose: the solid plants (their far stage is the opaque collider
   form) and the water lily (seen from the side a pad is a line).
 - **Ground cover on bare ground** (`ChunkMesher.ScrubKindOf`, drawn by `GrassClumps`): tufts in patches (none between
-  them) on sand, earth, mud, peat, ash and salt; pebbles alone on stone, basalt, granite, sandstone and moss stone. In
-  the ground's own colour.
+  them) on sand, earth, mud, peat, ash and salt; pebbles alone on stone, basalt, granite, sandstone and moss stone, and on
+  Mars's red sand and red rock (nothing grows there, #4018). In the ground's own colour.
 - **Cover under plants** (`ChunkMesher.cs`, `BlockTraits.CoverUnderOf` in `ChunkMesher.HighDetails.cs`): a ground cell
   counts as open under a plant with a narrow foot. Full cover under a stem flower, a bush, a sapling, an ember bloom; low
   cover under a leaf tuft, a blade tuft, a strand, a pitcher plant; none under cushions, mosses, mushrooms, crystals and
@@ -660,7 +662,7 @@ has its own strength from its seed. Walking, mining, aiming and building are unc
 
 **Which cells.** `TerrainForms.FamilyOf` (`src/BlocksBeyondTheStars.Client.Core/TerrainForms/TerrainForms.cs`): rock (stone,
 basalt, granite, sandstone, moss stone, deepslate, dark and blackened sandstone, coral rock, sulfur stone, tainted stone,
-ice), soft ground (dirt, mud, peat, ash, salt, sand, black sand, snow) and grass (grass, alien grass, mycelium). Never
+ice, red rock), soft ground (dirt, mud, peat, ash, salt, sand, black sand, red sand, snow) and grass (grass, alien grass, mycelium). Never
 formed: a cell with an edited mark (placed, stamped or weather snow, #3118), a shape, front or paint descriptor or a dye;
 ores, devices, plants, wood, leaves, glass; a cell beside water or lava (shores and sea floors stay cubes); and a cell with an
 open side into a **dug cell** (#4011) — natural rock, soil or ore that a stored edit replaced (`ChunkData.IsDugLocal`,
