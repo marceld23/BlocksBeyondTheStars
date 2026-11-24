@@ -1648,7 +1648,7 @@
     "ores": [
       { "block": "silicate",    "rarity": 0.04, "minDepth": 6,  "maxDepth": 2048 },
       { "block": "lithium_ore", "rarity": 0.03, "minDepth": 8,  "maxDepth": 2048 },
-      { "block": "iron_ore",    "rarity": 0.03, "minDepth": 10, "maxDepth": 2048 },
+      { "block": "iron_ore",    "rarity": 0.03, "minDepth": 8,  "maxDepth": 2048 },
       { "block": "copper_ore",   "rarity": 0.03,  "minDepth": 6,  "maxDepth": 2048 }
     ]
   },
