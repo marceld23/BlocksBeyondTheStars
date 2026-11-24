@@ -20,6 +20,9 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// cost wins: the street run inside the city plus the straight way from where it leaves the city to the neighbouring stop,
 /// and a heavy penalty when that way runs back over the city's districts. A choice that touches what an earlier line of
 /// the same city took (<c>taken</c>) is out, so two lines in one city (Paris) use different squares and streets.</para>
+/// <para>#4014: a place list's lines no longer choose city by city with <see cref="Choose"/> — they take every city's
+/// <see cref="Candidates"/> and pick all halls at once with the legs between them routed (<see cref="ListedRailHallChain"/>,
+/// <see cref="RailLegRouter"/>), the cities' districts as obstacles (<see cref="MergedDistrictRects"/>).</para>
 /// Pure: box-local coordinates (X and Z from the city box's low corner), no world, no terrain.
 /// </summary>
 public static class MetroRailHalls
@@ -287,6 +290,85 @@ public static class MetroRailHalls
 
         return OpenToward(dir) && (!through || OpenToward(-dir));
     }
+
+    /// <summary>The city's built ground as box-local rectangles (#4014): every district the map claims (not one it leaves to
+    /// the land), one rectangle each — without the streets between them, so a line's own street run is clear of them.</summary>
+    public static List<Rect> DistrictRects(CityLayoutSpec spec)
+    {
+        var rects = new List<Rect>();
+        for (int gz = 0; gz < spec.Grid; gz++)
+        {
+            for (int gx = 0; gx < spec.Grid; gx++)
+            {
+                if (RoleAt(spec, gx, gz) != LandRole)
+                {
+                    var (ox, oz) = spec.DistrictOrigin(gx, gz);
+                    rects.Add(new Rect(ox, oz, ox + spec.DistrictSize - 1, oz + spec.DistrictSize - 1));
+                }
+            }
+        }
+
+        return rects;
+    }
+
+    /// <summary>The city's built ground in as few rectangles as the grid allows (#4014, the router's obstacles): the claimed
+    /// districts of a row joined into runs (with the streets between them), runs of equal span in neighbouring rows joined
+    /// into one rectangle.</summary>
+    public static List<Rect> MergedDistrictRects(CityLayoutSpec spec)
+    {
+        var open = new List<Rect>();
+        var done = new List<Rect>();
+        for (int gz = 0; gz < spec.Grid; gz++)
+        {
+            var next = new List<Rect>();
+            foreach (var run in RowRuns(spec, gz))
+            {
+                int i = open.FindIndex(r => r.X0 == run.X0 && r.X1 == run.X1);
+                if (i >= 0)
+                {
+                    next.Add(new Rect(run.X0, open[i].Z0, run.X1, run.Z1));
+                    open.RemoveAt(i);
+                }
+                else
+                {
+                    next.Add(run);
+                }
+            }
+
+            done.AddRange(open);
+            open = next;
+        }
+
+        done.AddRange(open);
+        return done;
+    }
+
+    /// <summary>A row's runs of claimed districts, each from its first district's west edge to its last one's east edge.</summary>
+    private static List<Rect> RowRuns(CityLayoutSpec spec, int gz)
+    {
+        var runs = new List<Rect>();
+        int start = -1;
+        for (int gx = 0; gx <= spec.Grid; gx++)
+        {
+            bool claimed = gx < spec.Grid && RoleAt(spec, gx, gz) != LandRole;
+            if (claimed && start < 0)
+            {
+                start = gx;
+            }
+            else if (!claimed && start >= 0)
+            {
+                var (x0, z0) = spec.DistrictOrigin(start, gz);
+                var (x1, _) = spec.DistrictOrigin(gx - 1, gz);
+                runs.Add(new Rect(x0, z0, x1 + spec.DistrictSize - 1, z0 + spec.DistrictSize - 1));
+                start = -1;
+            }
+        }
+
+        return runs;
+    }
+
+    /// <summary>Whether a hall touches what an earlier line of the same city took (#4014: the chain chooser's filter).</summary>
+    public static bool TouchesTaken(Hall hall, bool through, IReadOnlyList<Rect> taken) => Touches(hall, through, taken);
 
     /// <summary>Whether a hall touches what an earlier line took.</summary>
     private static bool Touches(Hall hall, bool through, IReadOnlyList<Rect> taken)
