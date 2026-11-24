@@ -84,14 +84,13 @@ public sealed partial class GameServer
         }
 
         var profile = SeasonProfileOf(bodyId, planet);
-        sim.SeasonPeriodDays = PlanetSeasons.YearSystemDays(profile, planet.DayLengthSeconds);
-        sim.SeasonPhase = SeasonProfiles.WetPhase(profile, _meta.Seed, bodyId);
-        sim.SeasonAmplitude = profile.Cycle switch
-        {
-            SeasonProfiles.RainCycle => System.Math.Max(0.35, planet.SeasonAmplitude),
-            SeasonProfiles.OneCycle => planet.SeasonAmplitude * 0.3,
-            _ => planet.SeasonAmplitude,
-        };
+        sim.TieWetCurve(PlanetSeasons.YearSystemDays(profile, planet.DayLengthSeconds), SeasonProfiles.WetPhase(profile, _meta.Seed, bodyId),
+            profile.Cycle switch
+            {
+                SeasonProfiles.RainCycle => System.Math.Max(0.35, planet.SeasonAmplitude),
+                SeasonProfiles.OneCycle => planet.SeasonAmplitude * 0.3,
+                _ => planet.SeasonAmplitude,
+            });
     }
 
     /// <summary>Test seam (#3041): the active world's season at its equator.</summary>
@@ -108,9 +107,32 @@ public sealed partial class GameServer
     public string StartBodyIdForTest => _startBodyId;
 
     /// <summary>Test seam (#3041): no seasons on any world — for tests that time plant growth or temperatures to the second
-    /// and are about something else (the season's growth factor would otherwise depend on the world seed's year). Set before
-    /// <c>Start</c> it also keeps the weather's own wet/dry roll (#3995: no tie to the year).</summary>
-    public bool SeasonsOffForTest { get; set; }
+    /// and are about something else (the season's growth factor would otherwise depend on the world seed's year). It also
+    /// gives every weather sim its own rolled wet/dry curve back (#3995: no tie to the year).</summary>
+    public bool SeasonsOffForTest
+    {
+        get => _seasonsOff;
+        set
+        {
+            _seasonsOff = value;
+            if (!value)
+            {
+                return;
+            }
+
+            foreach (var world in _worlds?.Loaded ?? System.Linq.Enumerable.Empty<LoadedWorld>())
+            {
+                world.Weather.UntieWetCurve();
+            }
+
+            foreach (var bw in _bodyWeather.Values)
+            {
+                bw.Sim?.UntieWetCurve();
+            }
+        }
+    }
+
+    private bool _seasonsOff;
 
     /// <summary>Test seam (#3041): moves the system clock (the seasons run on it).</summary>
     public void SetSystemTimeDaysForTest(double days) => _systemTimeDays = days;
