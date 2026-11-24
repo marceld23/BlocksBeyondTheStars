@@ -146,12 +146,11 @@ public sealed partial class GameServer
         // Per-BODY roster (#478): the seed is salted with the location id — THE formula (#1722: one shared
         // function, not a hand copy) — so two worlds of the same planet type host different species.
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
-        long rosterSeed = BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId);
         // #1763: the save's generation and the type's authored species — on a generation-5 world they join the
         // roster after the procedural slots (Leni on the ice worlds, the flowerling on the flower fields).
         _speciesRoster = planet is null
             ? System.Array.Empty<CreatureSpecies>()
-            : CreatureGenerator.GenerateRoster(planet, rosterSeed, _meta.Description.TerrainGeneration, _content.AuthoredCreaturesFor(planet)).ToArray();
+            : RosterFor(planet, _world.LocationId).ToArray();
 
         _speciesById.Clear();
         _locoProfiles.Clear();

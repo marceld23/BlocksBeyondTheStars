@@ -305,8 +305,7 @@ public sealed partial class GameServer
             : Row("plants", "ui.overview.plants.dense", 0));
 
         // Animals — the roster this body rolls, the same one the world will spawn.
-        var roster = CreatureGenerator.GenerateRoster(planet, WorldGenerator.RosterSeedFor(_meta.Seed, body.Id),
-            _meta.Description.TerrainGeneration, _content.AuthoredCreaturesFor(planet));
+        var roster = RosterFor(planet, body.Id);
         // #3424: the Soundrak attacks from the start although its world's rolled fauna is peaceful — Soaniri reads dangerous.
         bool dangerous = PlanetEnemiesActive && ((!planet.PeacefulFauna && roster.Any(sp => sp.Hostile))
             || roster.Any(Shared.Sounders.SoundersFauna.IsSoundrak));

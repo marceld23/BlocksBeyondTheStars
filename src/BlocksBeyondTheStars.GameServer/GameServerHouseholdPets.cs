@@ -56,6 +56,18 @@ public sealed partial class GameServer
            && (sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish)
            && sp.GiantHeight <= 0f;
 
+    /// <summary>The species of a person's pet — a household's or the animal tamer's — picked by <paramref name="key"/>, the
+    /// person's own key (<c>house-pet:</c> or <c>tamer-pet:</c> and the name): a stable hash, no draw from any shared
+    /// generator. Null when the world has no species a person may keep.</summary>
+    private CreatureSpecies? PersonPetSpecies(string key)
+    {
+        var candidates = _speciesRoster.Where(IsPersonPetSpecies).ToList();
+        return candidates.Count == 0 ? null : candidates[(int)((uint)WorldGenerator.StableHash(key) % (uint)candidates.Count)];
+    }
+
+    /// <summary>Whether the world has any species a person may keep (<see cref="PersonPetSpecies"/> is never null then).</summary>
+    private bool AnyPersonPetSpecies => _speciesRoster.Any(IsPersonPetSpecies);
+
     /// <summary>#3879: the size factor a person's pet of <paramref name="sp"/> is drawn at — <paramref name="preferred"/> when
     /// its body fits within <see cref="PetMaxRadius"/>, otherwise less until it does: a big species comes as a young one.
     /// The footprint follows the drawn size, but not quite in proportion near the builders' clamps, so it is refined.</summary>
@@ -118,7 +130,6 @@ public sealed partial class GameServer
             return; // no animals on a station or in a world whose wildlife is switched off (the tamer pass removed them)
         }
 
-        List<CreatureSpecies>? candidates = null;
         bool changed = false;
         foreach (var npc in _npcs)
         {
@@ -149,13 +160,11 @@ public sealed partial class GameServer
                 continue;
             }
 
-            candidates ??= _speciesRoster.Where(IsPersonPetSpecies).ToList();
-            if (candidates.Count == 0)
+            if (PersonPetSpecies("house-pet:" + npc.Name) is not { } species)
             {
                 return;
             }
 
-            var species = candidates[(int)((uint)WorldGenerator.StableHash("house-pet:" + npc.Name) % (uint)candidates.Count)];
             _creatures.Add(HouseholdPet(species, owner, npc.Pos));
             changed = true;
         }
