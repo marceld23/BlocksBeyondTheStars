@@ -133,6 +133,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (c.BodyPlan == "Whale")
+            {
+                BuildWhale(root, c); // #3975 (CreatureBuilder.Cetacean.cs)
+                return;
+            }
+
             if (BuildCompanionBody(root, c))
             {
                 return; // #3295 the hunter robot (CreatureBuilder.Robot.cs), #3322 Rudolpho (CreatureBuilder.Reindeer.cs)
@@ -306,9 +312,7 @@ namespace BlocksBeyondTheStars.Client
                     : -(segments - 1) * 0.5f * segLen - segLen * 0.55f;
                 var caudal = NewPivot(tailFinParent, "FinTail",
                     new Vector3(0f, _tailChain.Count > 0 ? 0f : bodyY, tailFinZ));
-                AddPartTo(caudal, "FinTailBlade", new Vector3(0f, 0f, -finLen * 0.45f),
-                    new Vector3(unit * 0.07f, finLen * 1.5f, finLen * 0.9f), accentMat);
-                _fins.Add(new FinRig { Pivot = caudal, Kind = FinKind.Caudal });
+                _fins.Add(new FinRig { Pivot = caudal, Kind = AddCaudalBlade(c, caudal, unit, finLen, accentMat) }); // #3975: or a fluke
 
                 if (!c.HasCrest)
                 {
@@ -1455,6 +1459,7 @@ namespace BlocksBeyondTheStars.Client
                 Aquatic = c.Habitat == "Water" || c.Habitat == "Amphibian"
                     || CreatureMotion.IsSkyGliderBody(c.Habitat, c.BodyPlan, c.Legs), // #1779: an air fish weaves like a fish
                 SkyGlider = CreatureMotion.IsSkyGliderBody(c.Habitat, c.BodyPlan, c.Legs),
+                Fluked = c.TailFluke, // #3975
                 Temperament = c.Temperament ?? string.Empty,
                 BodyPlan = c.BodyPlan ?? "Standard",
                 Size = c.Size,

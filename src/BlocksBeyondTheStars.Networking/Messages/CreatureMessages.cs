@@ -132,6 +132,10 @@ public sealed class NetCreature
     public int BeakRgb { get; set; }
     public bool HasComb { get; set; }
 
+    /// <summary>#3975: the tail fin is a horizontal fluke that beats up and down (a dolphin's, a whale's). Additive (contractless):
+    /// an older client draws the vertical caudal fin; an older server sends false.</summary>
+    public bool TailFluke { get; set; }
+
     /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
     /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>
     public int Heads { get; set; } = 1;

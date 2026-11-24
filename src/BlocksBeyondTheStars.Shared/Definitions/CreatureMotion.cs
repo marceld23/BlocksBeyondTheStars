@@ -78,6 +78,12 @@ public static class CreatureMotion
             return false; // a ray's wings are its whole anatomy, like the medusa's bell
         }
 
+        if (sp.TailFluke)
+        {
+            return true; // #3975: a fluke is a fin — the dolphin always carries its flippers, fluke and dorsal fin. No species
+                         // before it has a fluke, so this branch changes nothing for any older world.
+        }
+
         if (IsAirFish(sp))
         {
             return true; // #1779: fins are the air fish's only limbs. No existing Air species is legless, so this

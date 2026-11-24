@@ -67,6 +67,7 @@ public enum CreatureBodyPlan
     Soundrak,  // Soaniri's ten-metre territorial giant (#3359): a bud mouth on top, tentacles on the back — authored only, one about at a time
     Soundeling, // Soaniri's light-loving fluff ball (#3359, #3366): a soft-glowing pastel puff on tiny feet — authored only
     Quali,     // a giant translucent jellyfish of the other reality (#3359): a sky drifter, never hostile, never attackable — authored only
+    Whale,     // the whale of Earth (#3975): a 15–25 block calm swimmer of the deep sea, spawned like any animal, never a hunter — authored only
 }
 
 /// <summary>
@@ -398,6 +399,21 @@ public sealed class CreatureSpecies
 
     /// <summary>#3974: a red comb on the crown and a wattle under the beak (a chicken's).</summary>
     public bool HasComb { get; set; }
+
+    // --- The sea animals of Earth (#3975). False/zero on every other species, so no older world, companion snapshot or wire
+    // message changes. ---
+
+    /// <summary>#3975: the tail fin is a horizontal fluke (a dolphin's, a whale's) that beats up and down, instead of the fish's
+    /// vertical caudal fin. A fluked species always carries fins (<see cref="CreatureMotion.FinsFor"/>).</summary>
+    public bool TailFluke { get; set; }
+
+    /// <summary>#3975: the shallowest water (in cells) this swimmer is seated in and steps into (<see cref="WaterDepthBand"/>);
+    /// 0 = the classic <see cref="CreatureBehaviour.MinSwimDepth"/>. The whale: the deep sea.</summary>
+    public int MinWaterDepth { get; set; }
+
+    /// <summary>#3975: the deepest water (in cells) this swimmer is seated in at spawn (<see cref="WaterDepthBand"/>); 0 = no
+    /// bound. The dolphin: the coastal shallows.</summary>
+    public int MaxWaterDepth { get; set; }
 
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;

@@ -82,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
         Pectoral, // a flank fin — sculls, mirrored per side, lagged per row
         Caudal,   // the vertical tail fin — sweeps with the body's undulation
         Dorsal,   // the back fin — barely moves
+        Fluke,    // #3975: the horizontal tail fluke of a dolphin or a whale — beats up and down
     }
 
     /// <summary>One fin. Pectorals carry a side and a row (a multi-finned body has two or three pairs along the
@@ -162,6 +163,7 @@ namespace BlocksBeyondTheStars.Client
         public bool Asleep;
         public bool Aquatic;       // water or amphibian — undulates instead of striding
         public bool SkyGlider;     // #1778/#1779: a sky ray or air fish — a hoverer that glides; fins scull in the air
+        public bool Fluked;        // #3975: a dolphin or a whale — the tail and the body beat up and down instead of side to side
         public string Temperament = string.Empty;
         public string BodyPlan = "Standard";
         public float Size = 1f;

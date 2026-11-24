@@ -559,6 +559,8 @@
   "creature.chicken.name": "Huhn",
   "creature.parrot.name": "Papagei",
   "creature.eagle.name": "Adler",
+  "creature.dolphin.name": "Delfin",
+  "creature.whale.name": "Wal",
   "item.machete.name": "Machete",
   "item.machete.desc": "Eine schwere Klinge für den Nahkampf.",
   "item.wood_club.name": "Holzkeule",

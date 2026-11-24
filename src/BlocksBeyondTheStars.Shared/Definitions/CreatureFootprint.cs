@@ -51,6 +51,8 @@ public static class CreatureFootprint
     /// <b>Quali</b> its giant bell — each from the rule its builder draws by.</item>
     /// <item>The <b>giants</b> (colossus, sandworm, leviathan, sky giant) move by their own rules and are never spaced; they
     /// get a rough envelope — half their height or length — for the diagnostics.</item>
+    /// <item>The <b>whale</b> (#3975, u = ½·clamp(S, 0.4, 5.5)): half its 8u length, drawn centred on the position
+    /// (<see cref="WhaleRules.FootprintRadius"/>).</item>
     /// </list></summary>
     public static float Radius(CreatureSpecies sp, float sizeScale)
     {
@@ -92,6 +94,9 @@ public static class CreatureFootprint
 
             case BodyFootprint.Giant:
                 return 0.5f * Math.Max(Math.Max(sp.GiantHeight, sp.WormLength), size);
+
+            case BodyFootprint.Whale:
+                return WhaleRules.FootprintRadius(size); // #3975: half its length — at most 11 (WhaleRules.MaxDrawnSize)
 
             default: // Segments: Standard, Floral, Hound, Reindeer (#3322: Rudolpho walks on the standard four-legged proportions)
                 {
