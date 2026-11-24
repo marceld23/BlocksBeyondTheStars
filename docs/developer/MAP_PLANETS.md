@@ -151,8 +151,17 @@ Each `atmosphereHeight` stands above its highest ground (Earth 320, Mars and Ven
 27 °C), high mountains (stone, `alpine`, −8 °C). Its plants wear a fixed palette of natural greens (`floraPalette`, the
 seasons still turn them), `colourMood: balanced`; `creatureAbundance: authored` — only the Earth animals (`homes`) live
 there, no rolled aliens. The other four list class 0 (the poles: ice under the Moon's and Mercury's, Mars' polar caps of
-ice) and classes 1–7 from the lowest ground to the highest (the Moon's maria basalt, its highlands stone; Mars sand,
-sandstone and the basalt of the Tharsis heights; Venus basalt, ash and sulfur stone).
+ice) and classes 1–7 from the lowest ground to the highest (the Moon's maria basalt, its highlands stone; Venus basalt,
+ash and sulfur stone). **Mars** (#4018) is the red planet: its own two blocks, `red_sand` (the regolith — dug by hand,
+settling like sand) over `red_rock` (drilled like stone). Class 0 its polar caps of ice over red rock; the lowlands red sand
+over red rock (class 3 over dark basalt), class 4 and class 6 bare red rock, class 5 red sand again, class 7 the basalt of
+the Tharsis heights; the deep rock stays stone. The tiles are the sand and stone tiles recoloured
+(`tools/ai-assets/calm_tiles/make_mars_tiles.py`). Two type fields keep that ground in sight: `altitudeSnow: false` (at
+−40 °C the altitude climate of #476 froze every column to solid ice — the gate is `WorldGenerator.SnowClimate`, which the
+column pass, the map and the far view share; Mars's ice is the map's polar caps) and `sandBlock: red_sand` (the dry
+riverbeds and the floor under a playa take the type's sand instead of plain yellow sand). Both default to the classic
+rule, so no other type changes. `MarsTests.OnTheRealMarsMap_TheGroundIsMostlyRed` samples the real map. The swap changed the ground of every Mars, also on existing saves
+(only player edits keep their blocks) — Mars is new with Sol, and no golden pins its ground.
 
 ## 5. Building the maps (`tools/planet_maps`)
 
@@ -310,6 +319,19 @@ net fragments (`allowedStructures`; the whitelist keys `settlements` and `lodges
 lost civilization, rail ruin, bandit camp, factory, rolled landmark or city world stands there; the rune shrines (chunk
 generation) need `monuments`, and the lone rune stones the new chunk-level key `rune_stones`, which every whitelisted type
 before Earth names and Earth does not.
+
+**Mars's structure list** (#4018). `sol_mars` restricts its structures the same way to the net fragments alone: nothing
+anybody built stands on Mars — no G.D.S. ruin, rune monument or shrine, lone rune stone, fallen town, rail ruin, bandit camp,
+factory, wreck or giant wreck, vault, data cube, chest, lost civilization, rolled landmark, guide tower or fallen giant, and
+none of the chunk generation's ruin props (monoliths, stone circles, wall fragments, buried pillars). `MarsTests` holds the
+list and stamps a first visit. **Existing saves**: a Mars not visited yet plans none of them. On a Mars visited before the
+change, what was stamped stays: the cell-by-cell kinds (ruins, fallen towns, monuments, factories, rail ruins, vaults …)
+are block edits in the save, the overlay kinds (landmarks, giant wrecks, guide towers, civilization sites) structure
+overlays the world loads whatever the stampers do, and their graded ground is pinned site flats. Only their replays stop —
+the server no longer registers them, so they lose what a replay adds every load (protection, markers, residents). There
+is no safe clean-up: a stamped cell cannot be told from a player's edit of it, and dropping an overlay would leave the
+player's edits inside it hanging in the air. The chunk generation's ruin props, which no save stores, are gone on every
+Mars.
 
 ## 8. The metropolises (#3983)
 

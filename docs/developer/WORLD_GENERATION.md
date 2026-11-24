@@ -1034,7 +1034,7 @@ route on every `volcanic` type since #1644 (a probe test now proves it).
 mud, oasis grass ring, hot-spring crust, playa salt; then scree where the surface slope exceeds 6 and bare
 deep rock above 10 (`SurfaceSlope`, four memoised neighbours), ash fall on the skirt from a volcano's cone
 foot to 1.5 radii (dithered), dry riverbeds on dry worlds (a ridged channel mask → scree on rock ground,
-sand elsewhere), deck banding on mesa / tablelands / terraces worlds (every third 6-block deck sandstone,
+sand elsewhere — the type's `sandBlock`, plain sand by default; Mars's red sand, #4018), deck banding on mesa / tablelands / terraces worlds (every third 6-block deck sandstone,
 every other third granite), soil patches in grass biomes, moss stone on the rock of temperate wet worlds.
 
 ### 12.4 Part 5 — props, micro-ruins, tree kinds, giant flora (#1648, generation ≥ 1)

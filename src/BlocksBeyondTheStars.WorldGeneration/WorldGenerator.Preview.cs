@@ -116,13 +116,13 @@ public sealed partial class WorldGenerator
         return calib.FixedIceSheet > 0 || TempAt(calib, SeaLevel(planet)) < SnowLineC;
     }
 
-    /// <summary>The column pass's snow gate: air, no cratered regolith, a snow block, and a world whose highest point
-    /// gets cold enough at all.</summary>
+    /// <summary>The column pass's snow gate: a type that keeps its altitude snow (<see cref="PlanetType.AltitudeSnow"/>,
+    /// #4018), air, no cratered regolith, a snow block, and a world whose highest point gets cold enough at all.</summary>
     private bool SnowClimate(PlanetType planet, WorldCalibration calib)
     {
         bool airlessBody = planet.Cratered || _crateredWorld;
         bool hasAtmosphere = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
-        return hasAtmosphere && !airlessBody
+        return planet.AltitudeSnow && hasAtmosphere && !airlessBody
             && !(_content.GetBlock("snow")?.NumericId ?? BlockId.Air).IsAir
             && TempAt(calib, calib.MaxHeight) < SnowLineC + 2.0;
     }
