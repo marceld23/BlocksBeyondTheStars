@@ -96,14 +96,14 @@ public sealed class EarthPlacesTests : IDisposable
 
     /// <summary>The given landmarks as (template, centre X, centre Z, ground Y).</summary>
     private static List<(string Key, int X, int Z, int GroundY)> Pyramids(SvGameServer server)
-        => server.LandmarksForTest.OrderBy(l => l.Key, StringComparer.Ordinal)
+        => server.LandmarksForTest.Where(l => l.Key.StartsWith("earth_pyramid", StringComparison.Ordinal)).OrderBy(l => l.Key, StringComparer.Ordinal)
             .Select(l => (l.Key, l.Origin.X + (l.Structure.Width / 2), l.Origin.Z + (l.Structure.Length / 2), l.GroundY)).ToList();
 
     private static void AssertPlacesAndPads(SvGameServer server)
     {
         // The pyramids stand exactly on their places (no search), pinned as given landmarks …
         var places = EarthPlaces.OfKind(PlaceListKinds.Landmark).ToList();
-        Assert.Equal(places.Count, server.LandmarksForTest.Count);
+        Assert.Equal(places.Count, server.LandmarksForTest.Count(l => places.Exists(p => p.Template == l.Key))); // #3983: the cities' landmarks besides
         for (int i = 0; i < places.Count; i++)
         {
             var (x, z) = places[i].BlockOn(16000);
