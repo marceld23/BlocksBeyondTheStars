@@ -118,7 +118,7 @@ and the additive `NetCompanion.Following`/`Roams`/`Kind`; #3361 the additive `Ta
 
 - Server: `GameServerTaming.cs` (decode/respond, trust, difficulty+personality, success → create/persist +
   knowledge, spawn/despawn, follow tick, rename, release, `CompanionList`); hooks in `GameServerCreatures.cs`
-  (exclude from wild cap, broadcast `OwnerId`) and `GameServerGadgets.cs` (route the translator).
+  (exclude from wild cap), `GameServerCreatureWire.cs` (broadcast `OwnerId`) and `GameServerGadgets.cs` (route the translator).
 - Shared: `Shared/State/TamedCreature.cs` (+ `SpeciesSnapshot`), `CreatureBehaviour.FollowStep`,
   `PlayerState.TamedCreatures` + `PlayerState.TamedSpecies`.
 - Persistence: `PlayerSnapshot.TamedCreatures` / `TamedCreatureDto` + `StateMapper` (player JSON blob).

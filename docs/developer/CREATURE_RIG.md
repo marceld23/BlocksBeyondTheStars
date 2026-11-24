@@ -12,7 +12,7 @@ through it), [CREATURE_TAMING.md](CREATURE_TAMING.md) (companions and their spec
 
 | File | Role |
 | --- | --- |
-| `CreatureBuilder.cs` | Builds the body from the descriptor — cubes in code, no art asset |
+| `CreatureBuilder.cs` | Builds the body from the descriptor — cubes in code, no art asset. The partials hold the rest: `.BodyPlans` (medusa, titan, arachnid, biped, worm, ray), `.Giants`, `.Parts` (limbs, heads, pivots), `.Primitives` (part and mesh primitives), `.Materials` (colours, textures, mood, coat kit) and one file per authored body (`.Hound`, `.Sounder`, …) |
 | `CreatureRig.cs` | `LegRig` / `WingRig` / `RigDescription` / `CreatureLod` — what the builder hands the animator |
 | `CreatureAnimator.cs` | Poses the rig every frame |
 | `CreatureFeet.cs` | Decides when each foot steps and where it plants |

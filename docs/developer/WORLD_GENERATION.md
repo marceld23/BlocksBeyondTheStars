@@ -36,7 +36,9 @@ SEED
 
 ## 2. Galaxy → system → body
 
-Built by [`UniverseGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/UniverseGenerator.cs).
+Built by [`UniverseGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/UniverseGenerator.cs) (the retype
+and guarantee passes); the per-system layout — header and name, planets, moons, twin sizing, asteroids, stations,
+wreck, in that draw order — is `UniverseGenerator.Systems.cs`, the start-system guarantees `UniverseGenerator.StartSystem.cs`.
 The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World/Galaxy.cs).
 
 - **12 star systems** per galaxy by default (`StarSystemCount`, #1616), each with a random 2D star-map
@@ -346,8 +348,9 @@ brown/pink/violet/amber exotics).
 ## 7. Fauna
 
 Derived per **body** (#478, same location-id salt as flora) by
-[`CreatureGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs); spawned
-live by `GameServerCreatures.cs`.
+[`CreatureGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs) (the roster passes;
+the species roll is `CreatureGenerator.Species.cs`, the body plans `.BodyPlans.cs`, the giants `.Giants.cs`, the
+Schuppenhund `.Hound.cs`); spawned live by `GameServerCreatures.cs` and its `GameServerCreature*.cs` partials.
 
 - **Species per world** from `CreatureAbundance`: `none` → 0, `few` → **5**, `many` → **9** (airless
   bodies → 0). The first 3 / 6 indices keep their exact pre-#640 rolls (each species draws its own
