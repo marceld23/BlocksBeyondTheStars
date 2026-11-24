@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Reflection;
 using BlocksBeyondTheStars.Client;
 using NUnit.Framework;
 using UnityEngine;
@@ -18,10 +19,33 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
     /// Unity is left-handed: someone looking at a face along −normal has <c>Cross(up, forward)</c> to their right — for
     /// the figure's front (+Z, looked at along −Z) that is −X.
     /// </para>
+    /// <para>
+    /// Since the new look (#3934) a painted part is a rounded box whose UVs are taken at the point on the SHARP box through the
+    /// flat mesh's projection (PlayerAvatar.Round.cs). The structural checks here (a side is one quad, a cap four triangles)
+    /// read the flat mesh — the one Potato (plain figures) and the far stage (RoundLod) draw — so every test runs with plain
+    /// figures; <see cref="TheRoundedSegments_ShowTheFlatPainting_OnTheMiddleOfEverySide"/> pins that the rounded mesh shows
+    /// the same painting (#4004).
+    /// </para>
     /// </summary>
     public sealed class AvatarPaintOrientationEditModeTests
     {
         private const float Eps = 1e-4f;
+
+        private static readonly FieldInfo PlainFiguresField =
+            typeof(GameLook).GetField("_plainFigures", BindingFlags.NonPublic | BindingFlags.Static);
+
+        private bool _wasPlain;
+
+        [SetUp]
+        public void FlatFigures()
+        {
+            Assert.IsNotNull(PlainFiguresField, "GameLook._plainFigures");
+            _wasPlain = (bool)PlainFiguresField.GetValue(null);
+            PlainFiguresField.SetValue(null, true);
+        }
+
+        [TearDown]
+        public void RestoreFigures() => PlainFiguresField.SetValue(null, _wasPlain);
 
         // Faces in the painted mesh's order: +x, −x, +y, −y, +z, −z.
         private static readonly Vector3[] Normals = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
@@ -228,6 +252,77 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         private static Vector2 Centroid(Vector2[] uv, int t) => (uv[t] + uv[t + 1] + uv[t + 2]) / 3f;
+
+        /// <summary>The UV that the flat quad <paramref name="run"/> gives a point of its plane — its projection is affine in
+        /// the position, so three corners fix it.</summary>
+        private static Vector2 FlatUvAt(Mesh flat, FaceRun run, Vector3 p)
+        {
+            var verts = flat.vertices;
+            var uv = flat.uv;
+            Vector3 n = run.Normal;
+            Vector3 a = Mathf.Abs(n.x) > 0.5f ? Vector3.forward : Vector3.right; // two axes in the face's plane
+            Vector3 b = Vector3.Cross(n, a);
+            Vector2 P(Vector3 q) => new Vector2(Vector3.Dot(q, a), Vector3.Dot(q, b));
+            Vector2 p0 = P(verts[run.Start]), p1 = P(verts[run.Start + 1]), p2 = P(verts[run.Start + 2]);
+            Vector2 d1 = p1 - p0, d2 = p2 - p0, d = P(p) - p0;
+            float det = (d1.x * d2.y) - (d1.y * d2.x);
+            float s = ((d.x * d2.y) - (d.y * d2.x)) / det;
+            float t = ((d1.x * d.y) - (d1.y * d.x)) / det;
+            return uv[run.Start] + (s * (uv[run.Start + 1] - uv[run.Start])) + (t * (uv[run.Start + 2] - uv[run.Start]));
+        }
+
+        [Test]
+        public void TheRoundedSegments_ShowTheFlatPainting_OnTheMiddleOfEverySide()
+        {
+            foreach (var (part, row) in PartRows())
+            {
+                PlainFiguresField.SetValue(null, true);
+                var flat = Segment(part, row);
+                PlainFiguresField.SetValue(null, false);
+                var round = Segment(part, row);
+                try
+                {
+                    Assert.That(round.vertexCount, Is.GreaterThan(flat.vertexCount), $"Part {part} row {row}: rounded, not the flat box.");
+                    var verts = round.vertices;
+                    var normals = round.normals;
+                    var uv = round.uv;
+                    int checkedSides = 0;
+                    foreach (var run in Runs(flat))
+                    {
+                        if (run.Count != 4)
+                        {
+                            continue; // a cap: its triangles are pinned on the flat mesh above
+                        }
+
+                        Vector3 n = run.Normal;
+                        float plane = Vector3.Dot(flat.vertices[run.Start], n);
+                        int matched = 0;
+                        for (int i = 0; i < verts.Length; i++)
+                        {
+                            if (Vector3.Dot(normals[i], n) < 0.9999f || Mathf.Abs(Vector3.Dot(verts[i], n) - plane) > 1e-4f)
+                            {
+                                continue; // not on the flat middle of this side
+                            }
+
+                            var expected = FlatUvAt(flat, run, verts[i]);
+                            Assert.That((uv[i] - expected).magnitude, Is.LessThan(1e-4f),
+                                $"Part {part} row {row} face {n}: the rounded side shows the flat painting at {verts[i]}.");
+                            matched++;
+                        }
+
+                        Assert.That(matched, Is.GreaterThanOrEqualTo(4), $"Part {part} row {row} face {n}: the side has a flat middle.");
+                        checkedSides++;
+                    }
+
+                    Assert.That(checkedSides, Is.GreaterThanOrEqualTo(4), $"Part {part} row {row}: every side was compared.");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(flat);
+                    Object.DestroyImmediate(round);
+                }
+            }
+        }
 
         [Test]
         public void EveryPaintedBodyFace_ReadsAsPainted_AndFacesOutward()

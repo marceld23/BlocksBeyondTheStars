@@ -1,12 +1,13 @@
 MainMenuUI active=True comps=RectTransform,Canvas,CanvasScaler,GraphicRaycaster,UiNavFocus
   GameLogo active=True comps=RectTransform,CanvasRenderer,RawImage pos=(90.00, -59.80) size=(560.00, 64.40) color=FFFFFFFF
   Text active=True comps=RectTransform,CanvasRenderer,Text pos=(94.00, -164.00) size=(1100.00, 30.00) color=66D1FFFF font=20 text="ui.splash.tagline"
-  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(1430.00, -34.00) size=(400.00, 98.00) color=08142BFF
+  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape,UiNameChipMark pos=(1430.00, -34.00) size=(400.00, 98.00) color=08142BFF
     Image active=True comps=RectTransform,CanvasRenderer,Image pos=(18.00, -25.00) size=(48.00, 48.00) color=FFFFFFFF
     Text active=True comps=RectTransform,CanvasRenderer,Text pos=(80.00, -10.00) size=(300.00, 24.00) color=66D1FFFF font=16 text="ui.menu.connect_name"
     Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(80.00, -38.00) size=(300.00, 46.00) color=0B1A33F2 limit=24 content=Standard
       Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(280.00, 46.00) color=DBEDFFFF font=18 text=""
       Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(280.00, 46.00) color=8C9EB8FF font=18 text=""
+    RunningLight active=True comps=RectTransform,UiRunningLight pos=(0.00, 0.00) size=(0.00, 0.00) color=FFFFFFFF
   Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1430.00, -138.00) size=(400.00, 24.00) color=FF8C66FF font=15 text=""
   Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover,UiPressFx pos=(90.00, -236.00) size=(560.00, 78.00) color=FFFFFFFF
     Image active=True comps=RectTransform,CanvasRenderer,Image pos=(20.00, -19.00) size=(40.00, 40.00) color=031221FF
