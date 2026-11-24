@@ -60,6 +60,31 @@ public sealed class PlaceListTests
         Assert.Equal(new[] { "earth_brandenburg_gate", "earth_berlin_tv_tower" }, list.Places.Single(p => p.Key == "berlin").Landmarks);
         Assert.Empty(list.Places.Single(p => p.Key == "cairo").Landmarks);
         Assert.Equal("new_york", list.Places.Single(p => p.Key == "new_york").ThemeOrKey);
+
+        // #3986: the SPS headquarters are one complex of five parts; its members follow the pyramids in record order.
+        Assert.Equal(new[] { "sps_hq" }, list.OfKind(PlaceListKinds.Complex).Select(p => p.Key));
+        Assert.Equal(new[]
+            {
+                "earth_pyramid_great", "earth_pyramid_second", "earth_pyramid_third",
+                "earth_sps_hq_main", "earth_sps_hq_hangar", "earth_sps_hq_servers", "earth_sps_hq_core", "earth_sps_hq_hall",
+            },
+            PlaceRules.ListedLandmarks(list).Select(l => l.Template));
+    }
+
+    /// <summary>#3986: a complex's members stand at the anchor plus their offsets — the low corner — so the centre a given seat
+    /// takes is the corner plus half the footprint, odd sizes rounded down like <see cref="GivenSeat.OriginFor"/>.</summary>
+    [Fact]
+    public void AComplexMember_StandsAtTheAnchorPlusItsOffset()
+    {
+        var complex = new PlaceDefinition
+        {
+            Key = "c", Kind = PlaceListKinds.Complex, Longitude = 0.0, Latitude = 0.0,
+            Members = { new PlaceMember { Template = "a", East = -30, North = 5 } },
+        };
+        var listed = Assert.Single(PlaceRules.ListedLandmarks(new PlaceListDefinition { Places = { complex } }));
+        var (x, z) = listed.CentreOn(EarthCircumference, 41, 37);
+        Assert.Equal((EarthCircumference - 30 + 20, 5 + 18), (x, z)); // west of longitude 0 wraps
+        Assert.Equal((EarthCircumference - 30, 5), new GivenSeat(x, z).OriginFor(41, 37));
     }
 
     [Fact]
@@ -78,6 +103,18 @@ public sealed class PlaceListTests
                 new PlaceDefinition { Key = "east", Kind = PlaceListKinds.Pad, Longitude = 360.0 },
                 new PlaceDefinition { Key = "rail", Kind = "rail" },
                 new PlaceDefinition { Key = "ok", Kind = PlaceListKinds.Pad },
+                new PlaceDefinition
+                {
+                    Key = "hq", Kind = PlaceListKinds.Complex, Turn = 1, Template = "earth_pyramid_third",
+                    Members =
+                    {
+                        new PlaceMember { Template = "earth_sps_hq_core" },                            // 41 × 37
+                        new PlaceMember { Template = "earth_sps_hq_hall", East = 40, North = 36 },     // overlaps the core
+                        new PlaceMember { Template = "earth_sps_hq_main", East = -160 },               // meets it edge to edge
+                    },
+                },
+                new PlaceDefinition { Key = "empty_hq", Kind = PlaceListKinds.Complex },
+                new PlaceDefinition { Key = "padded", Kind = PlaceListKinds.Pad, Members = { new PlaceMember { Template = "earth_sps_hq_core" } } },
             },
         };
 
@@ -89,6 +126,12 @@ public sealed class PlaceListTests
         Assert.Contains(problems, p => p.StartsWith("place 'east' lies outside", StringComparison.Ordinal));
         Assert.Contains(problems, p => p.Contains("unknown kind 'rail'", StringComparison.Ordinal));
         Assert.Contains(problems, p => p.Contains("unique in its list", StringComparison.Ordinal)); // the second "ok"
+        Assert.Contains("place 'hq' is a complex and names a template (its members name theirs)", problems);
+        Assert.Contains("place 'hq' is a complex with a turn (its members stand unturned, in their shared frame)", problems);
+        Assert.Contains("place 'hq' has the members 'earth_sps_hq_core' and 'earth_sps_hq_hall' overlapping", problems);
+        Assert.DoesNotContain(problems, p => p.Contains("earth_sps_hq_main", StringComparison.Ordinal));
+        Assert.Contains("place 'empty_hq' is a complex without members", problems);
+        Assert.Contains("place 'padded' names members, which only a complex has", problems);
         Assert.Empty(PlaceRules.Problems(EarthPlaces, Content.LandmarkByKey));
     }
 
@@ -121,24 +164,67 @@ public sealed class PlaceListTests
         var earth = Content.GetPlanet(Earth)!;
         int sea = gen.SeaLevel(earth);
         var wet = new List<string>();
-        foreach (var place in EarthPlaces.Places)
+        foreach (var (key, cx, cz, hw, hl) in EarthAreas())
         {
-            var (cx, cz) = place.BlockOn(EarthCircumference);
-            int reach = place.Kind == PlaceListKinds.Pad ? 8 : 0; // a pad's whole square
-            var template = place.Kind == PlaceListKinds.Landmark ? Content.LandmarkByKey(place.Template) : null;
-            int hw = template is null ? reach : template.Width / 2, hl = template is null ? reach : template.Length / 2;
             int step = Math.Max(1, Math.Max(hw, hl) / 6);
             for (int dx = -hw; dx <= hw; dx += Math.Max(1, step))
                 for (int dz = -hl; dz <= hl; dz += Math.Max(1, step))
                 {
                     if (gen.SurfaceHeight(earth, cx + dx, cz + dz) <= sea)
                     {
-                        wet.Add($"{place.Key} at {cx + dx},{cz + dz}");
+                        wet.Add($"{key} at {cx + dx},{cz + dz}");
                     }
                 }
         }
 
         Assert.True(wet.Count == 0, "in the sea: " + string.Join("; ", wet.Take(12)));
+    }
+
+    /// <summary>Earth's places as (key, centre X, centre Z, half width, half length): a pad's whole square, a city's centre
+    /// column, and every listed landmark's footprint — a landmark place's and each complex member's.</summary>
+    private static List<(string Key, int Cx, int Cz, int Hw, int Hl)> EarthAreas()
+    {
+        var areas = new List<(string, int, int, int, int)>();
+        foreach (var place in EarthPlaces.Places.Where(p => p.Kind is PlaceListKinds.Pad or PlaceListKinds.City))
+        {
+            var (cx, cz) = place.BlockOn(EarthCircumference);
+            int reach = place.Kind == PlaceListKinds.Pad ? 8 : 0;
+            areas.Add((place.Key, cx, cz, reach, reach));
+        }
+
+        foreach (var listed in PlaceRules.ListedLandmarks(EarthPlaces))
+        {
+            var t = Content.LandmarkByKey(listed.Template)!;
+            var (cx, cz) = listed.CentreOn(EarthCircumference, t.Width, t.Length);
+            areas.Add((listed.Template, cx, cz, t.Width / 2, t.Length / 2));
+        }
+
+        return areas;
+    }
+
+    /// <summary>#3986: no pad's footprint (radius 16, the levelled square) reaches into a listed landmark's footprint — above
+    /// all the rain-forest pad beside the SPS headquarters.</summary>
+    [Fact]
+    public void EveryPad_KeepsClearOfEveryListedLandmark()
+    {
+        const int padReach = 16;
+        foreach (var pad in EarthPlaces.OfKind(PlaceListKinds.Pad))
+        {
+            var (px, pz) = pad.BlockOn(EarthCircumference);
+            foreach (var listed in PlaceRules.ListedLandmarks(EarthPlaces))
+            {
+                var t = Content.LandmarkByKey(listed.Template)!;
+                var (cx, cz) = listed.CentreOn(EarthCircumference, t.Width, t.Length);
+                var (ox, oz) = new GivenSeat(cx, cz).OriginFor(t.Width, t.Length);
+                bool apart = px + padReach < ox || px - padReach >= ox + t.Width || pz + padReach < oz || pz - padReach >= oz + t.Length;
+                Assert.True(apart, $"{pad.Key} reaches into {listed.Template}");
+            }
+        }
+
+        // The rain-forest pad stands east of the headquarters, 70 blocks beyond the frame's east edge.
+        var (hx, _) = EarthPlaces.Places.Single(p => p.Key == "sps_hq").BlockOn(EarthCircumference);
+        var (rx, _) = EarthPlaces.Places.Single(p => p.Key == "pad_sps_hq").BlockOn(EarthCircumference);
+        Assert.InRange(rx - hx, 240, 260);
     }
 
     [Fact]

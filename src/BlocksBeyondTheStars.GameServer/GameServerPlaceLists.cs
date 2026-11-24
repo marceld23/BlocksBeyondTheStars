@@ -12,9 +12,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// The fixed places of a body (#3981): its type's place list (<c>data/places/&lt;planetType&gt;.json</c>,
 /// <see cref="PlaceListDefinition"/>) feeds two seams of the server.
 /// <list type="bullet">
-/// <item><b>Landmarks</b> — every <c>landmark</c> place, in list order, is a given landmark (<see cref="GivenLandmarkSource"/>'s
-/// default, <see cref="PlaceListLandmarks"/>): its template on a <see cref="GivenSeat"/> at the place's block column and turn,
-/// pinned under record <see cref="GivenLandmarkIndexBase"/> + its position among the landmark places.</item>
+/// <item><b>Landmarks</b> — every <c>landmark</c> place and every member of a <c>complex</c>, in list order, is a given landmark
+/// (<see cref="GivenLandmarkSource"/>'s default, <see cref="PlaceListLandmarks"/>): its template on a <see cref="GivenSeat"/> at
+/// the place's block column and turn (a complex member: at the anchor plus its offset, on the complex's shared ground row),
+/// pinned under record <see cref="GivenLandmarkIndexBase"/> + its position among them (<see cref="PlaceRules.ListedLandmarks"/>).</item>
 /// <item><b>Landing pads</b> — a body with <c>pad</c> places takes exactly those pads, in list order (pad 0, the home touchdown, is
 /// the first), instead of the searched ones (<see cref="ListedPads"/>). Each becomes what its ground makes it (dry, wet, an
 /// islet: <c>DecidePad</c>), is levelled like every pad and pinned in <c>WorldMetadata.BodyLandingPads</c> on its first
@@ -30,8 +31,10 @@ public sealed partial class GameServer
     /// the geography generation on a map world.</summary>
     private int PipelineGeneration(int generation) => MapWorldRules.PipelineGeneration(generation, _world.Planet);
 
-    /// <summary>The given landmarks of the active body from its type's place list (empty without one): each <c>landmark</c>
-    /// place's template at its block column and turn on the active world's circumference.</summary>
+    /// <summary>The given landmarks of the active body from its type's place list (empty without one), in record order
+    /// (<see cref="PlaceRules.ListedLandmarks"/>): each <c>landmark</c> place's template at its block column and turn on the
+    /// active world's circumference, and each member of a <c>complex</c> at the anchor plus its offset, unturned, on the
+    /// complex's one ground row (<see cref="ComplexGroundY"/>).</summary>
     private IReadOnlyList<GivenLandmarkPlace> PlaceListLandmarks(string locationId)
     {
         if (!string.Equals(_world.LocationId, locationId, System.StringComparison.Ordinal)
@@ -40,11 +43,56 @@ public sealed partial class GameServer
             return System.Array.Empty<GivenLandmarkPlace>();
         }
 
-        return list.OfKind(PlaceListKinds.Landmark).Select(p =>
+        var grounds = new Dictionary<PlaceDefinition, int>();
+        var places = new List<GivenLandmarkPlace>();
+        foreach (var listed in PlaceRules.ListedLandmarks(list))
         {
-            var (x, z) = p.BlockOn(_world.Circumference);
-            return new GivenLandmarkPlace(p.Template, new GivenSeat(x, z, p.Turn));
-        }).ToList();
+            var template = _content.LandmarkByKey(listed.Template);
+            var (x, z) = listed.CentreOn(_world.Circumference, template?.Width ?? 0, template?.Length ?? 0);
+            int? groundY = null;
+            if (listed.Member is not null)
+            {
+                if (!grounds.TryGetValue(listed.Place, out int y))
+                {
+                    grounds[listed.Place] = y = ComplexGroundY(listed.Place);
+                }
+
+                groundY = y;
+            }
+
+            places.Add(new GivenLandmarkPlace(listed.Template, new GivenSeat(x, z, listed.Place.Turn, groundY)));
+        }
+
+        return places;
+    }
+
+    /// <summary>The one ground row of a complex (#3986): the median natural ground height of all its members' footprints
+    /// together (each sampled like a single footprint, <see cref="FootprintSamples"/>) — the shelf's rule over the whole
+    /// complex, so every part is graded to the same row and their corridors meet.</summary>
+    private int ComplexGroundY(PlaceDefinition complex)
+    {
+        var (ax, az) = complex.BlockOn(_world.Circumference);
+        var heights = new List<int>();
+        foreach (var member in complex.Members)
+        {
+            if (_content.LandmarkByKey(member.Template) is not { } t)
+            {
+                continue;
+            }
+
+            foreach (var (x, z) in FootprintSamples(ax + member.East, az + member.North, t.Width, t.Length))
+            {
+                heights.Add(_generator.SurfaceHeight(_world.Planet, x, z));
+            }
+        }
+
+        if (heights.Count == 0)
+        {
+            return _generator.SurfaceHeight(_world.Planet, ax, az);
+        }
+
+        heights.Sort();
+        return heights[heights.Count / 2];
     }
 
     /// <summary>How many pads a type's place list fixes (0 = none: the pads are searched).</summary>

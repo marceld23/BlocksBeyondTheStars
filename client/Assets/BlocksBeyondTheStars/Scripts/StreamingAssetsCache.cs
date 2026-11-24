@@ -84,6 +84,24 @@ namespace BlocksBeyondTheStars.Client
             "hud_frames.json", // #3317
             "items.json",
             "landmarks/blocks_king.json", // the school club's landmarks (terrain generation 39)
+            "landmarks/earth_berlin_tv_tower.json", // #3982: Earth's place-only landmarks
+            "landmarks/earth_brandenburg_gate.json",
+            "landmarks/earth_eiffel_tower.json",
+            "landmarks/earth_gds_tower.json",
+            "landmarks/earth_london_clock_tower.json",
+            "landmarks/earth_new_york_statue.json",
+            "landmarks/earth_pyramid_great.json",
+            "landmarks/earth_pyramid_second.json",
+            "landmarks/earth_pyramid_third.json",
+            "landmarks/earth_rio_statue.json",
+            "landmarks/earth_sps_hq_core.json", // #3986: the SPS headquarters
+            "landmarks/earth_sps_hq_hall.json",
+            "landmarks/earth_sps_hq_hangar.json",
+            "landmarks/earth_sps_hq_main.json",
+            "landmarks/earth_sps_hq_servers.json",
+            "landmarks/earth_sydney_opera.json",
+            "landmarks/earth_tokyo_tower.json",
+            "landmarks/earth_toronto_tower.json",
             "landmarks/eifelnyde.json",
             "landmarks/golden_bird_gate.json",
             "landmarks/leaning_tower.json",
@@ -117,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
             "minigames/catalog.json",
             "missions.json",
             "pioneer_skins.json",
+            "places/sol_earth.json", // #3981: the fixed places of a map planet type
             "planets.json",
             "recipes.json",
             "relay.json",
@@ -338,6 +357,7 @@ namespace BlocksBeyondTheStars.Client
             "stories/vega_protocol/story.json",
             "structure_kits.json",
             "structure_types.json", // #3517
+            "systems/sol.json", // #3970: the hand-made star systems
             "village_life.json",
             "whatsnew.json",
             "wiki/articles.json",

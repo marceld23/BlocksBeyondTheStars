@@ -248,11 +248,13 @@ generation 38+ the footprint registry, #3514, which also replaces the landmark's
     cell (`StampMissingFixedLandmarks`).
 - **Given landmarks** (#3980, `GameServerGivenPlaces.cs`). A body may carry landmarks at **given seats** — a template, the
   footprint's centre column and quarter turn, optionally the ground row (`GivenSeat`), handed in through
-  `GivenLandmarkSource` — by default the `landmark` places of the body type's place list (#3981, `data/places/<type>.json`:
-  template, longitude, latitude, turn; Earth's three pyramids of Giza; see [MAP_PLANETS.md](MAP_PLANETS.md) §7). No roll, no search, no `PlaceLandmarks` switch: they are
+  `GivenLandmarkSource` — by default the `landmark` places and the `complex` members of the body type's place list (#3981,
+  `data/places/<type>.json`: template, longitude, latitude, turn; Earth's three pyramids of Giza and the SPS headquarters;
+  see [MAP_PLANETS.md](MAP_PLANETS.md) §7). No roll, no search, no `PlaceLandmarks` switch: they are
   stamped first in the structures stage (`StampGivenPlaces`), the ground under them graded to the site height (seat
-  `given`, the landmark's grade), so every rolled structure keeps clear of them. Each is an ordinary landmark record at index
-  1000 + its position among the list's landmark places (seed hashed from its key and the body), replayed on every load even
+  `given`, the landmark's grade; a complex's members all to the one row of the whole complex), so every rolled structure
+  keeps clear of them. Each is an ordinary landmark record at index
+  1000 + its position among the list's landmarks (`PlaceRules.ListedLandmarks`; seed hashed from its key and the body), replayed on every load even
   when the list no longer names it; the rolled landmark and the admin's stamps keep the indices below 1000. A list may name
   only `pinOnly` templates (checked at load; the place-only guard test also holds that every `earth_*` template is named by
   a place). A map world runs this path on a save of any generation (`MapWorldRules.PipelineGeneration`). See
@@ -444,9 +446,11 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
   §7), and `PlaceListTests` guards it: every place-only template is named by a place, and none of them is in a pool.
 - **The SPS headquarters in the Amazon** (#3986, the Sol package): five pin-only templates that stand side by side and
   join through corridors at their edges — `tools/landmarks/earth_sps_hq.py` (the shared frame, palette and pieces in
-  `_sps_hq.py`, the underground parts in `_sps_hq_below.py`). Earth's location list places them as five given places
-  with the **same ground row Y** and no turn, at these low corners of one complex frame (x east, z north; a given seat
-  names the centre = corner + (width / 2, length / 2)):
+  `_sps_hq.py`, the underground parts in `_sps_hq_below.py`). Earth's place list places them as ONE `complex` place
+  (`sps_hq`, records 1003–1007 — [MAP_PLANETS.md](MAP_PLANETS.md) §7): five given places with the **same ground row Y**
+  (the median ground under all five footprints together) and no turn, at these low corners of one complex frame (x east,
+  z north; a given seat names the centre = corner + (width / 2, length / 2)). The complex's anchor (5.0 S 65.0 W) is the
+  frame's centre (180, 135), so each member's offset is its corner − (180, 135):
 
   | key | corner (x, z) | size (w × h × l) | ground row | state | joins |
   |---|---|---|---|---|---|

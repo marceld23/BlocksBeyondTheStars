@@ -36,6 +36,18 @@
     // and of a 120-block circle round Cairo's centre (its city is up to 216 across), on dry desert ground.
     { "key": "giza_great",  "kind": "landmark", "template": "earth_pyramid_great",  "latitude": 25.821, "longitude": 25.328 },
     { "key": "giza_second", "kind": "landmark", "template": "earth_pyramid_second", "latitude": 20.286, "longitude": 22.853 },
-    { "key": "giza_third",  "kind": "landmark", "template": "earth_pyramid_third",  "latitude": 16.168, "longitude": 21.053 }
+    { "key": "giza_third",  "kind": "landmark", "template": "earth_pyramid_third",  "latitude": 16.168, "longitude": 21.053 },
+
+    // The SPS headquarters in the rain forest (#3986, docs/developer/LANDMARKS.md): five parts built in one frame
+    // (tools/landmarks/_sps_hq.py), side by side on one ground row so their corridors meet. The anchor is the centre of the
+    // frame's 360 × 270 box; each member's offset is its footprint's low corner, blocks east and north of the anchor. The
+    // rain-forest pad stands 250 blocks east of the anchor, 70 beyond the frame's east edge.
+    { "key": "sps_hq", "kind": "complex", "latitude": -5.0, "longitude": -65.0, "members": [
+      { "template": "earth_sps_hq_main",    "east": -180, "north": -135 },
+      { "template": "earth_sps_hq_hangar",  "east": -20,  "north": -135 },
+      { "template": "earth_sps_hq_servers", "east": -180, "north": -15 },
+      { "template": "earth_sps_hq_core",    "east": -30,  "north": 40 },
+      { "template": "earth_sps_hq_hall",    "east": 20,   "north": -15 }
+    ] }
   ]
 }
