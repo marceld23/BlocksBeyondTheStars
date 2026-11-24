@@ -12363,5 +12363,121 @@
       "research"
     ],
     "minTerrainGeneration": 46
+  },
+  {
+    "key": "city_earth_1",
+    "name": "Earth City 1",
+    "kind": "city",
+    "tier": "metropolis",
+    "pack": "default",
+    "weight": 1,
+    "pinOnly": true,
+    "planetTypes": [
+      "sol_earth"
+    ],
+    "grid": 5,
+    "districtSize": 32,
+    "street": 4,
+    "height": 40,
+    "entries": [
+      {
+        "module": "earth_plaza_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "earth_notice_house_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "earth_inn_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "earth_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "earth_market_hall_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "earth_market_hall_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "earth_highrise_large_1",
+        "min": 0,
+        "max": 12,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "earth_highrise_large_2",
+        "min": 0,
+        "max": 12,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "earth_highrise_small_1",
+        "min": 0,
+        "max": 60,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "earth_highrise_medium_1",
+        "min": 0,
+        "max": 60,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "earth_housing_block_1",
+        "min": 0,
+        "max": 60,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "earth_park_1",
+        "min": 0,
+        "max": 20,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "earth_park_2",
+        "min": 0,
+        "max": 20,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "earth_quay_1",
+        "min": 0,
+        "max": 60,
+        "required": false,
+        "weight": 1
+      }
+    ]
   }
 ]

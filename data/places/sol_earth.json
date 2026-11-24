@@ -1,0 +1,95 @@
+// Earth's fixed places (#3981, docs/developer/MAP_PLANETS.md §6): longitude east and latitude north in degrees, on the map's
+// projection (16,000 blocks around: 44.4 blocks per degree both ways). The order is pinned — a landmark's record index and a
+// pad's index follow it — so a new place is only ever appended.
+//
+// Coastal centres are moved inland until the pad's footprint (radius 16) stands on ground at least 20 m above the sea on the
+// built map (tools/planet_maps); the real coordinates are in the comments. PlaceListTests checks every place stands on land.
+{
+  "places": [
+    // The landing pads: one at each metropolis centre (London first — the home touchdown), one in the rain forest about 250
+    // blocks east of the SPS headquarters site (5.0 S 65.0 W).
+    { "key": "pad_london",   "kind": "pad", "latitude": 51.51,  "longitude": -0.13 },
+    { "key": "pad_paris",    "kind": "pad", "latitude": 48.86,  "longitude": 2.35 },
+    { "key": "pad_berlin",   "kind": "pad", "latitude": 52.52,  "longitude": 13.40 },
+    { "key": "pad_cairo",    "kind": "pad", "latitude": 29.871, "longitude": 31.178 },  // real 30.04 N 31.24 E (the Nile)
+    { "key": "pad_tokyo",    "kind": "pad", "latitude": 35.834, "longitude": 139.267 }, // real 35.68 N 139.69 E
+    { "key": "pad_sydney",   "kind": "pad", "latitude": -33.594, "longitude": 150.979 }, // real 33.87 S 151.21 E
+    { "key": "pad_toronto",  "kind": "pad", "latitude": 44.01,  "longitude": -79.38 },  // real 43.65 N 79.38 W (Lake Ontario)
+    { "key": "pad_new_york", "kind": "pad", "latitude": 41.242, "longitude": -73.916 }, // real 40.71 N 74.01 W
+    { "key": "pad_rio",      "kind": "pad", "latitude": -22.496, "longitude": -42.823 }, // real 22.91 S 43.17 W
+    { "key": "pad_sps_hq",   "kind": "pad", "latitude": -5.0,   "longitude": -59.37 },
+
+    // The metropolises (#3983, docs/developer/MAP_PLANETS.md §8): each laid out round its pad (the pad lies in the middle
+    // of the `plaza` district [column, row] — X index, Z index — of its `grid` of 32-block districts with 4-block streets),
+    // following the coast; its landmarks stand on squares of their own inside it. Europe's three are smaller (Paris needs five
+    // districts for its tower); London's grid reaches over the whole island, the land decides what is built. The plazas sit
+    // off-centre where the sea or a neighbour is close (London and Paris are 161 blocks apart, Toronto and New York 272). A
+    // palette gives each city its colours: per material token a block and a dye.
+    { "key": "london",   "kind": "city", "latitude": 51.51,  "longitude": -0.13,   "nameKey": "city.london.name", "grid": 11, "plaza": [7, 1],
+      "palette": { "wall": "concrete#9C4A36", "accent": "glass#B8D0C4", "roof": "metal_panel#2F5A3C", "floor": "steel_floor", "path": "concrete#8C8C88" },
+      "landmarks": ["earth_london_clock_tower"] },
+    { "key": "paris",    "kind": "city", "latitude": 48.86,  "longitude": 2.35,    "nameKey": "city.paris.name", "grid": 5, "plaza": [2, 3], "stations": 2,
+      "palette": { "wall": "concrete#F0E2C0", "accent": "glass#A9C2E0", "roof": "metal_panel#4C6684", "floor": "steel_floor", "path": "concrete#CFC6B0" },
+      "landmarks": ["earth_eiffel_tower"] },
+    { "key": "berlin",   "kind": "city", "latitude": 52.52,  "longitude": 13.40,   "nameKey": "city.berlin.name", "grid": 4, "plaza": [1, 1],
+      "palette": { "wall": "concrete#F4F4F0", "accent": "glass#C9DCEB", "roof": "metal_panel#B0262C", "floor": "steel_floor", "path": "concrete#BDBDB8" },
+      "landmarks": ["earth_brandenburg_gate", "earth_berlin_tv_tower"] },
+    { "key": "cairo",    "kind": "city", "latitude": 29.871, "longitude": 31.178,  "nameKey": "city.cairo.name", "grid": 6, "plaza": [3, 4],
+      "palette": { "wall": "concrete#E3C98F", "accent": "glass#F0D890", "roof": "metal_panel#C9A23A", "floor": "steel_floor", "path": "concrete#D8C49A" },
+      "landmarks": [] },
+    { "key": "tokyo",    "kind": "city", "latitude": 35.834, "longitude": 139.267, "nameKey": "city.tokyo.name", "grid": 6, "plaza": [4, 1],
+      "palette": { "wall": "concrete#F6F4F0", "accent": "glass#F2B8A0", "roof": "metal_panel#E0502A", "floor": "steel_floor", "path": "concrete#C0BEB8" },
+      "landmarks": ["earth_tokyo_tower"] },
+    { "key": "sydney",   "kind": "city", "latitude": -33.594, "longitude": 150.979, "nameKey": "city.sydney.name", "grid": 6, "plaza": [5, 2],
+      "palette": { "wall": "concrete#F7F7F4", "accent": "glass#9ED8D4", "roof": "metal_panel#1E9A94", "floor": "steel_floor", "path": "concrete#D0D0CA" },
+      "landmarks": ["earth_sydney_opera"] },
+    { "key": "toronto",  "kind": "city", "latitude": 44.01,  "longitude": -79.38,  "nameKey": "city.toronto.name", "grid": 6, "plaza": [3, 3],
+      "palette": { "wall": "concrete#8FB4D8", "accent": "glass#BFDDF5", "roof": "metal_panel#C8CCD2", "floor": "steel_floor", "path": "concrete#B4B8BC" },
+      "landmarks": ["earth_toronto_tower"] },
+    { "key": "new_york", "kind": "city", "latitude": 41.242, "longitude": -73.916, "nameKey": "city.new_york.name", "grid": 6, "plaza": [3, 2],
+      "palette": { "wall": "concrete#8A929C", "accent": "glass#F2C060", "roof": "metal_panel#5A6068", "floor": "steel_floor", "path": "concrete#9A9A96" },
+      "landmarks": ["earth_new_york_statue", "earth_gds_tower"] },
+    { "key": "rio",      "kind": "city", "latitude": -22.496, "longitude": -42.823, "nameKey": "city.rio.name", "grid": 6, "plaza": [3, 1],
+      "palette": { "wall": "concrete#F8F8F4", "accent": "glass#A8E8A0", "roof": "metal_panel#2EC24A", "floor": "steel_floor", "path": "concrete#D6D2C4" },
+      "landmarks": ["earth_rio_statue"] },
+
+    // The three pyramids of Giza (real 29.98 N 31.13 E), west of Cairo in their real arrangement — the great one north-east,
+    // the second south-west of it, the third further south-west. They are built 1:1 (the great one 231 × 238 blocks), so at
+    // this scale they stand far apart from where they really are: each footprint clear of the others (16 blocks between)
+    // and of a 120-block circle round Cairo's centre (its city is up to 216 across), on dry desert ground.
+    { "key": "giza_great",  "kind": "landmark", "template": "earth_pyramid_great",  "latitude": 25.821, "longitude": 25.328 },
+    { "key": "giza_second", "kind": "landmark", "template": "earth_pyramid_second", "latitude": 20.286, "longitude": 22.853 },
+    { "key": "giza_third",  "kind": "landmark", "template": "earth_pyramid_third",  "latitude": 16.168, "longitude": 21.053 },
+
+    // The SPS headquarters in the rain forest (#3986, docs/developer/LANDMARKS.md): five parts built in one frame
+    // (tools/landmarks/_sps_hq.py), side by side on one ground row so their corridors meet. The anchor is the centre of the
+    // frame's 360 × 270 box; each member's offset is its footprint's low corner, blocks east and north of the anchor. The
+    // rain-forest pad stands 250 blocks east of the anchor, 70 beyond the frame's east edge.
+    { "key": "sps_hq", "kind": "complex", "latitude": -5.0, "longitude": -65.0, "members": [
+      { "template": "earth_sps_hq_main",    "east": -180, "north": -135 },
+      { "template": "earth_sps_hq_hangar",  "east": -20,  "north": -135 },
+      { "template": "earth_sps_hq_servers", "east": -180, "north": -15 },
+      { "template": "earth_sps_hq_core",    "east": -30,  "north": 40 },
+      { "template": "earth_sps_hq_hall",    "east": 20,   "north": -15 }
+    ] },
+
+    // The hover-rail network (#3985, docs/developer/MONORAIL.md "The rail network"): two lines, each a public train shuttling
+    // end to end and halting at every stop. Each stop's hall stands on one of its city's rail-hall squares (Paris keeps two,
+    // one per line — change on foot, there are no switches), the line runs out of the city along the street beside it, then
+    // through the waypoints ([longitude, latitude]) toward the next stop: over the sea and round the high mountains.
+    { "key": "rail_atlantic", "kind": "rail", "nameKey": "rail.atlantic.name", "stops": [
+      { "city": "berlin" },
+      { "city": "paris" },
+      { "city": "london" },
+      { "city": "toronto" },
+      { "city": "new_york" },
+      { "city": "rio" }
+    ] },
+    { "key": "rail_orient", "kind": "rail", "nameKey": "rail.orient.name", "stops": [
+      { "city": "paris" },
+      { "city": "cairo" },
+      { "city": "tokyo" },
+      { "city": "sydney" }
+    ] }
+  ]
+}

@@ -506,7 +506,8 @@ public sealed partial class GameContent
         IDictionary<GameLocale, double>? localeCoverage = null,
         IEnumerable<AuthoredCreature>? authoredCreatures = null)
     {
-        _authoredCreatures = (authoredCreatures ?? Enumerable.Empty<AuthoredCreature>()).ToDictionary(a => a.Key, StringComparer.OrdinalIgnoreCase);
+        _authoredCreatureOrder = (authoredCreatures ?? Enumerable.Empty<AuthoredCreature>()).ToList();
+        _authoredCreatures = _authoredCreatureOrder.ToDictionary(a => a.Key, StringComparer.OrdinalIgnoreCase);
         _blocks = blocks.ToDictionary(b => b.Key);
         _items = items.ToDictionary(i => i.Key);
         IndexItemGroups(items); // #2958
@@ -537,6 +538,7 @@ public sealed partial class GameContent
             }
         }
 
+        ResolveAuthoredCreatureNames(); // #3973: a species name key's English fallback text
         AssignBlockIds();
         MarkTintableDefaults();
         MarkShapeableDefaults();
@@ -617,17 +619,30 @@ public sealed partial class GameContent
 
     private readonly Dictionary<string, AuthoredCreature> _authoredCreatures;
 
+    /// <summary>The authored records in the order of <c>data/creatures.json</c> (#3973: the stable order of a type's homes).</summary>
+    private readonly List<AuthoredCreature> _authoredCreatureOrder;
+
     /// <summary>The authored creature species (#1763, <c>data/creatures.json</c>), keyed case-insensitively.</summary>
     public IReadOnlyDictionary<string, AuthoredCreature> AuthoredCreatures => _authoredCreatures;
 
-    /// <summary>The authored records a planet type names, in its own order (unknown keys are skipped — validation
-    /// reports them). Empty for every type that names none.</summary>
+    /// <summary>The authored records that join a planet type's roster (unknown keys are skipped — validation reports them): the
+    /// ones the type names in <see cref="PlanetType.AuthoredCreatures"/>, in its own order, then (#3973) every record whose
+    /// <see cref="AuthoredCreature.Homes"/> names the type, in the order of <c>data/creatures.json</c> — appended, so a record
+    /// gaining a home never moves one the type already lists. Empty for every type that names none and is nobody's home.</summary>
     public IReadOnlyList<AuthoredCreature> AuthoredCreaturesFor(PlanetType planet)
     {
         var list = new List<AuthoredCreature>();
         foreach (var key in planet.AuthoredCreatures)
         {
             if (_authoredCreatures.TryGetValue(key, out var record))
+            {
+                list.Add(record);
+            }
+        }
+
+        foreach (var record in _authoredCreatureOrder)
+        {
+            if (record.Homes.Contains(planet.Key) && !list.Contains(record))
             {
                 list.Add(record);
             }

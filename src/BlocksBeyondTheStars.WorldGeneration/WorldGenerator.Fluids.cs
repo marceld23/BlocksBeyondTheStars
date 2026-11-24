@@ -332,7 +332,7 @@ public sealed partial class WorldGenerator
                 channelFlowThreshold: 1, fullWidthAccum: 8, sunkRegion: sunk,
                 sinuosity: morph ? 1.0 : 0.0, distributaries: morph ? 4 : 0, floodplainWidth: morph ? 6 : 0,
                 bankClamp: WaterSealed, // generation 24 (#2516): no water above the lower bank
-                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: false), geography: GeographyWorld); // generation 40
+                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: false), geography: GeographyWorldFor(planet)); // generation 40
         }
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the
@@ -349,7 +349,7 @@ public sealed partial class WorldGenerator
             // Generation 24 (#2516): no lava above the lower bank; generation 40: half-strength valleys and the distance layers.
             return RiverField.Build(net, Height, _circumference, fillFluid: lavaId,
                 channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4, bankClamp: WaterSealed,
-                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: true), geography: GeographyWorld);
+                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: true), geography: GeographyWorldFor(planet));
         }
 
         return RiverField.Empty(_circumference);

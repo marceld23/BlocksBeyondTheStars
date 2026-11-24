@@ -47,8 +47,9 @@ public readonly struct CreatureVoice
 {
     public CreatureVoice(string call, string layerCall, int layerOffsetMs, int layerDetune,
         VoiceOp op, int opAmount, int tail, int pulses, int pulseGapMs, VoiceContour contour,
-        float cadenceMin, float cadenceMax, int pitchStep, string alarmCall = "")
+        float cadenceMin, float cadenceMax, int pitchStep, string alarmCall = "", SpeciesVoices? own = null)
     {
+        Own = own;
         PitchStep = pitchStep;
         AlarmCall = string.IsNullOrEmpty(alarmCall) ? call : alarmCall;
         Call = call;
@@ -65,8 +66,12 @@ public readonly struct CreatureVoice
         CadenceMax = cadenceMax;
     }
 
-    /// <summary>The base sample id (a <c>creature_call_*</c> clip).</summary>
+    /// <summary>The base sample id (a <c>creature_call_*</c> clip, or a recorded take of the species' own calm call).</summary>
     public string Call { get; }
+
+    /// <summary>#3973: the species' own recorded calls by mood (<see cref="SpeciesVoices"/>), or null for a generated voice. The
+    /// client plays a take of the mood's calls (<see cref="SpeciesVoices.Take"/>) at their natural pitch.</summary>
+    public SpeciesVoices? Own { get; }
 
     /// <summary>#3243: the species' alarm call — a second sample from the same body class, spoken short and rising when
     /// the animal (or a herd member) is startled. The base call when the class has nothing else to offer.</summary>
@@ -132,7 +137,7 @@ public readonly struct CreatureVoice
 /// species can share bakes and a planet's working set fits the client's LRU cache (#901).</item>
 /// </list>
 /// </summary>
-public static class CreatureVoices
+public static partial class CreatureVoices
 {
     // Signature idle calls, grouped by the character they read as. A species picks from its habitat's
     // pool, narrowed to the class its body suggests — a titan does not squeak.
@@ -314,6 +319,11 @@ public static class CreatureVoices
     /// asset set degrades to a different voice instead of a silent animal; the server passes null.</summary>
     public static CreatureVoice Derive(int seed, VoiceTraits t, System.Func<string, bool>? available = null)
     {
+        if (t.Own is { IsEmpty: false } own && HasAnyTake(own, available))
+        {
+            return OwnVoice(seed, t, own); // #3973: the species' own recorded calls (a client without them keeps the generated voice)
+        }
+
         var pool = Filter(PoolFor(t.Habitat, t.BodyPlan, available), available);
         var candidates = Filter(NarrowByBody(pool, t), available);
         string call = Rendezvous(seed, "call", candidates);
@@ -426,24 +436,29 @@ public static class CreatureVoices
         return PoolFor(habitat);
     }
 
-    /// <summary>The body plans that speak from a pool of their own instead of their habitat's, or null.</summary>
-    private static string[]? OwnPool(string bodyPlan) => bodyPlan switch
-    {
-        "Biped" => BipedCalls,
-        "Robot" => RobotCalls,
-        "Hound" => CanineCalls,
-        _ => SungPool(bodyPlan), // #3359: the creatures of Soaniri
-    };
+    /// <summary>The body plans that speak from a pool of their own instead of their habitat's, or null — the plan's
+    /// <see cref="BodyPlanProfile.Voice"/> in the profile table (#3972).</summary>
+    private static string[]? OwnPool(string bodyPlan) => PoolOf(CreatureBodyPlans.Of(bodyPlan).Voice);
 
     /// <summary>#3359: the recorded voices of Soaniri's creatures — the body plans whose calls are real recordings (the animated
     /// series' Soundi, the Soundrak's scream, the Qualis' song, the Soundelings' coo), or null. A sung voice is never processed,
     /// layered or chained into a phrase: one recording per call, at its own pitch (<see cref="KeepsNaturalPitch"/>).</summary>
-    public static string[]? SungPool(string bodyPlan) => bodyPlan switch
+    public static string[]? SungPool(string bodyPlan)
     {
-        "Soundi" => SoundiCalls,
-        "Soundrak" => SoundrakCalls,
-        "Quali" => QualiCalls,
-        "Soundeling" => SoundelingCalls,
+        var body = CreatureBodyPlans.Of(bodyPlan);
+        return body.SungVoice ? PoolOf(body.Voice) : null;
+    }
+
+    /// <summary>The calls of a body voice; null for the habitat's (the caller picks the habitat pool).</summary>
+    private static string[]? PoolOf(BodyVoice voice) => voice switch
+    {
+        BodyVoice.Biped => BipedCalls,
+        BodyVoice.Robot => RobotCalls,
+        BodyVoice.Canine => CanineCalls,
+        BodyVoice.Soundi => SoundiCalls,
+        BodyVoice.Soundrak => SoundrakCalls,
+        BodyVoice.Quali => QualiCalls,
+        BodyVoice.Soundeling => SoundelingCalls,
         _ => null,
     };
 
@@ -890,8 +905,9 @@ public static class CreatureVoices
 public readonly struct VoiceTraits
 {
     public VoiceTraits(string habitat, string temperament, string bodyPlan, float size, int legs,
-        int eyes, int horns, int bodySegments, int tentacles, bool hasGasSac, bool glows)
+        int eyes, int horns, int bodySegments, int tentacles, bool hasGasSac, bool glows, SpeciesVoices? own = null)
     {
+        Own = own;
         Habitat = habitat ?? "Land";
         Temperament = temperament ?? "Passive";
         BodyPlan = bodyPlan ?? "Standard";
@@ -927,7 +943,10 @@ public readonly struct VoiceTraits
 
     public bool Glows { get; }
 
+    /// <summary>#3973: the species' own recorded calls, or null (the generated voice).</summary>
+    public SpeciesVoices? Own { get; }
+
     public static VoiceTraits From(CreatureSpecies sp) => new VoiceTraits(
         sp.Habitat.ToString(), sp.Temperament.ToString(), sp.BodyPlan.ToString(), sp.Size, sp.Legs,
-        sp.Eyes, sp.Horns, sp.BodySegments, sp.Tentacles, sp.HasGasSac, sp.Glows);
+        sp.Eyes, sp.Horns, sp.BodySegments, sp.Tentacles, sp.HasGasSac, sp.Glows, sp.Voices);
 }

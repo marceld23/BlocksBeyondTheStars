@@ -121,7 +121,14 @@ public sealed partial class GameServer
         // finale area. Hyperjump + body lookup are by id; the map position matters only for the hyperspace
         // chart (#1603), which draws every system by MapX/MapY — see GuardianFinaleMapPosition.
         var (mapX, mapY) = GuardianFinaleMapPosition(_galaxy);
-        var system = new StarSystem { Id = GuardianFinaleSystemId, Name = "Guardian Core", MapX = mapX, MapY = mapY };
+        var system = new StarSystem
+        {
+            Id = GuardianFinaleSystemId,
+            Origin = StarSystemOrigin.Finale,
+            Name = "Guardian Core",
+            MapX = mapX,
+            MapY = mapY,
+        };
         system.Bodies.Add(new CelestialBody
         {
             Id = GuardianCoreBodyId,
@@ -158,7 +165,7 @@ public sealed partial class GameServer
         int count = 0;
         foreach (var s in galaxy.Systems)
         {
-            if (s.Id == GuardianFinaleSystemId || !WorldGeneration.WormholePlacer.MayHoldWormhole(s.Id)) // #3357: a pack system never moves it
+            if (!s.IsRolled) // #3357, #3969: only the rolled stars count — a pack or fixed system never moves it
             {
                 continue;
             }

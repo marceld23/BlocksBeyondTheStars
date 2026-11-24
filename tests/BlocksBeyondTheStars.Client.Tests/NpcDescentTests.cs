@@ -70,8 +70,12 @@ public sealed class NpcDescentTests
         // The server flies a trader to these; the flight view must draw the body and its landing band with the same.
         string scene = Script("SpaceView.Scene.cs");
         Assert.Contains("new Vector3(SystemBodyLayout.HomeX, SystemBodyLayout.HomeY, SystemBodyLayout.HomeZ)", scene);
-        Assert.Contains("OrbitDiameterFor(homeCirc) * SystemBodyLayout.HomeDiameterFactor", scene);
-        Assert.Contains("=> SystemBodyLayout.OrbitDiameter(circumference);", scene);
+        // #3970: the drawn size comes from the shared rule the server's descent uses too (a fixed size, else the circumference).
+        Assert.Contains("SystemBodyLayout.HomeDiameter(BodySize.VisibleDiameterOf(current, homeCirc))", scene);
+        Assert.Contains("BodySize.VisibleDiameterOf(b, circ)", scene);
+        Assert.Equal(SystemBodyLayout.OrbitDiameter(8800), SystemBodyLayout.VisibleDiameter(0f, 8800));
+        Assert.Equal(SystemBodyLayout.OrbitDiameter(8800) * SystemBodyLayout.HomeDiameterFactor,
+            SystemBodyLayout.HomeDiameter(SystemBodyLayout.OrbitDiameter(8800)));
         string view = Script("SpaceView.cs");
         Assert.Contains("KeepOutMargin = SystemBodyLayout.KeepOutMargin;", view);
         Assert.Contains("LandBand = SystemBodyLayout.LandBand;", view);

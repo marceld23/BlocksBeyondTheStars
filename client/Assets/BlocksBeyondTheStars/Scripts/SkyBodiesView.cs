@@ -325,7 +325,7 @@ namespace BlocksBeyondTheStars.Client
                         d = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
                     }
 
-                    return BodySize.CircumferenceOf(b) / Mathf.Max(d, 40f); // #2691: the server's size of the body
+                    return BodySize.ApparentCircumferenceOf(b) / Mathf.Max(d, 40f); // #2691, #3970: the size the body is drawn at
                 }
 
                 candidates.Sort((a, b) => Prominence(b).CompareTo(Prominence(a)));
@@ -406,7 +406,8 @@ namespace BlocksBeyondTheStars.Client
                 // chunk of the sky; a neighbour planet hundreds of units out → a small disc; from an asteroid,
                 // nearby planets/moons loom accordingly. 0.004 keeps the classic per-class midpoints
                 // (asteroid ~10, moon ~18, planet ~39).
-                float radius = 5f + bodyCirc * 0.004f;
+                // #3970: a body with a fixed drawn size (Sol's giants) looms by that size, not by its walkable one.
+                float radius = 5f + BodySize.ApparentCircumferenceOf(body) * 0.004f;
                 float dist = 600f; // fallback when coords are missing
                 if (current != null)
                 {

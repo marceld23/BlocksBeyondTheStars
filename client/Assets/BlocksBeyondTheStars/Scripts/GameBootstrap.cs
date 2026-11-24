@@ -550,6 +550,7 @@ namespace BlocksBeyondTheStars.Client
             BioSenses.Ensure(this);   // #2202: night sight and perception — the component arrives with the first such effect
             TickWeatherSmoothing();
             WorldMinimap.Pump(); // #2172: planet map bakes — worker threads on desktop, time slices in the browser
+            PumpBiomeLookMap(); // #3979: a map world's biome looks wait for its planet map (browser)
 
             TickSkyScan();
             TickPlaces(); // the lively places: which place the player stands in (GameBootstrap.Places.cs)

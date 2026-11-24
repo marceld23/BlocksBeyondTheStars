@@ -67,7 +67,7 @@ public sealed class TitasWorldTests
         Assert.Equal(40.0, p.ExposureMinutesCold);
         Assert.Equal(30.0, p.ExposureMinutesHot);
         Assert.True(p.RestrictStructures);
-        Assert.Equal(new[] { "net_fragments", "sps_labs" }, p.AllowedStructures.OrderBy(k => k, StringComparer.Ordinal));
+        Assert.Equal(new[] { "net_fragments", "rune_stones", "sps_labs" }, p.AllowedStructures.OrderBy(k => k, StringComparer.Ordinal));
         Assert.Single(p.Biomes, b => b.HotZone && b.Temperature == 100.0);
         Assert.InRange(p.SpawnWeight, 1, 2);
 

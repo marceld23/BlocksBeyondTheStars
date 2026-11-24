@@ -46,8 +46,7 @@ public sealed partial class GameServer
 
         int fixedCount = Math.Max(1, _meta.Description.StarSystemCount);
         var bodies = _galaxy.Systems
-            .Where(s => s.Id.StartsWith("sys", StringComparison.Ordinal)
-                && int.TryParse(s.Id.Substring(3), out int idx) && idx < fixedCount)
+            .Where(s => StarSystemIds.IsStartRolled(s.Id, fixedCount))
             .SelectMany(s => s.Bodies)
             .Where(b => (b.Kind == CelestialKind.Planet || b.Kind == CelestialKind.Moon)
                 && !string.IsNullOrEmpty(b.PlanetType) && b.Id != excludeBodyId

@@ -36,7 +36,9 @@ SEED
 
 ## 2. Galaxy → system → body
 
-Built by [`UniverseGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/UniverseGenerator.cs).
+Built by [`UniverseGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/UniverseGenerator.cs) (the retype
+and guarantee passes); the per-system layout — header and name, planets, moons, twin sizing, asteroids, stations,
+wreck, in that draw order — is `UniverseGenerator.Systems.cs`, the start-system guarantees `UniverseGenerator.StartSystem.cs`.
 The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World/Galaxy.cs).
 
 - **12 star systems** per galaxy by default (`StarSystemCount`, #1616), each with a random 2D star-map
@@ -190,6 +192,12 @@ from the mixed hash, §43) so two same-type worlds still look distinct — see
 
 Surface height is computed per column in
 [`WorldGenerator.SurfaceHeight`](../../src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs).
+
+**The base form** (#3977): a world's raw height, its sea level and fluid, and its biome pick are the three answers of
+its *terrain base form*, chosen once per world — **rolled** (everything below), **cratered** (§4 e) or **map** (terrain
+from a planet map, `terrainMap`, #3978). See [MAP_PLANETS.md](MAP_PLANETS.md). Landmark overlays, valleys, site grades
+and the caches sit on top of whichever form the world has.
+
 Variety stacks from five mechanisms:
 
 **a) Eight terrain archetypes** (`ArchetypeOffset`, explicit landform shapes since #576):
@@ -276,6 +284,9 @@ Two steps, both in [`WorldGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGen
    percentile) maps each column to a biome index — so a planet's biome list reads bottom-to-top, entry 0 in the lowlands,
    the last on the peaks. Hot zones (Titas) and the sand sea are region fields cut at a measured quantile on top.
 
+> A **map world** (#3978, [MAP_PLANETS.md](MAP_PLANETS.md)) skips both steps: it keeps its whole biome list in order and
+> takes each column's biome from the map's class.
+>
 > **No climate model.** There is no moisture field and no latitude (the torus has no poles): the biome list is a band
 > sequence of one field plus altitude, so entry *i* only borders *i − 1* and *i + 1*. The large scale (360, ~7.5× the
 > default `TerrainScale` of 48) makes each biome a big contiguous region so per-biome systems (weather) cover a
@@ -337,8 +348,9 @@ brown/pink/violet/amber exotics).
 ## 7. Fauna
 
 Derived per **body** (#478, same location-id salt as flora) by
-[`CreatureGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs); spawned
-live by `GameServerCreatures.cs`.
+[`CreatureGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs) (the roster passes;
+the species roll is `CreatureGenerator.Species.cs`, the body plans `.BodyPlans.cs`, the giants `.Giants.cs`, the
+Schuppenhund `.Hound.cs`); spawned live by `GameServerCreatures.cs` and its `GameServerCreature*.cs` partials.
 
 - **Species per world** from `CreatureAbundance`: `none` → 0, `few` → **5**, `many` → **9** (airless
   bodies → 0). The first 3 / 6 indices keep their exact pre-#640 rolls (each species draws its own
@@ -380,8 +392,9 @@ live by `GameServerCreatures.cs`.
   (`CreatureGenerator.ApplyBigHerds`) and only on a generation-12 world, so older rosters stay bit for bit.
   Peaceful standard-plan Land species only: a **passive** one begs with **30 %** (`CreatureSpecies.BegsForFood`)
   and then always lives in a herd of **8–12**; the other passive ones and the skittish ones roll a herd of
-  **6–9** with **20 %**. Skittish species never beg (`HerdRules.BegsForFood` = flag ∧ Land ∧ Passive ∧ not a
-  giant). Because a "few" world holds about a dozen animals in total, a herd is **cheap for the population
+  **6–9** with **20 %**. A rolled skittish species never begs: the generator sets the flag on passive species
+  only (`HerdRules.BegsForFood` = flag ∧ Land ∧ (Passive ∨ Skittish) ∧ not a giant — the skittish branch is for
+  authored shy beggars such as the dog and the cat, #3973). Because a "few" world holds about a dozen animals in total, a herd is **cheap for the population
   model**: members of a species with a group ≥ 6 count **one per three** toward the world cap and the species
   share (`HerdRules.WeightedCount`, read by the spawner AND the crowding prune — the two must agree or the prune
   sheds the herd the spawner just placed); the hard cap of 64 stays a real body count; a big-herd species
@@ -402,9 +415,30 @@ live by `GameServerCreatures.cs`.
   type only 30 % of the species were native in their own biome, 55 % in another and 15 % nowhere. A biome with fewer than
   **two** eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
   otherwise every spawn in that region was its single native, and a base there drowned in one species.
+  **Climate zones (#3973):** a record may name `floraThemes` (temperate, tropical, savanna, desert, tundra, alpine, … — the
+  flora theme of a biome, its own or else the type's) beside `biomeSurfaces`; `CreatureBiomes` is the one rule: the affinity is
+  the first pool biome whose surface OR zone the record names, and a `biomeExclusive` species spawns only on its surface or
+  in a biome of its zones (`OnOwnGround`; the spawner looks up the zone at the spot through `BiomePoolIndexAt`). An unknown
+  zone is a load error.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world. A type with a `faunaPalette` (#3448, Soaniri) overrides both rolled
   colours afterwards with its own entries (§51).
+- **Fixed species of a home world (#3973, the animals of Earth):** an authored record may name the planet types it lives on
+  (`homes`) instead of being listed in each type's `authoredCreatures`. `GameContent.AuthoredCreaturesFor` — the list every
+  roster caller passes to `GenerateRoster` — is the type's own list, then every record whose `homes` names the type, in the
+  order of `data/creatures.json`; the roster appends them like any authored species (its own key-salted sub-seed), so no
+  rolled species moves and no other type's roster changes. A home naming a type the content does not have is a load warning
+  (`WarnAuthoredCreatureHomes`), not an error. Such a species carries a localized name (`nameKey` → `creature.<key>.name`,
+  `CreatureNames`; its `Name` is the English text as the language-neutral fallback), its own recorded voice and fixed coats
+  ([CREATURE_RIG.md](CREATURE_RIG.md) "The animals of Earth"). The twelve animals of `sol_earth`: dog, cat, rabbit, cow,
+  sheep, monkey, elephant (#3973); chicken (a ground bird, temperate), parrot (tropical), eagle (alpine) (#3974); dolphin and
+  whale (#3975) — the sea animals name no climate zone and live in any sea, kept apart by their water depth band (below).
+- **Earth species elsewhere (#3976, generation 49, §64):** a record may say that people keep it (`pet: true` — the dog, the
+  cat; `pen: "<item>"` — the cow `milk`, the sheep `wool`, the chicken `egg`) and that it lives wild away from home
+  (`wildElsewhere: <chance>` — the dog and the cat, 0.15). A stray joins the roster of a habitable world that is not one of
+  its homes by the world's own salted roll, last of all (`StrayAnimals`, the `strays` argument of `GenerateRoster`, which
+  every roster caller passes as `GameContent.StrayAnimalRecords`); the kept species come in beside the roster
+  (`KeptAnimals`). All three fields are record-only (`AuthoredSpeciesMapping.RecordOnly`).
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470; the tick's fill gate and cadence read
@@ -413,7 +447,11 @@ the clamped value too, #1717, or a world modelling above 64 spun in the fast fil
 spawn rotates on the wild count, #1720), habitat gates (water animals only in
 water columns — the water and lava probes read **real blocks first** and the generator only for unloaded
 columns, so a pool the player built hosts a school and a drained pond does not, and every herd member
-runs the same probe from its own spot, #1718; cave animals only in caves — the cave-floor and shoreline
+runs the same probe from its own spot, #1718; **water depth band**, #3975: a water species may name `minWaterDepth` /
+`maxWaterDepth` — `WaterDepthBand` seats it only in a column whose depth lies in the band (the whale in water at least 12
+deep, the leviathan's deep sea; the dolphin in the coastal 3–16), and a swimmer with a lower bound never steps into shallower
+water than that bound while the step gets shallower (equal or deeper water stays open, so it is never trapped); without a band
+the classic `MinSwimDepth` rule holds exactly; cave animals only in caves — the cave-floor and shoreline
 probes never load a chunk, #1719; titans additionally need a 3×3 level-ground clearance),
 despawn beyond 70 blocks (titans and arachnids 110 — a landmark animal must not evaporate mid-approach). **No
 monoculture (#1325):** each species may hold at most a **share** of the live cap — 40 %, never below 3,
@@ -516,7 +554,9 @@ Y is resolved each tick (`GameServer.ResolveVertical`, state in `CombatEntity.Ve
   floor rides up over the surface even when its reference cell lies in a cave below, where the probe would
   otherwise hold its depth. Air spawns (leader and herd) are placed at that band (`AirSpawnY`), no longer at
   the generator surface + 4, which over a pond was inside the water.
-- **Swimmers** porpoise their local water column as before.
+- **Swimmers** porpoise their local water column as before. A body plan whose whole body stays under water
+  (`BodyPlanProfile.Submerged`, the whale #3975 — drawn from its position up) ends its band its body height under the surface
+  (`WaterColumnY`'s clearance), so a twenty-block whale does not ride out of the sea; every other swimmer's band is unchanged.
 
 The wire carries the class and vertical state as additive `NetCreature` fields (`Motion`,
 `Airborne`, `Perched`, `VertVel`); since #2664/#2665 the client draws the arcs from interpolated snapshots
@@ -1502,6 +1542,17 @@ and `GiftsWhenCalm`. Leni rides on `glacier`, `icecap`, `frozen_ocean` and `bore
 flower fields' only species (`CreatureBodyPlan.Floral`: a petal ring around the head, a grin while calm, a
 toothed maw while hostile — the view rebuilds the body on the hostility flip).
 
+**Coat variants (#3972).** A record may list `coats`: `[{ "weight": 3, "bodyRgb": …, "bellyRgb": …, "pattern":
+"Tabby", "patternRgb": …, "hide": "fur" }, …]` — the coats the species comes in (a cat: black, grey tabby, ginger
+tabby, …). Empty on every record so far, which keeps the designed colours. Each animal carries its own `AnimalSeed`
+(`CombatEntity`, from its entity id; a pen animal from its pen and place, a village or keeper's pet from its owner, a
+companion from `TamedCreature.AnimalSeed`, which taming copies like the size); `CoatVariants.Pick` chooses its coat by
+weight and `CoatVariants.MaskVariant` one of four mask layouts from the same seed. The server sends the picked coat's
+colours on `ColorRgb`/`BellyRgb`, its hide on `Hide` and its pattern on `NetCreature.CoatPattern` / `CoatPatternRgb` /
+`CoatMask` (additive fields; `NetCreature.AnimalSeed` too); the client's `CreatureLookResolver` wears it as sent. Pattern
+names are the client's `CoatPattern` names, hide names the hide tiles (`CreatureLookNames`, shared, checked at content
+load — an unknown name or a weight below 1 fails the load).
+
 **The flowerling's rules (#1760, `GameServerFlowerling.cs`).** Every block break is reported to
 `CreaturesOnBlockBroken`: a mining-angered species within 16 blocks WITH line of sight takes a 60 s grudge
 (`ProvokeTimer`; the species is Territorial, so the provoked path hunts and bites with its own damage).
@@ -1539,7 +1590,7 @@ altitude) and runs only when the save's generation is ≥ `WorldDescription.NewK
 generation-5 roster is therefore bit-for-bit the classic two-argument roster (`CreatureNewKindsTests`
 serialises both). The diversity re-draw (`EnsureHabitatDiversity`) passes the generation through, so a
 re-drawn niche slot rolls the wave too. Nothing is persisted: the roster is re-derived on every start, and a
-companion snapshot carries the three counts (`CloneSpecies`).
+companion snapshot carries the three counts (`CreatureSpecies.Clone`).
 
 **Generation 10 — the arachnid (#2009).** The same discipline once more: the arachnid roll is the very last
 draw of `MakeSpecies` (after `ApplyNewKinds`) and runs only when the save's generation is ≥
@@ -1655,10 +1706,16 @@ guard posts inside and ON the footprint rim outside the gates. Open zones (the p
 at pad 0 − 56/+56) are handed in as rectangles the composer leaves as paved ground; a module they intersect
 becomes an open square. Deterministic from the body seed.
 
-**The stamp** (`GameServerSettlements.StampCityWorld`). A city world skips the hospitality roll entirely:
+**The stamp** (`GameServerCityPlaces.StampCityWorld`). A city world skips the hospitality roll entirely:
 one settlement, centred on landing pad 0, `GroundY` = the pad's ground, seat `shelf`, pinned as settlement 0
 with template `city:gds`; `CommitSettlements` (phases B–D, shared with the roll) does the rest. The footprint
-is kept on `LoadedWorld.CityFootprint`.
+is kept on `LoadedWorld.CityFootprint`. Since #3980 this is "the G.D.S. world has one **city place** at pad 0"
+(`GdsCityPlace`): a `CityPlace` (centre as a given seat, theme `gds`, the settlement seed, grid 7, the pad ring and the
+crash site as open zones) stamped through `StampCityPlaces`, the one path for every composed G.D.S.-style city — several
+places per world, each under its own settlement index, are possible. Earth's nine metropolises (#3983) are city places too,
+laid out on the land and stored as overlays ([MAP_PLANETS.md](MAP_PLANETS.md) §8). `CityGenerator.Generate`
+takes the place's theme (its rng lane `city:<theme>`) and its layout (the grid), the defaults composing exactly as before
+([STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4).
 
 **Cool rooms** (`TemperatureSystem.InCityShelter`). Inside the footprint AND `RoofedAt` → the effective
 temperature is `CityComfortC` = 22 °C. Streets, gardens and the plaza stay desert-hot. No climate physics.
@@ -2186,7 +2243,7 @@ the FINAL draw of `MakeSpecies` on a generation-15 world (60 % classic, else amb
 hunter leans red, a glower violet); `AuthoredCreature.EyeRgb` may name it. `PlanetType.ContaminatedFauna` +
 `EyeColor` → `MakeContaminated`, a post-pass beside `MakePeaceful`: Aggressive (every fourth PackHunter), a bite of 2–7
 where the plan rolled none, Cathemeral (a sleeping hunter is no hunter), the type's eyes, `toxic_meat` where the drop was
-food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CloneSpecies` copies
+food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CreatureSpecies.Clone` copies
 it, `CreatureBuilder` paints the iris self-lit. The scan reads `ui.scan.threat.contaminated` on such a world.
 
 **Factories (#2070).** `PlanetType.FactoryCount` [min, max] replaces the 0 / 1 / 2 roll with the same first draw; the
@@ -2330,7 +2387,7 @@ tan).
 
 **Authored giants (#2075).** `AuthoredCreature` has carried the giant traits since #2003; `InitGiants` now reads them:
 `CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, kind)` builds the first authored record with the
-matching giant body plan exactly as the roster would (`MakeAuthoredSpecies`, sub-seed salted with the key; `Size` =
+matching giant body plan exactly as the roster would (`AuthoredSpeciesMapping.ToSpecies`, sub-seed salted with the key; `Size` =
 `giantHeight / 10` for a giant) and it takes the slot the roll would have filled — the Ignivermis (`au_ignivermis`: red
 back, black belly, ember glow, hearing 1.3, 55 blocks, 3800 HP, `swallowsCreatures`) is the worm of every Arena Nigra.
 `GenerateRoster` skips giant body plans, so the spawner never rolls it as an animal. `PlanetType.SandwormCount` (0 = the
@@ -3860,7 +3917,8 @@ crate set into the −Z fence, an `entrance` marker above it, a trough, a lean-t
 (`GameServerSettlementFarms.cs`, `GameServerPenAnimals.cs`) gives field crops `FieldRegrowSeconds` (240) instead of 30,
 keeps two or three animals of a passive land species of the world in every pen (owner `pen:<x>:<z>`, exempt from the town
 rule, put back in when they wander out) and lays one product every 180 s into the pen's crate, up to 12: `egg` (winged or
-two-legged), `milk` (size ≥ 1.1), `wool`. Recipes: `fried_egg` and `pancake` (campfire), `rug_wool`, `bed_wool`; the grocer
+two-legged), `milk` (size ≥ 1.1), `wool` — from generation 49 a pen may keep a cow, a sheep or a chicken instead, which
+lays its record's item (§64). Recipes: `fried_egg` and `pancake` (campfire), `rug_wool`, `bed_wool`; the grocer
 sells eggs and milk.
 
 **The city that grew** (#3599, `CityGrowth`). A city kit with `grown` (`city_gds_grown_1`, weight 6 against the classic 2):
@@ -4148,3 +4206,59 @@ groups are not called).
 
 **Tests.** `WorldHarmonyTests`, `FloraGroupsTests`, `StarColorsTests`, `HyperspaceChartServerTests`, and the adjusted
 `SoaniriPaletteTests`, `FloraTests`, `MistProfileServerTests`, `SpsTowerTemplateTests`.
+
+## 64. Generation 49 — dogs and cats on other worlds, Earth species as pets and pen animals (#3976, 2026-11-24)
+
+**Why.** The animals of Earth (§7, #3973–#3975) lived on `sol_earth` only. A village elsewhere kept one of its own
+world's peaceful animals as a pet and in its pens — never a dog or a cat, never a cow giving milk. And a dog or a cat
+never turned up wild on another green world.
+
+**The gate.** `WorldDescription.EarthSpeciesGeneration` = 49 = `CurrentTerrainGeneration`. Server-side and roster only:
+no chunk changes, the save version stays.
+
+**The data** (`data/creatures.json`, validated at load — `GameContent.ValidatePeopleAnimal`):
+
+| Field | Meaning | Records |
+| --- | --- | --- |
+| `pet: true` | a person may keep it as a pet | dog, cat |
+| `pen: "<item>"` | a pen may keep it and lays this item (a known item) | cow `milk`, sheep `wool`, chicken `egg` |
+| `wildElsewhere: <0..1>` | the chance a habitable world that is not one of its homes hosts it wild | dog, cat: 0.15 |
+
+A pet or pen species must be a peaceful (passive or skittish) land animal. All three are record-only: the roster and the
+server decide with them where the record joins; the species never carries them.
+
+**Strays** (`WorldGeneration/StrayAnimals.cs`). A world takes strays when it has air to breathe, plants and animals
+(`PlanetType.HasLife`) and ground (no gas giant). A record joins when the world is not one of its homes, it finds ground of
+its own there (an exclusive species needs a biome of its climate zones — the dog's temperate and savanna; the cat is at
+home anywhere) and the world's own roll is below its chance: the roster seed salted with the planet type and
+`stray:<key>`, so no generator of any other species is touched. The stray is appended after every rolled and authored
+species and the Schuppenhund (`GenerateRoster`'s `strays` argument; the server's one roster formula, `RosterFor`, passes
+`GameContent.StrayAnimalRecords`, so the live world and the ship's overview scan agree). It is built like every authored
+species of the world (`CreatureGenerator.MakeAuthored`, the key-salted sub-seed) and keeps its coats, voices and name. It
+is a wild land animal like any other, so the town zone (§7, #3453) keeps it out of the settlements. Measured over 60 seeds
+of every habitable type: about 15 % of the worlds each (`EarthSpeciesElsewhereTests`).
+
+**Kept animals** (`WorldGeneration/KeptAnimals.cs`, server `GameServerKeptAnimals.cs`). On a world of generation 49 with air
+to breathe every kept record is kept; on a home world of a record (Earth) that record whatever the generation; never in a
+void. The species is the roster's own instance when the roster holds it (Earth, a world with wild dogs), else the record
+built for this world (`MakeAuthored`, the same species a stray there would be). The server registers such a species in the
+world's species table (`SpeciesById`, the movement profiles), not in the roster: every creature message carries its traits
+to the client, but it never spawns wild and does not call from afar (the distant-fauna roster is the roster — a village dog
+barks beside its person, not in the wilderness).
+
+- **The mix** (`KeptAnimals.PoolFor`, a stable hash of the person's or the pen's own key and the world seed, no draw from any
+  shared generator): on a home world every pet is a kept pet and every pen animal a kept pen animal — Earth's households
+  keep dogs and cats, its pens cows, sheep and chickens. Elsewhere half of the households and half of the pens take a kept
+  species and half the world's own candidates; a world without a candidate of its own takes the kept species every time.
+  Without kept species the pick is exactly the old one.
+- **Size.** A kept pet comes at its own size (a dog is no puppy) and a kept pen animal too; every other pet keeps × 0.6
+  (household) or × 0.8 (tamer), every other pen animal × 0.8. `PetScaleFor` still caps every pet at what a house allows.
+- **Products.** A pen of a kept species lays its record's item (`KeptAnimals.PenProductOf`); every other pen keeps the shape
+  rule (`PenProductOf`: winged or two-legged → egg, size ≥ 1.1 → milk, else wool).
+
+**What moves in an older world: nothing.** Below generation 49 (away from a home world) `StrayAnimals.AppendTo` returns at
+its first line and `KeptAnimals.For` returns `KeptAnimals.None`, whose pools hand back the world's own candidates unchanged.
+
+**Tests.** `EarthSpeciesElsewhereTests` (records, validation, older rosters unchanged, the strays' share and place, the kept
+species, Earth, the mix) and `EarthSpeciesElsewhereServerTests` (a pet dog or cat on the wire, no Earth pet on a
+generation-48 world, a pen of cows, sheep or chickens and its product, no stray in a town).

@@ -275,6 +275,7 @@ public sealed partial class GameServer
             SpeciesId = creature.SpeciesId,
             Species = SnapshotSpecies(sp), // #2868: tamed at home, so the pet keeps this world's look (a clone its origin's)
             SizeScale = creature.SizeScale,
+            AnimalSeed = creature.AnimalSeed, // #3972: the tamed animal keeps its coat
             Bond = System.Math.Clamp(40 + attempt.Trust * 8, 0, 100),
             TamedAtUtc = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         };
@@ -393,7 +394,7 @@ public sealed partial class GameServer
         var msg = new TameProgress
         {
             CreatureId = creature.Id,
-            CreatureName = sp.Name,
+            CreatureName = SpeciesDisplayName(sp, session.Locale), // #3973: a dog is "Hund" in German
             Active = true,
             MoodKey = MoodForNeed(need),
             NeedKey = "creature.tame.need." + need,
@@ -737,6 +738,7 @@ public sealed partial class GameServer
             Position = pos,
             DamagePerSecond = 0f,
             SizeScale = tc.SizeScale,
+            AnimalSeed = tc.AnimalSeed != 0 ? tc.AnimalSeed : CoatVariants.AnimalSeedOf("companion:" + tc.Id), // #3972
             OwnerId = ownerId,
             CompanionId = tc.Id,
             CustomName = tc.Name,
@@ -961,12 +963,10 @@ public sealed partial class GameServer
     {
         var list = session.State.TamedCreatures.Select(tc =>
         {
-            var sp = tc.Species;
-            return new NetCompanion
+            var entry = new NetCompanion
             {
                 Id = tc.Id,
                 Name = tc.Name,
-                SpeciesName = sp.Name,
                 HomeBodyId = tc.HomeBodyId,
                 HomeBodyName = BodyDisplayName(tc.HomeBodyId),
                 Present = _creatures.Any(c => c.CompanionId == tc.Id),
@@ -977,38 +977,10 @@ public sealed partial class GameServer
                 Kind = tc.Kind ?? string.Empty,
                 GearWeapon = tc.GearWeapon ?? string.Empty, // #3398: the robot's weapon and (#3399) jetpack — "Take back"
                 GearJetpack = tc.GearJetpack ?? string.Empty,
-                Temperament = sp.Temperament.ToString(),
-                Habitat = sp.Habitat.ToString(),
-                Size = sp.Size * tc.SizeScale,
-                Legs = sp.Legs,
-                HasWings = sp.HasWings,
-                HasTail = sp.HasTail,
-                BodySegments = sp.BodySegments,
-                ColorRgb = sp.ColorRgb,
-                BellyRgb = sp.BellyRgb,
-                Glows = sp.Glows,
-                Eyes = sp.Eyes,
-                EyeRgb = sp.EyeRgb, // #2069
-                Horns = sp.Horns,
-                HasCrest = sp.HasCrest,
-                Tentacles = sp.Tentacles,
-                EyeStalks = sp.EyeStalks,
-                HasGasSac = sp.HasGasSac,
-                HasFins = CreatureMotion.HasFins(sp), // lifts a snapshot saved before the trait existed
-                BodyPlan = sp.BodyPlan.ToString(),
-                NeckLength = sp.NeckLength,
-                HasTrunk = sp.HasTrunk,
-                HeadShape = sp.HeadShape.ToString(), // #2009
-                Arms = sp.Arms,                      // #2081: a biped companion keeps its arms and its big head
-                HeadRatio = sp.HeadRatio > 0f ? sp.HeadRatio : 1f,
-                EarStyle = sp.EarStyle.ToString(),   // #3325: a tamed Schuppenhund keeps its ears, muzzle, claws and teeth
-                SnoutLength = sp.SnoutLength,
-                HasClaws = sp.HasClaws,
-                HasTeeth = sp.HasTeeth,
-                Heads = System.Math.Max(1, sp.Heads),
-                WingPairs = System.Math.Max(1, sp.WingPairs),
-                FinPairs = System.Math.Max(1, sp.FinPairs),
             };
+            CreatureWireMapping.WriteCompanionSpecies(entry, tc.Species, tc.SizeScale); // #3971: the one species→wire mapping
+            entry.SpeciesName = SpeciesDisplayName(tc.Species, session.Locale); // #3973: in the owner's language
+            return entry;
         }).ToArray();
 
         Send(session, new CompanionList { Companions = list });
@@ -1086,82 +1058,6 @@ public sealed partial class GameServer
 
         return name;
     }
-
-    /// <summary>Deep-copies a species descriptor so a companion's snapshot is independent of the live roster.</summary>
-    private static CreatureSpecies CloneSpecies(CreatureSpecies s) => new()
-    {
-        Id = s.Id,
-        NameKey = s.NameKey,
-        Name = s.Name,
-        Habitat = s.Habitat,
-        Activity = s.Activity,
-        Temperament = s.Temperament,
-        Size = s.Size,
-        MaxHealth = s.MaxHealth,
-        Speed = s.Speed,
-        AttackDamage = s.AttackDamage,
-        Legs = s.Legs,
-        HasWings = s.HasWings,
-        HasTail = s.HasTail,
-        BodySegments = s.BodySegments,
-        ColorRgb = s.ColorRgb,
-        Eyes = s.Eyes,
-        EyeRgb = s.EyeRgb, // #2069: a contaminated pet keeps its green eyes
-        Horns = s.Horns,
-        HasCrest = s.HasCrest,
-        Tentacles = s.Tentacles,
-        EyeStalks = s.EyeStalks,
-        HasGasSac = s.HasGasSac,
-        HasFins = CreatureMotion.HasFins(s), // derive rather than copy, so an old roster entry is lifted too
-        BellyRgb = s.BellyRgb,
-        Glows = s.Glows,
-        BiomeAffinity = s.BiomeAffinity,
-        DropItem = s.DropItem,
-        DropCount = s.DropCount,
-        DropKind = s.DropKind,
-        LocoStyle = s.LocoStyle, // was missing — a companion silently fell back to the Strider gait
-        BodyPlan = s.BodyPlan,
-        NeckLength = s.NeckLength,
-        HasTrunk = s.HasTrunk,
-        HeadShape = s.HeadShape, // #2009: a tamed arachnid keeps its pyramid
-        Heads = System.Math.Max(1, s.Heads),         // #1780-#1782: a hydra companion keeps its heads (0 = a pre-wave snapshot)
-        WingPairs = System.Math.Max(1, s.WingPairs),
-        FinPairs = System.Math.Max(1, s.FinPairs),
-        HoverAltitude = s.HoverAltitude,
-        SocialGroupSize = s.SocialGroupSize,
-        VoiceSeed = s.VoiceSeed, // without this a tamed companion loses its voice and re-derives a stranger's
-        // School club wave 3 (#1763): the authored traits — a tamed Leni keeps its fur, a tamed flowerling its face;
-        // the behaviour flags are inert on a companion (it never harms, never gifts) but travel with the snapshot.
-        BiomeSurfaces = (string[])s.BiomeSurfaces.Clone(),
-        BiomeExclusive = s.BiomeExclusive,
-        Hide = s.Hide,
-        LookPlanet = s.LookPlanet, // #2868: the world the look belongs to (SnapshotSpecies stamps it when empty)
-        LookSeed = s.LookSeed,
-        AngeredByMining = s.AngeredByMining,
-        GiftsWhenCalm = s.GiftsWhenCalm,
-        BegsForFood = s.BegsForFood, // #2018: inert on a companion (it never begs), but the snapshot keeps every trait
-        Arms = s.Arms,                   // #2081: a tamed biped keeps its arms and its big head
-        HeadRatio = s.HeadRatio > 0f ? s.HeadRatio : 1f,
-        FavouriteFood = s.FavouriteFood, // #2082: the scan of a pet still names what it loves
-        FeedsToTame = s.FeedsToTame,
-        EarStyle = s.EarStyle,           // #3325: a tamed Schuppenhund keeps its looks; the bite is inert on a companion
-        SnoutLength = s.SnoutLength,
-        HasClaws = s.HasClaws,
-        HasTeeth = s.HasTeeth,
-        BiteDamage = s.BiteDamage,
-        BiteInterval = s.BiteInterval,
-        // Giants (#1998) are never tamed, but the snapshot copies every trait so no future path loses one.
-        GiantHeight = s.GiantHeight,
-        BackFeature = s.BackFeature,
-        LegRatio = s.LegRatio,
-        Mandibles = s.Mandibles,
-        WormLength = s.WormLength,
-        WormGirth = s.WormGirth,
-        Hearing = s.Hearing,
-        SwallowsCreatures = s.SwallowsCreatures, // #2076: inert on a companion, but the snapshot keeps every trait
-        DuelTame = s.DuelTame,         // #3365: inert on a companion (it is never duelled again), kept like every trait
-        PackDefender = s.PackDefender,
-    };
 
     // ---------------------------------------------------------------------------------------------
     // Test hooks.

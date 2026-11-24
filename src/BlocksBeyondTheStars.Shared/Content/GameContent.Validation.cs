@@ -573,10 +573,8 @@ public sealed partial class GameContent
 
             foreach (var kind in planet.AllowedStructures)
             {
-                // #3358: Soaniri keeps its rune monuments. #3500: + its landmarks, and the buried ruins the stamper already asked for.
-                // #3608: + the giant wrecks. #3893: + the guide towers.
-                if (kind is not ("sps_labs" or "net_fragments" or "monuments" or LandmarkRules.StructureKind or "gds_ruins"
-                    or GiantShipRules.StructureKind or SpsTowerRules.StructureKind))
+                // A whitelist names the kinds' whitelist keys (data/structure_types.json) and the chunk-level ones.
+                if (!StructureTypes.IsWhitelistKey(kind))
                 {
                     problems.Add($"Planet '{planet.Key}' allows unknown structure kind '{kind}'.");
                 }
@@ -622,7 +620,8 @@ public sealed partial class GameContent
                 }
             }
 
-            // #1763: every authored key must exist, and an "authored" roster must name at least one.
+            // #1763: every authored key must exist, and an "authored" roster must hold at least one (#3973: named by the type or
+            // living there by its own homes).
             foreach (var key in planet.AuthoredCreatures)
             {
                 if (!_authoredCreatures.ContainsKey(key))
@@ -631,10 +630,12 @@ public sealed partial class GameContent
                 }
             }
 
-            if (string.Equals(planet.CreatureAbundance, "authored", StringComparison.OrdinalIgnoreCase) && planet.AuthoredCreatures.Count == 0)
+            if (string.Equals(planet.CreatureAbundance, "authored", StringComparison.OrdinalIgnoreCase) && AuthoredCreaturesFor(planet).Count == 0)
             {
                 problems.Add($"Planet '{planet.Key}' has creatureAbundance \"authored\" but names no authored creature.");
             }
+
+            problems.AddRange(PlanetMapProblems(planet)); // #3978
             // Terrain tags (#1644): resolved once here so worldgen reads a flags enum, never the string list.
             planet.Tags = TerrainTags.Parse(planet.TerrainTags, out var unknownTag);
             // City worlds (#1793): the composer key must be one the server knows, and every authored outfit
@@ -967,6 +968,9 @@ public sealed partial class GameContent
 
         ValidateEnemies(problems); // #2971: data/enemies.json
         ValidateBiomePalettes(problems); // #3289: data/blocks.json biomePalette / biomeLooks
+        ValidateCreatureCoats(problems); // #3972: data/creatures.json coats
+        ValidateAuthoredCreatureSpecies(problems); // #3973: names, climate zones, voices, favourite foods
+        ValidatePlaces(problems); // #3981: data/places/<planetType>.json
 
         if (problems.Count > 0)
         {

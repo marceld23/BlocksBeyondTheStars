@@ -42,6 +42,21 @@ seeded per world) and a species' roster slot (`sp0`) differs per world. So a com
 roster. Stored as `PlayerState.TamedCreatures : List<TamedCreature>` in the player JSON blob (no DB schema
 change — like `LandedBodies`/`KnownSystems`).
 
+**One copy, one mapping per hop (#3971).** A trait travels record → species → copy → wire, and each hop is one place:
+`AuthoredSpeciesMapping.ToSpecies` (WorldGeneration) builds a species from a `data/creatures.json` record;
+`CreatureSpecies.Clone()` (Shared) is the only copy — the companion snapshot, a sampled register species, a cross's plan
+and a story companion's look all use it (a memberwise copy plus deep collections, with the lifts of a pre-wave snapshot:
+derived fins, at least one head / wing pair / fin pair, a classic head ratio); `CreatureWireMapping` (GameServer) writes
+the species half of `NetCreature`, `NetFaunaSpecies` and `NetCompanion`, while the per-animal half (position, health,
+motion, owner, the giant's phase) stays in `ToNetCreatureCore` / `WithGiantWire`. `CreatureSpeciesMappingTests` fails
+with the property's name when a new `AuthoredCreature` property is neither read nor listed in
+`AuthoredSpeciesMapping.RecordOnly`, when `Clone` misses a property or shares a collection, and when a new
+`CreatureSpecies` property neither reaches `NetCreature` nor is listed in `CreatureWireMapping.ServerOnly`.
+
+**The animal's own seed (#3972).** A companion keeps the wild animal's `AnimalSeed` (`TamedCreature.AnimalSeed`, copied
+at taming like `SizeScale`, saved in the player blob and by `Snapshots.CloneTamed`), so a species with coat variants keeps
+its coat for good; a companion saved before the field existed (0) derives one from its companion id on spawn.
+
 **A pet keeps its home look (#2868).** The client dresses an animal by a planet hide theme and a per-world random
 motif, and the server tells it per creature which world that look belongs to (`NetCreature.LookPlanet` = a planet
 type key, `NetCreature.LookSeed` = `FaunaLooks.WorldLookSeed(world seed, "system · body")`). A rolled roster species
@@ -103,7 +118,7 @@ and the additive `NetCompanion.Following`/`Roams`/`Kind`; #3361 the additive `Ta
 
 - Server: `GameServerTaming.cs` (decode/respond, trust, difficulty+personality, success → create/persist +
   knowledge, spawn/despawn, follow tick, rename, release, `CompanionList`); hooks in `GameServerCreatures.cs`
-  (exclude from wild cap, broadcast `OwnerId`) and `GameServerGadgets.cs` (route the translator).
+  (exclude from wild cap), `GameServerCreatureWire.cs` (broadcast `OwnerId`) and `GameServerGadgets.cs` (route the translator).
 - Shared: `Shared/State/TamedCreature.cs` (+ `SpeciesSnapshot`), `CreatureBehaviour.FollowStep`,
   `PlayerState.TamedCreatures` + `PlayerState.TamedSpecies`.
 - Persistence: `PlayerSnapshot.TamedCreatures` / `TamedCreatureDto` + `StateMapper` (player JSON blob).
@@ -172,6 +187,15 @@ ritual's. The tame is queued and resolved before the next creature loop (`Resolv
 eaten inside that loop. VEGA explains it once (`vega.hint.favourite_food`); the scan names the favourite and says it tames.
 After a favourite squabble the herd comes back after 5 s instead of the 60-s cooldown. Toxic food never counts. Mini-Michi-Paul
 (Paul and Ben's biped) loves bananas: two bananas tame one. Tests: `BipedServerTests`.
+
+**Shy beggars (#3973).** `HerdRules.BegsForFood` accepts a skittish species as well as a passive one (the flag is still
+required, and the generator sets it on passive species only — a skittish beggar is always an authored record): it comes for
+the food a player holds, circles and eats like a herd animal, and flees again once the food is stowed. The animals of Earth
+use it: a dog loves raw meat (`creature_meat`), a cat milk, a monkey bananas — two meals from one player tame one. The dog
+also `defendsItself` (`CreatureSpecies.DefendsItself`): it flees like a skittish animal, but a hit provokes it like a
+territorial one (`CreatureBehaviour.RetaliatesWhenAttacked(species)` / `EffectiveTemperament(species, provoked)`), and it
+bites in chunks while provoked. The scan, the taming panel and the companion list name a fixed species in the player's
+language (`GameServerCreatureNames.cs`); a tamed animal keeps its coat through its `AnimalSeed`.
 
 ## The Feed key with a lamp: Soundelings carry lights (#3366, 2026-11-07)
 

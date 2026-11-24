@@ -173,7 +173,7 @@ public sealed partial class GameServer
             .FirstOrDefault(s => s.Id == AuthoredSpeciesPrefix + record.Key);
         return built is null
             ? null
-            : WithFaunaLook(CloneSpecies(built), (planet.Key, FaunaLooks.WorldLookSeed(_meta.Seed, "story · " + record.Key)));
+            : WithFaunaLook(built.Clone(), (planet.Key, FaunaLooks.WorldLookSeed(_meta.Seed, "story · " + record.Key)));
     }
 
     /// <summary>A stand-in species for a story companion whose record is missing (an older data set, a test): the Soundi's

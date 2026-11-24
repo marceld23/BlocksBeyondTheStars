@@ -12,7 +12,7 @@ through it), [CREATURE_TAMING.md](CREATURE_TAMING.md) (companions and their spec
 
 | File | Role |
 | --- | --- |
-| `CreatureBuilder.cs` | Builds the body from the descriptor — cubes in code, no art asset |
+| `CreatureBuilder.cs` | Builds the body from the descriptor — cubes in code, no art asset. The partials hold the rest: `.BodyPlans` (medusa, titan, arachnid, biped, worm, ray), `.Giants`, `.Parts` (limbs, heads, pivots), `.Primitives` (part and mesh primitives), `.Materials` (colours, textures, mood, coat kit) and one file per authored body (`.Hound`, `.Sounder`, …) |
 | `CreatureRig.cs` | `LegRig` / `WingRig` / `RigDescription` / `CreatureLod` — what the builder hands the animator |
 | `CreatureAnimator.cs` | Poses the rig every frame |
 | `CreatureFeet.cs` | Decides when each foot steps and where it plants |
@@ -39,8 +39,9 @@ proportions are exactly what they were. The only per-animal variation is the col
 Eleven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
 **Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109),
 **Leviathan** (#2111) and **SkyGiant** (#2112); the flowerling (#1760) is the standard body with a petal head. The
-companions' **Robot** (#3295) and **Reindeer** (#3322) and the bodies of Soaniri — **Sounder**, **Soundi**, **Soundrak**,
-**Soundeling** and **Quali** (#3355, #3359, see "The bodies of Soaniri" below) — branch off after them in their own partials.
+companions' **Robot** (#3295) and **Reindeer** (#3322), the bodies of Soaniri — **Sounder**, **Soundi**, **Soundrak**,
+**Soundeling** and **Quali** (#3355, #3359, see "The bodies of Soaniri" below) — and the **Whale** of Earth (#3975, see "The
+birds and the sea animals" below) branch off after them in their own partials.
 
 **Worm (#2109, generation 18).** `BuildWorm`: a legless slitherer, knee- to hip-high (`WormRules`) — Marcel's finding
 on a sand sea was that every "worm" walked, because the generator never gave a Land species 0 legs and a long body
@@ -195,6 +196,39 @@ statically per (hide, pattern, mask variant, mask seed, colours, glow) and cappe
 with the mip chains), past which new species simply go unpatterned and unlit. A species bakes one to a few.
 A tile pattern whose tile did not load is skipped by probing onward, so only the species that picked it
 change.
+
+**One look resolver (#3972).** The builder asks one function for a creature's whole coat:
+`CreatureLookResolver.Resolve(c, world look, pattern-tile availability, hide availability)` returns a `CreatureLook` —
+body and belly colour, pattern, pattern colour, the hide of every part, the mask seed, the glow pattern and colour, and
+which source decided it. The sources, in order:
+
+1. **An explicit coat on the wire** — a species with coat variants (`coats` in `data/creatures.json`): the server picked
+   one per animal from its `AnimalSeed` (`CoatVariants.Pick`) and sent its colours on `ColorRgb`/`BellyRgb`, its hide on
+   `Hide` and its pattern on `NetCreature.CoatPattern` / `CoatPatternRgb` / `CoatMask`. The hide is worn head to tail; the
+   masks are drawn from (species seed, mask variant 0..3), so a coat variant bakes at most four textures per part kind.
+2. **The authored rule** — a designed species (`au_…`) without an explicit coat wears no pattern (this rule used to sit in
+   the pattern pick, keyed on the id prefix).
+3. **The rolled coat** — everything above: pattern, pattern colour and hides from the species seed, leaning toward the
+   world's theme and motif; on a palette world (Soaniri) the marks keep the world's colours. Tile availability and the
+   motifs are the client's, so this choice stays on the client.
+
+Today no species has coat variants, so every look is exactly what it was — `CreatureLookResolverTests` pins a digest of
+the looks of 6000 rolled and authored creatures over every body plan, theme, motif and palette, computed with the
+decision functions before the resolver existed.
+
+**Body-plan profiles (#3972).** What the decisions ask of a body plan — a box torso (the back overlays), a box head (the
+eye mask), legs with shins (socks), which tail rings, accents, countershading, a belly slab, the sandworm's armour coat, a
+hide worn head to tail, its own voice pool (and whether it is a recorded one), how its footprint and head reach are
+measured, whether it is a giant, whether a spawned body keeps its colliders (`Solid`: arachnid, Soundrak, whale), keeps the
+titan's despawn leash (`LongLeash`: titan, arachnid, whale) or swims with its whole body under water (`Submerged`: the whale)
+— is one row per plan in `Shared/Definitions/CreatureBodyPlans.cs`
+(`CreatureBodyPlans.Of(plan or wire name)`). `CreatureCoat.PatternsFor`, `CreatureHides.Pick`, `CreatureVoices.PoolFor` /
+`SungPool`, `CreatureFootprint.Radius` / `HeadReach`, `CreatureSpecies.IsGiant` and the roster's giant check read the
+table instead of comparing plan names; an unknown wire name (a newer server's plan) gets the `Unknown` row, which claims
+nothing but a belly. A new plan is a new row. Still compared by name elsewhere (each a single-purpose rule, not a
+decision table): the builder's `Build` branch per plan and its per-plan builders, the voice timbre rules in
+`CreatureVoices` (medusa, arachnid, titan, biped, hound), `CreatureMotion` (glide, air fish, sky glider), the animator,
+the generator's plan rolls and the server's giant, Soaniri and hound behaviour.
 
 **Glow patterns (#2862).** A glowing species shines in one of seven patterns (`GlowMasks`): spot rows,
 freckles, veins, rings, lateral lines, blotches, or glowing tips (fins, crests and tentacles fully, a few
@@ -353,7 +387,9 @@ Because the derivation reads only persisted fields, a companion snapshot saved b
 existed can be lifted on load — that is what `CreatureMotion.HasFins(sp)` is for, and it is what the
 server calls at the wire boundary rather than reading the raw flag.
 
-Geometrically: pectorals on the flanks, a vertical caudal on the tail's last link, and a dorsal when
+A species with a horizontal fluke (`TailFluke`, #3975 — the dolphin, the whale) always carries fins, ahead of the roll.
+
+Geometrically: pectorals on the flanks, a vertical caudal (or, fluked, two horizontal blades) on the tail's last link, and a dorsal when
 the species is not already wearing a crest there. They beat on the paddle phase, and an amphibian
 ashore folds them flat instead of rowing at nothing.
 
@@ -409,6 +445,101 @@ layers its body language on the standard poses (which set every rotation fresh e
 a tamed hound wags, and the ears prick while it watches you and pin back while it charges. The gait needs nothing new:
 four legs walk, trot and — at a charge — bound (`CreatureGait.Select`). `CreatureView` lunges and snaps a hound's jaw
 exactly when the server's bite lands (the fresh hit report from it), never on the random attack cadence.
+
+## The animals of Earth (#3973)
+
+The first seven Earth animals are fixed species in `data/creatures.json` (`dog`, `cat`, `rabbit`, `cow`, `sheep`, `monkey`,
+`elephant`), built from the existing body plans and traits — no new plan:
+
+| Animal | Body | What makes it read as that animal |
+| --- | --- | --- |
+| Dog | `Hound`, size 0.8 | fur coat (the explicit coat's hide wins over the hound's scales), `Floppy` ears, a muzzle with teeth, the hound's long tail |
+| Cat | `Hound`, size 0.45 | `Pointed` ears, a short muzzle (`snoutLength` 0.25), claws, the long tail |
+| Rabbit | `Standard`, `Hopper`, size 0.35 | `Tall` ears (the ear trait works on every standard head) |
+| Cow | `Standard`, `Grazer`, size 1.5 | two horns, the `Patches` coats |
+| Sheep | `Standard`, `Grazer` | the `wool` hide, which `CreatureBuilder.Coat3d.cs` already draws as a shaggy fleece |
+| Monkey | `Biped` with two arms | the biped's tail (`hasTail`) |
+| Elephant | `Titan`, size 3.5 | `hasTrunk` (now on the record, so the titan builder draws the trunk), two horns worn as tusks, the `wrinkled` hide |
+
+The one new builder trait is `CreatureEarStyle.Floppy` (appended; `CreatureBuilder.Hound.cs` → `AddFloppyEars`): two flat flaps
+on pivots at the top edges of the skull, flipped to hang down beside the head and splayed a little outward, registered as the
+rig's ears so `PoseEars` sways them from that rest. A dog and a cat wear the hound body without being the Schuppenhund: the
+Schuppenhund's rules (aggro range, charge, one about at a time, VEGA's warning, the scan's bite line) follow
+`HoundRules.IsScaleHound` — the hound body that hunts — while `CreatureAnimator.Hound.cs`'s body language (the tail carried
+up, the wag when tamed) suits them as it is.
+
+**Coats.** Each record lists 4–7 weighted coats in real-life colours (`CoatVariant`, see "One look resolver" above): the
+dog black, brown, golden, white, black-and-tan (`Socks` in tan), dalmatian, brindle; the cat black, grey and ginger tabby,
+white, black-and-white (`Pinto`), tortoiseshell (`Patches`); the rabbit agouti (`Speckles`), grey, white, black-and-white; the
+cow Holstein and brown-and-white (`Patches`), brown, black; the sheep white, cream, black, brown; the monkey brown, grey,
+golden, black-and-white; the elephant grey, dark grey, dusty brown-grey, red-dusted (after a dust bath in red earth). Every animal picks one by its `AnimalSeed`, a
+companion keeps the seed, so a tamed dog keeps its coat.
+
+**Voices (#3973).** A species may name its own recorded calls (`voices` on the record → `CreatureSpecies.Voices`, a
+`SpeciesVoices` table by `VoiceMood`; on the wire `NetCreature.Voices` / `NetFaunaSpecies.Voices`, encoded
+`calm|alarm|friendly`). Each entry is a CALL (`animal_dog_bark`); its two takes (`_a`, `_b`, `AnimalCalls.Takes`) are the
+clips in `client/Assets/Resources/audio/`, so every call alternates. The mood rule (`CreatureView.Audio.cs`):
+
+| Mood | When | Dog | Cat |
+| --- | --- | --- | --- |
+| `Calm` | the idle call, a herd member's answer, the distant call | bark | meow |
+| `Alarm` | startled (and the herd's echo), hurt, turning on a player, a companion's warning | growl | hiss |
+| `Friendly` | begging, fed, tamed, content beside its owner, asleep (quietly) | whine | purr |
+
+An empty `alarm` or `friendly` list plays the calm calls — except asleep, where a species without a friendly call stays
+quiet (a cow does not moo in its sleep). `CreatureVoices.Derive` turns the table into a voice that is never processed (no op,
+no tail, no layer, one call per phrase, a flat contour) and keeps its natural pitch (`KeepsNaturalPitch(voice, plan)`, as for
+the Soundi); the calling rate is the body's. A client without the takes keeps the body plan's generated voice.
+`AnimalCalls.All` lists the 22 recorded calls; content load rejects any other name, and `EarthAnimalsTests` keeps the list
+and the bundled files in step.
+
+**Away from Earth (#3976, generation 49).** The dog and the cat may be a villager's pet and live wild on other habitable
+worlds, the cow, the sheep and the chicken may stand in a village pen — always the record's body, coats and calls
+([WORLD_GENERATION.md](WORLD_GENERATION.md) §64).
+
+### The birds and the sea animals (#3974, #3975)
+
+The last five Earth animals bring three body parts and one body plan, all data-driven and absent on every older species:
+
+| Animal | Body | What makes it read as that animal |
+| --- | --- | --- |
+| Chicken | `Standard`, two legs, wings, size 0.45 | a ground bird (a winged land walker bounds when startled), `Cone` beak, comb and wattle, the feather coat |
+| Parrot | `Standard` flier, size 0.5 | a dark `Hooked` beak, bright coats (scarlet, blue-and-yellow, yellow, green, grey with red `TailRings`) |
+| Eagle | `Standard` flier, size 0.9 | a yellow `Hooked` beak and talons (`hasClaws`); the bald eagle's white head is a white `EyeMask` band |
+| Dolphin | `Standard` swimmer, size 1.3 | a `Rostrum` (the beak trait in the head's colours), `tailFluke`, the dorsal fin |
+| Whale | `Whale`, size 5 | its own body (below) |
+
+**The beak (#3974).** `beakStyle` (`CreatureBeakStyle`: `None`, `Cone`, `Hooked`, `Rostrum` — appended values only),
+`beakLength` (a share of the head's depth unit, 0 = the style's default, at most `CreatureBeaks.MaxLength`), `beakRgb`
+(0 = the species' horn colour; a rostrum wears the head's and the jaw's coat) and `hasComb` travel record → species → wire
+(`NetCreature`, `NetCompanion`). `CreatureBuilder.Beak.cs` builds it on the standard body's head like the hound's muzzle: the
+upper half on the skull below the eyes, the lower half on the jaw pivot in front of the jaw box, so it opens with every call.
+A cone is a base block and a narrower tip; a hooked beak a deep upper half whose front block hangs down over the short lower
+half; a rostrum a long jaw pair whose lower half leads. The comb is three red lobes on the crown (`CreatureBeaks.CombRgb` —
+combs are red in every breed, so it is no coat colour), the wattle hangs from the jaw. The depth in front of the face is
+`CreatureBeaks.Depth` (`length × 0.8u`, the muzzle's scale) — the builder draws exactly that, and the server's head reach adds
+it (`CreatureFootprint.HeadReach`; 0 without a beak, so no other head reach moves). The personal-space radius is unchanged.
+
+**The fluke (#3975).** `tailFluke` (record → species → wire) turns the finned standard body's vertical caudal fin into two
+flat blades swept back 28° from the tail stock (`CreatureBuilder.Cetacean.cs` → `AddCaudalBlade`, `AddFlukeBlades`),
+registered as `FinKind.Fluke`. A fluked species always carries fins (`CreatureMotion.FinsFor`: a fluke is a fin, before the
+seed's roll). `RigDescription.Fluked` changes three poses in `CreatureAnimator`: the tail links beat up and down (0.6 of the
+fish's arc, no rest curl), the fluke pitches a beat behind them, and the body rocks nose to tail (a quarter of the weave as
+pitch, a sixth left as yaw, a third of the roll).
+
+**The whale (#3975, `CreatureBodyPlan.Whale`, appended after `Quali`).** A body of its own, in the whale's unit
+`u = ½·clamp(size, 0.4, 5.5)` (`WhaleRules`, which the server's footprint and body height read): 8u long (a size-5 whale is
+20 blocks, its individuals 14–22), 1.5u high, drawn with its belly at the position and centred on it lengthwise. Three
+tapering torso boxes (the back sloping down, the belly rising a little), a belly plate, the big box head (1.4u deep) with its
+hinged jaw — the song moves the mouth —, small eyes low on the sides near the mouth's corner, a blowhole on top toward the
+back, five darker throat grooves under the jaw and the chest, a three-link tail stock ending in the fluke, two long flippers
+(swept back and down on an inner pivot, so the animator's scull poses the outer one; the accent tone — a humpback's white
+flippers) and a small dorsal fin far back. The torso boxes and the skull keep their colliders (`MakeGiantBody`), so the
+player bumps into it and can hit it. Its profile row: `Solid` (the client registers it with the giants' collider lookup),
+`LongLeash` (the titan's despawn range), `Submerged` (its swim band ends its body height under the surface), its own
+footprint (`BodyFootprint.Whale`: half its length, at most 11, inside `CreatureFootprint.MaxRadius`), no head reach (a
+swimmer), not a giant (the spawner places it like any animal, one or two). Coats: blue-grey mottled (`Speckles`), dark grey
+with a white belly, humpback black and white. Its song keeps its natural pitch like every recorded voice.
 
 ## The bodies of Soaniri (#3355, #3359, #3366)
 

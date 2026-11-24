@@ -461,16 +461,18 @@ internal sealed class TemperatureSystem
     private const float CityComfortC = 22f;
 
     /// <summary>True inside the city world's walls AND under a roof (#1793): the city is climate-controlled in
-    /// its rooms, not on its streets — a garden or the landing plaza is as hot as the desert outside.</summary>
+    /// its rooms, not on its streets — a garden or the landing plaza is as hot as the desert outside. Only a city with cool
+    /// rooms counts (<see cref="CityFootprint.CoolRooms"/>: the G.D.S. city).</summary>
     private bool InCityShelter(Shared.Geometry.Vector3f pos)
     {
-        if (_host.Worlds.Active.CityFootprint is not { } city)
+        int px = (int)System.Math.Floor(pos.X), pz = (int)System.Math.Floor(pos.Z);
+        bool inside = false;
+        foreach (var city in _host.Worlds.Active.CityFootprints)
         {
-            return false;
+            inside |= city.CoolRooms && city.Contains(px, pz);
         }
 
-        int px = (int)System.Math.Floor(pos.X), pz = (int)System.Math.Floor(pos.Z);
-        return px >= city.MinX && px <= city.MaxX && pz >= city.MinZ && pz <= city.MaxZ && RoofedAt(pos);
+        return inside && RoofedAt(pos);
     }
 
     /// <summary>Test seam (#1793).</summary>

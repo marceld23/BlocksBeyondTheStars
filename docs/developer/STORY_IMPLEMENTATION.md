@@ -643,7 +643,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `build:rotated` | block key | a form/prop block placed with an explicit rotate-key turn (`Yaw` 0–3 or an up-face) | `GameServerPlacement.cs` (`FinishPlacement`) |
 | `craft:any` | recipe key (batch count) | a recipe crafted — also a free Creative craft, where the VEGA/achievement hooks do not run | `GameServer.cs` (`HandleCraft`) |
 | `craft:tint` / `craft:shape` / `craft:paint` | base item key (count) | dye/glow, a form craft (built-in or player-designed), a paint design — every success path incl. Creative; never `craft:any` | `GameServer.cs` (`HandleTintCraft`, `ApplyShapeExchange`, `ApplyMultiCellExchange`), `GameServerPaint.cs` |
-| `eat:any` | item key | real food eaten (hunger value > 0) | `GameServerCreatures.cs` (`ConsumeItem`) |
+| `eat:any` | item key | real food eaten (hunger value > 0) | `GameServerCreatureConsume.cs` (`ConsumeItem`) |
 | `scan:performed` | readout kind (`flora`, `creature`, `tree`, `block`, `monument`, `asteroid`, `anomaly`, `wreck`, `wormhole`, `debris` …) | every scan, first or repeat, hand or ship scanner | `GameServerScanning.cs` (`Award`) |
 | `scan:any` | readout kind | a first-time scan (the discovery the achievement counts) | `GameServerScanning.cs` (`Award`) |
 | `research:any` | blueprint key | a blueprint researched | `GameServer.cs` (`HandleUnlock`) |

@@ -542,6 +542,7 @@ public sealed partial class WorldGenerator
         public ContinentProfile Continent; // #704
         public string Style = string.Empty; // TerrainStyle lowered ONCE
         public bool Cratered;
+        public TerrainBaseForm BaseForm = RolledBaseForm.Instance; // #3977: what the raw height, the sea and the biomes ask
         public bool Volcanoes, Calderas, Massifs, TableMountains, Rifts, MegaRift, Escarpment;
         public bool Arches, SeaStacks, Hoodoos, OverhangLandmarks;
         public bool Travertine, Penitentes, Cenotes, Crevasses;
@@ -1037,6 +1038,7 @@ public sealed partial class WorldGenerator
                     Tags = planet.Tags,
                 };
                 w.OverhangLandmarks = w.Arches || w.SeaStacks || w.Hoodoos;
+                w.BaseForm = BaseFormFor(planet, w.Cratered);
 
                 // #1645 relief rolls: generation 0 takes the classic values verbatim (byte-identical worlds).
                 w.Scale = planet.TerrainScale;
@@ -1159,6 +1161,13 @@ public sealed partial class WorldGenerator
                     w.BoneStrata = HasBoneStrata(planet);
                 }
 
+                if (SandSeaWorld(planet))
+                {
+                    w.SandSea = true; // #2000 — a field quantile only, so the relief can read it before the calibration
+                    w.SandThreshold = SandSeaThreshold(planet, seed);
+                }
+
+                w.BaseForm.RestrictFeatures(w); // #3977: a form drops the gates it does not carry, before the rows are chosen
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
                 var seaOffsets = new System.Collections.Generic.List<LandmarkOffsetFn>();
                 var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
@@ -1192,12 +1201,6 @@ public sealed partial class WorldGenerator
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0
                     ? (w.Styles.Length > 1 || StyleHybridEligible(w.Styles[0]))
                     : StyleHybridEligible(w.Style);
-                if (SandSeaWorld(planet))
-                {
-                    w.SandSea = true; // #2000 — a field quantile only, so the relief can read it before the calibration
-                    w.SandThreshold = SandSeaThreshold(planet, seed);
-                }
-
                 if (_terrainGeneration >= WorldDescription.ToxicWorldsGeneration)
                 {
                     // #2030: THE trait roll (the roster seed, like every other consumer), cached with the profile.

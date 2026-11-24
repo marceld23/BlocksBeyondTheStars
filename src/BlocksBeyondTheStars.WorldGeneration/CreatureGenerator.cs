@@ -14,85 +14,28 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// the planet (lava worlds get lava-dwellers, wet worlds get aquatic life). The roster skews
 /// **non-hostile** so a world is never all-hostile.
 /// </summary>
-public static class CreatureGenerator
+public static partial class CreatureGenerator
 {
     /// <summary>This world's roster. <paramref name="terrainGeneration"/> and <paramref name="authored"/> are the
     /// school club wave (#1763): on a generation-5 world the type's authored species are appended AFTER the
     /// procedural slots, so no rolled species ever moves; older worlds and callers of the two-argument form get
-    /// the procedural roster exactly as before.</summary>
+    /// the procedural roster exactly as before. <paramref name="strays"/> (#3976, generation 49) are the records that may live
+    /// wild away from their homes (<c>GameContent.StrayAnimalRecords</c>): the ones this world hosts join last
+    /// (<see cref="StrayAnimals"/>).</summary>
     public static IReadOnlyList<CreatureSpecies> GenerateRoster(PlanetType planet, long worldSeed,
-        int terrainGeneration = 0, IReadOnlyList<AuthoredCreature>? authored = null)
+        int terrainGeneration = 0, IReadOnlyList<AuthoredCreature>? authored = null, IReadOnlyList<AuthoredCreature>? strays = null)
     {
         int count = planet.IsAirless ? 0 : AbundanceCount(planet.CreatureAbundance);
         var list = new List<CreatureSpecies>(count);
-        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
-        bool allowWater = HasWaterLife(planet);
-        bool allowLava = HasLavaLife(planet);
-        bool allowCave = planet.CaveThreshold > 0.0; // worlds with caves host subterranean fauna
-        int biomeCount = System.Math.Max(1, planet.Biomes.Count);
-        const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
+        var roll = new RosterRoll(planet, worldSeed, terrainGeneration);
 
         if (count > 0)
         {
-            for (int i = 0; i < count; i++)
-            {
-                long s = unchecked(planetSeed ^ ((long)i * golden));
-                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-                list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null, speciesSeed: s, terrainGeneration));
-            }
-
-            // Diversity guarantee (#640): every living world should field at least one ground species and
-            // one flier (and an aquatic one where the world has water life). Only the slots ADDED by the
-            // roster bump (index ≥ legacy count) may be re-drawn — each species draws its own sub-seed, so
-            // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
-            EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), planetSeed,
-                allowWater, allowLava, allowCave, biomeCount, terrainGeneration);
-
-            // Generation 8 (2026-09): the extreme types' roster rules — Titas caps its water life, Valuma is peaceful.
-            if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ExtremePlanetsGeneration)
-            {
-                CapAquaticSpecies(list, planet.MaxAquaticSpecies, planetSeed, allowWater, allowLava, allowCave, biomeCount, terrainGeneration);
-                if (planet.PeacefulFauna)
-                {
-                    MakePeaceful(list);
-                }
-            }
-
-            // Generation 18 (#2112): a gas giant has no ground but its islands — every rolled species flies. The type is
-            // itself gated on generation 18, so no older world's roster can take this branch.
-            if (planet.IsGasWorld && terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.GasGiantGeneration)
-            {
-                for (int i = 0; i < list.Count; i++)
-                {
-                    if (list[i].Habitat != CreatureHabitat.Air)
-                    {
-                        long s = unchecked(planetSeed ^ ((long)i * golden) ^ WorldGenerator.StableHash("sky:" + i));
-                        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-                        list[i] = MakeSpecies(i, rng, allowWater: false, allowLava: false, allowCave: false, biomeCount, CreatureHabitat.Air, speciesSeed: s, terrainGeneration);
-                    }
-                }
-            }
-
-            // Generation 15 (#2069, Toxica-Maxima): a contaminated roster hunts on sight, never sleeps, wears the type's eyes
-            // and drops toxic meat. A post-pass like MakePeaceful, so no rolled trait moves; only a generation-15 world reads it.
-            if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ToxicaMaximaGeneration && planet.ContaminatedFauna)
-            {
-                MakeContaminated(list, planet.EyeColor);
-            }
+            RollProceduralRoster(list, count, roll);
         }
-        else if (!planet.IsAirless && allowCave && WorldTraits.For(planet, worldSeed, terrainGeneration).CaveFauna)
+        else if (!planet.IsAirless && roll.AllowCave && WorldTraits.For(planet, worldSeed, terrainGeneration).CaveFauna)
         {
-            // Generation 13 (#2029): a world with no procedural fauna (the toxic worlds) may still keep one or two CAVE
-            // species — life that fled underground. Own sub-seed, so no other roster ever moves.
-            long caveSeed = unchecked(planetSeed ^ WorldGenerator.StableHash("cave-fauna"));
-            int caveCount = 1 + (int)((ulong)caveSeed % 2UL);
-            for (int i = 0; i < caveCount; i++)
-            {
-                long s = unchecked(caveSeed ^ ((long)i * golden));
-                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-                list.Add(MakeSpecies(i, rng, allowWater: false, allowLava: false, allowCave: true, biomeCount,
-                    forcedHabitat: CreatureHabitat.Cave, speciesSeed: s, terrainGeneration));
-            }
+            AddCaveFauna(list, roll);
         }
 
         // #3448: a type with a fauna palette (Soaniri's light blues and mints) dresses its ROLLED species in it — after every
@@ -100,31 +43,7 @@ public static class CreatureGenerator
         // draw), so a type without a palette rolls bit-identically.
         BlocksBeyondTheStars.Shared.World.FaunaTints.Dress(list, planet);
 
-        // Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
-        // authored species join at the tail on a generation-5 world. Their sub-seed is salted with the key, not
-        // the slot, so adding a second authored species to a type never renames the first.
-        if (!planet.IsAirless && authored is { Count: > 0 }
-            && terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration)
-        {
-            foreach (var record in authored)
-            {
-                // #2084: a record that relies on a later wave (Mini-Michi-Paul: the bananas of 14, the biped body of 16) waits
-                // for it. Skipping it leaves every older world's roster exactly as it was — the record did not exist for it.
-                if (record.MinGeneration > terrainGeneration)
-                {
-                    continue;
-                }
-
-                if (IsGiantPlan(record.BodyPlan))
-                {
-                    continue; // #2075: an authored giant lives in the giant slots (GenerateAuthoredGiant), never in the roster
-                }
-
-                long s = unchecked(planetSeed ^ ((long)list.Count * golden) ^ WorldGenerator.StableHash("authored:" + record.Key));
-                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-                list.Add(MakeAuthoredSpecies(record, planet, rng, s));
-            }
-        }
+        AppendAuthored(list, roll, authored);
 
         // Generation 34 (#3325, Jafar's Schuppenhund): a dry world may host ONE hound — appended after every rolled and authored
         // slot from its own salted sub-seed, so no other species moves; older generations never roll it.
@@ -134,6 +53,10 @@ public static class CreatureGenerator
             list.Add(GenerateScaleHound(planet, worldSeed));
         }
 
+        // Generation 49 (#3976): the Earth animals that live wild elsewhere (the dog, the cat) — each by the world's own salted
+        // roll, appended after every other slot, so no species moves; older generations never roll them.
+        StrayAnimals.AppendTo(list, planet, worldSeed, terrainGeneration, strays);
+
         // Generation 16 (#2082): every begging species loves one food — a post-pass, so no rolled trait moves.
         if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration)
         {
@@ -141,6 +64,145 @@ public static class CreatureGenerator
         }
 
         return list;
+    }
+
+    /// <summary>The golden-ratio stride that spreads the roster slots' sub-seeds.</summary>
+    private const long RosterGolden = unchecked((long)0x9E3779B97F4A7C15UL);
+
+    /// <summary>What every rolled slot of one roster shares: the planet, its roster seed, which habitats its world allows and
+    /// the world's terrain generation.</summary>
+    private sealed class RosterRoll
+    {
+        public RosterRoll(PlanetType planet, long worldSeed, int terrainGeneration)
+        {
+            Planet = planet;
+            PlanetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
+            AllowWater = HasWaterLife(planet);
+            AllowLava = HasLavaLife(planet);
+            AllowCave = planet.CaveThreshold > 0.0; // worlds with caves host subterranean fauna
+            BiomeCount = System.Math.Max(1, planet.Biomes.Count);
+            TerrainGeneration = terrainGeneration;
+        }
+
+        public PlanetType Planet { get; }
+
+        public long PlanetSeed { get; }
+
+        public bool AllowWater { get; }
+
+        public bool AllowLava { get; }
+
+        public bool AllowCave { get; }
+
+        public int BiomeCount { get; }
+
+        public int TerrainGeneration { get; }
+    }
+
+    /// <summary>The <paramref name="count"/> procedural slots and the passes over them, in their fixed order: diversity,
+    /// the extreme types' rules, the gas giant's fliers, contamination.</summary>
+    private static void RollProceduralRoster(List<CreatureSpecies> list, int count, RosterRoll roll)
+    {
+        var planet = roll.Planet;
+        int terrainGeneration = roll.TerrainGeneration;
+        for (int i = 0; i < count; i++)
+        {
+            long s = unchecked(roll.PlanetSeed ^ ((long)i * RosterGolden));
+            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            list.Add(MakeSpecies(i, rng, roll.AllowWater, roll.AllowLava, roll.AllowCave, roll.BiomeCount, forcedHabitat: null, speciesSeed: s, terrainGeneration));
+        }
+
+        // Diversity guarantee (#640): every living world should field at least one ground species and
+        // one flier (and an aquatic one where the world has water life). Only the slots ADDED by the
+        // roster bump (index ≥ legacy count) may be re-drawn — each species draws its own sub-seed, so
+        // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
+        EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), roll.PlanetSeed,
+            roll.AllowWater, roll.AllowLava, roll.AllowCave, roll.BiomeCount, terrainGeneration);
+
+        // Generation 8 (2026-09): the extreme types' roster rules — Titas caps its water life, Valuma is peaceful.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ExtremePlanetsGeneration)
+        {
+            CapAquaticSpecies(list, planet.MaxAquaticSpecies, roll.PlanetSeed, roll.AllowWater, roll.AllowLava, roll.AllowCave, roll.BiomeCount, terrainGeneration);
+            if (planet.PeacefulFauna)
+            {
+                MakePeaceful(list);
+            }
+        }
+
+        // Generation 18 (#2112): a gas giant has no ground but its islands — every rolled species flies. The type is
+        // itself gated on generation 18, so no older world's roster can take this branch.
+        if (planet.IsGasWorld && terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.GasGiantGeneration)
+        {
+            MakeEveryoneFly(list, roll);
+        }
+
+        // Generation 15 (#2069, Toxica-Maxima): a contaminated roster hunts on sight, never sleeps, wears the type's eyes
+        // and drops toxic meat. A post-pass like MakePeaceful, so no rolled trait moves; only a generation-15 world reads it.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ToxicaMaximaGeneration && planet.ContaminatedFauna)
+        {
+            MakeContaminated(list, planet.EyeColor);
+        }
+    }
+
+    /// <summary>Generation 18 (#2112): re-draws every rolled species that does not fly as a flier, from a sky-salted seed.</summary>
+    private static void MakeEveryoneFly(List<CreatureSpecies> list, RosterRoll roll)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].Habitat != CreatureHabitat.Air)
+            {
+                long s = unchecked(roll.PlanetSeed ^ ((long)i * RosterGolden) ^ WorldGenerator.StableHash("sky:" + i));
+                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+                list[i] = MakeSpecies(i, rng, allowWater: false, allowLava: false, allowCave: false, roll.BiomeCount, CreatureHabitat.Air, speciesSeed: s, roll.TerrainGeneration);
+            }
+        }
+    }
+
+    /// <summary>Generation 13 (#2029): a world with no procedural fauna (the toxic worlds) may still keep one or two CAVE
+    /// species — life that fled underground. Own sub-seed, so no other roster ever moves.</summary>
+    private static void AddCaveFauna(List<CreatureSpecies> list, RosterRoll roll)
+    {
+        long caveSeed = unchecked(roll.PlanetSeed ^ WorldGenerator.StableHash("cave-fauna"));
+        int caveCount = 1 + (int)((ulong)caveSeed % 2UL);
+        for (int i = 0; i < caveCount; i++)
+        {
+            long s = unchecked(caveSeed ^ ((long)i * RosterGolden));
+            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            list.Add(MakeSpecies(i, rng, allowWater: false, allowLava: false, allowCave: true, roll.BiomeCount,
+                forcedHabitat: CreatureHabitat.Cave, speciesSeed: s, roll.TerrainGeneration));
+        }
+    }
+
+    /// <summary>Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
+    /// authored species join at the tail on a generation-5 world. Their sub-seed is salted with the key, not
+    /// the slot, so adding a second authored species to a type never renames the first.</summary>
+    private static void AppendAuthored(List<CreatureSpecies> list, RosterRoll roll, IReadOnlyList<AuthoredCreature>? authored)
+    {
+        var planet = roll.Planet;
+        if (planet.IsAirless || authored is not { Count: > 0 }
+            || roll.TerrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration)
+        {
+            return;
+        }
+
+        foreach (var record in authored)
+        {
+            // #2084: a record that relies on a later wave (Mini-Michi-Paul: the bananas of 14, the biped body of 16) waits
+            // for it. Skipping it leaves every older world's roster exactly as it was — the record did not exist for it.
+            if (record.MinGeneration > roll.TerrainGeneration)
+            {
+                continue;
+            }
+
+            if (IsGiantPlan(record.BodyPlan))
+            {
+                continue; // #2075: an authored giant lives in the giant slots (GenerateAuthoredGiant), never in the roster
+            }
+
+            long s = unchecked(roll.PlanetSeed ^ ((long)list.Count * RosterGolden) ^ WorldGenerator.StableHash("authored:" + record.Key));
+            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            list.Add(AuthoredSpeciesMapping.ToSpecies(record, planet, rng, s));
+        }
     }
 
     /// <summary>The favourite foods (#2082, generation 16): every begging species that has none (an authored one may name its
@@ -172,512 +234,6 @@ public static class CreatureGenerator
         uint h = unchecked((uint)seed * 2654435761u);
         h ^= h >> 15;
         return foods[(int)(h % (uint)foods.Count)];
-    }
-
-    /// <summary>Builds the roster entry of an authored record (#1763): the designed traits verbatim, the name's
-    /// second word coined per world, the formulas of the rolled species where the record leaves a stat null, and
-    /// the derived fields (voice, fins) exactly as for a rolled species.</summary>
-    private static CreatureSpecies MakeAuthoredSpecies(AuthoredCreature a, PlanetType planet, System.Random rng, long speciesSeed)
-    {
-        bool hostile = a.Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
-        string coined = NameGenerator.Creature(rng);
-        int space = coined.IndexOf(' ');
-        string second = space > 0 ? coined.Substring(0, space) : coined;
-
-        // The biome affinity by surface block: the first of the type's biomes whose surface the record names, so a
-        // rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive,
-        // which the spawner checks against the ground under the animal's feet.
-        int affinity = -1;
-        for (int i = 0; i < planet.Biomes.Count && affinity < 0; i++)
-        {
-            if (a.BiomeSurfaces.Contains(planet.Biomes[i].SurfaceBlock))
-            {
-                affinity = i;
-            }
-        }
-
-        var species = new CreatureSpecies
-        {
-            Id = "au_" + a.Key,
-            NameKey = "creature.generic.name",
-            Name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
-                : a.FixedName ? a.NamePrefix // #2084: the kids' name, exactly as they wrote it
-                : a.NamePrefix + " " + second,
-            Habitat = a.Habitat,
-            Activity = a.Activity,
-            Temperament = a.Temperament,
-            LocoStyle = a.LocoStyle,
-            BodyPlan = a.BodyPlan,
-            HeadShape = a.HeadShape, // #2009: a worksheet arachnid may wear a pyramid
-            Size = a.Size,
-            MaxHealth = a.MaxHealth ?? 10f + a.Size * 8f + (hostile ? 10f : 0f),
-            Speed = a.Speed,
-            AttackDamage = a.AttackDamage ?? (hostile ? 4.5f : 0f),
-            Legs = a.Legs,
-            HasWings = a.HasWings,
-            HasTail = a.HasTail,
-            BodySegments = a.BodySegments,
-            ColorRgb = a.ColorRgb,
-            BellyRgb = a.BellyRgb,
-            Eyes = a.Eyes,
-            EyeRgb = a.EyeRgb, // #2069: a worksheet species may name its iris
-            Horns = a.Horns,
-            HasCrest = a.HasCrest,
-            Glows = a.Glows,
-            SocialGroupSize = a.SocialGroupSize,
-            HoverAltitude = a.HoverAltitude,
-            Heads = System.Math.Clamp(a.Heads, 1, 3),         // #1780-#1782: an authored species may use the gen-6 bodies
-            WingPairs = System.Math.Clamp(a.WingPairs, 1, 3),
-            FinPairs = System.Math.Clamp(a.FinPairs, 1, 3),
-            BiomeAffinity = affinity,
-            DropItem = a.DropItem,
-            DropCount = a.DropCount,
-            DropKind = a.DropKind,
-            BiomeSurfaces = a.BiomeSurfaces.ToArray(),
-            BiomeExclusive = a.BiomeExclusive,
-            Hide = a.Hide,
-            AngeredByMining = a.AngeredByMining,
-            GiftsWhenCalm = a.GiftsWhenCalm,
-            BegsForFood = a.BegsForFood,  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
-            Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) // #2081: arms on the biped body only …
-                : a.BodyPlan == CreatureBodyPlan.Sounder ? BlocksBeyondTheStars.Shared.Sounders.SounderRules.Arms : 0, // … and the Sounder's four (#3355)
-            HeadRatio = a.HeadRatio > 0f ? System.Math.Clamp(a.HeadRatio, 0.5f, BipedRules.MaxHeadRatio) : 1f,
-            FavouriteFood = a.FavouriteFood,                  // #2082: empty = the generation-16 roll for a beggar
-            FeedsToTame = System.Math.Max(0, a.FeedsToTame),
-            EarStyle = a.EarStyle,        // #3325: a worksheet hound carries the class traits
-            SnoutLength = System.Math.Clamp(a.SnoutLength, 0f, HoundRules.MaxSnout),
-            HasClaws = a.HasClaws,
-            HasTeeth = a.HasTeeth,
-            BiteDamage = System.Math.Max(0f, a.BiteDamage), // #3326: bites in chunks when both are set
-            BiteInterval = System.Math.Max(0f, a.BiteInterval),
-            GiantHeight = a.GiantHeight,  // #1998: an authored giant (#2003) carries the same traits as a rolled one
-            BackFeature = a.BackFeature,
-            LegRatio = a.LegRatio,
-            NeckLength = a.NeckLength,
-            Mandibles = a.Mandibles,
-            WormLength = a.WormLength,
-            WormGirth = a.WormGirth,
-            Hearing = a.Hearing,
-            SwallowsCreatures = a.SwallowsCreatures, // #2076: an authored worm says whether it hunts the animals
-            DuelTame = a.DuelTame,         // #3365: the Soundi is tamed in a duel …
-            PackDefender = a.PackDefender, // … and its pack defends it outside one
-        };
-
-        if (species.GiantHeight > 0f)
-        {
-            species.Size = species.GiantHeight / 10f; // #2075: a giant's scan and voice scale, exactly as for a rolled one
-        }
-
-        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
-        species.HasFins = CreatureMotion.FinsFor(species);
-        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
-        {
-            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;
-        }
-
-        return species;
-    }
-
-    // ---------------- The Schuppenhund (#3325, generation 34) ----------------
-
-    /// <summary>Whether a world of <paramref name="planet"/>'s type hosts the Schuppenhund (#3325): the world's own roll — the
-    /// roster seed salted, no RNG of any other species touched — below the type's <see cref="PlanetType.ScaleHoundChance"/>.
-    /// The generation gate is the caller's.</summary>
-    public static bool HostsScaleHound(PlanetType planet, long worldSeed)
-    {
-        if (planet.ScaleHoundChance <= 0.0)
-        {
-            return false;
-        }
-
-        long s = unchecked(worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ WorldGenerator.StableHash("scale-hound"));
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        return rng.NextDouble() < planet.ScaleHoundChance;
-    }
-
-    /// <summary>A world's Schuppenhund (#3325): the class traits (<see cref="ApplyHoundPlan"/>) with this world's looks —
-    /// colours, size, scale hide, ears, muzzle, eye colour, the hours it is awake. Its own sub-seed, so the same hound on every
-    /// visit and a different one on every world. Whether a world has one is <see cref="HostsScaleHound"/>.</summary>
-    public static CreatureSpecies GenerateScaleHound(PlanetType planet, long worldSeed)
-    {
-        long s = unchecked(worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ WorldGenerator.StableHash("scale-hound:species"));
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        var sp = new CreatureSpecies
-        {
-            Id = HoundRules.SpeciesId,
-            NameKey = "creature.generic.name",
-            Name = HoundRules.SpeciesName, // Marcel 2026-11-07: the same name on every world and in every language
-            Habitat = CreatureHabitat.Land,
-            Activity = (CreatureActivity)Weighted(rng,
-                (int)CreatureActivity.Diurnal, 40,
-                (int)CreatureActivity.Nocturnal, 30,
-                (int)CreatureActivity.Crepuscular, 20,
-                (int)CreatureActivity.Cathemeral, 10),
-            ColorRgb = PickColor(rng, CreatureHabitat.Land), // "zufällig" — random colours per world
-            BellyRgb = PickColor(rng, CreatureHabitat.Land),
-            BiomeAffinity = -1,
-        };
-
-        ApplyHoundPlan(rng, sp);
-        ApplyEyeColour(rng, sp); // a hunter: half of the coloured eyes are red
-        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
-        return sp;
-    }
-
-    /// <summary>The hound plan (#3325, Jafar's sketch): a scaly four-legged dog with a chest and hindquarters, two ears, a
-    /// toothed muzzle, three claws on every foot and a tail — very dangerous (Aggressive, 10 HP a bite, tough), alone, a
-    /// prowler that charges the last metres, meat when it falls. Overrides every trait the body demands and rolls the looks the
-    /// class varies; it takes any species, so a rolled roster or a worksheet record can wear it later unchanged.</summary>
-    internal static void ApplyHoundPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Hound;
-        sp.Size = HoundRules.MinSize + (float)rng.NextDouble() * (HoundRules.MaxSize - HoundRules.MinSize);
-        sp.Speed = HoundRules.MinSpeed + (float)rng.NextDouble() * (HoundRules.MaxSpeed - HoundRules.MinSpeed);
-        sp.MaxHealth = HoundRules.MinHealth + (float)rng.NextDouble() * (HoundRules.MaxHealth - HoundRules.MinHealth);
-        sp.BiteInterval = HoundRules.MinBiteInterval + (float)rng.NextDouble() * (HoundRules.MaxBiteInterval - HoundRules.MinBiteInterval);
-        sp.EarStyle = HoundRules.EarStyles[rng.Next(HoundRules.EarStyles.Count)];
-        sp.SnoutLength = HoundRules.MinSnout + (float)rng.NextDouble() * (HoundRules.MaxSnout - HoundRules.MinSnout);
-        sp.Hide = HoundRules.Hides[rng.Next(HoundRules.Hides.Count)];
-        sp.Temperament = CreatureTemperament.Aggressive; // "sehr gefährlich" — and alone, so never a pack
-        sp.BiteDamage = HoundRules.BiteDamage;
-        sp.AttackDamage = sp.BiteDamage / sp.BiteInterval; // every per-second reader (codex, robot hit-back) sees the same danger
-        sp.LocoStyle = LocomotionStyle.Prowler;
-        sp.SocialGroupSize = 1;
-        ApplyHoundBody(sp);
-        sp.DropItem = HoundRules.DropItem;
-        sp.DropCount = HoundRules.DropCount;
-        sp.DropKind = CreatureDropKind.Food;
-        sp.HasFins = CreatureMotion.FinsFor(sp);
-    }
-
-    /// <summary>The fixed body of the hound plan: four legs under a chest and hindquarters, a tail, claws, teeth, two eyes, one
-    /// box head — and nothing an older roll may have left on the species (wings, fins, tentacles, horns, a second head).</summary>
-    private static void ApplyHoundBody(CreatureSpecies sp)
-    {
-        sp.Legs = 4;
-        sp.Arms = 0;
-        sp.BodySegments = 2; // chest + hindquarters
-        sp.HasTail = true;
-        sp.HasClaws = true;
-        sp.HasTeeth = true;
-        sp.Eyes = 2;
-        sp.EyeStalks = false;
-        sp.Horns = 0; // the two black strokes on the head of the sketch are its ears
-        sp.HasCrest = false;
-        sp.HasWings = false;
-        sp.WingPairs = 1;
-        sp.FinPairs = 1;
-        sp.HasGasSac = false;
-        sp.Tentacles = 0;
-        sp.Heads = 1;
-        sp.HeadRatio = 1f;
-        sp.HeadShape = CreatureHeadShape.Box;
-        sp.NeckLength = 0;
-        sp.HasTrunk = false;
-        sp.HoverAltitude = 0f;
-        sp.Glows = false;
-        sp.BegsForFood = false;
-        sp.FavouriteFood = string.Empty;
-    }
-
-    // ---------------- Giants (#1998–#2001, generation 9) ----------------
-
-    /// <summary>The species id of a world's colossus.</summary>
-    public const string ColossusId = "gi_colossus";
-
-    /// <summary>The species id of a world's sandworms (one species, one or two individuals).</summary>
-    public const string SandwormId = "gi_sandworm";
-
-    private static readonly string[] GiantBacks = { "", "plates", "spikes", "crystals", "forest" };
-    private static readonly string[] ColossusHides = { "hide", "plated", "scales", "shaggy", "mossy", "barkskin", "mottled", "banded" };
-    private static readonly string[] WormHides = { "plated", "banded", "scales", "chitin", "warty", "mottled" };
-
-    /// <summary>#2009: the hides an arachnid rolls — shaggy is the tarantula, the rest read as armour.</summary>
-    private static readonly string[] ArachnidHides = { "chitin", "plated", "spined", "banded", "shaggy", "mottled" };
-
-    /// <summary>#2009: the share of standard-plan Land species that become arachnids on a generation-10 world — rare
-    /// (Marcel: rarer than the titan's 18 %): with 5–9 species per world, roughly every third or fourth world has one.</summary>
-    private const double ArachnidChance = 1.0 / 12.0;
-
-    /// <summary>A world's colossus (#1999): a 40–60 block quadruped rolled from the world seed and its location — the
-    /// same giant on every visit, a different one on every world. The server decides WHETHER a world has one
-    /// (<see cref="GiantRules.HostsColossus"/>); this only decides what it is.</summary>
-    public static CreatureSpecies GenerateColossus(long worldSeed, string locationId)
-    {
-        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("colossus:" + locationId) << 16) ^ 0x0C0105505L);
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        float height = 40f + (float)rng.NextDouble() * 20f;
-        var temperament = (CreatureTemperament)Weighted(rng,
-            (int)CreatureTemperament.Passive, 40,
-            (int)CreatureTemperament.Skittish, 15,
-            (int)CreatureTemperament.Territorial, 30,
-            (int)CreatureTemperament.Aggressive, 15);
-        var sp = new CreatureSpecies
-        {
-            Id = ColossusId,
-            NameKey = "creature.generic.name",
-            Name = NameGenerator.Creature(rng),
-            Habitat = CreatureHabitat.Land,
-            Activity = CreatureActivity.Cathemeral, // a giant never lies down for the night
-            Temperament = temperament,
-            LocoStyle = LocomotionStyle.Strider,
-            BodyPlan = CreatureBodyPlan.Colossus,
-            GiantHeight = height,
-            Size = height / 10f,
-            MaxHealth = 3000f + (height - 40f) * 75f,       // 3000..4500 — very, very tough (decision 8)
-            AttackDamage = 22f + (float)rng.NextDouble() * 10f, // per stomp, not per second
-            Speed = 3.2f + (float)rng.NextDouble(),          // 3.2..4.2 — always slower than a walking player (6)
-            Legs = 4,
-            HasTail = rng.NextDouble() < 0.7,
-            NeckLength = Weighted(rng, 0, 15, 1, 25, 2, 30, 3, 20, 4, 10),
-            Heads = Weighted(rng, 1, 85, 2, 10, 3, 5),
-            Horns = rng.Next(5),                              // tusks
-            HasCrest = rng.NextDouble() < 0.35,
-            BackFeature = GiantBacks[rng.Next(GiantBacks.Length)],
-            LegRatio = 0.8f + (float)rng.NextDouble() * 0.5f,
-            Eyes = Weighted(rng, 2, 80, 4, 15, 1, 5),
-            ColorRgb = PickColor(rng, CreatureHabitat.Land),
-            BellyRgb = PickColor(rng, CreatureHabitat.Land),
-            Glows = rng.NextDouble() < 0.2,
-            Hide = ColossusHides[rng.Next(ColossusHides.Length)],
-            DropItem = "creature_meat",
-            DropCount = 20,
-            DropKind = CreatureDropKind.Food,
-        };
-        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
-        return sp;
-    }
-
-    /// <summary>A sand-sea world's sandworm (#2001): the fixed sandworm archetype — a long armoured tube, a mouth of
-    /// mandible petals with rings of teeth — with its size, colours, plates, hearing and temper rolled per world.</summary>
-    /// <summary>The type's AUTHORED giant of this body plan (#2075): the first record in <paramref name="authored"/> with a
-    /// giant body plan, built exactly as the roster would build it (same sub-seed, salted with the key, so nothing else moves),
-    /// or null — the caller then rolls the procedural one. An authored worm's hunting is its own field, not the generation's.</summary>
-    public static CreatureSpecies? GenerateAuthoredGiant(PlanetType planet, long worldSeed, IReadOnlyList<AuthoredCreature>? authored, CreatureBodyPlan kind, int terrainGeneration)
-    {
-        if (authored is null || planet is null)
-        {
-            return null;
-        }
-
-        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
-        foreach (var record in authored)
-        {
-            if (record.BodyPlan != kind || !IsGiantPlan(record.BodyPlan) || record.MinGeneration > terrainGeneration)
-            {
-                continue;
-            }
-
-            long s = unchecked(planetSeed ^ WorldGenerator.StableHash("authored:" + record.Key));
-            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            return MakeAuthoredSpecies(record, planet, rng, s);
-        }
-
-        return null;
-    }
-
-    /// <summary>#3359: an authored record built as a species of this world on its own — for a story's own animal (the Qualis of
-    /// the Bridge Song, the Sounders pack's Soundi) that must exist even where the type's roster does not hold it. The same
-    /// sub-seed rule as <see cref="GenerateAuthoredGiant"/> (salted with the key), so no other species moves.</summary>
-    public static CreatureSpecies MakeAuthored(AuthoredCreature record, PlanetType planet, long worldSeed)
-    {
-        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
-        long s = unchecked(planetSeed ^ WorldGenerator.StableHash("authored:" + record.Key));
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        return MakeAuthoredSpecies(record, planet, rng, s);
-    }
-
-    /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111, #2112).</summary>
-    private static bool IsGiantPlan(CreatureBodyPlan plan)
-        => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
-
-    public const string SkyGiantId = "gi_sky_giant";
-
-    private static readonly string[] SkyGiantHides = { "slick", "scales", "mottled", "banded", "hide" };
-
-    /// <summary>A gas giant's sky giant (#2112, generation 18): a 40–80 block sailer — a long tapering body under a row of
-    /// wing-sails, a fluke, a blunt head — that drifts between the islands and never lands. Always passive: a spectacle,
-    /// not a threat; defeatable like every giant, but it never strikes back. Rolled outside the roster.</summary>
-    public static CreatureSpecies GenerateSkyGiant(long worldSeed, string locationId)
-    {
-        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("sky-giant:" + locationId) << 16) ^ 0x5C1A7E5L);
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        float length = 40f + (float)rng.NextDouble() * 40f;    // 40–80 blocks
-        float girth = 4f + (float)rng.NextDouble() * 3f;       // 4–7
-        var sp = new CreatureSpecies
-        {
-            Id = SkyGiantId,
-            NameKey = "creature.generic.name",
-            Name = NameGenerator.Creature(rng),
-            Habitat = CreatureHabitat.Air,
-            Activity = CreatureActivity.Cathemeral,
-            Temperament = CreatureTemperament.Passive,
-            LocoStyle = LocomotionStyle.Drifter,
-            BodyPlan = CreatureBodyPlan.SkyGiant,
-            GiantHeight = length * 0.5f,                       // the scan's scale, and the health-bar anchor
-            Size = length / 20f,
-            WormGirth = girth,
-            WormLength = length,
-            BodySegments = 18 + rng.Next(9),                   // 18..26
-            WingPairs = 3 + rng.Next(3),                       // 3..5 sails along the back
-            HasWings = true,
-            HasTail = true,
-            HasCrest = rng.NextDouble() < 0.5,
-            Horns = rng.Next(3),
-            Eyes = 2,
-            Legs = 0,
-            HoverAltitude = 50f,
-            MaxHealth = 1800f + (length - 40f) * 30f,          // 1800..3000
-            AttackDamage = 0f,
-            Speed = 5f + (float)rng.NextDouble() * 3f,         // a slow drift, blocks/s
-            ColorRgb = SkyColor(rng),
-            BellyRgb = SeaBellyColor(rng),
-            Glows = rng.NextDouble() < 0.5,
-            Hide = SkyGiantHides[rng.Next(SkyGiantHides.Length)],
-            DropItem = "creature_meat",
-            DropCount = 16,
-            DropKind = CreatureDropKind.Food,
-        };
-        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
-        return sp;
-    }
-
-    /// <summary>The sky giant's back: dusk violet, storm grey, rose, pale amber — the colours of its own sky.</summary>
-    private static int SkyColor(System.Random rng)
-    {
-        int[] palette = { 0x6C5B7B, 0x8E7C93, 0xA26769, 0xC9A27A, 0x5D6D7E, 0x9B8BB4, 0xB48A78 };
-        return Jitter(palette[rng.Next(palette.Length)], rng.Next(-12, 13));
-    }
-
-    public const string LeviathanId = "gi_leviathan";
-
-    private static readonly string[] LeviathanHides = { "scales", "slick", "plated", "banded", "mottled" };
-
-    /// <summary>A deep-sea world's leviathan (#2111, generation 18): the largest form of water life — the sandworm's long body
-    /// with fins along the flanks and a fluke, two jaws instead of mandible petals, a sea palette, its size, hearing and temper
-    /// rolled per world. It always hunts (fish, and whoever swims or sails). The species is rolled outside the roster, so no
-    /// older world's species move.</summary>
-    public static CreatureSpecies GenerateLeviathan(long worldSeed, string locationId)
-    {
-        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("leviathan:" + locationId) << 16) ^ 0x1E71A7A4L);
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        float height = 30f + (float)rng.NextDouble() * 20f;        // how high it breaches (30–50)
-        float girth = 4f + (float)rng.NextDouble() * 3f;           // 4–7: hidden at 7.6–11.8 under the surface
-        var sp = new CreatureSpecies
-        {
-            Id = LeviathanId,
-            NameKey = "creature.generic.name",
-            Name = NameGenerator.Creature(rng),
-            Habitat = CreatureHabitat.Water,
-            Activity = CreatureActivity.Cathemeral,
-            Temperament = rng.NextDouble() < 0.5 ? CreatureTemperament.Aggressive : CreatureTemperament.Territorial,
-            LocoStyle = LocomotionStyle.Slitherer,
-            BodyPlan = CreatureBodyPlan.Leviathan,
-            GiantHeight = height,
-            Size = height / 10f,
-            WormGirth = girth,
-            WormLength = 60f + (float)rng.NextDouble() * 60f,      // 60–120 blocks
-            BodySegments = 24 + rng.Next(13),                       // 24..36 segments
-            Mandibles = 2,                                          // upper and lower jaw
-            Horns = rng.Next(3),                                    // rows of dorsal spines
-            HasCrest = rng.NextDouble() < 0.7,                      // a dorsal fin
-            HasFins = true,
-            FinPairs = 2 + rng.Next(2),                             // 2..3 pairs of flank fins
-            HasTail = true,
-            Hearing = 0.9f + (float)rng.NextDouble() * 0.5f,
-            MaxHealth = 2000f + (height - 30f) * 60f,               // 2000..3200
-            AttackDamage = 30f + (float)rng.NextDouble() * 10f,     // per strike
-            Speed = 8f + (float)rng.NextDouble() * 4f,              // under the surface, blocks/s
-            Legs = 0,
-            Eyes = 2,
-            ColorRgb = SeaColor(rng),
-            BellyRgb = SeaBellyColor(rng),
-            Glows = rng.NextDouble() < 0.4,
-            Hide = LeviathanHides[rng.Next(LeviathanHides.Length)],
-            DropItem = "creature_meat",
-            DropCount = 20,
-            DropKind = CreatureDropKind.Food,
-            SwallowsCreatures = true,                               // it hunts from the first day
-        };
-        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
-        return sp;
-    }
-
-    /// <summary>The leviathan's back: deep blues, teal, slate, storm grey, bottle green.</summary>
-    private static int SeaColor(System.Random rng)
-    {
-        int[] palette = { 0x1E3A5F, 0x1B4F72, 0x146C6E, 0x2E4053, 0x0E6655, 0x34495E, 0x1A5276, 0x2C3E50 };
-        return Jitter(palette[rng.Next(palette.Length)], rng.Next(-12, 13));
-    }
-
-    /// <summary>The leviathan's belly: pale — bone, foam, pale teal, silver.</summary>
-    private static int SeaBellyColor(System.Random rng)
-    {
-        int[] palette = { 0xD5DBDB, 0xE8F6F3, 0xAED6F1, 0xBDC3C7, 0xD1F2EB, 0xF4F6F7 };
-        return Jitter(palette[rng.Next(palette.Length)], rng.Next(-10, 11));
-    }
-
-    private static int Jitter(int c, int jitter)
-    {
-        int r = System.Math.Clamp(((c >> 16) & 0xFF) + jitter, 0, 255);
-        int g = System.Math.Clamp(((c >> 8) & 0xFF) + jitter, 0, 255);
-        int b = System.Math.Clamp((c & 0xFF) + jitter, 0, 255);
-        return (r << 16) | (g << 8) | b;
-    }
-
-    public static CreatureSpecies GenerateSandworm(long worldSeed, string locationId, int terrainGeneration = 0)
-    {
-        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("sandworm:" + locationId) << 16) ^ 0x5A2D3A0L);
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        float height = 40f + (float)rng.NextDouble() * 20f;
-        float girth = 7f + (float)rng.NextDouble() * 4f;
-        var sp = new CreatureSpecies
-        {
-            Id = SandwormId,
-            NameKey = "creature.generic.name",
-            Name = NameGenerator.Creature(rng),
-            Habitat = CreatureHabitat.Land,
-            Activity = CreatureActivity.Cathemeral,
-            Temperament = rng.NextDouble() < 0.6 ? CreatureTemperament.Aggressive : CreatureTemperament.Territorial,
-            LocoStyle = LocomotionStyle.Slitherer,
-            BodyPlan = CreatureBodyPlan.Sandworm,
-            GiantHeight = height,
-            Size = height / 10f,
-            WormGirth = girth,
-            WormLength = height * 2.1f + (float)rng.NextDouble() * 20f,
-            BodySegments = 30 + rng.Next(15),                 // ring segments
-            Mandibles = 3 + rng.Next(3),                      // 3..5 petals
-            Horns = rng.Next(4),                              // rows of back spikes
-            HasCrest = rng.NextDouble() < 0.5,                // a plated dorsal ridge
-            Hearing = 0.8f + (float)rng.NextDouble() * 0.5f,
-            MaxHealth = 2500f + (height - 40f) * 75f,         // 2500..4000
-            AttackDamage = 35f + (float)rng.NextDouble() * 10f, // per strike
-            Speed = 9f + (float)rng.NextDouble() * 3f,        // under the sand, blocks/s
-            Legs = 0,
-            Eyes = 0,
-            ColorRgb = SandColor(rng),
-            BellyRgb = SandColor(rng),
-            Glows = rng.NextDouble() < 0.3,
-            Hide = WormHides[rng.Next(WormHides.Length)],
-            DropItem = "creature_meat",
-            DropCount = 20,
-            DropKind = CreatureDropKind.Food,
-            SwallowsCreatures = GiantRules.RolledWormsHunt(terrainGeneration), // #2076: from the generation, not the roll — no trait moves
-        };
-        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
-        return sp;
-    }
-
-    /// <summary>The sandworm's palette: sand, ochre, rust, umber and dusk tones.</summary>
-    private static int SandColor(System.Random rng)
-    {
-        int[] palette = { 0xC8A26B, 0xB5793E, 0x8E5A33, 0x6B4A36, 0xA88B6A, 0x7E6A7A, 0xD2B48C, 0x9C6644 };
-        int c = palette[rng.Next(palette.Length)];
-        int jitter = rng.Next(-14, 15);
-        int r = System.Math.Clamp(((c >> 16) & 0xFF) + jitter, 0, 255);
-        int g = System.Math.Clamp(((c >> 8) & 0xFF) + jitter, 0, 255);
-        int b = System.Math.Clamp((c & 0xFF) + jitter, 0, 255);
-        return (r << 16) | (g << 8) | b;
     }
 
     private static int AbundanceCount(string? abundance) => (abundance ?? "few").ToLowerInvariant() switch
@@ -817,25 +373,6 @@ public static class CreatureGenerator
         }
     }
 
-    /// <summary>Generation 15 (#2069): the eye colour — 60 % keep the classic pale eye, the rest draw one of five irises; a
-    /// hunter leans red, a glower violet. The FINAL draw of a species, after the herds, and only on a generation-15 world, so
-    /// a species of any older world keeps every trait it had.</summary>
-    private static void ApplyEyeColour(System.Random rng, CreatureSpecies sp)
-    {
-        if (rng.NextDouble() < 0.6)
-        {
-            return;
-        }
-
-        int pick = sp.Hostile && rng.NextDouble() < 0.5 ? 4
-            : sp.Glows && rng.NextDouble() < 0.5 ? 3
-            : rng.Next(0, 3);
-        sp.EyeRgb = EyePalette[pick];
-    }
-
-    /// <summary>The rolled irises (#2069): amber, blue, black, violet, red.</summary>
-    private static readonly int[] EyePalette = { 0xE0A020, 0x3A7BD5, 0x101010, 0x8A2BE2, 0xD03030 };
-
     /// <summary>Generation 8 (Valuma): every rolled species is passive or skittish and bites for nothing.</summary>
     private static void MakePeaceful(List<CreatureSpecies> list)
     {
@@ -852,735 +389,6 @@ public static class CreatureGenerator
             sp.AttackDamage = 0f;
         }
     }
-
-    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount, CreatureHabitat? forcedHabitat, long speciesSeed, int terrainGeneration)
-    {
-        var habitat = forcedHabitat ?? PickHabitat(rng, allowWater, allowLava, allowCave);
-        bool cave = habitat == CreatureHabitat.Cave;
-        var temperament = (CreatureTemperament)Weighted(rng, // B18: fewer hostiles — more peaceful fauna
-            (int)CreatureTemperament.Passive, 42,
-            (int)CreatureTemperament.Skittish, 30,
-            (int)CreatureTemperament.Territorial, 16,
-            (int)CreatureTemperament.Aggressive, 9,
-            (int)CreatureTemperament.PackHunter, 3);
-        var activity = (CreatureActivity)Weighted(rng,
-            (int)CreatureActivity.Diurnal, 40,
-            (int)CreatureActivity.Nocturnal, 30,
-            (int)CreatureActivity.Crepuscular, 20,
-            (int)CreatureActivity.Cathemeral, 10);
-
-        bool hostile = temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
-        float size = 0.6f + (float)rng.NextDouble() * 1.6f;
-
-        var (dropKind, dropItem, dropCount) = PickDrop(rng);
-
-        // Per-biome palette (item-21 rest): species native to a biome share a recognisable colour family —
-        // their hue is pulled toward that biome's anchor hue, so region A's fauna reads green-ish while
-        // region B's reads violet-ish on the same world. Biome-agnostic species keep their free colour.
-        int biomeAffinity = biomeCount <= 1 ? -1 : rng.Next(biomeCount);
-        int colorRgb = PickColor(rng, habitat);
-        int bellyRgb = PickColor(rng, habitat);
-        if (biomeAffinity >= 0)
-        {
-            colorRgb = ShiftTowardBiomeHue(colorRgb, biomeAffinity);
-            bellyRgb = ShiftTowardBiomeHue(bellyRgb, biomeAffinity);
-        }
-
-        var species = new CreatureSpecies
-        {
-            Id = "sp" + index,
-            NameKey = "creature.generic.name",
-            Name = NameGenerator.Creature(rng),
-            Habitat = habitat,
-            Activity = activity,
-            Temperament = temperament,
-
-            Size = size,
-            MaxHealth = 10f + size * 8f + (hostile ? 10f : 0f),
-            Speed = 1.5f + (float)rng.NextDouble() * 2.5f,
-            AttackDamage = hostile ? 2f + (float)rng.NextDouble() * 5f : 0f,
-
-            Legs = PickLegs(rng, habitat),
-            HasWings = habitat == CreatureHabitat.Air
-                       || (habitat != CreatureHabitat.Cave && habitat != CreatureHabitat.Amphibian && rng.NextDouble() < 0.1),
-            HasTail = rng.NextDouble() < (habitat == CreatureHabitat.Amphibian ? 0.85 : 0.5),
-            BodySegments = 1 + rng.Next(4),                            // 1..4 — some long, segmented bodies
-            ColorRgb = colorRgb,
-            BellyRgb = bellyRgb, // a second tone → two-tone bodies
-            // Cave dwellers are mostly eyeless (they navigate in the dark); surface fauna keep the normal mix.
-            Eyes = cave ? Weighted(rng, 0, 55, 1, 15, 2, 25, 4, 5)
-                        : Weighted(rng, 0, 12, 1, 6, 2, 44, 3, 16, 4, 14, 6, 6, 8, 2),
-            Horns = Weighted(rng, 0, 50, 1, 18, 2, 15, 3, 12, 4, 5),   // none / one / two / three / four
-            HasCrest = rng.NextDouble() < 0.32,                        // a dorsal frill on roughly a third
-            // item-21 morphology rest: tentacles for the wet/dark fauna, snail-like eyestalks, and a
-            // translucent buoyancy gas-sac on the odd floating grazer — beyond just legs/eyes.
-            Tentacles = PickTentacles(rng, habitat),
-            EyeStalks = rng.NextDouble() < habitat switch
-            {
-                CreatureHabitat.Amphibian => 0.45,
-                CreatureHabitat.Cave => 0.35,
-                CreatureHabitat.Water => 0.25,
-                _ => 0.10,
-            },
-            HasGasSac = habitat == CreatureHabitat.Air
-                ? rng.NextDouble() < 0.35
-                : habitat == CreatureHabitat.Land && rng.NextDouble() < 0.06,
-            // Lava + cave dwellers are bioluminescent (the only light down in the dark); others sometimes glow.
-            Glows = habitat == CreatureHabitat.Lava || cave || rng.NextDouble() < (activity == CreatureActivity.Nocturnal ? 0.3 : 0.12),
-            BiomeAffinity = biomeAffinity, // native to one biome on multi-biome worlds
-
-            DropItem = dropItem,
-            DropCount = dropCount,
-            DropKind = dropKind,
-        };
-
-        // Movement signature (item: natural locomotion): a randomly-chosen gait biased by the body + habitat +
-        // temperament we just generated, so fauna move in recognisably different ways. Drawn LAST so the species'
-        // appearance rolls (hence existing worlds' rosters) are unchanged by adding it.
-        species.LocoStyle = PickLocoStyle(rng, species, terrainGeneration);
-
-        // Body plan + social rolls (#637/#638/#639) — appended AFTER every legacy roll (same discipline
-        // as LocoStyle above) so pre-existing worlds keep their species' identity; a plan then only
-        // OVERRIDES the traits it needs rather than biasing the draws that precede it.
-        ApplyBodyPlan(rng, species);
-        species.SocialGroupSize = PickSocialGroupSize(rng, species);
-
-        // Voice seed (#907): folded from the species' own sub-seed rather than drawn from `rng`, so
-        // adding it changed no existing world's traits by a single bit. It must NOT come from
-        // species.Id — ids are "sp0".."sp8" and repeat on every planet, which is exactly why the old
-        // client-side id hash gave the whole game nine voices per habitat.
-        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
-
-        // Fins: folded from the voice seed above, NOT drawn from `rng` — same discipline as the seed itself,
-        // so adding them changed no existing world's traits by a single bit. Must come after the body plan
-        // (a medusa never has fins) and after the voice seed it reads.
-        species.HasFins = CreatureMotion.FinsFor(species);
-
-        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
-        {
-            // Per-species hover altitude (#637) so the sky gets layers instead of one uniform band.
-            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f; // 3..12
-        }
-
-        // Generation 6 (#1778-#1782): rays, air fish, extra heads / wing pairs / fin pairs. Rolled AFTER every
-        // roll above and applied only on a generation-6 world, so a species of any older world keeps every
-        // trait it had — the same discipline as the body plans (appended) and the authored overlay (gated).
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.NewKindsGeneration)
-        {
-            ApplyNewKinds(rng, species);
-        }
-
-        // Generation 10 (#2009): the arachnid — rolled LAST, after every older roll, and only on a generation-10 world,
-        // so a species of any older world keeps every trait it had (the roll is the final draw, nothing reads the RNG
-        // after it). One draw per standard-plan Land species; the plan then overrides what the body demands and
-        // re-rolls what depends on it (the gait, the group size).
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ArachnidGeneration
-            && species.Habitat == CreatureHabitat.Land && species.BodyPlan == CreatureBodyPlan.Standard
-            && rng.NextDouble() < ArachnidChance)
-        {
-            ApplyArachnidPlan(rng, species);
-        }
-
-        // Generation 12 (#2018): big herds and the begging trait — rolled after the arachnid draw (so a generation-10/11
-        // species keeps every trait it had; nothing reads the RNG after this) and only on a generation-12 world.
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BigHerdsGeneration)
-        {
-            ApplyBigHerds(rng, species);
-        }
-
-        // Generation 15 (#2069): the eye colour — after the herds (so a generation-12..14 species keeps every trait it had;
-        // nothing reads the RNG after this) and only on a generation-15 world.
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ToxicaMaximaGeneration)
-        {
-            ApplyEyeColour(rng, species);
-        }
-
-        // Generation 16 (#2081): the biped — rolled LAST, after the eye colour (so a generation-15 species keeps every trait it
-        // had; nothing reads the RNG after this) and only on a generation-16 world. One draw per standard-plan Land species.
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration
-            && species.Habitat == CreatureHabitat.Land && species.BodyPlan == CreatureBodyPlan.Standard
-            && rng.NextDouble() < BipedRules.BipedChance)
-        {
-            ApplyBipedPlan(rng, species);
-        }
-
-        // Generation 18 (#2109): the worm — rolled LAST, after the biped draw (so a generation-16/17 species keeps every trait
-        // it had; nothing reads the RNG after this) and only on a generation-18 world. One draw per standard-plan Land species
-        // that the biped draw left standard.
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.WormGeneration
-            && species.Habitat == CreatureHabitat.Land && species.BodyPlan == CreatureBodyPlan.Standard
-            && rng.NextDouble() < WormRules.WormChance)
-        {
-            ApplyWormPlan(rng, species);
-        }
-
-        return species;
-    }
-
-    private static readonly string[] SmallWormHides = { "skin", "banded", "scales", "warty", "mottled" };
-
-    /// <summary>The worm (#2109, Marcel's finding): a legless slitherer, knee- to hip-high — a head and a chain of
-    /// <see cref="WormRules.MinSegments"/>–<see cref="WormRules.MaxSegments"/> links that runs a travelling wave. Colours, eye
-    /// colour, temperament and drop stay as rolled; the plan overrides what the body demands (no legs, no wings, no arms, the
-    /// slither style, a slow pace) and keeps the worm in a small group.</summary>
-    private static void ApplyWormPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Worm;
-        sp.Size = WormRules.MinSize + (float)rng.NextDouble() * (WormRules.MaxSize - WormRules.MinSize);
-        sp.Legs = 0;
-        sp.Arms = 0;
-        sp.BodySegments = WormRules.MinSegments + rng.Next(WormRules.MaxSegments - WormRules.MinSegments + 1);
-        sp.LocoStyle = LocomotionStyle.Slitherer;
-        sp.Speed = WormRules.MinSpeed + (float)rng.NextDouble() * (WormRules.MaxSpeed - WormRules.MinSpeed);
-        sp.MaxHealth = 10f + sp.Size * 8f + (sp.Hostile ? 10f : 0f);
-        sp.Eyes = Weighted(rng, 0, 25, 1, 15, 2, 50, 4, 10);            // many worms are eyeless
-        sp.Horns = Weighted(rng, 0, 65, 1, 15, 2, 20);                    // the builder draws them as antennae
-        sp.EyeStalks = rng.NextDouble() < 0.2;
-        sp.Hide = SmallWormHides[rng.Next(SmallWormHides.Length)];
-        sp.HasTail = false;                                               // the body IS the chain
-        sp.HasWings = false;
-        sp.WingPairs = 1;
-        sp.FinPairs = 1;
-        sp.HasGasSac = false;
-        sp.Tentacles = 0;
-        sp.Heads = 1;
-        sp.NeckLength = 0;
-        sp.HasTrunk = false;
-        sp.HeadShape = CreatureHeadShape.Box;
-        sp.HoverAltitude = 0f;
-        sp.HasFins = CreatureMotion.FinsFor(sp);
-        sp.BegsForFood = false;
-        sp.SocialGroupSize = 1 + rng.Next(3);
-    }
-
-    private static readonly string[] BipedHides = { "skin", "skin", "fur", "spots", "stripes", "mottled", "feathers", "scales" };
-
-    /// <summary>The biped (#2081, the school club idea of Paul and Ben): an upright two-legger with two arms and a big head,
-    /// knee-high to child-high. Always peaceful (decision 2026-09-27: passive or skittish, no bite); never alone — a passive
-    /// one begs with <see cref="BipedRules.BeggingChance"/> and then lives in a begging herd, every other one in a group of
-    /// <see cref="BipedRules.GroupMin"/>–<see cref="BipedRules.GroupMax"/>. Colours, eyes' colour and drop stay as rolled; the
-    /// plan overrides what the body demands and re-rolls what depends on it (the gait, the group).</summary>
-    private static void ApplyBipedPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Biped;
-        sp.Size = BipedRules.MinSize + (float)rng.NextDouble() * (BipedRules.MaxSize - BipedRules.MinSize);
-        sp.HeadRatio = BipedRules.MinHeadRatio + (float)rng.NextDouble() * (BipedRules.MaxHeadRatio - BipedRules.MinHeadRatio);
-        sp.Legs = 2;
-        sp.Arms = 2;
-        sp.BodySegments = 1;
-        sp.Temperament = rng.NextDouble() < 0.7 ? CreatureTemperament.Passive : CreatureTemperament.Skittish;
-        sp.AttackDamage = 0f;
-        sp.MaxHealth = 10f + sp.Size * 8f;
-        sp.Speed = 2.0f + (float)rng.NextDouble() * 1.5f;          // a walking pace — the player (6) outruns them
-        sp.Eyes = Weighted(rng, 2, 70, 1, 10, 3, 15, 4, 5);          // mostly two big eyes
-        sp.Horns = Weighted(rng, 0, 60, 1, 15, 2, 25);                // the builder draws them as antennae
-        sp.HasTail = rng.NextDouble() < 0.3;
-        sp.Hide = BipedHides[rng.Next(BipedHides.Length)];
-        sp.EyeStalks = false;
-        sp.HasCrest = false;
-        sp.HasWings = false;
-        sp.WingPairs = 1;
-        sp.FinPairs = 1;
-        sp.HasGasSac = false;
-        sp.Tentacles = 0;
-        sp.Heads = 1;                                                 // generation 6 may have rolled a second head
-        sp.NeckLength = 0;
-        sp.HasTrunk = false;
-        sp.HeadShape = CreatureHeadShape.Box;
-        sp.HoverAltitude = 0f;
-        sp.HasFins = CreatureMotion.FinsFor(sp);
-        sp.LocoStyle = PickLocoStyle(rng, sp);                        // two legs: hopper, grazer, darter or strider
-        sp.BegsForFood = sp.Temperament == CreatureTemperament.Passive && rng.NextDouble() < BipedRules.BeggingChance;
-        sp.SocialGroupSize = sp.BegsForFood
-            ? HerdRules.BeggarHerdMin + rng.Next(HerdRules.BeggarHerdMax - HerdRules.BeggarHerdMin + 1)
-            : BipedRules.GroupMin + rng.Next(BipedRules.GroupMax - BipedRules.GroupMin + 1);
-    }
-
-    /// <summary>A rolled biped for a world whose roster has none (#2081, the <c>/biped</c> test command): this world's own Land
-    /// roll with the plan forced and — so the test command shows the whole loop — begging, from a seed salted so it never
-    /// collides with a roster slot. Its favourite food is picked like a roster beggar's.</summary>
-    public static CreatureSpecies GenerateBiped(PlanetType planet, long rosterSeed, int terrainGeneration)
-    {
-        long s = unchecked(rosterSeed ^ 0xB1BED5L);
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        var sp = MakeSpecies(91, rng, allowWater: false, allowLava: false, allowCave: false, biomeCount: planet.Biomes.Count,
-            forcedHabitat: CreatureHabitat.Land, speciesSeed: s,
-            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration);
-        if (sp.BodyPlan != CreatureBodyPlan.Biped)
-        {
-            ApplyBipedPlan(rng, sp);
-        }
-
-        sp.Temperament = CreatureTemperament.Passive;
-        sp.BegsForFood = true;
-        sp.SocialGroupSize = System.Math.Max(sp.SocialGroupSize, HerdRules.BeggarHerdMin);
-        sp.FavouriteFood = FavouriteFrom(FruitRules.CleanFruitItems(planet, rosterSeed, terrainGeneration), sp.VoiceSeed);
-        return sp;
-    }
-
-    /// <summary>The big herds (#2018, generation 12): peaceful standard-plan Land species only — a passive one begs with
-    /// <see cref="HerdRules.BeggingChance"/> and then always lives in a herd of 8–12; the other passive ones and the skittish
-    /// ones roll a herd of 6–9 with <see cref="HerdRules.BigHerdChance"/>. Everything else (titans keep 2–4, arachnids their
-    /// solitude, every hunter and territorial species) consumes no draw at all, so its RNG stream is untouched. Skittish species
-    /// never beg (decision 2026-09-26): the flee reflex and a beggar's approach contradict each other.</summary>
-    private static void ApplyBigHerds(System.Random rng, CreatureSpecies sp)
-    {
-        if (sp.Habitat != CreatureHabitat.Land || sp.BodyPlan != CreatureBodyPlan.Standard)
-        {
-            return;
-        }
-
-        if (sp.Temperament == CreatureTemperament.Passive && rng.NextDouble() < HerdRules.BeggingChance)
-        {
-            sp.BegsForFood = true;
-            sp.SocialGroupSize = HerdRules.BeggarHerdMin + rng.Next(HerdRules.BeggarHerdMax - HerdRules.BeggarHerdMin + 1);
-            return;
-        }
-
-        if (sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish
-            && rng.NextDouble() < HerdRules.BigHerdChance)
-        {
-            sp.SocialGroupSize = HerdRules.BigHerdMin + rng.Next(HerdRules.BigHerdMax - HerdRules.BigHerdMin + 1);
-        }
-    }
-
-    /// <summary>The arachnid (#2009): a speeder-sized eight-legger — Size 3–3.6 on eight splayed legs, a cephalothorax
-    /// and an abdomen, a head that is a box or one of four pyramids (apex up, and not always the same one), spider eye
-    /// clusters, fangs on most. Temperament, activity and colours stay exactly as rolled (the normal roll, so a world's
-    /// arachnid may be a grazer or a pack hunter); the gait is re-rolled for the new body; a hunter or a territorial one
-    /// lies in wait (<see cref="ArachnidRules.Lurks"/>). Solitary unless it hunts as a pack.</summary>
-    private static void ApplyArachnidPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Arachnid;
-        sp.Size = ArachnidRules.MinSize + (float)rng.NextDouble() * (ArachnidRules.MaxSize - ArachnidRules.MinSize);
-        sp.Legs = 8;
-        sp.BodySegments = 2;                                    // cephalothorax + abdomen
-        sp.HeadShape = (CreatureHeadShape)Weighted(rng,
-            (int)CreatureHeadShape.Box, 50,
-            (int)CreatureHeadShape.Pyramid, 18,
-            (int)CreatureHeadShape.Spire, 12,
-            (int)CreatureHeadShape.Frustum, 10,
-            (int)CreatureHeadShape.Ziggurat, 10);
-        sp.Eyes = Weighted(rng, 2, 20, 4, 30, 6, 25, 8, 25);   // spider eye clusters
-        sp.EyeStalks = false;
-        sp.Horns = rng.NextDouble() < 0.65 ? 2 : 0;             // the builder draws them as fangs
-        sp.Hide = ArachnidHides[rng.Next(ArachnidHides.Length)];
-        sp.HasWings = false;
-        sp.WingPairs = 1;
-        sp.FinPairs = 1;
-        sp.HasGasSac = false;
-        sp.HasTail = false;
-        sp.Tentacles = 0;
-        sp.Heads = 1;                                           // generation 6 may have rolled a hydra before this plan
-        sp.NeckLength = 0;
-        sp.HasTrunk = false;
-        sp.HoverAltitude = 0f;
-        sp.MaxHealth = (10f + sp.Size * 8f + (sp.Hostile ? 10f : 0f)) * 2.5f; // ≈ 85–110: a real fight, below a titan
-        sp.AttackDamage = 3f + (float)rng.NextDouble() * 5f;    // used when hostile or provoked
-        sp.Speed = 2.0f + (float)rng.NextDouble() * 2.0f;       // quick for its size, still below a running player
-        sp.DropCount = 2 + rng.Next(3);                         // 2..4
-        sp.LocoStyle = PickLocoStyle(rng, sp);                  // prowler / darter / grazer / strider by temperament
-        sp.SocialGroupSize = sp.Temperament == CreatureTemperament.PackHunter ? 2 + rng.Next(2) : 1;
-    }
-
-    /// <summary>A rolled arachnid for a world whose roster has none (#2009, the <c>/arachnid</c> test command): this
-    /// world's own Land roll with the plan forced, from a seed salted so it never collides with a roster slot.</summary>
-    public static CreatureSpecies GenerateArachnid(PlanetType planet, long rosterSeed)
-    {
-        long s = unchecked(rosterSeed ^ 0x5A2A_C41DL);
-        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-        var sp = MakeSpecies(90, rng, allowWater: false, allowLava: false, allowCave: false, biomeCount: planet.Biomes.Count,
-            forcedHabitat: CreatureHabitat.Land, speciesSeed: s,
-            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.ArachnidGeneration);
-        if (sp.BodyPlan != CreatureBodyPlan.Arachnid)
-        {
-            ApplyArachnidPlan(rng, sp);
-        }
-
-        return sp;
-    }
-
-    /// <summary>The generation-6 kinds (#1778-#1782), in a fixed roll order: first the body (ray / air fish),
-    /// then the counts that depend on it. Standard-plan Air and Water species may become rays (20 %), a standard
-    /// Air species that stayed an air animal may become an air fish (25 %); heads, wing pairs and fin pairs are
-    /// rolled for whichever body came out.</summary>
-    private static void ApplyNewKinds(System.Random rng, CreatureSpecies sp)
-    {
-        bool airOrWater = sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Water;
-        if (airOrWater && sp.BodyPlan == CreatureBodyPlan.Standard && rng.NextDouble() < 0.20)
-        {
-            ApplyRayPlan(rng, sp);
-        }
-        else if (sp.Habitat == CreatureHabitat.Air && sp.BodyPlan == CreatureBodyPlan.Standard && rng.NextDouble() < 0.25)
-        {
-            ApplyAirFish(rng, sp);
-        }
-
-        // Heads (#1780): a few standard ground bodies carry two or three; titans more often (the hydra).
-        // Never on a medusa (a bell has no head), a ray (its eyes sit on the disc) or the flowerling.
-        bool ground = sp.Habitat is CreatureHabitat.Land or CreatureHabitat.Cave or CreatureHabitat.Lava or CreatureHabitat.Amphibian;
-        if (sp.BodyPlan == CreatureBodyPlan.Standard && ground)
-        {
-            sp.Heads = Weighted(rng, 1, 92, 2, 6, 3, 2);
-        }
-        else if (sp.BodyPlan == CreatureBodyPlan.Titan)
-        {
-            sp.Heads = Weighted(rng, 1, 80, 2, 15, 3, 5);
-        }
-
-        // Wing pairs (#1781): a fifth of the winged air species carry two pairs, a few three (the dragonfly);
-        // a winged ground bird sometimes two. A ray's wings ARE its body — one pair, always.
-        if (sp.HasWings && sp.BodyPlan != CreatureBodyPlan.Ray)
-        {
-            sp.WingPairs = sp.Habitat == CreatureHabitat.Air
-                ? Weighted(rng, 1, 72, 2, 20, 3, 8)
-                : Weighted(rng, 1, 90, 2, 10);
-        }
-
-        // Fins are derived (FinsFor), so re-read them for the body that came out; then the pair count (#1782)
-        // for the legless finned bodies — the fish and the air fish.
-        sp.HasFins = CreatureMotion.FinsFor(sp);
-        if (sp.HasFins && sp.Legs <= 0)
-        {
-            sp.FinPairs = Weighted(rng, 1, 60, 2, 30, 3, 10);
-        }
-    }
-
-    /// <summary>The ray (#1778): a flat disc on one pair of wing panels that beat as a travelling wave, a whip
-    /// tail, eyes on top — under water a bottom-hugging glider, in the air a sky glider that never lands (see
-    /// <see cref="CreatureMotion.IsSkyGlider"/>). Never a hunter: passive, skittish or territorial at most.</summary>
-    private static void ApplyRayPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Ray;
-        sp.Legs = 0;
-        sp.HasWings = true;
-        sp.HasTail = true;
-        sp.HasGasSac = false;
-        sp.HasCrest = false;
-        sp.EyeStalks = false;
-        sp.Tentacles = 0;
-        sp.Horns = rng.NextDouble() < 0.3 ? 2 : 0;                  // cephalic lobes on some
-        sp.BodySegments = 1 + rng.Next(2);                          // 1..2 — a disc, or a slightly longer one
-        sp.Eyes = Weighted(rng, 2, 80, 0, 10, 4, 10);
-        sp.Size = 1.2f + (float)rng.NextDouble() * 1.8f;            // 1.2..3
-        sp.Temperament = (CreatureTemperament)Weighted(rng,
-            (int)CreatureTemperament.Passive, 55,
-            (int)CreatureTemperament.Skittish, 30,
-            (int)CreatureTemperament.Territorial, 15);
-        sp.MaxHealth = 10f + sp.Size * 8f;
-        sp.AttackDamage = sp.Temperament == CreatureTemperament.Territorial ? 2f + (float)rng.NextDouble() * 3f : 0f;
-        sp.Speed = 1.2f + (float)rng.NextDouble() * 1.4f;           // 1.2..2.6 — an unhurried glide
-        sp.LocoStyle = sp.Habitat == CreatureHabitat.Air
-            ? LocomotionStyle.Glider                                // the sky ray swoops
-            : rng.NextDouble() < 0.6 ? LocomotionStyle.Drifter : LocomotionStyle.Schooler;
-        sp.SocialGroupSize = 1 + rng.Next(3);                       // 1..3
-        sp.Heads = 1;
-        sp.WingPairs = 1;
-        sp.FinPairs = 1;
-    }
-
-    /// <summary>The air fish (#1779): a fish body that lives in the air like a bird — legless, wingless, finned,
-    /// tailed, gliding on its swoop wave and never landing (a sky glider, see <see cref="CreatureMotion.IsSkyGlider"/>).
-    /// Everything else (colour, size, temperament, eyes, glow) stays as rolled.</summary>
-    private static void ApplyAirFish(System.Random rng, CreatureSpecies sp)
-    {
-        sp.Legs = 0;
-        sp.HasWings = false;
-        sp.HasTail = true;
-        sp.HasGasSac = false;
-        sp.EyeStalks = false;
-        sp.Tentacles = rng.NextDouble() < 0.15 ? 2 : 0;             // the odd barbel pair
-        sp.LocoStyle = LocomotionStyle.Glider;
-        sp.Heads = 1;
-        sp.WingPairs = 1;
-    }
-
-    /// <summary>Rolls whether this species gets a non-standard body plan (#637/#638) and, if so,
-    /// overrides the traits that plan demands. Drawn after all legacy rolls (see the call site).</summary>
-    private static void ApplyBodyPlan(System.Random rng, CreatureSpecies sp)
-    {
-        if ((sp.Habitat == CreatureHabitat.Air || sp.Habitat == CreatureHabitat.Water)
-            && rng.NextDouble() < 0.25)
-        {
-            ApplyMedusaPlan(rng, sp);
-        }
-        else if (sp.Habitat == CreatureHabitat.Land && rng.NextDouble() < 0.18)
-        {
-            ApplyTitanPlan(rng, sp);
-        }
-    }
-
-    /// <summary>The floating jellyfish (#637): translucent bell, 6–10 rim tentacles, drifting, glowing
-    /// more often than not — and never a threat (a hunting jellyfish would be miserable).</summary>
-    private static void ApplyMedusaPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Medusa;
-        sp.Legs = 0;
-        sp.HasWings = false;
-        sp.HasTail = false;
-        sp.HasCrest = false;
-        sp.EyeStalks = false;
-        sp.Horns = 0;
-        sp.BodySegments = 1;
-        sp.HasGasSac = true;
-        sp.Tentacles = 6 + rng.Next(5);                       // 6..10 long rim tentacles
-        sp.Eyes = Weighted(rng, 0, 60, 1, 15, 2, 25);          // usually eyeless
-        sp.Glows = rng.NextDouble() < 0.7;                     // drifting lanterns at night
-        sp.Temperament = rng.NextDouble() < 0.7 ? CreatureTemperament.Passive : CreatureTemperament.Skittish;
-        sp.AttackDamage = 0f;                                  // never hostile — a mood piece, not a threat
-        sp.Speed = 0.8f + (float)rng.NextDouble() * 0.8f;      // slow, lazy drift
-        sp.LocoStyle = LocomotionStyle.Drifter;
-        sp.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;  // 3..12 (air variant; water uses the column)
-    }
-
-    /// <summary>The land titan (#638): elephant/giraffe-scale megafauna — pillar legs, an optional long
-    /// neck or trunk, tusks. Huntable: tanky with a matching drop pile, dangerous when provoked, but
-    /// never a roaming pack-hunter.</summary>
-    private static void ApplyTitanPlan(System.Random rng, CreatureSpecies sp)
-    {
-        sp.BodyPlan = CreatureBodyPlan.Titan;
-        sp.Size = 3.5f + (float)rng.NextDouble() * 2.5f;       // 3.5..6 — far past the old 2.2 cap
-        sp.Legs = 4;
-        sp.HasWings = false;
-        sp.HasTail = true;
-        sp.HasGasSac = false;
-        sp.EyeStalks = false;
-        sp.Tentacles = 0;
-        sp.BodySegments = 2 + rng.Next(2);                     // 2..3 — a long, heavy torso
-        sp.NeckLength = rng.Next(4);                            // 0..3 (≥2 reads giraffe)
-        sp.HasTrunk = sp.NeckLength <= 1 && rng.NextDouble() < 0.6; // short-necked titans often carry a trunk
-        sp.Temperament = (CreatureTemperament)Weighted(rng,     // never PackHunter — dangerous when provoked,
-            (int)CreatureTemperament.Passive, 60,               // not a roaming player-hunter
-            (int)CreatureTemperament.Territorial, 35,
-            (int)CreatureTemperament.Aggressive, 5);
-        sp.MaxHealth = (10f + sp.Size * 8f) * 3.5f;             // a real fight (~150–200 HP)
-        sp.AttackDamage = 4f + (float)rng.NextDouble() * 6f;    // a provoked titan genuinely hurts
-        sp.Speed = 1.0f + (float)rng.NextDouble() * 1.0f;       // ponderous
-        sp.DropCount = 3 + rng.Next(4);                         // 3..6 — a real reward for a real fight
-        sp.LocoStyle = sp.Temperament == CreatureTemperament.Passive
-            ? LocomotionStyle.Grazer
-            : LocomotionStyle.Strider;                          // no hopping/darting giants
-    }
-
-    /// <summary>How many individuals a species lives in a group of (#639): titan herds, fish schools,
-    /// flocks of fliers, small groups of peaceful grazers — predators and everything else stay solitary
-    /// (pack-hunters excepted: their pack IS a group).</summary>
-    private static int PickSocialGroupSize(System.Random rng, CreatureSpecies sp)
-    {
-        if (sp.BodyPlan == CreatureBodyPlan.Titan)
-        {
-            return 2 + rng.Next(3); // 2..4 — megafauna reads best in a small herd
-        }
-
-        if (sp.Temperament == CreatureTemperament.PackHunter)
-        {
-            return 2 + rng.Next(2); // 2..3 — the pack hunts together from the start
-        }
-
-        if (sp.Habitat == CreatureHabitat.Water && sp.LocoStyle == LocomotionStyle.Schooler)
-        {
-            return 3 + rng.Next(3); // 3..5 — an actual school
-        }
-
-        if (sp.Habitat == CreatureHabitat.Air && rng.NextDouble() < 0.4)
-        {
-            return 2 + rng.Next(3); // 2..4 — a loose flock
-        }
-
-        if (sp.Habitat == CreatureHabitat.Land
-            && sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish
-            && rng.NextDouble() < 0.25)
-        {
-            return 2 + rng.Next(2); // 2..3 — grazers sometimes come in pairs/trios
-        }
-
-        return 1;
-    }
-
-    /// <summary>Picks a creature's <see cref="LocomotionStyle"/> from its already-generated traits: limbless +
-    /// segmented bodies slither, two-leggers hop, gas-sacs drift, fliers glide, water fauna school, and the
-    /// temperament colours the ground gait (predators prowl, skittish ones dart, grazers feed in stop-and-go).</summary>
-    private static LocomotionStyle PickLocoStyle(System.Random rng, CreatureSpecies sp, int terrainGeneration = 0)
-    {
-        var w = new List<(int Value, int Weight)>();
-        void Add(LocomotionStyle st, int weight) { if (weight > 0) w.Add(((int)st, weight)); }
-
-        if (sp.Habitat == CreatureHabitat.Air)
-        {
-            Add(LocomotionStyle.Glider, sp.HasWings ? 50 : 20);
-            Add(LocomotionStyle.Drifter, sp.HasGasSac ? 45 : 20);
-            Add(LocomotionStyle.Strider, 10);
-        }
-        else if (sp.Habitat == CreatureHabitat.Water)
-        {
-            Add(LocomotionStyle.Schooler, 50);
-            Add(LocomotionStyle.Slitherer, sp.Legs == 0 ? 30 : 12);
-            Add(LocomotionStyle.Drifter, 12);
-        }
-        else // land / cave / lava / amphibian — ground movers
-        {
-            if (sp.Legs == 0) Add(LocomotionStyle.Slitherer, 45);
-            if (sp.Legs == 2) Add(LocomotionStyle.Hopper, 35);
-            // Generation 18 (#2109): a long body with legs no longer "slithers" — whoever slithers is a legless worm. The
-            // draw count is the same, only the weights differ, so the gate changes nothing below generation 18.
-            if (sp.BodySegments >= 3 && sp.Legs > 0 && terrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.WormGeneration) Add(LocomotionStyle.Slitherer, 25);
-            if (sp.HasGasSac) Add(LocomotionStyle.Drifter, 30);
-
-            switch (sp.Temperament)
-            {
-                case CreatureTemperament.Aggressive:
-                case CreatureTemperament.PackHunter:
-                    Add(LocomotionStyle.Prowler, 45); Add(LocomotionStyle.Strider, 20); break;
-                case CreatureTemperament.Skittish:
-                    Add(LocomotionStyle.Darter, 45); Add(LocomotionStyle.Strider, 15); break;
-                case CreatureTemperament.Passive:
-                    Add(LocomotionStyle.Grazer, 45); Add(LocomotionStyle.Strider, 20); break;
-                default: // Territorial
-                    Add(LocomotionStyle.Strider, 35); Add(LocomotionStyle.Grazer, 20); break;
-            }
-
-            Add(LocomotionStyle.Strider, 10); // always a small chance of the plain strider
-        }
-
-        return (LocomotionStyle)WeightedList(rng, w);
-    }
-
-    private static CreatureHabitat PickHabitat(System.Random rng, bool allowWater, bool allowLava, bool allowCave)
-    {
-        // Land/air always possible; water/lava/cave/amphibian only on suitable worlds.
-        var weights = new List<(int Value, int Weight)>
-        {
-            ((int)CreatureHabitat.Land, 50),
-            ((int)CreatureHabitat.Air, 20),
-        };
-        if (allowWater) weights.Add(((int)CreatureHabitat.Water, 18));
-        if (allowWater) weights.Add(((int)CreatureHabitat.Amphibian, 12)); // shoreline dwellers need water too
-        if (allowLava) weights.Add(((int)CreatureHabitat.Lava, 10));
-        if (allowCave) weights.Add(((int)CreatureHabitat.Cave, 16));        // subterranean fauna fill the caves
-        return (CreatureHabitat)WeightedList(rng, weights);
-    }
-
-    private static (CreatureDropKind, string, int) PickDrop(System.Random rng)
-    {
-        int kind = Weighted(rng,
-            (int)CreatureDropKind.Food, 50,
-            (int)CreatureDropKind.Poison, 30,
-            (int)CreatureDropKind.Material, 20); // material substitute is the rare one
-        return (CreatureDropKind)kind switch
-        {
-            CreatureDropKind.Food => (CreatureDropKind.Food, "creature_meat", 1 + rng.Next(2)),
-            CreatureDropKind.Poison => (CreatureDropKind.Poison, "toxic_gland", 1),
-            _ => (CreatureDropKind.Material, MaterialSubstitute(rng), 1 + rng.Next(2)),
-        };
-    }
-
-    /// <summary>A real building resource a creature can yield instead of mining (rare).</summary>
-    private static string MaterialSubstitute(System.Random rng)
-    {
-        string[] mats = { "carbon", "silicate", "copper_ore", "iron_ore" };
-        return mats[rng.Next(mats.Length)];
-    }
-
-    /// <summary>Tentacle count by habitat (item-21 morphology): water dwellers often trail 4–6, cave +
-    /// amphibian fauna sometimes 2–4, the occasional land/air oddity 2–3, most species none.</summary>
-    private static int PickTentacles(System.Random rng, CreatureHabitat habitat) => habitat switch
-    {
-        CreatureHabitat.Water => rng.NextDouble() < 0.55 ? 4 + rng.Next(3) : 0,
-        CreatureHabitat.Cave => rng.NextDouble() < 0.35 ? 2 + rng.Next(3) : 0,
-        CreatureHabitat.Amphibian => rng.NextDouble() < 0.30 ? 2 + rng.Next(3) : 0,
-        _ => rng.NextDouble() < 0.08 ? 2 + rng.Next(2) : 0,
-    };
-
-    /// <summary>Pulls a colour's hue toward its biome's anchor hue (item-21 per-biome palettes): each biome
-    /// index owns a fixed anchor on the hue wheel (golden-ratio spaced so neighbours differ clearly), and a
-    /// native species blends ~45% toward it — a shared family tint per region, with individuality kept.</summary>
-    private static int ShiftTowardBiomeHue(int rgb, int biome)
-    {
-        float r = ((rgb >> 16) & 0xFF) / 255f, g = ((rgb >> 8) & 0xFF) / 255f, b = (rgb & 0xFF) / 255f;
-        float max = System.Math.Max(r, System.Math.Max(g, b)), min = System.Math.Min(r, System.Math.Min(g, b));
-        float v = max, d = max - min;
-        float s = max <= 0f ? 0f : d / max;
-        float h = 0f;
-        if (d > 0f)
-        {
-            if (max == r) h = ((g - b) / d % 6f + 6f) % 6f / 6f;
-            else if (max == g) h = ((b - r) / d + 2f) / 6f;
-            else h = ((r - g) / d + 4f) / 6f;
-        }
-
-        float anchor = (0.07f + biome * 0.382f) % 1f; // golden-ratio spacing across the wheel
-        float delta = anchor - h;
-        if (delta > 0.5f) delta -= 1f;
-        if (delta < -0.5f) delta += 1f;
-        h = (h + delta * 0.45f + 1f) % 1f;
-        s = System.Math.Max(s, 0.35f); // keep the family tint visible even on washed-out bases
-        return HsvToRgb(h, s, v);
-    }
-
-    private static int PickLegs(System.Random rng, CreatureHabitat habitat) => habitat switch
-    {
-        CreatureHabitat.Water => 0,
-        CreatureHabitat.Air => 2,
-        CreatureHabitat.Amphibian => new[] { 0, 2, 4 }[rng.Next(3)], // finned swimmers to short-legged crawlers
-        CreatureHabitat.Cave => new[] { 0, 4, 6, 8 }[rng.Next(4)],   // crawlers / many-legged cave things
-        _ => new[] { 2, 4, 6 }[rng.Next(3)],
-    };
-
-    private static int PickColor(System.Random rng, CreatureHabitat habitat)
-    {
-        // ~Half of all species are vivid exotics — a fully random hue at high saturation, so pinks, violets,
-        // yellows, teals and oranges are common (alien fauna, not just earthy naturals). The rest are a
-        // habitat-tinted base hue with a wide jitter, so a world still spans subtle naturals to bold exotics.
-        if (rng.NextDouble() < 0.5)
-        {
-            float h = (float)rng.NextDouble();                       // any hue on the wheel
-            float s = 0.6f + (float)rng.NextDouble() * 0.4f;          // strongly saturated
-            float v = 0.7f + (float)rng.NextDouble() * 0.3f;          // bright
-            return HsvToRgb(h, s, v);
-        }
-
-        int r, g, b;
-        int j() => rng.Next(-60, 61);
-        switch (habitat)
-        {
-            case CreatureHabitat.Water: r = 60; g = 130; b = 200; break;
-            case CreatureHabitat.Amphibian: r = 80; g = 150; b = 150; break; // teal, between water + land
-            case CreatureHabitat.Lava: r = 210; g = 90; b = 40; break;
-            case CreatureHabitat.Cave: r = 190; g = 195; b = 210; break;     // pale, washed-out cave-dweller
-            case CreatureHabitat.Air: r = 200; g = 200; b = 170; break;
-            default: r = 110; g = 150; b = 80; break; // land
-        }
-
-        return (Clamp8(r + j()) << 16) | (Clamp8(g + j()) << 8) | Clamp8(b + j());
-    }
-
-    /// <summary>HSV→RGB (h,s,v in 0..1) packed as 0xRRGGBB — used for vivid, evenly-spread exotic hues.</summary>
-    private static int HsvToRgb(float h, float s, float v)
-    {
-        float r = v, g = v, b = v;
-        if (s > 0f)
-        {
-            float hf = (h - (float)System.Math.Floor(h)) * 6f;
-            int i = (int)hf;
-            float f = hf - i;
-            float p = v * (1f - s);
-            float q = v * (1f - s * f);
-            float t = v * (1f - s * (1f - f));
-            switch (i % 6)
-            {
-                case 0: r = v; g = t; b = p; break;
-                case 1: r = q; g = v; b = p; break;
-                case 2: r = p; g = v; b = t; break;
-                case 3: r = p; g = q; b = v; break;
-                case 4: r = t; g = p; b = v; break;
-                default: r = v; g = p; b = q; break;
-            }
-        }
-
-        return (Clamp8((int)(r * 255f + 0.5f)) << 16) | (Clamp8((int)(g * 255f + 0.5f)) << 8) | Clamp8((int)(b * 255f + 0.5f));
-    }
-
-    private static int Clamp8(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 
     private static bool HasWaterLife(PlanetType planet)
     {
@@ -1605,32 +413,5 @@ public static class CreatureGenerator
     {
         string key = planet.Key.ToLowerInvariant();
         return key == "lava" || (planet.SurfaceBlock ?? string.Empty).ToLowerInvariant() == "basalt";
-    }
-
-    // --- Weighted picks (deterministic from the RNG) ---
-
-    private static int Weighted(System.Random rng, params int[] valueWeightPairs)
-    {
-        var list = new List<(int, int)>();
-        for (int i = 0; i + 1 < valueWeightPairs.Length; i += 2)
-        {
-            list.Add((valueWeightPairs[i], valueWeightPairs[i + 1]));
-        }
-
-        return WeightedList(rng, list);
-    }
-
-    private static int WeightedList(System.Random rng, List<(int Value, int Weight)> weights)
-    {
-        int total = 0;
-        foreach (var (_, w) in weights) total += w;
-        int roll = rng.Next(total);
-        foreach (var (value, w) in weights)
-        {
-            roll -= w;
-            if (roll < 0) return value;
-        }
-
-        return weights[weights.Count - 1].Value;
     }
 }

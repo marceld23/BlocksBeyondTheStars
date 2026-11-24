@@ -136,7 +136,7 @@ SEATS = ("", "span")
 MARKERS = {
     "vendor", "mission_board", "npc", "door_slide", "door_hinge", "door_energy", "room", "loot", "greenhouse", "chest",
     "data_terminal", "tavern", "workshop", "lounge", "guard_post", "doctor", "grocer", "arms_dealer", "sage", "tamer",
-    "blockfarmer", "streamer", "reporter", "sound", "den", "crystal",
+    "blockfarmer", "streamer", "reporter", "sound", "den", "crystal", "guardian_giant",
 }
 MAX_SIZE = 256
 MAX_RUIN_ZONES = 16   # LandmarkRules.MaxRuinZones
@@ -990,6 +990,14 @@ class Design:
         the solid cells around it."""
         self._free(x, y, z)
         self.marker(x, y, z, kind if kind.startswith("door_") else f"door_{kind}")
+
+    def guardian_giant(self, x: int, y: int, z: int, facing: int = 0, wake: bool = False) -> None:
+        """#3986: a fallen guardian giant (the 14-block one, lights out) lying on the floor this marker stands on (the cell
+        just above the floor, like a chest). `facing` turns the lying body: 0 = head toward -z, 1 = -x, 2 = +z, 3 = +x
+        (the feet the other way); its box is 12 wide and 14 long, its back sunk one row into the floor. `wake` = it can
+        still wake (default: never). The server writes the body and pins its giant record."""
+        self._free(x, y, z)
+        self.marker(x, y, z, "guardian_giant", settings(facing=facing % 4, wake=wake))
 
     def npc(self, x: int, y: int, z: int, post: str = "npc", config: str = "") -> None:
         """A resident: `npc`, or a profession post (doctor, grocer, sage, tamer, ...)."""

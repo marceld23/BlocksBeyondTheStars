@@ -84,6 +84,24 @@ namespace BlocksBeyondTheStars.Client
             "hud_frames.json", // #3317
             "items.json",
             "landmarks/blocks_king.json", // the school club's landmarks (terrain generation 39)
+            "landmarks/earth_berlin_tv_tower.json", // #3982: Earth's place-only landmarks
+            "landmarks/earth_brandenburg_gate.json",
+            "landmarks/earth_eiffel_tower.json",
+            "landmarks/earth_gds_tower.json",
+            "landmarks/earth_london_clock_tower.json",
+            "landmarks/earth_new_york_statue.json",
+            "landmarks/earth_pyramid_great.json",
+            "landmarks/earth_pyramid_second.json",
+            "landmarks/earth_pyramid_third.json",
+            "landmarks/earth_rio_statue.json",
+            "landmarks/earth_sps_hq_core.json", // #3986: the SPS headquarters
+            "landmarks/earth_sps_hq_hall.json",
+            "landmarks/earth_sps_hq_hangar.json",
+            "landmarks/earth_sps_hq_main.json",
+            "landmarks/earth_sps_hq_servers.json",
+            "landmarks/earth_sydney_opera.json",
+            "landmarks/earth_tokyo_tower.json",
+            "landmarks/earth_toronto_tower.json",
             "landmarks/eifelnyde.json",
             "landmarks/golden_bird_gate.json",
             "landmarks/leaning_tower.json",
@@ -117,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
             "minigames/catalog.json",
             "missions.json",
             "pioneer_skins.json",
+            "places/sol_earth.json", // #3981: the fixed places of a map planet type
             "planets.json",
             "recipes.json",
             "relay.json",
@@ -338,6 +357,7 @@ namespace BlocksBeyondTheStars.Client
             "stories/vega_protocol/story.json",
             "structure_kits.json",
             "structure_types.json", // #3517
+            "systems/sol.json", // #3970: the hand-made star systems
             "village_life.json",
             "whatsnew.json",
             "wiki/articles.json",
@@ -521,6 +541,69 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Debug.LogWarning($"Could not fetch '{url}': {RequestError(request)}");
                 }
+            }
+        }
+
+        /// <summary>#3979: whether a data file stays out of the eager download (the manifest, both fallback lists) and is
+        /// fetched by <see cref="FetchOnDemand"/> when needed — the planet maps under <c>maps/</c>. The rule itself is
+        /// <see cref="PlanetMapDemand.IsOnDemandDataFile"/>; this forwards it for the editor's build script.</summary>
+        public static bool IsOnDemandDataFile(string relativePath) => PlanetMapDemand.IsOnDemandDataFile(relativePath);
+
+        /// <summary>#3979: fetches one on-demand data file (a planet map) over HTTP from the remote StreamingAssets, keeps
+        /// a copy in the data cache (so this build fetches it once per browser — a new build clears the cache) and hands
+        /// the bytes on. Remote StreamingAssets only: a native install reads the file from disk. Exactly one of the two
+        /// callbacks runs, on the main thread.</summary>
+        public static void FetchOnDemand(string relativePath, Action<byte[]> onBytes, Action<string> onFailure)
+        {
+            string file = NormalizeRelativePath(relativePath);
+            if (string.IsNullOrEmpty(file) || !UsesRemoteStreamingAssets)
+            {
+                onFailure?.Invoke($"'{relativePath}' is no remote data file.");
+                return;
+            }
+
+            string url = JoinUrl(Application.streamingAssetsPath, DataFolder + "/" + file);
+            var request = UnityWebRequest.Get(url);
+            request.SendWebRequest().completed += _ =>
+            {
+                try
+                {
+                    if (!RequestSucceeded(request))
+                    {
+                        onFailure?.Invoke($"Could not fetch '{url}': {RequestError(request)}");
+                        return;
+                    }
+
+                    byte[] bytes = request.downloadHandler.data;
+                    KeepOnDemandCopy(file, bytes);
+                    onBytes?.Invoke(bytes);
+                }
+                finally
+                {
+                    request.Dispose();
+                }
+            };
+        }
+
+        /// <summary>Writes a fetched on-demand file into the data cache (best effort: a failed write only costs a fetch
+        /// next session).</summary>
+        private static void KeepOnDemandCopy(string file, byte[] bytes)
+        {
+            if (!_ready || string.IsNullOrEmpty(_dataDir))
+            {
+                return;
+            }
+
+            try
+            {
+                string path = Path.Combine(_dataDir, file.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(path) ?? _dataDir);
+                File.WriteAllBytes(path, bytes);
+                WebGlStorage.Sync();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Could not keep '{file}' in the data cache: {ex.Message}");
             }
         }
 

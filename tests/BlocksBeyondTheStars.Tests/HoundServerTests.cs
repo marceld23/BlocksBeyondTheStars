@@ -249,7 +249,7 @@ public sealed class HoundServerTests : IDisposable
         var server = Started(out var repo);
         using (repo)
         {
-            Assert.DoesNotContain(server.SpeciesRoster, HoundRules.IsHound); // the jungle hosts none
+            Assert.DoesNotContain(server.SpeciesRoster, HoundRules.IsScaleHound); // the jungle hosts none
             var p = server.AddLocalPlayer("Admin");
             p.State.AboardShip = false;
             var (cx, cz) = DryGround.Find(server, 26);
@@ -259,7 +259,7 @@ public sealed class HoundServerTests : IDisposable
 
             server.SummonHoundForTest("Admin");
 
-            var species = Assert.Single(server.SpeciesRoster, HoundRules.IsHound);
+            var species = Assert.Single(server.SpeciesRoster, HoundRules.IsScaleHound);
             Assert.Equal(HoundRules.SpeciesName, species.Name);
             Assert.Equal(before + 1, server.SpeciesRoster.Count);
             var live = Assert.Single(server.Creatures, c => c.SpeciesId == species.Id);

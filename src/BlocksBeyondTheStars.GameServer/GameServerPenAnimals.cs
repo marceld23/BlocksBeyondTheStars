@@ -14,7 +14,10 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>The species a pen keeps: a passive or skittish land species of the world, not a giant, at most middling
-    /// size — a hash of the pen's key picks it. Null when the world has none (or its wildlife is switched off).</summary>
+    /// size — a hash of the pen's key picks it. Null when the world has none (or its wildlife is switched off). #3976: from
+    /// generation 49 the pick may be a kept Earth pen animal (a cow, a sheep, a chicken) — every pen on a home world of one, half
+    /// of them elsewhere (<see cref="BlocksBeyondTheStars.WorldGeneration.KeptAnimals.PoolFor"/>); an older world picks among
+    /// its roster exactly as before.</summary>
     private CreatureSpecies? PenSpecies(SettlementFarmArea pen)
     {
         if (_world.Planet?.Void == true || Rules.CreatureAbundance == BlocksBeyondTheStars.Shared.Configuration.AlienActivity.Off)
@@ -22,15 +25,17 @@ public sealed partial class GameServer
             return null;
         }
 
-        var candidates = _speciesRoster
+        string key = "pen:species:" + _world.LocationId + ":" + pen.Key;
+        var native = _speciesRoster
             .Where(sp => sp.Habitat == CreatureHabitat.Land && sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish
                          && sp.GiantHeight <= 0f && sp.Size <= 1.6f)
             .ToList();
-        return candidates.Count == 0 ? null : candidates[StableHashing.Index("pen:species:" + _world.LocationId + ":" + pen.Key, _meta.Seed, candidates.Count)];
+        var pool = BlocksBeyondTheStars.WorldGeneration.KeptAnimals.PoolFor(key, _meta.Seed, Kept.PenAnimals, native, Kept.PensAtHome);
+        return pool.Count == 0 ? null : pool[StableHashing.Index(key, _meta.Seed, pool.Count)];
     }
 
     /// <summary>What a pen's animals give (#3597): an egg from a winged or two-legged kind, milk from a large one, wool from the
-    /// rest.</summary>
+    /// rest. A kept Earth species lays its record's item instead (<see cref="PenProductFor"/>, #3976).</summary>
     internal static string PenProductOf(CreatureSpecies sp)
         => sp.HasWings || sp.Legs <= 2 ? "egg" : sp.Size >= 1.1f ? "milk" : "wool";
 
@@ -57,7 +62,8 @@ public sealed partial class GameServer
                 HullMax = sp.MaxHealth,
                 Position = PenSpot(sp, pen, i),
                 DamagePerSecond = 0f,
-                SizeScale = 0.8f,
+                SizeScale = PenAnimalScale(sp),
+                AnimalSeed = CoatVariants.AnimalSeedOf($"pen:{pen.Key}:{i}"), // #3972: the same animal on every visit
                 OwnerId = owner,
                 CompanionId = owner,
                 HomeSpot = PenCentre(pen),
@@ -135,7 +141,7 @@ public sealed partial class GameServer
         }
 
         pen.NextProductAt = _uptime + PenProductSeconds;
-        string product = PenProductOf(sp);
+        string product = PenProductFor(sp);
         var boxes = pen.Boxes.Select(ContainerAt).Where(b => b is not null).ToList();
         if (boxes.Sum(b => b!.Items.Where(s => s.Item == product).Sum(s => s.Count)) >= PenProductCap || boxes.Count == 0)
         {

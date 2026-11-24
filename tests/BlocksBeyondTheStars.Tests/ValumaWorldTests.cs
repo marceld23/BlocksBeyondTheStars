@@ -34,7 +34,7 @@ public sealed class ValumaWorldTests
         Assert.True(p.CalmTerrain);
         Assert.True(p.PeacefulFauna);
         Assert.True(p.RestrictStructures);
-        Assert.Equal(new[] { "net_fragments" }, p.AllowedStructures);
+        Assert.Equal(new[] { "net_fragments", "rune_stones" }, p.AllowedStructures);
         Assert.Contains("sreekmakra", p.AuthoredCreatures);
         Assert.Equal("breathable", p.Atmosphere);
         Assert.InRange(p.SpawnWeight, 1, 2);

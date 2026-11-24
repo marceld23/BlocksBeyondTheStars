@@ -1016,6 +1016,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [16] = "fb4e784c3a9d9d72", // the lost civilizations (#3644, #3645): glyph_stone(_band), dark_sandstone, gt_eye, gt_fluid, gt_mural_0..7, maze_stone(_carved)
         [17] = "c01c649f196d25c8", // the abandoned bed (terrain generation 44): bed_abandoned, a ruin's or a wreck's bed that works as none
         [18] = "41dc307baefed548", // the sky-lights and the other side (#3894): light_blue(_off), sps_console, capsule_tank(_open), sound_block
+        [19] = "56e9d4f49abe976a", // the SPS headquarters (#3986): server_rack(_lit), cable_tray, core_pillar
     };
 
     [Fact]

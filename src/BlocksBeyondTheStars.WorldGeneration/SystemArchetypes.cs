@@ -57,11 +57,8 @@ public static class SystemArchetypes
     /// behave exactly as before.</summary>
     public static SystemArchetype For(long seed, string? systemId, WorldDescription desc)
     {
-        if (!desc.SystemVariance
-            || string.IsNullOrEmpty(systemId)
-            || !systemId.StartsWith("sys", System.StringComparison.Ordinal)
-            || !int.TryParse(systemId.Substring(3), out int index)
-            || index < 0)
+        int index = StarSystemIds.RolledIndex(systemId);
+        if (!desc.SystemVariance || index < 0)
         {
             return SystemArchetype.Standard;
         }

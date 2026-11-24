@@ -71,7 +71,7 @@ public sealed class KubaWTests : IDisposable
         Assert.NotEqual("none", p.CreatureAbundance);
         Assert.Equal(2, p.LandingPadCount);
         Assert.True(p.RestrictStructures);
-        Assert.Equal(new[] { "net_fragments" }, p.AllowedStructures);
+        Assert.Equal(new[] { "net_fragments", "rune_stones" }, p.AllowedStructures);
         Assert.NotNull(p.WeatherEvents);
         Assert.Equal(0.0, p.WeatherEvents!.TryGetValue("meteor_shower", out double meteors) ? meteors : -1.0);
         Assert.Equal(new[] { "kuba_school", "kuba_initials", "jumave_games" }, p.TextMonuments.Select(t => t.Key));

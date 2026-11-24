@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Story;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Shared.Content;
 
@@ -18,7 +19,7 @@ namespace BlocksBeyondTheStars.Shared.Content;
 /// </code>
 /// Each definition file is a JSON array; each locale file is a flat key→text object.
 /// </summary>
-public static class ContentLoader
+public static partial class ContentLoader
 {
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -158,6 +159,14 @@ public static class ContentLoader
         // its subfolder — set after the loot tables and the planets, which they are checked against. Optional: no folder → none.
         var (civilizations, civilizationTemplates) = LoadCivilizations(Path.Combine(dataDir, CivilizationRules.DataFolder), warn);
         content.SetCivilizations(civilizations, civilizationTemplates, warn);
+
+        // Fixed star systems (#3969, Sol): one file per system under data/systems — checked against the planets; a broken file
+        // is reported and dropped. Optional: no folder → none.
+        content.SetFixedSystems(LoadFixedSystems(Path.Combine(dataDir, World.FixedSystemRules.DataFolder), warn), warn);
+
+        // The bodies' fixed places (#3981): one list per planet type under data/places — checked in Validate against the planets
+        // and the landmarks. Optional: no folder → none.
+        content.SetPlaceLists(LoadPlaceLists(Path.Combine(dataDir, PlaceRules.DataFolder)));
         content.SetStories(stories);
         content.SetFailedStoryPacks(failedPacks);
 
@@ -230,6 +239,8 @@ public static class ContentLoader
             : null);
 
         content.Validate();
+        content.WarnAuthoredCreatureHomes(warn); // #3973: a home on a type this content does not have
+        SetPlanetMaps(content, Path.Combine(dataDir, PlanetMapCodec.DataFolder), warn);
 
         // User ships (#3520): one file per ship from the ship editor. Checked against the validated content and kept apart
         // from the shipped Ships (warn and drop, never a failed load).
@@ -239,6 +250,28 @@ public static class ContentLoader
         }
 
         return content;
+    }
+
+    /// <summary>#3978: the planet maps are read on first use, never during the load — the content only learns the folder
+    /// (<c>data/maps/&lt;key&gt;.bbmap</c>). A planet type naming a map that is not there is reported; its worlds cannot
+    /// generate until the map arrives.</summary>
+    private static void SetPlanetMaps(GameContent content, string mapDir, Action<string>? warn)
+    {
+        content.SetPlanetMapSource(key =>
+        {
+            string file = Path.Combine(mapDir, key + PlanetMapCodec.Extension);
+            return File.Exists(file) ? File.ReadAllBytes(file) : null;
+        });
+
+        foreach (var planet in content.Planets.Values)
+        {
+            if (planet.HasTerrainMap && GameContent.IsPlanetMapKey(planet.TerrainMap)
+                && !File.Exists(Path.Combine(mapDir, planet.TerrainMap + PlanetMapCodec.Extension)))
+            {
+                warn?.Invoke($"Planet '{planet.Key}' names terrain map '{planet.TerrainMap}', but {PlanetMapCodec.DataFolder}/"
+                             + $"{planet.TerrainMap}{PlanetMapCodec.Extension} is missing.");
+            }
+        }
     }
 
     /// <summary>Loads every voxel ship layout from <c>data/ship_layouts/*.json</c> (key = file name).</summary>

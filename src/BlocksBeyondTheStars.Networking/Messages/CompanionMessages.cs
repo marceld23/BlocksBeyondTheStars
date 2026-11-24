@@ -188,6 +188,11 @@ public sealed class NetCompanion
     public float SnoutLength { get; set; }
     public bool HasClaws { get; set; }
     public bool HasTeeth { get; set; }
+    public string BeakStyle { get; set; } = "None"; // #3974 — a tamed bird keeps its beak (and a chicken its comb)
+    public float BeakLength { get; set; }
+    public int BeakRgb { get; set; }
+    public bool HasComb { get; set; }
+    public bool TailFluke { get; set; }             // #3975 — a dolphin keeps its fluke
     public int Heads { get; set; } = 1;     // #1780-#1782 (generation 6) — the portrait shows every head, wing pair and fin pair
     public int WingPairs { get; set; } = 1;
     public int FinPairs { get; set; } = 1;

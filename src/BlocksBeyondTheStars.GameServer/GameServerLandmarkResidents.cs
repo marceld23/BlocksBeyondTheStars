@@ -31,6 +31,9 @@ public sealed partial class GameServer
     /// <summary>How far a landmark's keeper strays from its post.</summary>
     private const float LandmarkKeeperLeash = 1.5f;
 
+    /// <summary>The marker a G.D.S. guardian stands at — in the G.D.S. city and, from #3983, in a landmark.</summary>
+    internal const string GuardPostMarker = "guard_post";
+
     /// <summary>Whether the cell lies in an inhabited landmark's protected box (the footprint, from the plinth's foot to
     /// the roof) — the rule of the worlds below terrain generation 39; from 39 a protected landmark's box is in the footprint
     /// registry (<see cref="IsProtectedStructureCell(Vector3i)"/>) and this rule holds none.</summary>
@@ -82,7 +85,7 @@ public sealed partial class GameServer
         foreach (var marker in lm.Structure.Markers)
         {
             var profession = NpcProfessions.ByMarker(marker.Type);
-            if (profession is null && marker.Type is not ("vendor" or "npc"))
+            if (profession is null && marker.Type is not ("vendor" or "npc" or GuardPostMarker))
             {
                 continue;
             }
@@ -93,29 +96,7 @@ public sealed partial class GameServer
             var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("landmark-resident:" + person))));
             index++;
 
-            ServerNpc npc;
-            if (profession is not null)
-            {
-                npc = MakeNpc(profession.Role, profession.Trades ? profession.Theme : "settlers", robotic: false, post, rng);
-                ApplyProfession(npc, profession);
-            }
-            else if (marker.Type == "vendor")
-            {
-                var settings = MarkerSettings.Parse(marker.Data);
-                string theme = settings.Get("theme", "settlers");
-                npc = MakeNpc("vendor", theme, robotic: false, post, rng);
-                npc.Theme = theme;
-                npc.SellsOnlyInside = settings.GetBool("inside");
-                if (settings.Has("name"))
-                {
-                    npc.NameKey = settings.Get("name");
-                }
-            }
-            else
-            {
-                npc = MakeNpc("settler", "settlers", robotic: false, post, rng);
-            }
-
+            var npc = MakeLandmarkResident(marker, profession, post, rng);
             npc.LandmarkKey = lm.Key;
             npc.PersonKey = person;
             npc.Work = post;
@@ -128,5 +109,42 @@ public sealed partial class GameServer
         {
             BroadcastNpcs();
         }
+    }
+
+    /// <summary>The resident of one post marker: its profession, a G.D.S. guardian (#3983: the city's machines — the look, no
+    /// routine, no bed; the G.D.S. tower of New York), a keeper whose settings name its trade, or a plain resident.</summary>
+    private ServerNpc MakeLandmarkResident(SettlementMarker marker, NpcProfession? profession, Vector3f post, System.Random rng)
+    {
+        if (profession is not null)
+        {
+            var worker = MakeNpc(profession.Role, profession.Trades ? profession.Theme : "settlers", robotic: false, post, rng);
+            ApplyProfession(worker, profession);
+            return worker;
+        }
+
+        if (marker.Type == GuardPostMarker)
+        {
+            var guardian = MakeNpc("guardian", "settlers", robotic: true, post, rng);
+            DressGuardian(guardian);
+            guardian.RoutineEnabled = false;
+            return guardian;
+        }
+
+        if (marker.Type != "vendor")
+        {
+            return MakeNpc("settler", "settlers", robotic: false, post, rng);
+        }
+
+        var settings = MarkerSettings.Parse(marker.Data);
+        string theme = settings.Get("theme", "settlers");
+        var npc = MakeNpc("vendor", theme, robotic: false, post, rng);
+        npc.Theme = theme;
+        npc.SellsOnlyInside = settings.GetBool("inside");
+        if (settings.Has("name"))
+        {
+            npc.NameKey = settings.Get("name");
+        }
+
+        return npc;
     }
 }

@@ -21,6 +21,10 @@ internal sealed class SettlementInstance
     public bool Ruined { get; set; }
     public string Tier { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>#3983: the locale key of the name (a metropolis — shown in each player's language), empty = none.</summary>
+    public string NameKey { get; set; } = string.Empty;
+
     public string Inhabitant { get; set; } = string.Empty;
     public bool OnIsland { get; set; } // stands on a floating sky island rather than the terrain surface
     public int GroundY { get; set; }   // world Y of structure-local y = 0 (the foundation row)
@@ -198,6 +202,10 @@ internal sealed class LoadedWorld
     public CreatureSpecies[] SpeciesRoster { get; set; } = System.Array.Empty<CreatureSpecies>();
     public Dictionary<string, CreatureSpecies> SpeciesById { get; } = new();
     public Dictionary<string, LocomotionProfile> LocoProfiles { get; } = new();
+
+    /// <summary>#3976: the Earth animals the people of THIS world keep — pets and pen animals, also where the roster does not
+    /// hold them (their species then sit in <see cref="SpeciesById"/> only). Filled with the roster (<c>InitKeptAnimals</c>).</summary>
+    public BlocksBeyondTheStars.WorldGeneration.KeptAnimals Kept { get; set; } = BlocksBeyondTheStars.WorldGeneration.KeptAnimals.None;
 
     /// <summary>#2868: the look this world gives its animals — its planet type key and its world look seed. Worked out on
     /// first need and kept for the residency: the creature list asks for it once per creature on every send.</summary>
@@ -468,9 +476,10 @@ internal sealed class LoadedWorld
     public Vector3i CoreChamberCenter { get; set; }
     public bool HasCoreChamber { get; set; }
 
-    // The city world's one walled city (#1793): its world-space footprint (inclusive X/Z bounds), set when the
-    // composer stamps it. The temperature hazard reads it — a roofed cell inside the walls is climate-controlled.
-    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprint { get; set; }
+    // The composed cities of this world (#1793; several since #3983): each one's world-space footprint (inclusive X/Z
+    // bounds), added in stamp order when the composer stamps or replays it. The temperature hazard reads the ones with cool
+    // rooms (the G.D.S. city) — a roofed cell inside their walls is climate-controlled.
+    public List<CityFootprint> CityFootprints { get; } = new();
 
     // Per-world simulation timers/counters (so each resident world ticks independently). Weather + time
     // stay global for now (all resident worlds share the sky — a temporary limitation, refined in P7).
@@ -750,4 +759,12 @@ internal sealed class WorldManager
         _loaded.Remove(locationId);
         return true;
     }
+}
+
+/// <summary>A composed city's world-space footprint (inclusive X/Z bounds, #1793) and whether its roofed rooms are
+/// climate-controlled (<see cref="CoolRooms"/>: the G.D.S. city of the lava desert, #1793 — no other city).</summary>
+public readonly record struct CityFootprint(int MinX, int MinZ, int MaxX, int MaxZ, bool CoolRooms)
+{
+    /// <summary>Whether the column (<paramref name="x"/>, <paramref name="z"/>) lies inside the footprint.</summary>
+    public bool Contains(int x, int z) => x >= MinX && x <= MaxX && z >= MinZ && z <= MaxZ;
 }

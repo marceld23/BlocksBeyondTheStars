@@ -712,7 +712,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            add(s.Ruined ? "ruin_near" : "settlement_near", s.Name, (s.Ruined ? "ruin:" : "settlement:") + s.Name);
+            add(s.Ruined ? "ruin_near" : "settlement_near", SettlementNameFor(s, session.Locale), (s.Ruined ? "ruin:" : "settlement:") + s.Name); // #3983: a metropolis's name in the player's language
         }
 
         for (int i = 0; i < _vaultEntrances.Count; i++)

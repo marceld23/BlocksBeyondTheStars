@@ -42,23 +42,7 @@ public sealed partial class GameServer
         var species = new List<NetFaunaSpecies>(roster.Count);
         foreach (var sp in roster)
         {
-            species.Add(new NetFaunaSpecies
-            {
-                SpeciesId = sp.Id,
-                VoiceSeed = sp.VoiceSeed,
-                Habitat = sp.Habitat.ToString(),
-                Temperament = sp.Temperament.ToString(),
-                BodyPlan = sp.BodyPlan.ToString(),
-                Size = sp.Size,
-                Legs = sp.Legs,
-                Eyes = sp.Eyes,
-                Horns = sp.Horns,
-                BodySegments = sp.BodySegments,
-                Tentacles = sp.Tentacles,
-                HasGasSac = sp.HasGasSac,
-                Glows = sp.Glows,
-                Activity = sp.Activity.ToString(),
-            });
+            species.Add(CreatureWireMapping.ToFaunaSpecies(sp)); // #3971: the one species→wire mapping
         }
 
         return new FaunaRoster { Species = species };

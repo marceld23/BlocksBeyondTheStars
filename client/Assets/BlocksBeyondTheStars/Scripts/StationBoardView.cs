@@ -10,8 +10,9 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The departure boards of the intercity stations (#3633): over every stop of a line a public train runs on, a board
-    /// hangs under the hall's roof above the track — "Departures", the destination (the other station's map name, the
-    /// <c>rail_station</c> point of interest nearest to the other stop) and the next train: "Next train in 1:20", "Train is
+    /// hangs under the hall's roof above the track — "Departures" (#3985: "Atlantic Line · Departures" on a named line), the
+    /// stations the next train calls at in order (#3985; each the <c>rail_station</c> point of interest nearest to its stop —
+    /// on a line of two stations the other one) and the next train: "Next train in 1:20", "Train is
     /// here · departs in 12 s" or "Train arriving". The forecast is <see cref="RailEta"/> (Client.Core) from the train's
     /// replicated state, counted down locally between the server's train lists. World-space text like the nameplates
     /// (<see cref="WorldTextMaterial"/>, depth-tested) on a dark plate, turned toward the camera about the vertical; shown
@@ -279,18 +280,50 @@ namespace BlocksBeyondTheStars.Client
             return advance * tm.characterSize * 0.1f;
         }
 
-        /// <summary>The three lines: the title, the destination, the next train.</summary>
+        /// <summary>The three lines: the title (with a named line's name, #3985), the stops the next train calls at, the next
+        /// train.</summary>
         private string BoardText(RailEta eta, Board b)
-        {
-            string dest = Destination(eta, b.Stop);
-            string state = StateLine(eta, b);
-            return L("ui.train.board_title", "Departures") + "\n→ " + dest + "\n" + state;
-        }
-
-        private string StateLine(RailEta eta, Board b)
         {
             var train = PublicTrainOn(b.LineId);
             var reading = train != null ? eta.Read(train, b.Stop) : RailEtaReading.None;
+            return Title(b.LineId) + "\n→ " + NextStops(eta, b.Stop, reading.Direction) + "\n" + StateLine(reading);
+        }
+
+        /// <summary>"Departures", or "Atlantic Line · Departures" on a named line.</summary>
+        private string Title(int lineId)
+        {
+            foreach (var line in Game.Rails ?? System.Array.Empty<NetRailLine>())
+            {
+                if (line != null && line.Id == lineId && !string.IsNullOrEmpty(line.NameKey))
+                {
+                    return string.Format(L("ui.train.board_title_line", "{0} · Departures"), L(line.NameKey, line.NameKey));
+                }
+            }
+
+            return L("ui.train.board_title", "Departures");
+        }
+
+        /// <summary>#3985: the stations the next train calls at after this one, in order ("London · Toronto · New York · Rio");
+        /// without a forecast the line's far end.</summary>
+        private string NextStops(RailEta eta, int stop, int direction)
+        {
+            var after = eta.StopsAfter(stop, direction);
+            if (after.Count == 0)
+            {
+                return Destination(eta, stop);
+            }
+
+            var names = new List<string>(after.Count);
+            foreach (int i in after)
+            {
+                names.Add(StationName(eta, i));
+            }
+
+            return string.Join(" · ", names);
+        }
+
+        private string StateLine(RailEtaReading reading)
+        {
             double age = System.Math.Max(0.0, Time.timeAsDouble - Game.TrainsReceivedAt);
             double secs = reading.Seconds - age;
             switch (reading.State)
@@ -323,12 +356,13 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (other < 0)
-            {
-                return "—";
-            }
+            return other < 0 ? "—" : StationName(eta, other);
+        }
 
-            var at = eta.Spline.PointAt(eta.StopArc(other));
+        /// <summary>A stop's station name: the <c>rail_station</c> point of interest nearest to it.</summary>
+        private string StationName(RailEta eta, int stop)
+        {
+            var at = eta.Spline.PointAt(eta.StopArc(stop));
             string best = "—";
             double bestSq = double.MaxValue;
             foreach (var poi in Game.PlanetPois ?? System.Array.Empty<NetPoi>())

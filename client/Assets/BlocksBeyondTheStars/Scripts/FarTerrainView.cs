@@ -63,6 +63,7 @@ namespace BlocksBeyondTheStars.Client
         private FarTerrainSource _source;      // sampled by the worker (or inline in the browser)
         private FarTerrainSource _maskSource;  // main-thread queries (column mask)
         private FarTerrainWorldInfo _info;
+        private readonly PlanetMapWait _mapWait = new PlanetMapWait(); // #3979: a map world waits for its map (browser)
         private int _epoch;
         private bool _subscribed;
         private Material _material;
@@ -140,6 +141,7 @@ namespace BlocksBeyondTheStars.Client
             _info = null;
             _source = null;
             _maskSource = null;
+            _mapWait.Clear();
             ActiveRange = 0;
             _inlineJob = null;
             lock (_lock)
@@ -190,6 +192,15 @@ namespace BlocksBeyondTheStars.Client
 
             if (_source == null || _source.WorldId != _info.WorldId)
             {
+                if (!_mapWait.Ready(PlanetMapFetcher.For(Game.Content), _info.PlanetType))
+                {
+                    _source = null; // #3979: the world's planet map is still on its way — Update builds once it arrived
+                    _maskSource = null;
+                    ActiveRange = 0;
+                    ClearPatches();
+                    return;
+                }
+
                 _source = FarTerrainSource.Create(Game.Content, Game.WorldSeed, _info);
                 _maskSource = FarTerrainSource.Create(Game.Content, Game.WorldSeed, _info);
                 _blockColors.Clear();
@@ -245,6 +256,11 @@ namespace BlocksBeyondTheStars.Client
         private void Update()
         {
             Subscribe();
+            if (_mapWait.Waiting != null && Game != null && _mapWait.ShouldRetry(PlanetMapFetcher.For(Game.Content)))
+            {
+                ApplyInfo();
+            }
+
             bool show = ActiveRange > 0 && _source != null && Game != null && !Game.SpaceViewActive;
             if (_root != null && _root.gameObject.activeSelf != show)
             {

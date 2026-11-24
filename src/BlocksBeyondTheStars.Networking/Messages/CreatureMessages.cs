@@ -124,6 +124,18 @@ public sealed class NetCreature
     public bool HasClaws { get; set; }
     public bool HasTeeth { get; set; }
 
+    /// <summary>#3974: the beak — its style ("None" | "Cone" | "Hooked" | "Rostrum"), its length (a share of the head's depth unit,
+    /// 0 = the style's default), its colour (0 = the horn colour) and a chicken's comb. Additive (contractless): an older client
+    /// ignores them and draws the flat face; an older server sends the defaults (no beak), so the wire tag is unchanged.</summary>
+    public string BeakStyle { get; set; } = "None";
+    public float BeakLength { get; set; }
+    public int BeakRgb { get; set; }
+    public bool HasComb { get; set; }
+
+    /// <summary>#3975: the tail fin is a horizontal fluke that beats up and down (a dolphin's, a whale's). Additive (contractless):
+    /// an older client draws the vertical caudal fin; an older server sends false.</summary>
+    public bool TailFluke { get; set; }
+
     /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
     /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>
     public int Heads { get; set; } = 1;
@@ -235,6 +247,26 @@ public sealed class NetCreature
     /// existing contractless MessagePack message: an older client ignores it, an older server leaves it 0 (the client
     /// then falls back to <see cref="Size"/>).</summary>
     public float SpeciesSize { get; set; }
+
+    /// <summary>#3972: this animal's own seed (never 0 from a current server) — the server picks its coat variant and mask
+    /// layout from it. Additive: an older client ignores it, an older server leaves it 0.</summary>
+    public int AnimalSeed { get; set; }
+
+    /// <summary>#3972: the explicit coat pattern of a species with coat variants, by name ("Tabby", …; "None" = a plain coat).
+    /// Empty = no explicit coat: the client rolls the pattern as always. Body and belly colour and the hide of the picked coat
+    /// travel on <see cref="ColorRgb"/>, <see cref="BellyRgb"/> and <see cref="Hide"/>. Additive (contractless).</summary>
+    public string CoatPattern { get; set; } = string.Empty;
+
+    /// <summary>#3972: the explicit coat's pattern colour (0xRRGGBB); unused without <see cref="CoatPattern"/>.</summary>
+    public int CoatPatternRgb { get; set; }
+
+    /// <summary>#3972: the mask layout 0..3 the explicit coat's pattern is drawn with (<c>CoatVariants.MaskVariant</c>).</summary>
+    public int CoatMask { get; set; }
+
+    /// <summary>#3973: the species' own recorded calls by mood (<c>SpeciesVoices.Encode</c>: "calm|alarm|friendly", each a
+    /// comma list of call ids); empty = the generated voice from <see cref="VoiceSeed"/>. Additive (contractless): an older
+    /// client ignores it, an older server sends nothing.</summary>
+    public string Voices { get; set; } = string.Empty;
 }
 
 /// <summary>A world effect at a spot (#1998): a thumper's thump, a colossus stomp, a sandworm breaching or striking. The

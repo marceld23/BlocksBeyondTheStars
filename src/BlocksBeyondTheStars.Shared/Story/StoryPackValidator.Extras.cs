@@ -120,7 +120,7 @@ public static partial class StoryPackValidator
         foreach (var (s, i) in run.Def.Systems.Select((s, i) => (s, i)))
         {
             string sp = $"systems[{i}]";
-            if (s is null || !IsKeySafeId(s.Id) || s.Id.StartsWith("sys", StringComparison.Ordinal)
+            if (s is null || !IsKeySafeId(s.Id) || World.StarSystemIds.HasRolledPrefix(s.Id)
                 || string.Equals(s.Id, "guardian_finale", StringComparison.Ordinal) || !ids.Add(s.Id))
             {
                 run.Error(sp, $"system id '{s?.Id}' is empty, not key-safe, used twice, procedural ('sys…') or the Guardian's");

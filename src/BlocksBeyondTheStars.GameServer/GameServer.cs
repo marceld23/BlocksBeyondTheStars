@@ -549,6 +549,7 @@ public sealed partial class GameServer
         // #2437: the generator is told the start type so its gas-giant pass never eats the planet the pick below lands on.
         _galaxy = GenerateGalaxy(systemCount); // #3640: with the civilizations' pinned guarantees
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
+        _fixedBodies.Clear(); // #3969: the hand-made systems append their bodies again below
 
         // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched
         // and growth never moves one. Never in the story's finale system (it is not even in the galaxy yet).
@@ -707,6 +708,10 @@ public sealed partial class GameServer
         // after the start body is chosen, so they never become the spawn world.
         EnsurePackSystemsInGalaxy();
 
+        // #3969: the fixed systems of data/systems (Sol) the save revealed before, back at their pinned spot — and one whose
+        // growth rule an older save already met. After the pack systems, so a pack keeps an id both declare.
+        EnsureFixedSystemsInGalaxy();
+
         // Finale (P6): the galaxy is regenerated from seed each start, so an already-revealed save needs its Guardian
         // system re-appended — but the story state is not loaded yet at this point (the "registries" boot stage
         // runs after this one), so LoadStoryState does it (#2460, B06). It still lands after start-body selection,
@@ -847,6 +852,7 @@ public sealed partial class GameServer
                     bool Allowed(string kind) => StructureKindAllowed(kind, planet, restricted);
                     bool Stamps(string kind) => StructureType(kind).Enabled && Allowed(kind);
                     RegisterBootFootprints(); // #3514: the pads and the planned crash site, before any stamper
+                    BootDetail("given places", StampGivenPlaces); // #3980: structures at given seats — before every rolled kind, which keeps clear of them
 
                     // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every
                     // world of the type whatever the structure options say (self-skips on every other type).
@@ -856,11 +862,15 @@ public sealed partial class GameServer
                     // sounder_world type only, right after the tablets and before the monuments (they reserve around them).
                     BootDetail("sounder world", StampSounderWorld);
                     BootDetail("civilizations", StampCivilizations); // #3639 (generation 43): a lost civilization on its home body — before the settlements, which keep clear of it
-                    if (_config.PlaceSettlements && Stamps(StructureTypeRules.Settlement))
+                    bool settles = _config.PlaceSettlements && Stamps(StructureTypeRules.Settlement);
+                    if (settles)
                     {
                         BootDetail("settlements", StampSettlement);
-                        BootDetail("intercity rail", StampIntercityRail); // #2125 (generation 19): right after the towns, before anything else reserves ground
                     }
+
+                    // #2125 (generation 19): right after the towns, before anything else reserves ground — the rolled line only
+                    // where the towns were stamped; #3985: a place list's lines on its cities' records whatever the options say.
+                    BootDetail("intercity rail", () => StampIntercityRail(rolled: settles));
 
                     if (_config.PlaceRuins && Stamps(StructureTypeRules.Ruin))
                     {
@@ -3616,7 +3626,7 @@ public sealed partial class GameServer
         // anchored chunks (Crystal Nets, base builds) stay resident wherever they are — refreshed here, at the sweep's pace.
         int keepRadius = maxViewRadius + 4;
         RefreshChunkAnchors();
-        var removed = _world.UnloadFarChunks(anchors, keepRadius, _worlds.Active.ChunkAnchors.Anchored);
+        var removed = _world.UnloadFarChunks(anchors, keepRadius, PinnedChunks(_worlds.Active.ChunkAnchors.Anchored)); // #3985: + a rail section being stamped
 
         // Also drop the evicted coords from every player's sent-set. A swept chunk is far from EVERY anchor (that
         // is the sweep's condition), so this is safe for all sessions — and it lets the client unload the same far
@@ -7053,7 +7063,7 @@ public sealed partial class GameServer
         return new NetBody
         {
             Id = b.Id,
-            Name = CruiserWreckNameFor(receiver, b.Id, b.Name), // #3902: a cruiser's wreck is named in the receiver's language
+            Name = CruiserWreckNameFor(receiver, b.Id, StarMapBodyName(receiver, b)), // #3902, #3969: a cruiser's wreck and a fixed body in the receiver's language
             Kind = b.Kind.ToString(),
             PlanetType = b.PlanetType,
             Status = b.Status.ToString(),
@@ -7066,6 +7076,7 @@ public sealed partial class GameServer
             ParentId = b.ParentId,
             SizeBias = b.SizeBias, // #549: the archetype size bias (already part of Circumference; an older client reads it)
             Circumference = WorldCircumferenceOf(b), // #2691: the client sizes every view of this body from THIS value
+            VisibleDiameter = b.Fixed?.VisibleDiameter ?? 0f, // #3970: a fixed drawn size (Sol's giants), else 0 = from Circumference
             RingSeed = b.RingSeed, // #596: 0 = no rings; the client renders the ring system from this
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total, receiver.State.PlayerId) : 0,

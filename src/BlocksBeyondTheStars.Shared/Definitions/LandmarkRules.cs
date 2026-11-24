@@ -146,6 +146,18 @@ public static class LandmarkRules
     /// <summary>#3495: a creature den (settings: <c>species</c>, <c>count</c>, <c>radius</c>).</summary>
     public const string DenMarker = "den";
 
+    /// <summary>#3986: a fallen guardian giant lying in the landmark (settings: <c>facing</c> 0–3 — the lying body's
+    /// <c>GuardianGiantBody</c> facing in template coordinates, 0 = head toward −Z, 1 −X, 2 +Z, 3 +X; <c>wake</c> 0/1 — whether
+    /// it can still wake, default 0). The marker stands on the floor the body lies on (like a chest); the stamp writes the lying
+    /// body there and pins a guardian giant record (WorldGeneration's <c>LandmarkGiants</c>).</summary>
+    public const string GuardianGiantMarker = "guardian_giant";
+
+    /// <summary>The settings key of a <see cref="GuardianGiantMarker"/>'s facing.</summary>
+    public const string GuardianGiantFacingSetting = "facing";
+
+    /// <summary>The settings key of whether a <see cref="GuardianGiantMarker"/>'s giant can wake (1) or never does (0, the default).</summary>
+    public const string GuardianGiantWakeSetting = "wake";
+
     /// <summary>Whether the template stands as a ruin.</summary>
     public static bool IsRuin(StructureTemplate t)
         => string.Equals(t.Ruin, RuinAlways, StringComparison.OrdinalIgnoreCase);

@@ -531,7 +531,7 @@ public sealed partial class GameServer
         var stopId = _content.GetBlock(RailRules.StopBlockKey)?.NumericId ?? BlockId.Air;
         if (!stopId.IsAir)
         {
-            var intercity = IntercityLine();
+            var intercity = IntercityRailLines().ToList(); // #3984: every generated line keeps exactly its own stations
             foreach (var c in CrystalNet.Cells.Values)
             {
                 if (c.Kind != CrystalDeviceKind.RailStop)
@@ -554,7 +554,7 @@ public sealed partial class GameServer
                     }
                 }
 
-                if (best is not null && ReferenceEquals(best, intercity) && !IsIntercityStop(c.Cell))
+                if (best is not null && intercity.Exists(l => ReferenceEquals(l, best)) && !IsIntercityStop(c.Cell))
                 {
                     continue;
                 }
@@ -573,7 +573,7 @@ public sealed partial class GameServer
         {
             var t = rails.Trains[i];
             var ranOn = old.FirstOrDefault(l => l.Id == t.LineId); // the line its passengers rode, before this rebuild
-            if (RailRules.IsPublic(t.OwnerId) && !rails.Lines.ContainsKey(t.LineId) && IntercityLine() is { } generated)
+            if (RailRules.IsPublic(t.OwnerId) && !rails.Lines.ContainsKey(t.LineId) && IntercityRailLineFor(ranOn) is { } generated)
             {
                 t.LineId = generated.Id; // #2125: the line was renumbered, not lost — the public train stays on it
             }
@@ -606,6 +606,7 @@ public sealed partial class GameServer
             Closed = l.Closed,
             Points = l.Pylons.SelectMany(p => { var t = PylonTop(p); return new[] { t.X, t.Y, t.Z }; }).ToArray(),
             StopArcs = l.Stops.Select(s => s.Arc).ToArray(),
+            NameKey = IntercityNameKeyOf(l), // #3985: a listed line's name for its departure boards
         }).ToArray(),
     };
 
@@ -715,7 +716,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (ReferenceEquals(best, IntercityLine()))
+        if (IsIntercityRailLine(best))
         {
             Reject(session, "rail", "@srv.rail.public_line"); // #2125: the intercity line runs its own train
             return false;

@@ -82,6 +82,20 @@ A marker cell's `config` is its settings line, `key=value;key=value` (`MarkerSet
 | `vendor` | `theme` (the `marketTheme` of the recipes it sells), `inside=1` (sells only to a customer in its own closed room), `name` (a locale key for the nameplate) |
 | `sound` | `sound` (a bundled loop), `radius` (blocks), `volume` (0..1) |
 | `den` | `species` (an authored creature key, or `native` = the planet's first peaceful species), `count`, `radius` |
+| `guardian_giant` | `facing` (0–3, the lying body's facing in template coordinates: 0 = head toward −z, 1 −x, 2 +z, 3 +x), `wake` (1 = it can still wake; default 0 = never). #3986: a fallen guardian giant lying on the floor the marker stands on (like a chest) — see below |
+
+**A fallen giant in a template (#3986).** The stamp writes the lying body of every `guardian_giant` marker of a landmark
+(`GuardianGiantBuilder`, lights out) as the last part of the landmark's cell list — into its overlay, inside its box, so a
+protected landmark protects the body too — and committing the landmark pins one `GuardianGiantRecord` per marker
+(`GameServerLandmarkGiants.cs`; dormant, `CanWake` as the marker says) unless the record exists, so a record that went
+missing comes back on the next load and an existing one keeps its state. The record index is 100 000 + the landmark
+record's index × 16 + the marker's place (`LandmarkGiants.MaxPerLandmark`), clear of the structure stamp's and the admin's
+giants; the body seed is the giant sites' hash of that index. From then on it is a giant like every other: the scanner, the
+map marker (once found), the story and the boss logic read its record ([GUARDIAN_GIANTS.md](GUARDIAN_GIANTS.md)). The anchor
+lies `GuardianGiantBuilder.AnchorAboveGround` rows over the marker's floor; a landmark's quarter turn turns +z to −x and a
+giant's facing +z to +x, so the turned facing is the template's minus the turns, and the anchor moves by the turned cell's
+corner (`LandmarkGiants.Of`, pure, pinned cell for cell by `SpsHeadquartersTests`). Only a landmark proper carries giants
+(`LandmarkInstance.RecordIndex`); the other kinds on the landmark stack refuse the marker in their own template checks.
 
 `data/loot_tables.json` holds named tables: rolls of weighted entries with count ranges and a chance. Every draw is a
 hash of the chest's own cell, never the stamp's random stream — a chest's content does not depend on what was rolled
@@ -117,8 +131,9 @@ row, the planet's rock): a wall torch falls with its wall, as the server's suppo
 world. A template without mounted lights is ruined byte for byte as before. A marker's
 cell is never filled, and a marker whose floor fell comes down with it and rests on what is left. A ruin keeps only
 the markers a visitor finds — chests, the classic loot markers, sounds and dens (and a civilization's `prop` markers,
-#3641, whose props are placed after the pass, and a guide tower's `sps_console` / `sps_lamp` / `sps_tank`, #3893, whose
-blocks are placed after the pass too); residents, vendors, doors, rooms and pre-built circuits are gone.
+#3641, whose props are placed after the pass, a guide tower's `sps_console` / `sps_lamp` / `sps_tank`, #3893, whose
+blocks are placed after the pass too, and a fallen `guardian_giant`, #3986, whose body the stamp lays on the floor that is
+left); residents, vendors, doors, rooms and pre-built circuits are gone.
 
 **Air pockets** (#3640, civilization templates only). A cell of kind `air` is a cavity that stays air even under water —
 a diving bell a player can breathe in (the writer's water mode, [CIVILIZATIONS.md](CIVILIZATIONS.md) §5). The pass leaves it
@@ -231,13 +246,33 @@ generation 38+ the footprint registry, #3514, which also replaces the landmark's
     no other planet rolls it. A body that already carries records but none for one of its fixed indices (a crash between
     two stamps, or a content update that added one) plans that one on its next load, its seat clear of every player-built
     cell (`StampMissingFixedLandmarks`).
+- **Given landmarks** (#3980, `GameServerGivenPlaces.cs`). A body may carry landmarks at **given seats** — a template, the
+  footprint's centre column and quarter turn, optionally the ground row (`GivenSeat`), handed in through
+  `GivenLandmarkSource` — by default the `landmark` places and the `complex` members of the body type's place list (#3981,
+  `data/places/<type>.json`: template, longitude, latitude, turn; Earth's three pyramids of Giza and the SPS headquarters;
+  see [MAP_PLANETS.md](MAP_PLANETS.md) §7). No roll, no search, no `PlaceLandmarks` switch: they are
+  stamped first in the structures stage (`StampGivenPlaces`), the ground under them graded to the site height (seat
+  `given`, the landmark's grade; a complex's members all to the one row of the whole complex), so every rolled structure
+  keeps clear of them. Each is an ordinary landmark record at index
+  1000 + its position among the list's landmarks (`PlaceRules.ListedLandmarks`; seed hashed from its key and the body), replayed on every load even
+  when the list no longer names it; the rolled landmark and the admin's stamps keep the indices below 1000. A list may name
+  only `pinOnly` templates (checked at load; the place-only guard test also holds that every `earth_*` template is named by
+  a place). A map world runs this path on a save of any generation (`MapWorldRules.PipelineGeneration`). See
+  [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4. **Landmarks in a city** (#3983): a `city` place's `landmarks` stand on
+  squares inside the metropolis ([MAP_PLANETS.md](MAP_PLANETS.md) §8) — given landmarks too, at the square's centre, the
+  city's floor and the square's turn, stamped right after the city under record `1500 + 10 × city + position` and replayed
+  with the other given landmarks.
+- **Guard posts** (#3983): an intact landmark's `guard_post` markers are staffed like the G.D.S. city's — a G.D.S. guardian
+  (role `guardian`, `NetNpc.Look = "gds_guard"`, no routine, no bed) at each (the G.D.S. tower of New York).
 - **Pinned.** One placement record (`landmark`, index 0): the template key, the seat, and `turns`, `rev`, `seed` in
   its layout field. A body that was visited before, a roll that said no and a failed seat all record a skip.
 - **Written once** (feature `landmark:<index>`), in one transaction:
   - *above the ground row* the monument rule — no foundation plate; a column that carries something is cleared from
     the ground row to its top and seated on a plinth (a pile every fourth column in water);
   - *below it* only the template's blocks and its **cavity** cells carved to air; an empty cell keeps the planet's
-    rock. Beside every cavity that touches air, a liquid or loose ground a stone seals it (the buried ruin's rule);
+    rock. Beside every cavity that touches air, a liquid or loose ground a stone seals it (the buried ruin's rule) — never
+    in another landmark's box (#3986): the parts of a complex placed side by side (the SPS headquarters) join their
+    tunnels at their edges, and whichever part was stamped first decided that cell;
   - a crate block in every chest marker's cell that exists by its chance;
   - *a sunken civilization site* (`seat: seabed`, #3640, `WriteSunkenLandmark`) is written in the **water mode** instead:
     every empty cell at and below the water top is water, never air, its cavities are flooded, no stone seals them — only
@@ -386,6 +421,59 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
   | `blocks_king` | rolled, air + inhabited | intact, protected; burger keeper inside |
 
   Sizes stay within 256 a side; the largest overlay blob is in the tens of KB.
+- **Earth's twelve** (#3982, the Sol package): `data/landmarks/earth_*.json` — in the top folder with an `earth_` prefix,
+  because the content loader reads `data/landmarks/*.json` only (no subfolders). Every one is `pinOnly` (no world rolls
+  it; Earth's location list places them), needs an atmosphere and has `landmark.<key>.name` / `.desc`. Earth's cities
+  are inhabited, so the city landmarks are intact (`ruin: never`), lit and `protection: protected`; only the pyramids
+  are ruins — masonry at a low strength, every passage lined with kept stone (its torches kept too, so they still burn)
+  and one gentle ruin zone (strength 0.05) round the passages. Eight scripts (`tools/landmarks/earth_*.py`, shared
+  helpers in `_earth.py`; `gen_landmarks.py <template key>` writes one of a script's templates):
+
+  | key | script | size (w × h × l) | inside |
+  |---|---|---|---|
+  | `earth_eiffel_tower` | `earth_lattice_tower.py` | 101 × 247 × 101 | glass lift tube with a spiral stair to three platforms (glass floor ring on the first), cyan light bands, antenna crown |
+  | `earth_tokyo_tower` | `earth_lattice_tower.py` | 65 × 201 × 65 | orange-and-white lattice, the same tube and stair to a two-storey main deck and a top deck |
+  | `earth_berlin_tv_tower` | `earth_needle_tower.py` | 40 × 201 × 40 | spiral stair up the shaft into the sphere (viewing deck and cafe floor), banded needle |
+  | `earth_toronto_tower` | `earth_needle_tower.py` | 45 × 250 × 45 | three legs, hexagonal core with a spiral stair to the pod (glass floor ring, restaurant deck) and the sky pod |
+  | `earth_brandenburg_gate` | `earth_gate.py` | 62 × 34 × 13 | five passages, guardhouses, a ladder in the west pier to the roof; copper chariot on the attic |
+  | `earth_pyramid_great` | `earth_pyramid.py` | 231 × 146 × 238 | ruin: entrance stair, passage, queen's chamber, ascending passage, grand gallery, king's chamber |
+  | `earth_pyramid_second` | `earth_pyramid.py` | 215 × 137 × 222 | ruin: casing cap on top, passage to the burial chamber |
+  | `earth_pyramid_third` | `earth_pyramid.py` | 105 × 62 × 112 | ruin: pink granite lower courses, antechamber, burial chamber |
+  | `earth_london_clock_tower` | `earth_clock_tower.py` | 19 × 98 × 19 | four lit dials, spiral stair through three floors to the clock room and belfry, ladder to the lantern |
+  | `earth_sydney_opera` | `earth_shell_hall.py` | 110 × 65 × 165 | podium with a grand stair, shell groups (concert hall with stage, organ and tiers; theatre; restaurant) |
+  | `earth_new_york_statue` | `earth_statue.py` | 60 × 94 × 60 | star terrace, pedestal with a spiral stair into the robe, ladder up the pylon to the crown platform |
+  | `earth_rio_statue` | `earth_statue.py` | 35 × 40 × 35 | viewing terrace, a small room in the pedestal (stands on a hilltop) |
+  | `earth_gds_tower` | `earth_gds_tower.py` | 44 × 194 × 44 | G.D.S. red with purple bands and windows; lobby with `guard_post` markers, trader floor (four `vendor`s), ladder core to the roof deck |
+
+  The G.D.S. tower's 14 `guard_post` markers are the G.D.S. city's guardian posts; a landmark staffs post markers like
+  any intact landmark (§5). Earth's place list places them (`data/places/sol_earth.json`: the pyramids as
+  landmark places, the city landmarks as the cities' `landmarks` keys, stamped with the cities later; [MAP_PLANETS.md](MAP_PLANETS.md)
+  §7), and `PlaceListTests` guards it: every place-only template is named by a place, and none of them is in a pool.
+- **The SPS headquarters in the Amazon** (#3986, the Sol package): five pin-only templates that stand side by side and
+  join through corridors at their edges — `tools/landmarks/earth_sps_hq.py` (the shared frame, palette and pieces in
+  `_sps_hq.py`, the underground parts in `_sps_hq_below.py`). Earth's place list places them as ONE `complex` place
+  (`sps_hq`, records 1003–1007 — [MAP_PLANETS.md](MAP_PLANETS.md) §7): five given places with the **same ground row Y**
+  (the median ground under all five footprints together) and no turn, at these low corners of one complex frame (x east,
+  z north; a given seat names the centre = corner + (width / 2, length / 2)). The complex's anchor (5.0 S 65.0 W) is the
+  frame's centre (180, 135), so each member's offset is its corner − (180, 135):
+
+  | key | corner (x, z) | size (w × h × l) | ground row | state | joins |
+  |---|---|---|---|---|---|
+  | `earth_sps_hq_main` | (0, 0) | 160 × 61 × 120 | 23 | ruin (masonry 0.45; lobby and map room gentler zones) | hangar (east wall, ground floor), servers (basement tunnel, north edge) |
+  | `earth_sps_hq_hangar` | (160, 0) | 200 × 59 × 120 | 1 | ruin (masonry 0.3; the fallen east half of the roof 0.85, the three ships 0.12) | main (west wall), hall (north wall) |
+  | `earth_sps_hq_servers` | (0, 120) | 150 × 63 × 150 | 59 (the top) | ruin (underground: cave-ins, never on the stairs or the joints) | main (level 1, south), core (level 3, east) |
+  | `earth_sps_hq_core` | (150, 175) | 41 × 63 × 37 | 59 (the top) | intact, protected | servers (west) |
+  | `earth_sps_hq_hall` | (200, 120) | 96 × 48 × 40 | 1 | intact, protected | hangar (south wall); the great gate opens west |
+
+  Inside: the main building's two-storey lobby (a tree grown through it, the reception under big blue SPS letters),
+  offices on every floor, a kept spiral stair to the roof, the map room with a wall map of the Earth (one glowing dot
+  where the headquarters stand) and a kept stair down to the basement tunnel; the hangar's three small SPS ships (the ship
+  toolkit, holed and overgrown), gantries, cranes, fuel tanks and the open hangar door; three levels of huge ancient
+  server racks (6 × 16 × 6, in groups of three) with cable trays, consoles and kept stairs, a sinkhole from the jungle
+  floor; the round chamber of the first CORE (its dead core pillar, dark screens, one faint blue lamp); the great hall with
+  its open metal gate (24 × 30), a fallen guardian giant (`guardian_giant`, never wakes) and the broken glass sphere on its
+  pedestal. The CORE chamber is a template of its own so that it can be protected while the server halls stay an open
+  ruin. New blocks (save version 19): `server_rack`, `server_rack_lit`, `cable_tray`, `core_pillar`.
 
 ## 8. Key files
 
@@ -393,10 +481,10 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
 |---|---|
 | Template, rules, settings, loot | `Shared/Definitions/StructureTemplate.cs`, `LandmarkRules.cs`, `MarkerSettings.cs`, `LootTable.cs`; `Shared/Content/TemplateBody.cs`, `StructureCatalog.cs`, `GameContent.Landmarks.cs`, `ContentLoader.cs` |
 | Build and ruin | `WorldGeneration/LandmarkGenerator.cs`, `StructureRuiner*.cs`, `RuinOptions.cs`, `RuinMarkers.cs`, `VoxelGrid.cs`, `LandmarkSilhouette.cs`, `LandmarkLights.cs` (mounted lights fall with their holder) |
-| Server | `GameServer/GameServerLandmarks.cs` (roll, pick, seat, record), `…LandmarkStamp.cs`, `…LandmarkLife.cs` (markers, chests), `…LandmarkWorld.cs` (emitters, dens, discovery, the client's list), `…LandmarkResidents.cs`, `…LandmarkStream.cs`, `…LandmarkAdmin.cs`, `…LandmarkOverlay.cs` (overlay storage), `ServerWorld.Overlays.cs`, `StructureOverlayIndex.cs`, `…LandmarkSeats.cs` (fixed landmarks, the span seat), `GameServerStructureProtection.cs` + `StructureFootprints.cs` (protection) |
+| Server | `GameServer/GameServerLandmarks.cs` (roll, pick, seat, record), `…LandmarkStamp.cs`, `…LandmarkGiants.cs` (fallen giants in a template, #3986; `WorldGeneration/LandmarkGiants.cs`), `…LandmarkLife.cs` (markers, chests), `…LandmarkWorld.cs` (emitters, dens, discovery, the client's list), `…LandmarkResidents.cs`, `…LandmarkStream.cs`, `…LandmarkAdmin.cs`, `…LandmarkOverlay.cs` (overlay storage), `ServerWorld.Overlays.cs`, `StructureOverlayIndex.cs`, `…LandmarkSeats.cs` (fixed landmarks, the span seat), `GameServerStructureProtection.cs` + `StructureFootprints.cs` (protection) |
 | Overlay storage | `Shared/World/StructureOverlay.cs`, `StructureOverlayBuilder.cs`; `Persistence/*WorldRepository.Overlays.cs` (table `structure_overlay`) |
 | Wire | `Networking/Messages/LandmarkMessages.cs` (tag 335) |
 | Client | `Client.Core/Audio/SoundEmitterMix.cs`, `Client.Core/LandmarkSilhouetteMesh.cs`; `SoundEmitterView.cs`, `LandmarkSilhouetteView.cs`, `Shaders/FarTerrain.shader`, `WorldMap.cs`, `WikiUI.cs` |
 | Editor | `StructureEditor.Landmark.cs`, `StructureEditor.Zones.cs`, `EditorMarkerPanel.cs`; `Client.Core/StampStepsDescriber.cs`, `StructureStampRules.cs` |
-| Data and tools | `data/landmarks/*.json`, `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/landmarks/*.py` (`lightmount.py`: the light-mount pass), `tools/merge_structure.py` |
-| Tests | `LandmarkTemplateTests`, `StructureRuinerTests` (+ `…GoldenTests`, `…OptionTests`, `…HullTests`, `…CrashTests` for revision 3), `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`, `LandmarkOverlayWorldTests`, `StructureOverlayTests`, `StructureRuinerZoneTests`, `LandmarkSchoolClubTests` (span, fixed), `StructureProtectionTests`, `LandmarkLightMountTests` |
+| Data and tools | `data/landmarks/*.json` (Earth's: `earth_*.json`), `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/landmarks/*.py` (`lightmount.py`: the light-mount pass; `_earth.py` + `earth_*.py`: Earth's landmarks), `tools/merge_structure.py` |
+| Tests | `LandmarkTemplateTests`, `StructureRuinerTests` (+ `…GoldenTests`, `…OptionTests`, `…HullTests`, `…CrashTests` for revision 3), `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`, `LandmarkOverlayWorldTests`, `StructureOverlayTests`, `StructureRuinerZoneTests`, `LandmarkSchoolClubTests` (span, fixed), `StructureProtectionTests`, `LandmarkLightMountTests`, `SpsHeadquartersTests` (the SPS headquarters, the giant marker) |

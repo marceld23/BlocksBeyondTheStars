@@ -422,6 +422,7 @@ public static class StateMapper
         SpeciesId = t.SpeciesId,
         Species = t.Species,
         SizeScale = t.SizeScale,
+        AnimalSeed = t.AnimalSeed, // #3972: the companion keeps its coat
         Bond = t.Bond,
         LastFedUtc = t.LastFedUtc,
         TamedAtUtc = t.TamedAtUtc,

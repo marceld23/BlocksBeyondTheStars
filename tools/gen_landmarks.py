@@ -139,20 +139,24 @@ def landmark_scripts() -> list[str]:
 
 
 def main(keys: list[str] | None = None) -> None:
+    """Writes every landmark, or only those named: a script's key writes all its templates, a template key (one a
+    script lists in its `KEYS`, like `earth_tokyo_tower` of earth_lattice_tower.py) writes just that template."""
     wanted = set(keys or [])
     for build in (sample_tower, sample_mine, sample_store):
         if not wanted or build.__name__ in wanted:
             build().write()
     for key in landmark_scripts():
-        if wanted and key not in wanted:
-            continue
         module = importlib.import_module(key)
+        templates = set(getattr(module, "KEYS", ()))
+        if wanted and key not in wanted and not templates & wanted:
+            continue
         if not hasattr(module, "build"):
             print(f"  skipped tools/landmarks/{key}.py: no build()")
             continue
         designs = module.build()
         for design in designs if isinstance(designs, (list, tuple)) else [designs]:
-            design.write()
+            if not wanted or key in wanted or design.header["key"] in wanted:
+                design.write()
 
 
 if __name__ == "__main__":

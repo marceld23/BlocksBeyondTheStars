@@ -21,6 +21,9 @@ namespace BlocksBeyondTheStars.Tests;
 public sealed class GasGiantWorldTests
 {
     private const string Key = "gas_giant";
+
+    /// <summary>Sol's gas giants (#3970): fixed bodies of the Sol system that copy the gas-giant class.</summary>
+    private static readonly string[] SolGasGiants = { "sol_jupiter", "sol_saturn", "sol_uranus", "sol_neptune" };
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
     private static WorldGenerator Gen(long seed, int generation = WorldDescription.GasGiantGeneration)
@@ -58,10 +61,17 @@ public sealed class GasGiantWorldTests
             Assert.Empty(gas.Drops); // nothing to pump
         }
 
-        // Every classic type keeps the no-op default.
-        foreach (var other in Content.Planets.Values.Where(t => t.Key != Key))
+        // Every classic type keeps the no-op default. The only other gas worlds are Sol's four giants (#3970), which copy the
+        // class's world side; like the rolled one they are never placed by the ordinary type roll.
+        var gasWorlds = Content.Planets.Values.Where(t => t.IsGasWorld).Select(t => t.Key).OrderBy(k => k, System.StringComparer.Ordinal);
+        Assert.Equal(new[] { Key }.Concat(SolGasGiants).OrderBy(k => k, System.StringComparer.Ordinal), gasWorlds);
+        foreach (string solKey in SolGasGiants)
         {
-            Assert.False(other.IsGasWorld, other.Key);
+            var sol = Content.GetPlanet(solKey)!;
+            Assert.True(sol.FloatingIslands, $"{solKey}: the islands are the only ground");
+            Assert.Equal("toxic", sol.Atmosphere);
+            Assert.Equal(0, sol.SpawnWeight);
+            Assert.Equal(0.0, sol.WaterAbundance);
         }
 
         string en = File.ReadAllText(Path.Combine(TestPaths.DataDir(), "locales", "en.json"));
@@ -164,12 +174,21 @@ public sealed class GasGiantWorldTests
     }
 
     [Fact]
-    public void OnlyAGasGiant_HasDenseGas()
+    public void OnlyTheGasGiantClass_HasDenseGas()
     {
-        // #2134: every other world keeps its sea and its ground — the branch is gated on the sea being gas.
-        foreach (var planet in Content.Planets.Values.Where(t => t.Key != Key))
+        // #2134: every other world keeps its sea and its ground — the branch is gated on the sea being gas, so the gas-giant
+        // class (the rolled type and Sol's giants, #3970) has it and nothing else does.
+        foreach (var planet in Content.Planets.Values)
         {
-            Assert.Equal(int.MinValue, Gen(20260927).DenseGasTop(planet));
+            int denseTop = Gen(20260927).DenseGasTop(planet);
+            if (planet.IsGasWorld)
+            {
+                Assert.NotEqual(int.MinValue, denseTop);
+            }
+            else
+            {
+                Assert.Equal(int.MinValue, denseTop);
+            }
         }
     }
 

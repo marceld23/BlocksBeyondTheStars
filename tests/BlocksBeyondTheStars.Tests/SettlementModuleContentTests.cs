@@ -128,7 +128,8 @@ public sealed class SettlementModuleContentTests
             }
         }
 
-        foreach (var role in StructureRoles.CityRoles)
+        // #3983: the G.D.S. kit's five roles (the plaza and the quay are the Earth city kit's — MetropolisTests).
+        foreach (var role in new[] { StructureRoles.CityHousing, StructureRoles.CityMarket, StructureRoles.CityHall, StructureRoles.CityGarden, StructureRoles.CityTower })
         {
             // Housing carries the two services districts as well (2026-09, the professions in the G.D.S. city).
             Assert.Equal(role == StructureRoles.CityHousing ? 4 : 2, modules.Count(m => m.Function == role));

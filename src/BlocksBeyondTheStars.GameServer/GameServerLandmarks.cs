@@ -59,6 +59,11 @@ public sealed partial class GameServer
 
         public required long Seed { get; init; }
 
+        /// <summary>#3986: the index of the landmark's placement record (<see cref="LandmarkRules.RecordKind"/>) — set for a
+        /// landmark proper, null for the other kinds built on the landmark stack (giant wrecks, civilization sites, guide
+        /// towers). Its fallen guardian giants are numbered from it (GameServerLandmarkGiants.cs).</summary>
+        public int? RecordIndex { get; init; }
+
         public string Key => Template.Key;
 
         public SettlementStructure Structure => Layout.Structure;
@@ -151,8 +156,10 @@ public sealed partial class GameServer
             return;
         }
 
-        // Every record of this body is replayed: index 0 is the rolled landmark, higher ones an admin stamped by hand.
-        var records = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind).OrderBy(r => r.Index).ToList();
+        // Every record of this body is replayed: index 0 is the rolled landmark, higher ones an admin stamped by hand. #3980: the
+        // given places' records (GivenLandmarkIndexBase on) are the structures stage's first stamper's (GameServerGivenPlaces.cs).
+        var records = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind && !IsGivenLandmarkIndex(r.Index))
+            .OrderBy(r => r.Index).ToList();
         if (records.Count > 0)
         {
             foreach (var rec in records)
@@ -287,12 +294,12 @@ public sealed partial class GameServer
 
     /// <summary>The plan's layout: the authored body, or (#3518) a generator entry's build — null (warned) when its source can
     /// no longer build it. A fresh plan first takes its world's ruin revision (generation 39: revision 2, the lattice breaks;
-    /// an older world: revision 1, as it always stamped).</summary>
+    /// an older world: revision 1, as it always stamped; a map world at least its pipeline generation's, #3981).</summary>
     private LandmarkLayout? BuildLandmarkLayout(LandmarkPlan plan)
     {
         if (plan.Fresh)
         {
-            plan.Revision = LandmarkGenerator.RuinRevisionFor(_generator.TerrainGeneration);
+            plan.Revision = LandmarkGenerator.RuinRevisionFor(PipelineGeneration(_generator.TerrainGeneration));
         }
 
         return plan.Template.IsSource
@@ -435,6 +442,7 @@ public sealed partial class GameServer
             Origin = new Vector3i(plan.OriginX, plan.GroundY - layout.GroundRow, plan.OriginZ),
             GroundY = plan.GroundY,
             Seed = plan.Seed,
+            RecordIndex = plan.Index,
             LegacyRules = legacy,
             Protected = legacy ? plan.Template.Protected && !layout.Ruined : LandmarkRules.IsProtected(plan.Template, byKind: !layout.Ruined),
         };
@@ -450,6 +458,7 @@ public sealed partial class GameServer
         }
 
         _landmarks.Add(instance);
+        PinLandmarkGiants(instance); // #3986: the records of the fallen giants it carries (none for almost every landmark)
         if (instance.Protected && !legacy)
         {
             // generation 39: the box, down through the plinth (or the piles), is protected through the footprint registry

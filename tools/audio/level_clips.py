@@ -58,7 +58,8 @@ RULES: list[tuple[str, str]] = [
     ("foley", r"^(climb_|land$|land_|jump$|jump_\d|emote_|swim_|breath_|heartbeat|surface_gasp|water_splash|wing_flap|suit_thruster|"
               r"spring_jump$|glider_open$|rcs_puff|ship_cooling_tick|cargo_creak)"),
     # #3363: the Sounders pack's own animals (the series' Soundi, the Soundrak, the Qualis, the Soundelings) are creatures.
-    ("creature", r"^(creature_|soundi_call_|soundrak_scream_|quali_song_|soundeling_coo_)"),
+    # Sol (#3973-#3975): the Earth animals' recorded voices are creatures too.
+    ("creature", r"^(creature_|animal_|soundi_call_|soundrak_scream_|quali_song_|soundeling_coo_)"),
     ("voice", r"^(npc_voice_|npc_human_|npc_alien_|vega_chatter_|echo_hum_|elder_hum_)"),  # #3363: the Sounders' hums
     ("sting", r"^(festival_|chapter_sting|sting_|jumave_sting$|splash_intro$)"),  # sting_*: the musical accents
     ("ui", r"^(ui_|hit_confirm)"),

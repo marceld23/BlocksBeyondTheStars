@@ -179,6 +179,8 @@ public sealed class SkyLightsFoundationTests : IDisposable
         Assert.False(session.SupportsOtherSide);
         session.ClientFeatures.Add(ClientFeatures.OtherSide1);
         Assert.True(session.SupportsOtherSide);
-        Assert.Equal(18, WorldMetadata.CurrentSaveVersion); // one bump for all the package's blocks
+        // One bump (to 18) for all the package's blocks; later packages bump on (Sol's blocks, #3970) — the exact pin lives in
+        // SaveCompatibilityTests.
+        Assert.True(WorldMetadata.CurrentSaveVersion >= 18);
     }
 }

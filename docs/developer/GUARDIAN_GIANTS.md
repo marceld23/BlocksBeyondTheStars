@@ -151,6 +151,16 @@ Every giant line goes through `SendGuardianGiantVega(session, GuardianGiantVegaM
 the fallback: `vega.giant.found` (the first giant a player finds, once per player — milestone `guardian_giant:found`),
 `.stir` (once per approach), `.rise`, `.rage`, `.victory` and `.lie_down` (to everyone near).
 
+## A giant in a landmark template
+
+A landmark template may carry a fallen giant of its own (#3986): the `guardian_giant` marker (settings `facing=0..3`,
+`wake=0|1`, default never) — the SPS headquarters' great hall has one, its feet toward the gate. The landmark stamp writes
+its lying body (`GuardianGiantBuilder`, lights out) with the landmark — inside its box, so a protected landmark protects
+the body — and pins a dormant record under index 100 000 + the landmark record's index × 16 + the marker's place
+(`GameServerLandmarkGiants.cs`, `WorldGeneration/LandmarkGiants.cs`); a record that went missing comes back on the next
+load. Everything else is this document's: found, scanned, on the map and in the story like every fallen giant; with
+`wake=0` it never stirs. Details in [LANDMARKS.md](LANDMARKS.md) §2.
+
 ## Admin
 
 - `/giant guardian` (the `summon_giant` verb, a cheat): lays a giant that **can** wake about 30 blocks in front of the admin

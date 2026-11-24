@@ -65,7 +65,7 @@ public static class DerelictPlacer
         int placed = 0;
         foreach (var system in systems)
         {
-            int index = FixedIndex(system.Id);
+            int index = StarSystemIds.RolledIndex(system.Id);
             if (index < 0 || index >= fixedCount || system.Bodies.Count == 0 || HasDerelict(system))
             {
                 continue;
@@ -195,12 +195,6 @@ public static class DerelictPlacer
 
         return (bestX, bestZ, host.Id);
     }
-
-    private static int FixedIndex(string systemId)
-        => systemId.Length > 3 && systemId.StartsWith("sys", StringComparison.Ordinal)
-           && int.TryParse(systemId.Substring(3), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int i)
-            ? i
-            : -1;
 
     private static double Hash01(long seed, string salt, int index)
     {

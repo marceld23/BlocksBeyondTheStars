@@ -28,6 +28,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The latitude from which a row is the cap colour.</summary>
         public const float FullCapDeg = 72f;
 
+        /// <summary>#3978: whether a globe of this map needs the caps — not for a map world (<see cref="PlanetMapData.RealPoles"/>),
+        /// whose first and last rows are the body's real poles, blended to ice by the generator.</summary>
+        public static bool AppliesTo(PlanetMapData data) => data is null || !data.RealPoles;
+
         /// <summary>The latitude (degrees, −90 south .. +90 north) of the centre of row <paramref name="y"/> of an
         /// equirect map <paramref name="height"/> rows tall, row 0 the south edge.</summary>
         public static float RowLatitude(int y, int height) => ((y + 0.5f) / Math.Max(1, height) - 0.5f) * 180f;

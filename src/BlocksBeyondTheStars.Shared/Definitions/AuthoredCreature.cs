@@ -87,7 +87,7 @@ public sealed class AuthoredCreature
     public bool GiftsWhenCalm { get; set; }
 
     /// <summary>The species begs for the food a player holds (#2018) — see <see cref="CreatureSpecies.BegsForFood"/>. The rule
-    /// (<see cref="HerdRules.BegsForFood"/>) honours it on passive Land species only.</summary>
+    /// (<see cref="HerdRules.BegsForFood"/>) honours it on passive or skittish (a shy beggar, #3973) Land species only.</summary>
     public bool BegsForFood { get; set; }
 
     /// <summary>#2081: the arms of a biped (2); ignored by the other plans.</summary>
@@ -131,4 +131,71 @@ public sealed class AuthoredCreature
 
     /// <summary>#3365: the pack defends an attacked member — see <see cref="CreatureSpecies.PackDefender"/>.</summary>
     public bool PackDefender { get; set; }
+
+    /// <summary>#3972: the coats this species comes in (<c>coats</c>) — each animal wears one, picked by its own seed. Empty
+    /// (every record so far) = the designed <see cref="ColorRgb"/>/<see cref="BellyRgb"/>/<see cref="Hide"/> on every animal.</summary>
+    public List<CoatVariant> Coats { get; set; } = new();
+
+    // --- Fixed species of a home world (#3973, the animals of Earth). Empty on every older record, which behaves as before. ---
+
+    /// <summary>#3973: the species' localized name (<c>creature.&lt;key&gt;.name</c>, <see cref="CreatureNames"/>) instead of a
+    /// coined or fixed proper name — "Hund" in German, "Dog" in English. Empty = <see cref="NamePrefix"/> and the coined word.</summary>
+    public string NameKey { get; set; } = string.Empty;
+
+    /// <summary>#3973: the planet types this species lives on (keys of <c>data/planets.json</c>), beside the types that list it in
+    /// their <see cref="PlanetType.AuthoredCreatures"/>: the roster of such a type appends it after the type's own list
+    /// (<c>GameContent.AuthoredCreaturesFor</c>). An unknown type is a load warning (the type may come with another pack).</summary>
+    public List<string> Homes { get; set; } = new();
+
+    /// <summary>#3973: the climate zones (flora theme names, <see cref="Definitions.FloraThemes"/>) this species is native to,
+    /// beside <see cref="BiomeSurfaces"/> — the biome affinity and the exclusive rule accept either (<see cref="CreatureBiomes"/>).</summary>
+    public List<string> FloraThemes { get; set; } = new();
+
+    /// <summary>#3973: the species' own recorded calls by mood (<see cref="SpeciesVoices"/>, JSON
+    /// <c>{"calm": [...], "alarm": [...], "friendly": [...]}</c>) instead of the body plan's voice; null = the body plan's.</summary>
+    public SpeciesVoices? Voices { get; set; }
+
+    /// <summary>#3973: the titan body carries a trunk (the elephant) — see <see cref="CreatureSpecies.HasTrunk"/>.</summary>
+    public bool HasTrunk { get; set; }
+
+    /// <summary>#3973: a shy animal that bites back when hit — see <see cref="CreatureSpecies.DefendsItself"/>.</summary>
+    public bool DefendsItself { get; set; }
+
+    // --- Beaks (#3974): see CreatureSpecies.BeakStyle. None on every older record. ---
+    public CreatureBeakStyle BeakStyle { get; set; }
+    public float BeakLength { get; set; }
+    public int BeakRgb { get; set; }
+    public bool HasComb { get; set; }
+
+    // --- The sea animals of Earth (#3975): see CreatureSpecies.TailFluke / MinWaterDepth / MaxWaterDepth. ---
+    public bool TailFluke { get; set; }
+    public int MinWaterDepth { get; set; }
+    public int MaxWaterDepth { get; set; }
+
+    // --- People's animals and strays (#3976, terrain generation 49): off on every older record, which behaves as before. ---
+
+    /// <summary>#3976: people keep this species as a pet (<c>pet</c> — the dog, the cat): from generation 49 a household's or
+    /// the animal tamer's pet may be one on any world with air to breathe, also where the roster does not hold it
+    /// (<c>KeptAnimals</c>). A pet species is a peaceful land animal (validated).</summary>
+    public bool Pet { get; set; }
+
+    /// <summary>#3976: the item a pen of this species lays (<c>pen</c> — <c>milk</c>, <c>wool</c>, <c>egg</c>; empty = no pen
+    /// animal): from generation 49 a pen may keep it on any world with air to breathe, and then lays this item instead of
+    /// the one the shape rule gives. A known item and a peaceful land animal (validated).</summary>
+    public string Pen { get; set; } = string.Empty;
+
+    /// <summary>#3976: the chance (0..1) that a habitable world which is not one of its <see cref="Homes"/> hosts this species
+    /// wild (<c>wildElsewhere</c> — the dog and the cat 0.15): rolled per world from the species' own salted seed, from
+    /// generation 49 (<c>StrayAnimals</c>). Where it lives there follows the rest of the record (its climate zones, its
+    /// exclusive rule). 0 = only at home.</summary>
+    public double WildElsewhere { get; set; }
+
+    /// <summary>#3973: the English text of <see cref="NameKey"/> — the species' language-neutral fallback name (logs, saves, an
+    /// older client). Filled at content load from the English locale; empty without a name key.</summary>
+    public string EnglishName => _englishName;
+
+    private string _englishName = string.Empty;
+
+    /// <summary>Sets <see cref="EnglishName"/> (the content loader, from the English locale).</summary>
+    internal void SetEnglishName(string name) => _englishName = name ?? string.Empty;
 }

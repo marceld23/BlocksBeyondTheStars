@@ -18,8 +18,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// pile every fourth column instead of a solid block.</item>
 /// <item><b>Below the ground row</b> (a mine's tunnels and caverns) only what the template says: its blocks, and its
 /// <i>cavity</i> cells carved to air. An empty cell keeps the planet's own rock. Wherever a cavity meets something that
-/// would run in — air, a liquid, loose ground — the cell beside it is sealed with stone, the buried ruin's rule (#3334).</item>
+/// would run in — air, a liquid, loose ground — the cell beside it is sealed with stone, the buried ruin's rule (#3334) —
+/// never a cell in another landmark's box (#3986): the parts of a complex placed side by side join their tunnels there, and
+/// whichever part was stamped first decided that cell.</item>
 /// <item><b>The chests</b> (#3488): a crate block in every chest marker's cell that exists by its chance.</item>
+/// <item><b>The fallen giants</b> (#3986): the lying body of every <c>guardian_giant</c> marker (GameServerLandmarkGiants.cs).</item>
 /// </list>
 /// The cells go through an <see cref="IStructureCellSink"/> in this order: straight into the world, a <c>SetBlock</c> per
 /// cell (every landmark of a world older than terrain generation 39 — byte-identical to the writer before the sink), or —
@@ -66,7 +69,7 @@ public sealed partial class GameServer
             cells += span ? WriteLandmarkSpanPiles(sink, lm) : 0;
         }
 
-        return cells + WriteLandmarkChests(sink, lm);
+        return cells + WriteLandmarkChests(sink, lm) + WriteLandmarkGiants(sink, lm); // #3986: a template's fallen giants last
     }
 
     private static void SetLandmarkCell(IStructureCellSink sink, LandmarkInstance lm, int x, int y, int z)
@@ -180,7 +183,13 @@ public sealed partial class GameServer
                 continue; // the landmark's own cell
             }
 
-            n += SealLandmarkCell(sink, lm.Cell(new Vector3i(nx, ny, nz)), shell);
+            var cell = lm.Cell(new Vector3i(nx, ny, nz));
+            if (!s.InBounds(nx, ny, nz) && LandmarkAt(cell) is { } other && other != lm)
+            {
+                continue; // #3986: another landmark's box — it decided that cell (a tunnel running on into the next part of a complex)
+            }
+
+            n += SealLandmarkCell(sink, cell, shell);
         }
 
         return n;

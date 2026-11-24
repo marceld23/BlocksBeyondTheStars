@@ -141,6 +141,39 @@ public sealed class PlanetType
     /// rolling terrain with mostly flat regolith pocked with round impact craters (item 33).</summary>
     public bool Cratered { get; set; }
 
+    /// <summary>The planet map this type's terrain comes from (#3978): the key of <c>data/maps/&lt;key&gt;.bbmap</c>. Empty
+    /// (every procedural type) = rolled or cratered terrain. A map world takes its ground and its biome classes from the
+    /// map (the <c>Map*</c> fields shape the height curve), floods with water at <see cref="MapSeaLevelY"/> when it has
+    /// water, keeps its whole biome list in order (class <c>i</c> = biome <c>i</c>) and carries no giant landforms.</summary>
+    public string TerrainMap { get; set; } = string.Empty;
+
+    /// <summary>True when the type's terrain comes from a planet map (<see cref="TerrainMap"/>).</summary>
+    public bool HasTerrainMap => !string.IsNullOrEmpty(TerrainMap);
+
+    /// <summary>Map worlds (#3978): the world Y of the map's 0 m — the sea level when the world has water.</summary>
+    public int MapSeaLevelY { get; set; } = 80;
+
+    /// <summary>Map worlds: metres per block from 0 m up to <see cref="MapKneeMetres"/> — the stretched lowlands.</summary>
+    public int MapLowlandMetresPerBlock { get; set; } = 20;
+
+    /// <summary>Map worlds: the elevation (metres) where the lowland stretch hands over to the highland compression.</summary>
+    public int MapKneeMetres { get; set; } = 1500;
+
+    /// <summary>Map worlds: metres per block above <see cref="MapKneeMetres"/> — the compressed high mountains. The
+    /// defaults put 8,848 m (Everest) at Y 283, just under the generator's terrain cap (288).</summary>
+    public int MapHighlandMetresPerBlock { get; set; } = 57;
+
+    /// <summary>Map worlds: metres per block below 0 m (the sea floor, or a dry world's low ground).</summary>
+    public int MapOceanMetresPerBlock { get; set; } = 120;
+
+    /// <summary>Map worlds: the deepest the ground reaches below <see cref="MapSeaLevelY"/> (blocks) — the defaults reach
+    /// it from about 5,700 m below sea level; deep-sea trenches are held there.</summary>
+    public int MapOceanMaxDepth { get; set; } = 48;
+
+    /// <summary>Map worlds: the amplitude (blocks) of the small rolled detail laid over the map, so a slope between two
+    /// cells is no flat ramp. It fades out toward the coast, so the coastline stays the map's.</summary>
+    public int MapDetailAmplitude { get; set; } = 3;
+
     public string SurfaceBlock { get; set; } = "dirt";
     public string SubSurfaceBlock { get; set; } = "dirt";
     public string DeepBlock { get; set; } = "stone";
@@ -340,6 +373,9 @@ public sealed class PlanetType
     /// this), so nothing grows or lives here — note the worldgen flora *branch* still keys off
     /// <see cref="FloraDensity"/>, so airless types should not declare a flora density (#479).</summary>
     public bool IsAirless => string.Equals(Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True for atmosphere "breathable" (#3976: where the Earth animals people keep may live).</summary>
+    public bool IsBreathable => string.Equals(Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase);
 
     /// <summary>A world where plants AND animals live (#2106, Marcel's rule for "a living world"): air of any kind, a
     /// flora density above zero and a creature abundance that is not "none". Derived from the fields, never from a

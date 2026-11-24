@@ -59,20 +59,28 @@ public sealed partial class GameServer
     /// <summary>One claimed column: the terrain above its floor cleared, the floor laid, a plinth down to the natural ground.</summary>
     private void StampPlannedGround(PlacedSettlement p, int x, int z, int f, BlockId floorId, BlockId skirtId)
     {
+        var cells = CellsOf(p);
         int wx = p.Origin.X + x, wz = p.Origin.Z + z, floorY = p.GroundY + f;
         int natural = _generator.SurfaceHeight(_world.Planet, wx, wz);
         int clearTop = System.Math.Min(System.Math.Max(floorY + 3, natural + 1), floorY + 96);
+        if (p.OverlayKey is not null)
+        {
+            // #3983: a metropolis's overlay clears its columns up to tree height instead of carving the trees out of them — the
+            // carve reads the world and would generate every chunk of a city several hundred blocks across.
+            clearTop = System.Math.Min(System.Math.Max(floorY, natural) + SettlementVegetationRise, floorY + 96);
+        }
+
         for (int y = floorY + 1; y <= clearTop; y++)
         {
-            _world.SetBlock(new Vector3i(wx, y, wz), BlockId.Air);
+            cells.Put(wx, y, wz, BlockId.Air);
         }
 
         if (!floorId.IsAir)
         {
-            _world.SetBlock(new Vector3i(wx, floorY, wz), floorId);
+            cells.Put(wx, floorY, wz, floorId);
             for (int y = floorY - 1; y >= System.Math.Max(natural + 1, floorY - PlannedSkirtDepth); y--)
             {
-                _world.SetBlock(new Vector3i(wx, y, wz), skirtId);
+                cells.Put(wx, y, wz, skirtId);
             }
         }
     }
@@ -81,6 +89,7 @@ public sealed partial class GameServer
     private void StampPlannedCells(PlacedSettlement p, int x, int z)
     {
         var s = p.Structure;
+        var cells = CellsOf(p);
         int wx = p.Origin.X + x, wz = p.Origin.Z + z;
         for (int y = 0; y < s.Height; y++)
         {
@@ -88,7 +97,7 @@ public sealed partial class GameServer
             if (b != 0)
             {
                 var (tint, glow) = s.GetModifier(x, y, z);
-                _world.SetBlock(new Vector3i(wx, p.GroundY + y, wz), new BlockId(b), tint, glow, s.GetShape(x, y, z));
+                cells.Set(wx, p.GroundY + y, wz, new BlockId(b), tint, glow, s.GetShape(x, y, z));
             }
         }
     }
@@ -97,11 +106,17 @@ public sealed partial class GameServer
     /// tree height and out of the crown margin round the claimed columns — left alone where a player has built.</summary>
     private void CarvePlannedVegetation(PlacedSettlement p, bool crownRing)
     {
+        if (p.OverlayKey is not null)
+        {
+            return; // #3983: a metropolis's ground already cleared its columns to tree height (StampPlannedGround)
+        }
+
         var s = p.Structure;
         int margin = crownRing ? SettlementCrownMargin : 0;
         bool someonesBuild = crownRing && FootprintHasPlayerEdits(p.Origin.X - margin, p.Origin.Z - margin, p.GroundY,
             s.Width + (2 * margin), SettlementVegetationRise, s.Length + (2 * margin));
         var vegetation = SettlementVegetationIds;
+        var cells = CellsOf(p);
         for (int x = -margin; x < s.Width + margin; x++)
         {
             for (int z = -margin; z < s.Length + margin; z++)
@@ -115,10 +130,10 @@ public sealed partial class GameServer
                 int baseY = p.GroundY + System.Math.Max(f, 0);
                 for (int y = baseY - (f < 0 ? margin : 0); y <= baseY + SettlementVegetationRise; y++)
                 {
-                    var cell = new Vector3i(p.Origin.X + x, y, p.Origin.Z + z);
-                    if (WithinBuildHeight(y) && vegetation.Contains(_world.GetBlock(cell).Value))
+                    int cx = p.Origin.X + x, cz = p.Origin.Z + z;
+                    if (WithinBuildHeight(y) && vegetation.Contains(cells.Get(cx, y, cz).Value))
                     {
-                        _world.SetBlock(cell, BlockId.Air);
+                        cells.Put(cx, y, cz, BlockId.Air);
                     }
                 }
             }

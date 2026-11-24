@@ -22,6 +22,7 @@ public static class RuinMarkerRules
         CivilizationRules.PropMarker, // #3641: a civilization's prop is placed after the pass, on what is left
         // #3893: a guide tower's relay console, emergency lamps and capsule tank are placed after the pass too (SpsTowerGenerator)
         SpsTowerRules.ConsoleMarker, SpsTowerRules.LampMarker, SpsTowerRules.TankMarker,
+        LandmarkRules.GuardianGiantMarker, // #3986: a fallen giant's body is written by the stamp, on the floor that is left
     };
 
     /// <summary>Whether a ruin keeps a marker of this type (<see cref="Kept"/>).</summary>

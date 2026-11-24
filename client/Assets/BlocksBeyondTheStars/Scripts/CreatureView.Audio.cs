@@ -82,7 +82,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // Sleep slows the species' own rate rather than replacing it with a global constant.
                     entry.NextCall = now + Random.Range(entry.Voice.CadenceMin, entry.Voice.CadenceMax) * 1.8f;
-                    StartPhrase(entry, Mathf.Min(entry.Voice.Pulses, 2), 0.3f, Vector3.zero, now);
+                    if (entry.Voice.Own == null)
+                    {
+                        StartPhrase(entry, Mathf.Min(entry.Voice.Pulses, 2), 0.3f, Vector3.zero, now);
+                    }
+                    else if (entry.Voice.Own.Has(VoiceMood.Friendly))
+                    {
+                        StartOwn(entry, VoiceMood.Friendly, 0.3f, now); // #3973: a cat purrs in its sleep; a cow without one stays quiet
+                    }
                 }
                 else
                 {
@@ -117,7 +124,13 @@ namespace BlocksBeyondTheStars.Client
             entry.NextCall = now + (excited ? cadence * 0.25f : cadence);
             if (c.Begging)
             {
-                // #3243: begging is higher and bowl-shaped — the same animal, plainly asking.
+                // #3243: begging is higher and bowl-shaped — the same animal, plainly asking (#3973: or its own friendly call).
+                if (entry.Voice.Own != null)
+                {
+                    StartOwn(entry, VoiceMood.Friendly, excited ? 1f : 0.8f, now);
+                    return;
+                }
+
                 StartPhrase(entry, entry.Voice.Pulses, excited ? 1f : 0.8f, Vector3.zero, now, contour: VoiceContour.Bowl, pitch: 1.1f);
                 return;
             }
@@ -156,20 +169,20 @@ namespace BlocksBeyondTheStars.Client
         {
             if (c.Hull < entry.PrevHull - 0.5f)
             {
-                PlayCue(entry, "_hurt", 0.9f);
+                PlayCueOrAlarm(entry, "_hurt", 0.9f);
                 RaiseAlarm(entry, now);
             }
 
             if (c.Hostile && !entry.PrevHostile)
             {
-                PlayCue(entry, "_alert", 0.9f);
+                PlayCueOrAlarm(entry, "_alert", 0.9f);
                 RaiseAlarm(entry, now);
             }
 
             if (c.Alerting && !entry.PrevAlerting)
             {
-                PlayClipCue(entry, audio.Has("creature_companion_growl_2") && Random.value < 0.5f
-                    ? "creature_companion_growl_2" : "creature_companion_growl", 0.9f);
+                PlayClipCue(entry, OwnTake(entry, VoiceMood.Alarm) ?? (audio.Has("creature_companion_growl_2") && Random.value < 0.5f
+                    ? "creature_companion_growl_2" : "creature_companion_growl"), 0.9f); // #3973: a dog growls with its own growl
             }
 
             bool fed = entry.PrevBegging && !c.Begging && !c.Hostile
@@ -252,11 +265,26 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private static void StartAlarm(Entry e, float now)
-            => StartPhrase(e, Mathf.Clamp(e.Voice.Pulses, 2, 3), 0.85f, Vector3.zero, now, e.Voice.AlarmCall, VoiceContour.Rising, 90, 1.1f);
+        {
+            if (e.Voice.Own != null)
+            {
+                StartOwn(e, VoiceMood.Alarm, 0.85f, now); // #3973: a dog growls, a cat hisses
+                return;
+            }
 
-        /// <summary>The content sound: the size's calm idle murmur through the species' own timbre (#3238, #3243).</summary>
+            StartPhrase(e, Mathf.Clamp(e.Voice.Pulses, 2, 3), 0.85f, Vector3.zero, now, e.Voice.AlarmCall, VoiceContour.Rising, 90, 1.1f);
+        }
+
+        /// <summary>The content sound: the size's calm idle murmur through the species' own timbre (#3238, #3243) — or (#3973)
+        /// the species' own friendly call (a whine, a purr).</summary>
         private static void StartContent(Entry e, float now)
         {
+            if (e.Voice.Own != null)
+            {
+                StartOwn(e, VoiceMood.Friendly, 0.5f, now);
+                return;
+            }
+
             string size = e.Size < 0.8f ? "small" : e.Size < 1.6f ? "medium" : "large";
             StartPhrase(e, 1, 0.5f, Vector3.zero, now, $"creature_{size}_calm_idle", VoiceContour.Flat, 0, 1f);
         }
@@ -276,6 +304,11 @@ namespace BlocksBeyondTheStars.Client
         /// sampler cache (#901) holds the extra variant.</summary>
         private static string TakeOf(Entry e)
         {
+            if (OwnTake(e, VoiceMood.Calm) is { } own)
+            {
+                return own; // #3973: a recorded call of the species' own — both takes
+            }
+
             var audio = ClientAudio.Instance;
             var repertoire = CreatureVoices.Repertoire(e.Voice.Call); // #3359: a singer of Soaniri sings a fresh recording each call
             if (repertoire != null && audio != null)
@@ -316,7 +349,7 @@ namespace BlocksBeyondTheStars.Client
 
             float contour = CreatureVoiceBank.ContourPitch(e.PhraseContour, e.PulseIndex, e.PhrasePulses);
             float decay = 1f - 0.1f * e.PulseIndex;
-            float pitch = e.Pitch * e.PhrasePitch * contour * PitchJitter() * (c.Asleep ? 0.7f : 1f);
+            float pitch = e.Pitch * e.PhrasePitch * contour * PitchJitter() * (c.Asleep && e.Voice.Own == null ? 0.7f : 1f);
             var pos = e.Root.transform.position + e.PhraseOffset;
 
             string clipId = e.PhraseClip ?? TakeOf(e);
@@ -334,6 +367,38 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Plays one of the species' combat/damage cues — since #3244 shaped from its own call (#903).</summary>
         private static void PlayCue(Entry e, string cue, float volume) => PlayClipCue(e, e.Bank + cue, volume);
+
+        /// <summary>#3973: a hurt or alert cue — a species with recorded calls answers with its own alarm call instead.</summary>
+        private static void PlayCueOrAlarm(Entry e, string cue, float volume)
+        {
+            if (OwnTake(e, VoiceMood.Alarm) is { } own)
+            {
+                PlayClipCue(e, own, volume);
+                return;
+            }
+
+            PlayCue(e, cue, volume);
+        }
+
+        /// <summary>#3973: a take of the species' own calls for <paramref name="mood"/> (<see cref="SpeciesVoices.Take"/>), or
+        /// null for a generated voice; a take this client did not bundle falls back to the voice's calm call.</summary>
+        private static string OwnTake(Entry e, VoiceMood mood)
+        {
+            var own = e.Voice.Own;
+            if (own == null)
+            {
+                return null;
+            }
+
+            var audio = ClientAudio.Instance;
+            string take = own.Take(mood, Random.Range(0, int.MaxValue));
+            return take == null || (audio != null && !audio.Has(take)) ? e.Voice.Call : take;
+        }
+
+        /// <summary>#3973: one recorded call of the species' own for <paramref name="mood"/> — a whole call per phrase, flat, at
+        /// its natural pitch.</summary>
+        private static void StartOwn(Entry e, VoiceMood mood, float volume, float now)
+            => StartPhrase(e, 1, volume, Vector3.zero, now, OwnTake(e, mood), VoiceContour.Flat, 0, 1f);
 
         /// <summary>Plays an arbitrary clip id through this creature's own timbre + pitch (#1210 growl).</summary>
         private static void PlayClipCue(Entry e, string clipId, float volume)
@@ -551,7 +616,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var sp = call.Species;
             var traits = new VoiceTraits(sp.Habitat, sp.Temperament, sp.BodyPlan, sp.Size, sp.Legs, sp.Eyes, sp.Horns,
-                sp.BodySegments, sp.Tentacles, sp.HasGasSac, sp.Glows);
+                sp.BodySegments, sp.Tentacles, sp.HasGasSac, sp.Glows, SpeciesVoices.Decode(sp.Voices)); // #3973: its own calls
             var voice = CreatureVoiceBank.For(sp.VoiceSeed, traits);
             var src = audio.Clip(voice.Call);
             if (src == null)
@@ -560,7 +625,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var far = SampleKit.Variant(src, null, VoiceOp.Dull, 1, tail: 2);
-            float pitch = Mathf.Clamp(Mathf.Clamp(1.5f - 0.35f * sp.Size, 0.7f, 1.6f) * (0.82f + voice.PitchStep / 37f * 0.45f), 0.6f, 1.85f);
+            float pitch = voice.Own != null ? 0.96f + voice.PitchStep / 37f * 0.08f // #3973: a recorded call keeps its pitch
+                : Mathf.Clamp(Mathf.Clamp(1.5f - 0.35f * sp.Size, 0.7f, 1.6f) * (0.82f + voice.PitchStep / 37f * 0.45f), 0.6f, 1.85f);
             var dir = new Vector3(Mathf.Cos(call.AngleRadians), 0.15f, Mathf.Sin(call.AngleRadians)).normalized;
             audio.AtClip(far, Game.PlayerPosition + dir * 12f, pitch * PitchJitter(), call.Volume01 * 0.55f, "creature_distant");
         }

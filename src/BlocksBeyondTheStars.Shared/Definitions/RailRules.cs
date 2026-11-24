@@ -95,9 +95,29 @@ public static class RailRules
     public const float PublicTrainLongLineArc = 1200f;
 
     /// <summary>The public train's speed setting for a line of this arc length (#3632): the fastest on a long line, else
-    /// <see cref="PublicTrainSpeed"/>. Read once, when the train is created — a running train keeps its persisted setting.</summary>
+    /// <see cref="PublicTrainSpeed"/>; the express step on a line of a whole continent (#3985). Read once, when the train is
+    /// created — a running train keeps its persisted setting.</summary>
     public static int PublicTrainSpeedFor(float lineArc)
-        => lineArc >= PublicTrainLongLineArc ? PublicTrainLongLineSpeed : PublicTrainSpeed;
+        => lineArc >= PublicTrainExpressArc ? PublicTrainExpressSpeed
+            : lineArc >= PublicTrainLongLineArc ? PublicTrainLongLineSpeed : PublicTrainSpeed;
+
+    /// <summary>The express step (#3985): a setting beyond <see cref="SpeedTable"/> that only the server gives a public train
+    /// (no cab offers it, no player sets it), top speed <see cref="ExpressTopSpeed"/>.</summary>
+    public const int PublicTrainExpressSpeed = 4;
+
+    /// <summary>The express step's top speed (#3985), in blocks per second. The speed profile reaches it only on a leg of
+    /// 192 blocks or more (the cruise is the leg over 6 s) and only where the line bends gently (a radius of 256 blocks and
+    /// more, the bend limit's 4 blocks/s²): on a continental line the long legs between the cities. Why not faster — the
+    /// streaming: at the default view (4 chunks + the load-ahead ring) a rider crosses a chunk border every 0.5 s and needs
+    /// one new row of chunk columns (11 columns, about 3 chunks each over the surface band) per border, ≈ 66 chunks a second
+    /// on a diagonal leg (both borders), against the 16 chunks per tick (15 Hz: 240 a second) the server streams to a player
+    /// — a quarter of it; at the slider's 8 chunks about 57 % (19 columns). 48 blocks/s would ask 85 % at 8 chunks and leave
+    /// nothing for the sections the line stamps ahead of the rider, so 32 it is.</summary>
+    public const float ExpressTopSpeed = 32f;
+
+    /// <summary>From this many blocks of line the public train runs the express step (#3985). Every rolled line is shorter
+    /// (2000 blocks of route at most since terrain generation 42), so no released world changes.</summary>
+    public const float PublicTrainExpressArc = 4000f;
 
     /// <summary>The public train's wagons from the cab backwards (#2125): the cab and one passenger wagon with six seats.</summary>
     public static readonly string[] PublicTrainWagons = { CabItemKey, "wagon_seats" };

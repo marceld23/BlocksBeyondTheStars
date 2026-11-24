@@ -98,7 +98,16 @@ public readonly struct CityLayoutSpec
     /// <summary>How far outside the wall a grown city's suburb reaches.</summary>
     public const int SuburbDepth = 36;
 
-    public CityLayoutSpec(int grid, int districtSize, int street, int height, IReadOnlyList<string>? roleMap, bool grown = false, string suburbKit = "")
+    /// <summary>#3983: a metropolis of a place list (<see cref="MetropolisPlanner"/>) — no wall and no guard posts, its plaza
+    /// wherever the district map puts its <c>P</c> (the place's centre), the districts the map leaves to the land (<c>.</c>, the
+    /// sea and the land beyond the coast) unclaimed by a column map. False for every city before it.</summary>
+    public readonly bool Metro;
+
+    /// <summary>The sixth field of a serialized metropolis layout.</summary>
+    private const string MetroField = "metro";
+
+    public CityLayoutSpec(int grid, int districtSize, int street, int height, IReadOnlyList<string>? roleMap, bool grown = false, string suburbKit = "",
+        bool metro = false)
     {
         Grid = grid;
         DistrictSize = districtSize;
@@ -107,6 +116,38 @@ public readonly struct CityLayoutSpec
         RoleMap = roleMap ?? System.Array.Empty<string>();
         Grown = grown;
         SuburbKit = suburbKit ?? string.Empty;
+        Metro = metro && !grown;
+    }
+
+    /// <summary>The plaza's district: the district map's first <c>P</c> (row = Z index, column = X index), else the centre
+    /// district (every classic and grown city).</summary>
+    public (int Gx, int Gz) PlazaCell
+    {
+        get
+        {
+            for (int gz = 0; gz < RoleMap.Count; gz++)
+            {
+                int gx = RoleMap[gz].IndexOf('P');
+                if (gx >= 0)
+                {
+                    return (gx, gz);
+                }
+            }
+
+            return (Grid / 2, Grid / 2);
+        }
+    }
+
+    /// <summary>The structure-local column at the middle of the plaza district — where a metropolis's place centre (its
+    /// landing pad) lies.</summary>
+    public (int X, int Z) PlazaCentre
+    {
+        get
+        {
+            var (gx, gz) = PlazaCell;
+            var (x, z) = DistrictOrigin(gx, gz);
+            return (x + (DistrictSize / 2), z + (DistrictSize / 2));
+        }
     }
 
     public static CityLayoutSpec Default => new(CityGenerator.Modules, CityGenerator.ModuleSize, CityGenerator.Street, CityGenerator.Height, null);
@@ -145,7 +186,9 @@ public readonly struct CityLayoutSpec
 
     public string Serialize() => Grown
         ? string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap), "grown:" + SuburbKit)
-        : string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap));
+        : Metro
+            ? string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap), MetroField)
+            : string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap));
 
     public static bool TryParse(string? text, out CityLayoutSpec spec)
     {
@@ -157,7 +200,8 @@ public readonly struct CityLayoutSpec
 
         var parts = text!.Split(',');
         bool grown = parts.Length == 6 && parts[5].StartsWith("grown:", System.StringComparison.Ordinal);
-        if (parts.Length != 5 && !grown)
+        bool metro = parts.Length == 6 && parts[5] == MetroField; // #3983
+        if (parts.Length != 5 && !grown && !metro)
         {
             return false;
         }
@@ -172,7 +216,7 @@ public readonly struct CityLayoutSpec
         }
 
         var map = parts[4].Length == 0 ? null : new List<string>(parts[4].Split('|'));
-        spec = new CityLayoutSpec(n[0], n[1], n[2], n[3], map, grown, grown ? parts[5].Substring("grown:".Length) : string.Empty);
+        spec = new CityLayoutSpec(n[0], n[1], n[2], n[3], map, grown, grown ? parts[5].Substring("grown:".Length) : string.Empty, metro);
         return true;
     }
 }

@@ -135,6 +135,13 @@ public sealed partial class GameServer
     /// so the map always shows exactly the spots that exist in the world.</summary>
     private int PadCountFor(string locationId, string planetKey, CelestialKind kind)
     {
+        // #3981: a type whose place list names pads has exactly those (GameServerPlaceLists.cs).
+        int listed = ListedPadCount(planetKey);
+        if (listed > 0)
+        {
+            return listed;
+        }
+
         // #3309: a type may fix its pad count (KuBa-W: two, one per text monument) — no roll, no per-player floor.
         if (_content.GetPlanet(planetKey) is { LandingPadCount: > 0 } fixedPads)
         {
@@ -306,6 +313,11 @@ public sealed partial class GameServer
 
         try
         {
+            if (ListedPads(planet, circ) is { } listed)
+            {
+                return listed; // #3981: the place list's pads, never searched
+            }
+
             int count = PadCountFor(locationId, planet.Key, kind);
             int latP = WorldConstants.LatitudePeriodFor(circ);
             // Keep pads inside a navigable mid-latitude band (so they spread well on the map without touching
