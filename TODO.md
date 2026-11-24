@@ -43,7 +43,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   `flora_sapling_bush`, `SaplingShape.Bush`) grows into a leafy bush without a trunk (6 or 14 leaf cells, one or two
   high). Its tile redrawn from the calm fruit sapling (`make_bush_sapling.py`) and cut by `bake_leaf_alpha.py`.
 - **Source:** the gatherers' market only (Marcel's choice): 4 berries → 4 flower seeds, 4 plant fibre → 2 cuttings,
-  2 iron ore → 2 bush saplings. Wild flowers and bushes still drop what they did.
+  2 iron ore → 2 bush saplings — three deals of their own, so the gatherers trade eight (`LodgeTests` allowed six; the
+  vendor list scrolls, and one bundle row of three goods would overflow its 360 px column). Wild flowers and bushes
+  still drop what they did.
 - Tests: `GardenPlantsTests` (mixed bed per cell, dirt only gives the flowers that root there, stone none, the cutting, the
   bush shapes and growth, the market), the save-version row 20. Translations of the 12 community languages by a Sonnet
   agent with each locale's existing terms (Marcel's wish).
