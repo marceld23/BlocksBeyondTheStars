@@ -177,10 +177,15 @@ public sealed partial class StructureTypeRules
     public static bool AllowedOn(StructureTypeDefinition type, PlanetType planet, bool restricted)
         => !restricted || (type.Whitelist.Length > 0 && planet.AllowedStructures.Contains(type.Whitelist));
 
+    /// <summary>The whitelist key of the lone rune stones (#3981), a chunk-generation prop rather than a stamped kind: a type with
+    /// a structure whitelist keeps them only when its list names this key (Titas, Valuma, KuBa-W and Soaniri, as they always
+    /// had them; Earth does not).</summary>
+    public const string RuneStonesWhitelist = "rune_stones";
+
     /// <summary>Whether a planet type's structure whitelist (<see cref="PlanetType.AllowedStructures"/>) may name
-    /// <paramref name="key"/>: the whitelist key of a kind of these rules.</summary>
+    /// <paramref name="key"/>: the whitelist key of a kind of these rules, or <see cref="RuneStonesWhitelist"/>.</summary>
     public bool IsWhitelistKey(string key)
-        => key.Length > 0 && All.Any(t => string.Equals(t.Whitelist, key, StringComparison.Ordinal));
+        => key == RuneStonesWhitelist || (key.Length > 0 && All.Any(t => string.Equals(t.Whitelist, key, StringComparison.Ordinal)));
 
     /// <summary>Rules from a kind → definition map; kinds not in it keep their defaults.</summary>
     internal static StructureTypeRules From(Dictionary<string, StructureTypeDefinition> types) => new(types);
@@ -266,7 +271,7 @@ public sealed partial class StructureTypeRules
         {
             Def(TextTablet, minGeneration: WorldDescription.KubaWGeneration),
             Def(SounderSite),
-            Def(Settlement, density: 3.0, cap: 8, seat: "inhabited", conditions: new[] { ConditionAtmosphere }),
+            Def(Settlement, density: 3.0, cap: 8, seat: "inhabited", conditions: new[] { ConditionAtmosphere }, whitelist: "settlements"),
             Def(Intercity, minGeneration: WorldDescription.IntercityRailGeneration, chance: 0.6,
                 conditions: new[] { ConditionNotGas, ConditionNotCityWorld },
                 chanceFrom: new[] { (WorldDescription.LongIntercityGeneration, 0.8) }),
@@ -276,7 +281,7 @@ public sealed partial class StructureTypeRules
             Def(BanditCamp, thresholds: new[] { 0.75, 0.60, 0.45, 0.30 }, cap: 2, seat: "camp",
                 conditions: new[] { ConditionAtmosphere, ConditionNotRuinedOnly }),
             Def(Lodge, minGeneration: WorldDescription.WildernessFolkGeneration, density: 2.2, cap: LodgeRules.HardCap, seat: "camp",
-                keepClearFrom: Margins(hut),
+                keepClearFrom: Margins(hut), whitelist: "lodges",
                 conditions: new[] { ConditionNotVoid, ConditionAtmosphere, ConditionNotRuinedOnly, ConditionNotGas, ConditionNotCityWorld }),
             Def(Outpost, minGeneration: WorldDescription.WildernessFolkGeneration, density: 1.4, cap: 2, seat: "camp",
                 keepClearFrom: Margins(hut),

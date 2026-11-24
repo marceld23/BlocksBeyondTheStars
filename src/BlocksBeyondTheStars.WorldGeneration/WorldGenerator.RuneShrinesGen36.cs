@@ -182,9 +182,12 @@ public sealed partial class WorldGenerator
 
     /// <summary>The generation-1 lone rune stone's gate: the ruins worlds of a generation before the shrines — and, from
     /// generation 36 on, the ruins worlds whose type can never raise a shrine (a structure whitelist without "monuments":
-    /// Titas, Valuma), so they keep their lone stones as before.</summary>
+    /// Titas, Valuma), so they keep their lone stones as before. A type with a structure whitelist keeps them only when the list
+    /// names <see cref="StructureTypeRules.RuneStonesWhitelist"/> (#3981: every such type before Earth names it; Earth carries
+    /// no alien runes on any generation).</summary>
     private static bool PropLoneRuneStone(WonderProfile w, PlanetType p)
-        => PropRuins(w, p) && (w.Generation < WorldDescription.RuneShrineGeneration || !RuneShrinesAllowedOn(p));
+        => PropRuins(w, p) && (!p.RestrictStructures || p.AllowedStructures.Contains(StructureTypeRules.RuneStonesWhitelist))
+           && (w.Generation < WorldDescription.RuneShrineGeneration || !RuneShrinesAllowedOn(p));
 
     /// <summary>A type may raise rune shrines unless its structure whitelist leaves out its rune relics ("monuments" — Soaniri
     /// keeps them, Titas and Valuma do not).</summary>

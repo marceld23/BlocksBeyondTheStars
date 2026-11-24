@@ -14,7 +14,7 @@
   },
   "settlement": {
     "enabled": true, "minGeneration": 0, "chance": 0, "chanceFrom": {}, "density": 3.0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 8,
-    "seatPolicy": "inhabited", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": "",
+    "seatPolicy": "inhabited", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": "settlements",
     "site": { "water": [20, 120], "coast": [], "prominence": "", "relief": "flat", "altitude": [0.1, 0.6], "ground": ["grass", "dirt"], "weights": {} },
     "grade": { "radius": 16, "maxCut": 24, "maxFill": 24 }
   },
@@ -46,7 +46,7 @@
     "enabled": true, "minGeneration": 25, "chance": 0, "chanceFrom": {}, "density": 2.2, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 6,
     "seatPolicy": "camp", "keepClear": 6,
     "keepClearFrom": { "pad": 16, "wreck_site": 14, "settlement": 40, "banditcamp": 40, "ruin": 24, "lodge": 24, "outpost": 24 },
-    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld"], "whitelist": "",
+    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld"], "whitelist": "lodges",
     "site": { "water": [0, 60], "coast": [0, 60], "prominence": "low", "relief": "", "altitude": [], "ground": [], "weights": {} },
     "grade": { "radius": 10, "maxCut": 12, "maxFill": 12 }
   },
