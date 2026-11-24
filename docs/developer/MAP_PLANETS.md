@@ -168,10 +168,15 @@ licences and attributions: [tools/planet_maps/README.md](../../tools/planet_maps
 - **Earth** (2048 × 1024): elevation from NOAA ETOPO1 (ice surface: Antarctica and Greenland at their ice height), read at
   every 5th arc-minute and area-averaged to the cells — the cell mean, so a cell lies below the summit it contains: the
   built map spans −10,022 m to 6,309 m (the Everest cell; Y ≈ 239 with the default curve — a type that wants its highest
-  cell just under the cap lowers `mapHighlandMetresPerBlock`, e.g. 37 puts 6,309 m at Y 284). Biome classes from the Natural Earth I land-cover colours, the latitude and the elevation (forest
-  green by latitude band → rain forest, temperate, boreal; arid tan → desert; other dry colours → steppe; above 58°
-  outside forest → tundra; from 3,000 m → high mountains; white or beyond 78° → ice). Sea cells take the class of the
-  nearest land cell, so a coast's biome border is the land's even where the jitter reaches out to sea.
+  cell just under the cap lowers `mapHighlandMetresPerBlock`, e.g. 37 puts 6,309 m at Y 284). Biome classes from the
+  Köppen–Geiger climate map of Beck et al. (2018, CC BY 4.0, 1/12°): each cell takes the class covering most of its land
+  (A tropical → rain forest or savanna, B dry → desert or steppe, C and warm-summer D → temperate, cold-summer D →
+  boreal, ET → tundra, EF → ice), refined by the Natural Earth I land cover (monsoon forest → rain forest, open tropical
+  highlands → savanna, open grey country beyond 58° → tundra, glaciers → ice) and the elevation (polar climates within 50°
+  and cells from 3,000 m → high mountains; beyond 78° and Antarctica → ice). The rule table is in the tool's README.
+  Every Earth build checks 50 named places (London, Paris, Berlin, the Sahara, the Amazon, the taiga, the Alps …) and
+  fails when one shows the wrong class. Sea cells take the class of the nearest land cell, so a coast's biome border is
+  the land's even where the jitter reaches out to sea.
 - **Moon, Mars** (1024 × 512): elevation from LRO LOLA (LDEM_4) and MGS MOLA (MEGDR, 4 pixels per degree). No climate:
   class 0 above 80° latitude, else seven equal-area elevation bands (class 1 the lowest ground … 7 the highest) — indices
   into the body's own biome list.
