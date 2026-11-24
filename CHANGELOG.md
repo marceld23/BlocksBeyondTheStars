@@ -11,6 +11,69 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.30] — 2026-11-24
+
+The red-planet release. **Mars is red now**: its ground is **Red Sand** over **Red Rock**, and **nobody ever built
+anything there** — no ruins, monuments or wrecks. On Earth the **hover trains run around the cities** instead of through
+their buildings, **Toronto is the end of the Atlantic Line**, and the new **Americas Line** runs from New York to Rio de
+Janeiro. The **Earth's animals keep to the places they belong**: rabbits on the meadows, dolphins and whales out at sea,
+and the big cities have pets too. And from **Lyxette**'s reports: **walls you carve out of rock stay flat**, and **dyed
+flower seeds** let you plant **pictures out of flowers**.
+
+ℹ️ **Compatibility:** Mars's two new blocks shift the block list — the **save version rises from 20 to 21**: a world is
+converted the first time you open it (the game makes a backup first), and the previous version of the game can no
+longer open it afterwards. Everything in this release comes to **every world, old and new**: Mars turns red wherever you
+have not dug, the Earth's lines are laid anew, and the animals, the flat walls and the dyed seeds work everywhere. The
+**terrain generation stays at 49** and the **network protocol at version 12**, but because the list of blocks changed,
+game and server must both be on 2026.11.30: an older game is asked to update when it joins.
+
+### 🔴 Mars, the red planet (#4018)
+
+- Mars's ground is **Red Sand**, the rusty dust that covers the planet — you clear it by hand and it trickles down like
+  sand — over **Red Rock**, which you drill like stone. Both drop themselves, so you can **build with them**, and both
+  can be shaped and tinted like the other building blocks.
+- Only the **poles** carry ice, the high **Tharsis volcanoes** are dark basalt, and the dry riverbeds are red too.
+- **Nobody ever lived on Mars**: there are no ruins, monuments, rune stones, shrines, wrecks, vaults, camps or other
+  buildings, only the scattered **net fragments**.
+- If you visited Mars before this update, whatever already stands there stays, but no new ruins appear — and the
+  ground everywhere you have not dug looks red now.
+
+### 🚝 The Earth's hover trains (#4014, #4015, #4016)
+
+- The lines now run **along the streets and around the cities, never through a building**. They no longer dip into
+  the pavement or scrape through mountain rock, no pylon stands in lava, and every turn is a smooth curve.
+- **Three lines**: the **Atlantic Line** (Berlin – Paris – London – New York – **Toronto**, now its last stop), the
+  **Orient Line** (Paris – Cairo – Tokyo – Sydney) and the new **Americas Line** (New York – Rio de Janeiro). Like Paris,
+  **New York has a hall for each of its lines** — change on foot.
+- On a world that reached Earth before this update, **the lines are laid anew**: the old pylons and halls disappear,
+  and the new ones are built as you come near. Whatever you built in a line's way stays — the train may run through it.
+
+### 🐇 The Earth's animals where they belong (#4017)
+
+- **Rabbits** live on the temperate meadows now (before, you met them almost only in the tundra), and **cats** keep to
+  the temperate zone and the savanna.
+- **Dolphins and whales** swim only out at sea — never in a lake or a river.
+- The **big cities** keep six dogs and cats as pets (they had two), so you meet them walking beside their owners.
+
+### 🌻 Lyxette's reports: flat walls and flower pictures (#4011, #4012)
+
+- **Walls you carve out of rock stay flat** (#4011): on Medium and High, natural rock shows the terrain forms (grooves,
+  ledges and steps), and they also grew on the walls of a room you had dug out of a mountain. Now the rock around a
+  tunnel or a room you dug yourself stays a plain cube — in old worlds too.
+- **Pictures out of flowers** (#4012): open the hotbar wheel on a stack of **flower seeds** and choose **Colour** (or
+  the **Dye** action in the crafting menu) — the whole stack takes one of the 20 colours, free of charge. Every dyed
+  seed grows into a **Sunblossom** whose blossom wears your colour, whatever the planet or the season. Picking it gives
+  you the dyed seed back and nothing grows in its place, so you can rearrange a picture freely.
+
+### 🔧 Under the hood
+
+- The rail planner has new parts that route a line around the cities, pick all of its halls at once and round its
+  turns (#4014); a rail test now also catches a section that a fast test machine stamps in one go (#4020).
+- The chunk generation and the map share one rule for altitude snow, which a planet type can switch off (Mars does).
+
+Thank you, **Lyxette**, for your reports about the carved room and the flower garden — and thank you to everyone who
+sends us ideas and reports!
+
 ## [2026.11.29] — 2026-11-24
 
 The home-system release. **Our own solar system is in the game**: **Sol** with its 21 real bodies, and **Earth, the
@@ -11970,7 +12033,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.29...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.30...HEAD
+[2026.11.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.29...v2026.11.30
 [2026.11.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.28...v2026.11.29
 [2026.11.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.27...v2026.11.28
 [2026.11.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.26...v2026.11.27
