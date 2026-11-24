@@ -66,5 +66,9 @@ already exists in `out/`, and has `--dry-run`.
     the tiles. It keeps a copy of the calm tiles it replaces in `out/calm_tiles/rocks_calm/`, so a later build compares
     with them. `build_tiles.py --bundle` leaves these keys alone (their provenance names `rock_tiles.py`).
 
+12. `make_mars_tiles.py --bundle` — Mars's ground (#4018): `red_sand` from the calm `sand` tile, `red_rock` from the
+    natural `stone` tile, each recoloured pixel by pixel to its block's data colour (brightness relative to the tile's
+    mean, a contrast factor per tile), read from a fixed git revision so a rerun gives the same tiles. No model.
+
 `tilelib.py` holds the paths and the sheet helper. After a change of the set: update `texture_provenance.json` and
 `NOTICES.md`, and run the tile tests (`BlockTileAlphaTests`, `CreatureCoatTilesTests`, `CalmTileRuleTests`, …).

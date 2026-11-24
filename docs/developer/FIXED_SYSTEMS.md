@@ -104,5 +104,8 @@ at the `edge` with the galaxy's sixth growth. 21 bodies with ids `sol-<name>` an
 Neptune are drawn at about 3, 2.5, 1.6 and 1.6 Earths across. The names are `system.sol.name`, `body.sol_<name>.name`
 and `planet.sol_<name>.name`.
 
-The terrain of the Sol types is rolled from their fields for now; map terrain (Earth, Moon, Mars, Venus, Mercury), the
-Earth places and its structure list come in later packages.
+Earth, the Moon, Mars, Venus and Mercury take their terrain from real elevation maps, Earth its fixed places and a
+structure list ([MAP_PLANETS.md](MAP_PLANETS.md)); the other Sol types roll their terrain from their fields. Every Sol type
+counts as restricted on every save once it sets `restrictStructures` (a hand-made system's type). **Mars** (#4018) keeps
+only the net fragments — no ruin of any kind stands there — and is the red planet: `red_sand` over `red_rock`, its polar
+caps ice, the Tharsis heights basalt (MAP_PLANETS.md §4 and §7).

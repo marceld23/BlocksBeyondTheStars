@@ -29,8 +29,8 @@ namespace BlocksBeyondTheStars.Client
         public static byte FamilyOf(string key) => key switch
         {
             "stone" or "basalt" or "granite" or "sandstone" or "moss_stone" or "deepslate" or "dark_sandstone"
-                or "blackened_sandstone" or "coral_rock" or "sulfur_stone" or "tainted_stone" or "ice" => FamilyRock,
-            "dirt" or "mud" or "peat" or "ash" or "salt" or "sand" or "black_sand" or "snow" => FamilySoft,
+                or "blackened_sandstone" or "coral_rock" or "sulfur_stone" or "tainted_stone" or "ice" or "red_rock" => FamilyRock,
+            "dirt" or "mud" or "peat" or "ash" or "salt" or "sand" or "black_sand" or "red_sand" or "snow" => FamilySoft,
             "grass" or "alien_grass" or "mycelium" => FamilyGrass,
             _ => FamilyNone,
         };

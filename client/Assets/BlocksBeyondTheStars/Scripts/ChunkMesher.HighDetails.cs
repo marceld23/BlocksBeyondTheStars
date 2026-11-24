@@ -97,11 +97,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Ground cover: what a block's bare top carries — 1 = dry tufts and pebbles (soft ground),
-        /// 2 = pebbles only (rock), 0 = nothing.</summary>
+        /// 2 = pebbles only (rock — and Mars's red sand, where nothing grows, #4018), 0 = nothing.</summary>
         internal static byte ScrubKindOf(string key) => key switch
         {
             "sand" or "dirt" or "mud" or "peat" or "ash" or "salt" => 1,
-            "stone" or "basalt" or "granite" or "sandstone" or "moss_stone" => 2,
+            "stone" or "basalt" or "granite" or "sandstone" or "moss_stone" or "red_rock" or "red_sand" => 2,
             _ => 0,
         };
 

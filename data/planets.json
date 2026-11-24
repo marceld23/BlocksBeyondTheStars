@@ -1569,7 +1569,10 @@
     "terrainTags": ["buttes", "inselbergs", "wind"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "dunes", "canyons", "flats"],
-    "surfaceBlock": "sand", "subSurfaceBlock": "sandstone", "deepBlock": "stone", "surfaceDepth": 4,
+    "surfaceBlock": "red_sand", "subSurfaceBlock": "red_rock", "deepBlock": "stone", "surfaceDepth": 4,
+    // #4018: at −40 °C the altitude climate froze the whole surface to solid ice; Mars is dry, its ice is the polar caps.
+    "altitudeSnow": false,
+    "sandBlock": "red_sand", // #4018: its dry riverbeds are red sand too
     "caveThreshold": 0.78, "dataCacheRarity": 0.0015,
     "weather": "dynamic", "precipitation": "dust", "stormChance": 0.35, "dayLengthSeconds": 620, "worldRadius": 800, "floraDensity": 0.0, "treeDensity": 0.0, "creatureAbundance": "none",
     "atmosphere": "toxic", "oxygenExtractability": 0.05, "atmosphereDensity": 0.15, "selectable": false, "spawnWeight": 0, "waterAbundance": 0.0,
@@ -1581,15 +1584,17 @@
     // lost civilization, rolled landmark, guide tower or fallen giant, and none of the chunk generation's ruin props.
     "restrictStructures": true,
     "allowedStructures": ["net_fragments"],
+    // #4018: the red planet — red sand (the regolith) over red rock, in class order: the polar caps of ice, the lowlands red
+    // sand over red rock (the middle plains over dark basalt), the uplands bare red rock, the Tharsis heights basalt.
     "biomes": [
-      { "surfaceBlock": "ice",            "subSurfaceBlock": "stone", "temperature": -110 },
-      { "surfaceBlock": "sand",           "subSurfaceBlock": "sandstone" },
-      { "surfaceBlock": "sand",           "subSurfaceBlock": "sandstone" },
-      { "surfaceBlock": "sand",           "subSurfaceBlock": "dark_sandstone" },
-      { "surfaceBlock": "sandstone",      "subSurfaceBlock": "sandstone" },
-      { "surfaceBlock": "sandstone",      "subSurfaceBlock": "stone" },
-      { "surfaceBlock": "dark_sandstone", "subSurfaceBlock": "stone" },
-      { "surfaceBlock": "basalt",         "subSurfaceBlock": "basalt" }
+      { "surfaceBlock": "ice",      "subSurfaceBlock": "red_rock", "temperature": -110 },
+      { "surfaceBlock": "red_sand", "subSurfaceBlock": "red_rock" },
+      { "surfaceBlock": "red_sand", "subSurfaceBlock": "red_rock" },
+      { "surfaceBlock": "red_sand", "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "red_rock", "subSurfaceBlock": "red_rock" },
+      { "surfaceBlock": "red_sand", "subSurfaceBlock": "red_rock" },
+      { "surfaceBlock": "red_rock", "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "basalt",   "subSurfaceBlock": "basalt" }
     ],
     "ores": [
       { "block": "iron_ore",   "rarity": 0.09,  "minDepth": 3,  "maxDepth": 2048 },
