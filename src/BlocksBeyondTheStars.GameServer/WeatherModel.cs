@@ -218,6 +218,7 @@ public sealed class WeatherSim
         SeasonPhase = other.SeasonPhase;
         SeasonPeriodDays = other.SeasonPeriodDays;
         SeasonAmplitude = other.SeasonAmplitude;
+        _ownWetCurve = other._ownWetCurve;
         Volatility = other.Volatility;
         Pinned = other.Pinned;
         _windTarget = other._windTarget;
@@ -236,6 +237,29 @@ public sealed class WeatherSim
 
     /// <summary>The state definition currently in force.</summary>
     public WeatherDef Def => WeatherCatalog.Find(State) ?? WeatherCatalog.Ladder[0];
+
+    /// <summary>The sim's own rolled wet/dry curve while it is tied to a body's year (#3995), so it can be restored.</summary>
+    private (double Phase, double PeriodDays, double Amplitude)? _ownWetCurve;
+
+    /// <summary>#3995: runs the wet/dry curve on a body's year (its period, a phase and a swing); the sim's own rolled curve
+    /// is kept for <see cref="UntieWetCurve"/>. The RNG stream is not touched.</summary>
+    public void TieWetCurve(double periodDays, double phase, double amplitude)
+    {
+        _ownWetCurve ??= (SeasonPhase, SeasonPeriodDays, SeasonAmplitude);
+        SeasonPeriodDays = Math.Max(0.001, periodDays);
+        SeasonPhase = phase;
+        SeasonAmplitude = amplitude;
+    }
+
+    /// <summary>Puts the sim's own rolled wet/dry curve back (a test seam switches the seasons off).</summary>
+    public void UntieWetCurve()
+    {
+        if (_ownWetCurve is { } own)
+        {
+            (SeasonPhase, SeasonPeriodDays, SeasonAmplitude) = own;
+            _ownWetCurve = null;
+        }
+    }
 
     /// <summary>How far this world's season currently leans wet (0 = dry season, 1 = wet season).</summary>
     public double Wetness(double systemDays)

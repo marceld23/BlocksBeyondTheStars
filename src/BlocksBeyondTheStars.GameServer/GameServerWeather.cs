@@ -371,6 +371,7 @@ public sealed partial class GameServer
         {
             SeasonAmplitude = planet?.SeasonAmplitude ?? 0.35,
         };
+        TieWetnessToYear(sim, locationId, planet); // #3995: the wet/dry season runs on the planet's year
         if (planet?.WeatherVolatility is { } vol && vol > 0)
         {
             sim.Volatility = System.Math.Clamp(vol, 0.3, 2.5);
@@ -484,7 +485,7 @@ public sealed partial class GameServer
         var (state, intensity) = BiomeWeatherAt(pos);
         float temperature = CurrentTemperature(state, _dayFraction, pos);
         var def = WeatherCatalog.Find(state);
-        var season = ActiveSeason();
+        var season = ActiveSeasonAt(pos); // #3994: the player's own hemisphere
         return new WorldEnvironment
         {
             TimeOfDay = (float)_dayFraction,
@@ -500,6 +501,9 @@ public sealed partial class GameServer
             Season = season.Season,               // #3041
             SeasonProgress = (float)season.Progress,
             SeasonWarmth = (float)season.Warmth,
+            SeasonStrength = (float)season.Strength,   // #3994
+            SeasonHemisphere = season.Hemisphere,
+            SeasonCycle = season.Cycle,                 // #3993
             Temperature = temperature,
             Precipitation = PrecipitationFor(state, temperature),
             SunColor = _sunColor,
@@ -545,7 +549,7 @@ public sealed partial class GameServer
             return CabinComfortC; // a ship / station cabin is climate-controlled — the one reading of a cabin (#2218)
         }
 
-        return TemperatureAt(planet, _sim, weather, timeOfDay, _breathable, pos, ActiveSeason().Warmth); // #3041: the season too
+        return TemperatureAt(planet, _sim, weather, timeOfDay, _breathable, pos, ActiveSeasonAt(pos).Warmth); // #3041: the season too (#3994: at this latitude)
     }
 
     /// <summary>The temperature formula of <see cref="CurrentTemperature"/> with explicit inputs, so the landing-pad

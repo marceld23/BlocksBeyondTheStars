@@ -723,7 +723,8 @@ broods for minutes.
 Transitions are biased by the planet's `StormChance`, by **afternoon convection**, by a **dawn** window
 that favours fog, and by a slow **seasonal** sine over the shared `SystemTimeDays` clock. Per-planet
 tuning lives in `planets.json`: `weatherVolatility`, `seasonAmplitude` and `weatherEvents` (per-event
-weight multipliers; `0` rules one out).
+weight multipliers; `0` rules one out). Since #3995 the seasonal sine runs on the body's year (its period is the year of
+its season profile — `seasons`, `seasonRoll`, `hemispheres`, see PLANET_VIEW_AND_WEATHER.md §2a).
 
 ### Modes are bands, not freezes
 

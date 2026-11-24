@@ -218,6 +218,21 @@ public sealed class PlanetType
     /// seasons, <c>PlanetSeasons</c>). 0 = no four seasons; an airless or void type never has them.</summary>
     public double SeasonTemperature { get; set; } = 8.0;
 
+    /// <summary>#3993: the season profile of a body of this type (JSON <c>seasons</c>): <c>roll</c> (the default — rolled per
+    /// world and body from <see cref="SeasonRoll"/>), or a fixed one: <c>four</c>, <c>two</c> (summer and winter),
+    /// <c>rain</c> (wet and dry season), <c>one</c> (one season all year, chosen from the type's warmth), <c>spring</c> /
+    /// <c>summer</c> / <c>autumn</c> / <c>winter</c> (that one all year) or <c>none</c>. The start planet always has
+    /// <c>four</c> (<c>SeasonProfiles</c>).</summary>
+    public string Seasons { get; set; } = "roll";
+
+    /// <summary>#3993: the weights of the season roll for this type (JSON <c>seasonRoll</c>, keys as <see cref="Seasons"/>
+    /// without <c>roll</c>); null = the default weights of <c>SeasonProfiles.DefaultRoll</c>.</summary>
+    public Dictionary<string, double>? SeasonRoll { get; set; }
+
+    /// <summary>#3994: whether a body of this type has opposite seasons in the north and the south with tropics between
+    /// (JSON <c>hemispheres</c>); null = rolled per world and body (only planets with four or two seasons).</summary>
+    public bool? Hemispheres { get; set; }
+
     /// <summary>Per-type multipliers on the weather EVENT weights, keyed by state
     /// ("acid_rain", "gale", "spore_bloom", …). Missing keys keep the catalogue default; 0 rules an
     /// event out entirely. The hard gates (atmosphere, temperature) always apply first.</summary>

@@ -143,10 +143,11 @@ public sealed partial class GameServer
 
     /// <summary>How fast a harvested plant grows back here right now: rain waters the ground, a dry
     /// season and a scorching sky slow it. 1 = the plain rate (#900). #3041: the four seasons on top — spring speeds it,
-    /// autumn and winter slow it (<see cref="PlanetSeasons.GrowthFactor"/>), on a world with or without changing weather.</summary>
+    /// autumn and winter slow it (<see cref="PlanetSeasons.GrowthFactor"/>), on a world with or without changing weather.
+    /// #3993/#3994: the season at this cell — one season all year grows at the plain rate, the tropics too.</summary>
     private double WeatherRegrowFactor(Vector3i pos)
     {
-        double season = PlanetSeasons.GrowthFactor(ActiveSeason().Season);
+        double season = ActiveSeasonAt(new Vector3f(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f)).Growth;
         if (_planetWeatherMode != "dynamic")
         {
             return season;
@@ -249,6 +250,11 @@ public sealed partial class GameServer
             return false;
         }
 
+        if (ActiveWorldHasHemispheres)
+        {
+            return SnowFallsNearAnyPlayer(); // #3994: a northern winter may snow while the south has summer
+        }
+
         string precip = PrecipitationFor(_weatherState, CurrentTemperature(_weatherState, _dayFraction));
         return precip is "snow" && CurrentTemperature(_weatherState, _dayFraction) <= 1f;
     }
@@ -261,6 +267,7 @@ public sealed partial class GameServer
         }
 
         int placed = 0;
+        bool byLatitude = ActiveWorldHasHemispheres; // #3994
         foreach (var session in JoinedInActiveWorld())
         {
             if (placed >= DepositsPerPass)
@@ -269,7 +276,7 @@ public sealed partial class GameServer
             }
 
             var p = session.State;
-            if (p.InEva || p.AboardShip)
+            if (p.InEva || p.AboardShip || (byLatitude && !SnowFallsAtLatitude(p.Position.Z)))
             {
                 continue;
             }
@@ -403,9 +410,10 @@ public sealed partial class GameServer
             return;
         }
 
-        bool warm = CurrentTemperature(_weatherState, _dayFraction) > 2f;
+        bool byLatitude = ActiveWorldHasHemispheres; // #3994: each drift thaws by its own hemisphere's season
+        bool warm = !byLatitude && CurrentTemperature(_weatherState, _dayFraction) > 2f;
         bool overCap = deposits.Count > MaxDepositsPerWorld || force;
-        if (!warm && !overCap)
+        if (!byLatitude && !warm && !overCap)
         {
             return; // still freezing and within budget — the snow stays
         }
@@ -414,7 +422,7 @@ public sealed partial class GameServer
         var doomed = new List<Vector3i>(DepositsPerPass);
         foreach (var key in new List<Vector3i>(deposits.Keys))
         {
-            if (warm)
+            if (byLatitude ? ReferenceTemperatureAtLatitude(key.Z) > 2f : warm)
             {
                 deposits[key] -= DepositInterval;
             }

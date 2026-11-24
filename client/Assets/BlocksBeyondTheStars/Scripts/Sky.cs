@@ -744,7 +744,7 @@ namespace BlocksBeyondTheStars.Client
                 snowTarget = Mathf.Max(snowTarget, 0.55f); // #3004: the winter festivals dust the roofs even on a warm world
             }
 
-            if (SeasonLook.Frost(env.Season, temp))
+            if (SeasonLook.FrostFor(env, temp)) // #3996: never in the tropics
             {
                 snowTarget = Mathf.Max(snowTarget, SeasonLook.FrostAmount); // #3042: a cold winter's frost on the tops
             }

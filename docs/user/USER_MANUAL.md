@@ -4567,6 +4567,17 @@ controls line at the bottom leaves out the quick-bar keys.
     **autumn** the **leaves turn amber, orange and red** and the grass goes straw-coloured; in **winter** plants grow back
     slowest and look pale.
   - The year keeps running between sessions (the clock is saved), and it pauses with the world.
+  - **Every planet has its own kind of year** (#3993–#3996): **four seasons**, only **summer and winter**, a **wet and a
+    dry season** (jungles, swamps and savannas often have those), **one season all year** (an ice world in endless winter,
+    a lava world in endless summer — plants grow at their normal speed there) or **no seasons**. Your **start planet always
+    has all four**. The ship scanner's planet card shows the kind in its **Seasons** row.
+  - **North and south:** on some planets — **Earth** among them — the north and the south have **opposite seasons**: when
+    it is winter in London it is summer in the far south. Around the **equator** lie the **tropics**: no summer or winter
+    there, only the wet and the dry season. The clock panel then shows the half of the planet too ("Winter · S" in the
+    south, "Dry season" in the tropics), and the weather scanner says it in full ("Winter (southern hemisphere)"). The
+    seasons change gently as you travel north or south — no sudden jump at the equator.
+  - The **wet/dry season** is part of the same year now, so the forecast's "wet season" / "dry season" comes back at the
+    same point of every year.
 - **Weather is per position** — a stormy biome can rain while a neighbouring clear one stays sunny,
   mountain tops sit in cloud and snow while the valley below is clear, and **fronts drift across the
   world**, so you can watch a storm arrive and move on. Weather is hidden in caves/underground — but not silent:

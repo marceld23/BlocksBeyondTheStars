@@ -107,7 +107,7 @@ last rows, ordinary strips of terrain, each squeeze into one point at a pole. Th
 The flight view used a hard-coded table of 15 type keys before #2170, so 33 of 51 types flew past without clouds.
 The haze rim takes the world's sky colour.
 
-## 2a. The four seasons (#3041/#3042)
+## 2a. The seasons (#3041/#3042, profiles and hemispheres #3993–#3996)
 
 The system clock (`_systemTimeDays`, 600 s per system day) is saved since #3041 (`WorldMetadata.SystemTimeDays`), so a restart
 no longer starts the wet/dry season and the year over. `Shared/World/PlanetSeasons` derives a body's season from that clock,
@@ -121,6 +121,38 @@ global `_Sc_Season` every frame — `FloraAccent.hlsl` turns plant tints amber i
 the blossom accents in spring, `ScatterLit` turns the grass tufts the same way; no chunk is re-meshed (the far terrain keeps
 its baked colours). A cold winter adds a frost on the snow channel, the grade warms in summer/autumn and cools in winter,
 and the clock panel names the season.
+
+### Season profiles, hemispheres and the wet/dry year (#3993–#3996)
+
+- **Profile** (`Shared/World/SeasonProfiles`, a pure function of type, world seed, body id, start flag and size class): the
+  cycle a body's year runs through — `four`, `two` (summer, winter), `rain` (wet, dry), `one` (a single season all year) or
+  `none` — and whether its north and south are opposite. A planet type fixes it with `seasons` in `planets.json` (`roll` is
+  the default, or a cycle, or a season name for one season all year; `one` picks the season from `baseTemperature`: ≥ 30 °C
+  summer, ≤ −10 °C winter, else a seeded spring, summer or autumn) and `hemispheres` (`true`/`false`; absent = rolled at
+  `HemisphereChance` 40 % for planet-class bodies with four or two seasons). Otherwise it is rolled from `seasonRoll`
+  (weights per key; `SeasonProfiles.DefaultRoll` = four 45, two 20, rain 15, one 10, none 10). **The start planet always has
+  four seasons** and no hemispheres unless its type pins them (its pad sits at the equator). Nothing is stored: an older save
+  derives the same profiles — its start planet keeps the four seasons it had; other bodies may change their kind of year.
+- **The year** (`PlanetSeasons.Read`): one `DaysPerSeason` per season of the cycle (a two-season year is 10 planet days, a
+  four-season year 20 as before — a `four` body reads bit for bit what it read before). Warmth swings ± `seasonTemperature`
+  on four and two; a wet-and-dry or one-season year has no warmth swing, and one season grows plants at the plain rate.
+- **Hemispheres** (`PlanetSeasons.HemisphereStrength`): latitude = `WrapZ(z) / LatitudePeriodFor(C) · 180°` (north +Z, the
+  torus seam at ±90°). The south runs half a year behind the north. The strength is 0 up to 12°, full from 30°, and fades
+  back to 0 from 75° to the seam, so neither the equator nor the seam jumps; warmth and growth scale with it. The server reads
+  the season at the position everywhere one is known (the environment per player, `CurrentTemperature`,
+  `WeatherRegrowFactor`, each landing pad's weather) and on such a world asks the snow pass per latitude
+  (`GameServerSeasonSnow`: laying at each player's latitude, thawing at each drift's).
+- **The wet/dry curve on the year** (#3995): `TieWetnessToYear` sets a weather sim's `SeasonPeriodDays` to the body's year
+  and its `SeasonPhase` to a seeded phase (on a `rain` body the year's own phase, so the wet season is its first season);
+  the amplitude is at least 0.35 there and 30 % of `seasonAmplitude` on a one-season body. The sim's RNG draws are unchanged.
+- **Client** (`SeasonLook.LookFor` / `GradeFor` / `FrostFor` / `HudKeys` / `PlaceKey`, Client.Core): the new additive fields
+  `WorldEnvironment.SeasonStrength` (default 1), `SeasonHemisphere` and `SeasonCycle` select the look — a two-season year
+  turns without autumn's amber, a wet/dry year yellows the plants a little in the dry season (part of the autumn channel)
+  and lends bloom in the wet one, one season shows its full look, and toward the tropics the hemisphere's look blends into
+  the wet/dry look by the strength. Below strength 0.5 the HUD shows the wet or dry season; elsewhere a short hemisphere mark
+  ("Winter · S"); the weather reading names the place in full. Only the three existing `_Sc_Season` channels are filled —
+  no shader changed, so desktop High, Potato and the browser behave the same. The ship scanner's card has a `seasons` row
+  (`ui.overview.seasons.*`, icon `ov_seasons` from `tools/ai-assets/gen_hud_icons.py`).
 
 ## 3. Ambient weather (server)
 

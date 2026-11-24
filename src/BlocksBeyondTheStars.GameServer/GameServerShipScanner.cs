@@ -272,6 +272,20 @@ public sealed partial class GameServer
             rows.Add(weather);
         }
 
+        // #3993/#3994: the seasons — which year this body runs through, and whether north and south are opposite.
+        if (PlanetSeasons.HasSeasons(planet))
+        {
+            var profile = SeasonProfileOf(body.Id, planet);
+            string key = profile.Cycle == SeasonProfiles.OneCycle ? profile.Fixed : profile.Cycle;
+            var seasons = Row("seasons", "ui.overview.seasons." + key, 3);
+            if (profile.Hemispheres)
+            {
+                seasons.DetailKey = "ui.overview.seasons.hemispheres";
+            }
+
+            rows.Add(seasons);
+        }
+
         // Water and lava.
         if (planet.IsGasWorld)
         {

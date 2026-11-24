@@ -426,6 +426,7 @@ public sealed class GreenhouseTests : IDisposable
             };
 
             var server = new SvGameServer(config, _content, st, repo);
+            server.SeasonsOffForTest = true; // regrowth timed to the second — the season and the year's wet/dry curve stay out of it
             server.Start();
 
             var marker = server.SettlementMarkers.FirstOrDefault(m => m.Type == "greenhouse");

@@ -17,14 +17,15 @@ namespace BlocksBeyondTheStars.Client
     {
         private static readonly int SeasonId = Shader.PropertyToID("_Sc_Season");
 
-        /// <summary>The look shown now: x autumn, y winter, z bloom (eased toward <see cref="SeasonLook.TargetFor"/>).</summary>
+        /// <summary>The look shown now: x autumn, y winter, z bloom (eased toward <see cref="SeasonLook.LookFor"/>).</summary>
         private Vector4 _seasonLook;
 
         private void TickSeasonLook(float dt)
         {
             var env = Game?.Environment;
             bool on = env != null && !env.SpaceSky && !Game.SpaceViewActive && !string.IsNullOrEmpty(env.Season);
-            var (autumn, winter, bloom) = on ? SeasonLook.TargetFor(env.Season, env.SeasonProgress, EvergreenFlora()) : (0f, 0f, 0f);
+            // #3996: the look of the planet's own year (four, summer/winter, wet/dry, one season) and the player's hemisphere.
+            var (autumn, winter, bloom) = on ? SeasonLook.LookFor(env, EvergreenFlora()) : (0f, 0f, 0f);
             var target = new Vector4(autumn, winter, bloom, 0f);
             _seasonLook = Game != null && Game.CaptureEnvActive ? target : Vector4.MoveTowards(_seasonLook, target, dt / 30f);
             Shader.SetGlobalVector(SeasonId, _seasonLook);
@@ -47,7 +48,7 @@ namespace BlocksBeyondTheStars.Client
                 return (tint, sat);
             }
 
-            var (warmth, saturation) = SeasonLook.Grade(env.Season);
+            var (warmth, saturation) = SeasonLook.GradeFor(env); // #3996: faded toward the tropics
             tint = Color.Lerp(tint, warmth >= 0f ? FestivalMood.WarmTint : FestivalMood.CoolTint, Mathf.Clamp01(Mathf.Abs(warmth)) * 0.5f);
             return (tint, sat * saturation);
         }

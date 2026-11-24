@@ -198,7 +198,7 @@ public sealed class ShipScannerTests : IDisposable
             Assert.True(basic.ResourcesLocked);
             Assert.Empty(basic.Ores);
             Assert.True(basic.KnowledgeGained > 0);
-            foreach (string topic in new[] { "air", "temperature", "gravity", "plants", "animals", "machines", "terrain", "structures", "frontier" })
+            foreach (string topic in new[] { "air", "temperature", "gravity", "plants", "animals", "machines", "terrain", "structures", "frontier", "seasons" })
             {
                 Assert.Contains(basic.Rows, r => r.Topic == topic && r.ValueKey.Length > 0);
             }

@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
     /// <item><b>Grade</b>: summer and autumn warm the picture, winter cools and greys it, spring is a touch more colourful.</item>
     /// </list>
     /// </summary>
-    public static class SeasonLook
+    public static partial class SeasonLook
     {
         /// <summary>Air temperature (°C) below which a winter frost dusts the tops.</summary>
         public const float FrostBelowC = 3f;
@@ -64,6 +64,8 @@ namespace BlocksBeyondTheStars.Client
             PlanetSeasons.Autumn => (0.3f, 1.04f),
             PlanetSeasons.Winter => (-0.35f, 0.88f),
             PlanetSeasons.Spring => (0f, 1.08f),
+            PlanetSeasons.Dry => (0.2f, 0.96f), // #3995: a dry season bleaches a little
+            PlanetSeasons.Wet => (0f, 1.06f),
             _ => (0f, 1f),
         };
 

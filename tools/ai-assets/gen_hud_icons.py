@@ -237,11 +237,36 @@ def ov_terrain():
     save(img, "ov_terrain")
 
 
+
+def ov_seasons():
+    img, d = canvas()
+    # #3996: the year in one glyph — a sun on the left half (disc and rays), a snowflake on the right half
+    cx, cy = W * 0.5, W * 0.5
+    r = W * 0.17
+    d.pieslice((cx - r, cy - r, cx + r, cy + r), start=90, end=270, fill=(255, 255, 255, 255))
+    for a in (100, 135, 180, 225, 260):
+        rad = math.radians(a)
+        x0, y0 = cx + math.cos(rad) * W * 0.25, cy + math.sin(rad) * W * 0.25
+        x1, y1 = cx + math.cos(rad) * W * 0.40, cy + math.sin(rad) * W * 0.40
+        line(d, [(x0, y0), (x1, y1)], width=int(STROKE * 0.8))
+    line(d, [(cx, W * 0.10), (cx, W * 0.90)], width=int(STROKE * 0.6))
+    for a in (-60, 0, 60):
+        rad = math.radians(a)
+        x1, y1 = cx + math.cos(rad) * W * 0.38, cy + math.sin(rad) * W * 0.38
+        line(d, [(cx + W * 0.06 * math.cos(rad), cy + W * 0.06 * math.sin(rad)), (x1, y1)], width=int(STROKE * 0.8))
+        mx, my = cx + math.cos(rad) * W * 0.26, cy + math.sin(rad) * W * 0.26
+        for da in (-50, 50):
+            b = math.radians(a + 180 + da)
+            line(d, [(mx, my), (mx + math.cos(b) * W * 0.09, my + math.sin(b) * W * 0.09)], width=int(STROKE * 0.6))
+    save(img, "ov_seasons")
+
+
 if __name__ == "__main__":
     import sys as _sys
 
     only = set(_sys.argv[1:])  # e.g. `exposure` — regenerate just the named icons
     for fn in (health, oxygen, energy, hunger, hull, shield, exposure, compass_n, crosshair_dot,
-               ov_gravity, ov_weather, ov_lava, ov_plants, ov_animals, ov_machines, ov_terrain):
+               ov_gravity, ov_weather, ov_lava, ov_plants, ov_animals, ov_machines, ov_terrain,
+               ov_seasons):
         if not only or fn.__name__ in only:
             fn()
