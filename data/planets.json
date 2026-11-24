@@ -858,7 +858,7 @@
     "weatherVolatility": 0.9, "seasonAmplitude": 0.2,
     "weatherEvents": { "blizzard": 3.0, "gale": 1.4, "fog": 0.6 },
     "oncePerGalaxy": true, "fixedName": "Titas",
-    "restrictStructures": true, "allowedStructures": ["sps_labs", "net_fragments"],
+    "restrictStructures": true, "allowedStructures": ["sps_labs", "net_fragments", "rune_stones"],
     "enemyDensity": 2.5, "snowCoverDepth": 10, "iceSheetDepth": 5, "hotZoneShare": 0.15, "deadForests": true,
     "waterDamagePerSecond": 2, "maxAquaticSpecies": 1, "exposureMinutesCold": 40, "exposureMinutesHot": 30,
     "biomes": [
@@ -885,7 +885,7 @@
     "weatherVolatility": 0.6, "seasonAmplitude": 0.2,
     "weatherEvents": { "drizzle": 1.0, "fog": 1.0, "gale": 0.5 },
     "calmTerrain": true, "peacefulFauna": true,
-    "restrictStructures": true, "allowedStructures": ["net_fragments"],
+    "restrictStructures": true, "allowedStructures": ["net_fragments", "rune_stones"],
     "authoredCreatures": ["sreekmakra"],
     "biomes": [
       { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.2, "treeDensityMul": 0.3 },
@@ -1275,7 +1275,7 @@
     "atmosphere": "breathable", "selectable": false, "spawnWeight": 0, "waterAbundance": 0.2,
     "weatherVolatility": 0.8, "seasonAmplitude": 0.2,
     "weatherEvents": { "drizzle": 1.2, "fog": 0.8, "meteor_shower": 0.0, "ion_storm": 0.0 },
-    "restrictStructures": true, "allowedStructures": ["net_fragments"],
+    "restrictStructures": true, "allowedStructures": ["net_fragments", "rune_stones"],
     "landingPadCount": 2,
     "textMonuments": [
       { "key": "kuba_school", "pad": 0, "lines": ["KuBa", "West", "Trier"] },
@@ -1312,7 +1312,7 @@
     "weatherVolatility": 0.5, "seasonAmplitude": 0.15,
     "weatherEvents": { "drizzle": 1.0, "fog": 0.8, "ground_fog": 0.8, "gale": 0.2, "meteor_shower": 0.0, "ion_storm": 0.0, "acid_rain": 0.0, "heatwave": 0.0 },
     "calmTerrain": true, "peacefulFauna": true, "enemyDensity": 0.0,
-    "restrictStructures": true, "allowedStructures": ["monuments", "landmarks"], "monumentCount": [4, 6],
+    "restrictStructures": true, "allowedStructures": ["monuments", "landmarks", "rune_stones"], "monumentCount": [4, 6],
     // The school club's landmarks (terrain generation 39): every Soaniri carries the castle and the singer statue.
     "fixedLandmarks": ["soaniri_castle", "singer_statue"],
     "singingMeadows": true,
@@ -1340,18 +1340,31 @@
   },
   // #3970 (Sol, data/systems/sol.json): one type per body of our solar system. Never rolled (selectable false, spawn weight 0):
   // only the fixed system Sol places them, and its data gives each body its size, gravity and name. The names come from the
-  // locale keys (no fixedName). The terrain is rolled from these fields for now — Earth, the Moon, Mars, Venus and Mercury get
-  // map terrain in a later package, and Earth its full structure list; until then every type keeps the ordinary structure roll.
+  // locale keys (no fixedName). Mercury, Venus, Earth, the Moon and Mars take their ground and biomes from a planet map
+  // (#3978, #3979, docs/developer/MAP_PLANETS.md): their biome lists follow the map's classes in order — Earth's the eight
+  // climate classes, the other four class 0 for the poles (above 80°) and classes 1..7 for seven equal-area elevation bands,
+  // lowest first. Each height curve keeps the body's highest cell under the terrain cap (288) and its atmosphere line above
+  // it. The cratered ones (Mercury; the Moon as an airless moon) carry small rolled craters on top of the map. The other
+  // sixteen keep rolled terrain. Earth carries only villages, SPS guide towers and labs, fallen guardian giants, giant ship
+  // wrecks, lodges and net fragments (its structure whitelist, on every save) and its fixed places (data/places/sol_earth.json).
   {
-    "key": "sol_mercury", "baseTemperature": 40, "nameKey": "planet.sol_mercury.name", "atmosphereHeight": 160, "cloudColor": 12632256, "cloudDensity": 0.0, "mist": 0.0,
+    "key": "sol_mercury", "baseTemperature": 40, "nameKey": "planet.sol_mercury.name", "atmosphereHeight": 220, "cloudColor": 12632256, "cloudDensity": 0.0, "mist": 0.0,
+    // −5,338 … 4,169 m: 30 m per block to 1,500 m (Y 130), 40 above (4,169 m → Y 196); the basins 120 m per block (Y 36).
+    "terrainMap": "mercury", "mapLowlandMetresPerBlock": 30, "mapHighlandMetresPerBlock": 40, "waterAbundance": 0.0,
     "baseHeight": 52, "amplitude": 12, "terrainScale": 40.0, "cratered": true,
     "surfaceBlock": "basalt", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.7, "dataCacheRarity": 0.0018,
     "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 1200, "worldRadius": 600, "floraDensity": 0.0, "creatureAbundance": "none",
     "atmosphere": "none", "spaceSky": true, "selectable": false, "oxygenExtractability": 0.0, "spawnWeight": 0,
     "biomes": [
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "ice", "temperature": -150 },
+      { "surfaceBlock": "basalt", "subSurfaceBlock": "basalt" },
       { "surfaceBlock": "basalt", "subSurfaceBlock": "stone" },
-      { "surfaceBlock": "stone",  "subSurfaceBlock": "stone", "reliefMul": 1.3 }
+      { "surfaceBlock": "scree",  "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "scree",  "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "stone" }
     ],
     "ores": [
       { "block": "iron_ore",     "rarity": 0.09,  "minDepth": 2,  "maxDepth": 2048 },
@@ -1363,7 +1376,10 @@
     ]
   },
   {
-    "key": "sol_venus", "baseTemperature": 90, "nameKey": "planet.sol_venus.name", "atmosphereHeight": 220, "cloudColor": 15255664, "cloudDensity": 0.95, "mist": 0.85, "mistFloor": 0.6, "mistColor": 14267754, "skyColor": 14267754,
+    "key": "sol_venus", "baseTemperature": 90, "nameKey": "planet.sol_venus.name", "atmosphereHeight": 310, "cloudColor": 15255664, "cloudDensity": 0.95, "mist": 0.85, "mistFloor": 0.6, "mistColor": 14267754, "skyColor": 14267754,
+    // −2,750 … 10,243 m: the default lowlands to 1,500 m (Y 155), 70 m per block above (Maxwell Montes → Y 279); the dry
+    // basins 120 m per block (Y 58).
+    "terrainMap": "venus", "mapHighlandMetresPerBlock": 70,
     "terrainTags": ["volcanic"],
     "baseHeight": 60, "amplitude": 12, "terrainScale": 52.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "badlands", "shattered"],
@@ -1377,8 +1393,13 @@
     "settlementsBias": 0.0, "ruinedSettlementsOnly": true,
     "biomes": [
       { "surfaceBlock": "basalt",       "subSurfaceBlock": "basalt" },
-      { "surfaceBlock": "sulfur_stone", "subSurfaceBlock": "sulfur_stone", "reliefMul": 1.2 },
-      { "surfaceBlock": "ash",          "subSurfaceBlock": "basalt", "reliefMul": 0.6 }
+      { "surfaceBlock": "basalt",       "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "ash",          "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "basalt",       "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "ash",          "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "sulfur_stone", "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "sulfur_stone", "subSurfaceBlock": "sulfur_stone" },
+      { "surfaceBlock": "basalt",       "subSurfaceBlock": "sulfur_stone" }
     ],
     "ores": [
       { "block": "sulfur_ore",   "rarity": 0.05,  "minDepth": 2,  "maxDepth": 2048 },
@@ -1391,21 +1412,34 @@
   },
   {
     "key": "sol_earth", "waterTint": "auto", "floraTheme": "temperate", "baseTemperature": 15, "nameKey": "planet.sol_earth.name", "atmosphereHeight": 320, "cloudColor": 15725044, "cloudDensity": 0.5, "mist": 0.45,
+    // The map's highest cell (6,309 m, the Everest cell) at 37 m per block above the 1,500 m knee → Y 284, under the cap.
+    "terrainMap": "earth", "mapHighlandMetresPerBlock": 37,
     "terrainTags": ["buttes", "glacial"],
     "baseHeight": 64, "amplitude": 18, "terrainScale": 48.0,
     "terrainStyles": ["hills", "downs", "mountains"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.73, "dataCacheRarity": 0.0015,
-    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 1200, "floraDensity": 0.14, "treeDensity": 0.02, "creatureAbundance": "many",
+    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 1200, "floraDensity": 0.14, "treeDensity": 0.03, "creatureAbundance": "authored",
     "atmosphere": "breathable", "selectable": false, "spawnWeight": 0, "waterAbundance": 0.6, "beachBlock": "sand",
     "weatherVolatility": 1.0, "seasonAmplitude": 0.35,
     "weatherEvents": { "drizzle": 1.5, "fog": 1.2, "gale": 0.8, "blizzard": 0.4 },
+    // Natural greens, like the real plants (the fixed-palette mechanism of Soaniri, #3423); the seasons still turn them.
+    "floraPalette": ["#4f8f2f", "#5c9e38", "#3f7d2c", "#6aa845", "#2f6e2e", "#78b04f", "#4a8a3a", "#88b85a"], "colourMood": "balanced",
+    // Only these rolled kinds stand on Earth (on every save): no G.D.S. ruins, rune monuments, shrines or lone rune stones, no
+    // lost civilizations, rail ruins, bandit camps, factories, city world or rolled landmark.
+    "restrictStructures": true,
+    "allowedStructures": ["settlements", "lodges", "sps_labs", "sps_towers", "guardian_giants", "giant_wrecks", "net_fragments"],
+    // The map's eight classes in order: ice, tundra, boreal forest, temperate, steppe/savanna, desert, rain forest, high
+    // mountains — the Amazon dense rain forest, the Sahara bare desert, Siberia boreal forest.
     "biomes": [
-      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "temperate", "floraDensityMul": 1.2 },
-      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "tropical", "floraDensityMul": 1.3 },
-      { "surfaceBlock": "sand",  "subSurfaceBlock": "sand", "floraTheme": "desert", "floraDensityMul": 0.4, "treeDensityMul": 0.2, "reliefMul": 0.8 },
-      { "surfaceBlock": "snow",  "subSurfaceBlock": "dirt", "floraTheme": "tundra", "floraDensityMul": 0.6, "treeDensityMul": 0.6 },
-      { "surfaceBlock": "stone", "subSurfaceBlock": "stone", "floraTheme": "alpine", "floraDensityMul": 0.5, "reliefMul": 1.6 }
+      { "surfaceBlock": "snow",  "subSurfaceBlock": "ice",       "floraTheme": "tundra",   "floraDensityMul": 0.1, "treeDensityMul": 0.0, "temperature": -25 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "peat",      "floraTheme": "tundra",   "floraDensityMul": 0.7, "treeDensityMul": 0.1, "temperature": -6 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt",      "floraTheme": "tundra",   "floraDensityMul": 1.0, "treeDensityMul": 1.8, "temperature": 2 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt",      "floraTheme": "temperate", "floraDensityMul": 1.2, "treeDensityMul": 1.0, "temperature": 12 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt",      "floraTheme": "savanna",  "floraDensityMul": 0.9, "treeDensityMul": 0.25, "temperature": 22 },
+      { "surfaceBlock": "sand",  "subSurfaceBlock": "sandstone", "floraTheme": "desert",   "floraDensityMul": 0.12, "treeDensityMul": 0.0, "temperature": 33 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "mud",       "floraTheme": "tropical", "floraDensityMul": 1.6, "treeDensityMul": 2.4, "temperature": 27 },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone",     "floraTheme": "alpine",   "floraDensityMul": 0.3, "treeDensityMul": 0.1, "temperature": -8 }
     ],
     "ores": [
       { "block": "iron_ore",      "rarity": 0.07,  "minDepth": 4,  "maxDepth": 2048 },
@@ -1419,15 +1453,25 @@
     ]
   },
   {
-    "key": "sol_moon", "baseTemperature": -20, "nameKey": "planet.sol_moon.name", "atmosphereHeight": 140, "cloudColor": 12632256, "cloudDensity": 0.0, "mist": 0.0,
+    "key": "sol_moon", "baseTemperature": -20, "nameKey": "planet.sol_moon.name", "atmosphereHeight": 260, "cloudColor": 12632256, "cloudDensity": 0.0, "mist": 0.0,
+    // −8,376 … 9,725 m around a datum at Y 100: 60 m per block to 3,000 m (Y 150), 75 above (→ Y 239); the basins 170 m per
+    // block, at most 50 deep (Y 51). The maria (low classes) are dark basalt, the highlands light stone.
+    "terrainMap": "moon", "mapSeaLevelY": 100, "mapLowlandMetresPerBlock": 60, "mapKneeMetres": 3000, "mapHighlandMetresPerBlock": 75,
+    "mapOceanMetresPerBlock": 170, "mapOceanMaxDepth": 50, "waterAbundance": 0.0,
     "baseHeight": 50, "amplitude": 10, "terrainScale": 40.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.7, "dataCacheRarity": 0.0018,
     "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 1600, "worldRadius": 400, "floraDensity": 0.0, "creatureAbundance": "none",
     "atmosphere": "none", "spaceSky": true, "selectable": false, "oxygenExtractability": 0.0, "spawnWeight": 0,
     "biomes": [
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "ice", "temperature": -150 },
+      { "surfaceBlock": "basalt", "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "basalt", "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "scree",  "subSurfaceBlock": "basalt" },
       { "surfaceBlock": "stone",  "subSurfaceBlock": "stone" },
-      { "surfaceBlock": "basalt", "subSurfaceBlock": "stone", "reliefMul": 0.6 }
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "scree",  "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "stone",  "subSurfaceBlock": "stone" }
     ],
     "ores": [
       { "block": "iron_ore",      "rarity": 0.06,  "minDepth": 2,  "maxDepth": 2048 },
@@ -1437,7 +1481,11 @@
     ]
   },
   {
-    "key": "sol_mars", "floraTheme": "desert", "baseTemperature": -40, "nameKey": "planet.sol_mars.name", "atmosphereHeight": 200, "cloudColor": 14254704, "cloudDensity": 0.15, "mist": 0.3, "mistColor": 13145176, "skyColor": 13213528,
+    "key": "sol_mars", "floraTheme": "desert", "baseTemperature": -40, "nameKey": "planet.sol_mars.name", "atmosphereHeight": 300, "cloudColor": 14254704, "cloudDensity": 0.15, "mist": 0.3, "mistColor": 13145176, "skyColor": 13213528,
+    // −7,754 … 21,091 m: 40 m per block to 3,000 m (Y 155), 150 above (Olympus Mons → Y 275, under the cap); Hellas and the
+    // northern lowlands 160 m per block, at most 50 deep (Y 32). Polar caps of ice, the Tharsis heights basalt.
+    "terrainMap": "mars", "mapLowlandMetresPerBlock": 40, "mapKneeMetres": 3000, "mapHighlandMetresPerBlock": 150,
+    "mapOceanMetresPerBlock": 160, "mapOceanMaxDepth": 50,
     "terrainTags": ["buttes", "inselbergs", "wind"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "dunes", "canyons", "flats"],
@@ -1449,9 +1497,14 @@
     "weatherEvents": { "gale": 3.0, "fog": 0.0, "ground_fog": 0.0, "drizzle": 0.0, "acid_rain": 0.0, "heatwave": 0.0 },
     "settlementsBias": 0.0, "ruinedSettlementsOnly": true,
     "biomes": [
-      { "surfaceBlock": "sand",      "subSurfaceBlock": "sandstone" },
-      { "surfaceBlock": "sandstone", "subSurfaceBlock": "sandstone", "reliefMul": 1.3 },
-      { "surfaceBlock": "ice",       "subSurfaceBlock": "stone", "reliefMul": 0.7 }
+      { "surfaceBlock": "ice",            "subSurfaceBlock": "stone", "temperature": -110 },
+      { "surfaceBlock": "sand",           "subSurfaceBlock": "sandstone" },
+      { "surfaceBlock": "sand",           "subSurfaceBlock": "sandstone" },
+      { "surfaceBlock": "sand",           "subSurfaceBlock": "dark_sandstone" },
+      { "surfaceBlock": "sandstone",      "subSurfaceBlock": "sandstone" },
+      { "surfaceBlock": "sandstone",      "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "dark_sandstone", "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "basalt",         "subSurfaceBlock": "basalt" }
     ],
     "ores": [
       { "block": "iron_ore",   "rarity": 0.09,  "minDepth": 3,  "maxDepth": 2048 },

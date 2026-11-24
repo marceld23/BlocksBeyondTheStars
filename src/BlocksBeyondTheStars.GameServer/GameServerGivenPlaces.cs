@@ -20,8 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the first time), registers the box in the footprint registry so every structure rolled after it keeps clear (terrain
 /// generation 38+), and pins a placement record like every other kind, replayed on every later load.
 /// <list type="bullet">
-/// <item><b>Landmarks.</b> <see cref="GivenLandmarkSource"/> names the templates a body carries at given seats (later: the body's
-/// place list from data). They are stamped first in the structures stage, before every rolled kind, as landmark records with
+/// <item><b>Landmarks.</b> <see cref="GivenLandmarkSource"/> names the templates a body carries at given seats (by default the
+/// <c>landmark</c> places of its type's place list, #3981 — GameServerPlaceLists.cs). They are stamped first in the structures stage, before every rolled kind, as landmark records with
 /// indices from <see cref="GivenLandmarkIndexBase"/> on (the place's position in the list), so they never meet the rolled
 /// landmark (index 0) or an admin's stamps (the next index below the base). A record replays whatever the source says now: a
 /// place that left the list keeps its landmark. A place added to a body that was played on is not stamped over a build.</item>
@@ -49,8 +49,9 @@ public sealed partial class GameServer
         public GivenSeat Seat { get; }
     }
 
-    /// <summary>The given landmark places of a body (by its location id), asked once per load in the structures stage; null or
-    /// an empty list = none. Nothing sets it yet — the body place lists of a later package will.</summary>
+    /// <summary>The given landmark places of a body (by its location id), asked once per load in the structures stage; an empty
+    /// list = none. Null (the default) = the landmark places of the body's place list (<see cref="PlaceListLandmarks"/>); a test
+    /// hands in its own.</summary>
     internal System.Func<string, IReadOnlyList<GivenLandmarkPlace>>? GivenLandmarkSource { get; set; }
 
     /// <summary>Whether a landmark record belongs to a given place (index from <see cref="GivenLandmarkIndexBase"/> on).</summary>
@@ -71,8 +72,8 @@ public sealed partial class GameServer
             }
         }
 
-        var places = GivenLandmarkSource?.Invoke(_world.LocationId);
-        for (int i = 0; places is not null && i < places.Count; i++)
+        var places = (GivenLandmarkSource ?? PlaceListLandmarks).Invoke(_world.LocationId);
+        for (int i = 0; i < places.Count; i++)
         {
             int index = GivenLandmarkIndexBase + i;
             if (records.Exists(r => r.Index == index))

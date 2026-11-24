@@ -233,11 +233,14 @@ generation 38+ the footprint registry, #3514, which also replaces the landmark's
     cell (`StampMissingFixedLandmarks`).
 - **Given landmarks** (#3980, `GameServerGivenPlaces.cs`). A body may carry landmarks at **given seats** — a template, the
   footprint's centre column and quarter turn, optionally the ground row (`GivenSeat`), handed in through
-  `GivenLandmarkSource` (later: the body place lists from data). No roll, no search, no `PlaceLandmarks` switch: they are
+  `GivenLandmarkSource` — by default the `landmark` places of the body type's place list (#3981, `data/places/<type>.json`:
+  template, longitude, latitude, turn; Earth's three pyramids of Giza; see [MAP_PLANETS.md](MAP_PLANETS.md) §7). No roll, no search, no `PlaceLandmarks` switch: they are
   stamped first in the structures stage (`StampGivenPlaces`), the ground under them graded to the site height (seat
   `given`, the landmark's grade), so every rolled structure keeps clear of them. Each is an ordinary landmark record at index
-  1000 + its list position (seed hashed from its key and the body), replayed on every load even when the list no longer
-  names it; the rolled landmark and the admin's stamps keep the indices below 1000. See
+  1000 + its position among the list's landmark places (seed hashed from its key and the body), replayed on every load even
+  when the list no longer names it; the rolled landmark and the admin's stamps keep the indices below 1000. A list may name
+  only `pinOnly` templates (checked at load; the place-only guard test also holds that every `earth_*` template is named by
+  a place). A map world runs this path on a save of any generation (`MapWorldRules.PipelineGeneration`). See
   [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4.
 - **Pinned.** One placement record (`landmark`, index 0): the template key, the seat, and `turns`, `rev`, `seed` in
   its layout field. A body that was visited before, a roll that said no and a failed seat all record a skip.
@@ -419,8 +422,9 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
   | `earth_gds_tower` | `earth_gds_tower.py` | 44 × 194 × 44 | G.D.S. red with purple bands and windows; lobby with `guard_post` markers, trader floor (four `vendor`s), ladder core to the roof deck |
 
   The G.D.S. tower's 14 `guard_post` markers are the G.D.S. city's guardian posts; a landmark staffs post markers like
-  any intact landmark (§5). The placement by Earth's location list and the guard test (every place-only template is
-  named by a place, and none of them is in a pool) belong to the C# side.
+  any intact landmark (§5). Earth's place list places them (`data/places/sol_earth.json`: the pyramids as
+  landmark places, the city landmarks as the cities' `landmarks` keys, stamped with the cities later; [MAP_PLANETS.md](MAP_PLANETS.md)
+  §7), and `PlaceListTests` guards it: every place-only template is named by a place, and none of them is in a pool.
 
 ## 8. Key files
 

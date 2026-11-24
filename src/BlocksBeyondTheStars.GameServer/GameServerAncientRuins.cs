@@ -6,7 +6,6 @@ using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Sounders;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -202,11 +201,11 @@ public sealed partial class GameServer
            && StructureKindAllowed(StructureTypeRules.Underground, planet, restricted);
 
     /// <summary>Whether the boot's structure stage stamps only what <paramref name="planet"/>'s whitelist names (generation 8,
-    /// Titas and Valuma; #3358: Soaniri on any save). The boot and the <c>/ressaw</c> prediction both read it here.</summary>
+    /// Titas and Valuma; on any save a type only a hand-made system places — #3358 Soaniri, #3981 Sol's bodies,
+    /// <see cref="IsHandMadeSystemType"/>). The boot and the <c>/ressaw</c> prediction both read it here.</summary>
     private bool StructuresRestricted(PlanetType planet)
         => planet.RestrictStructures
-           && (_generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration
-               || string.Equals(planet.Key, SoundersIds.PlanetType, System.StringComparison.Ordinal));
+           && (_generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration || IsHandMadeSystemType(planet));
 
     /// <summary>One slot: replay its record, or — on a world untouched at load — plan, seat and stamp it fresh. A world that
     /// already holds edits without a record gets a pinned skip: nothing is ever carved under a base after the fact.</summary>

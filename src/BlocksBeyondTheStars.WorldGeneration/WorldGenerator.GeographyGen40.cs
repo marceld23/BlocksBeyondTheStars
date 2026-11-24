@@ -38,8 +38,10 @@ public sealed partial class WorldGenerator
     /// <summary>The sites the current world mode levels (inspection, the layer export).</summary>
     public IReadOnlyList<SiteFlat> SiteFlats => _sites;
 
-    /// <summary>True on a world of the geography generation (#3555).</summary>
-    private bool GeographyWorld => _terrainGeneration >= WorldDescription.GeographyGeneration;
+    /// <summary>True on a world of the geography generation (#3555) — and on every map world, whatever the save's generation
+    /// (#3981, <see cref="MapWorldRules.PipelineGeneration"/>: its given places stand on graded ground).</summary>
+    private bool GeographyWorldFor(PlanetType planet)
+        => MapWorldRules.PipelineGeneration(_terrainGeneration, planet) >= WorldDescription.GeographyGeneration;
 
     /// <summary>
     /// The surface height (world Y of the top solid block) of a column — on a generation-40 world the natural height with
@@ -87,7 +89,7 @@ public sealed partial class WorldGenerator
     /// <summary>Whether the valley and site-grade stages apply to a query right now: a generation-40 world, not while the
     /// calibration samples, not inside a natural-only scope, never on a void world.</summary>
     private bool StagesApply(PlanetType planet)
-        => GeographyWorld && !_calibrating && t_naturalOnly == 0 && !planet.Void;
+        => GeographyWorldFor(planet) && !_calibrating && t_naturalOnly == 0 && !planet.Void;
 
     private int StagedHeight(PlanetType planet, int worldX, int worldZ, int natural)
     {
@@ -349,12 +351,12 @@ public sealed partial class WorldGenerator
     /// <summary>Blocks from a column to the nearest fresh water (a surface river or lake), at 16-block resolution;
     /// <see cref="RiverGeography.None"/> on a world without rivers or before generation 40.</summary>
     public int FreshWaterDistance(PlanetType planet, int worldX, int worldZ)
-        => GeographyWorld && RiverFieldFor(planet).Geography is { } g ? g.FreshWaterBlocks(worldX, worldZ) : RiverGeography.None;
+        => GeographyWorldFor(planet) && RiverFieldFor(planet).Geography is { } g ? g.FreshWaterBlocks(worldX, worldZ) : RiverGeography.None;
 
     /// <summary>Blocks from a column to the nearest sea, at 16-block resolution; <see cref="RiverGeography.None"/> on a world
     /// without routed rivers (its sea is not on the network's grid) or before generation 40.</summary>
     public int CoastDistance(PlanetType planet, int worldX, int worldZ)
-        => GeographyWorld && RiverFieldFor(planet).Geography is { } g ? g.CoastBlocks(worldX, worldZ) : RiverGeography.None;
+        => GeographyWorldFor(planet) && RiverFieldFor(planet).Geography is { } g ? g.CoastBlocks(worldX, worldZ) : RiverGeography.None;
 
     /// <summary>Where a height lies among the world's measured surface heights: 0 = the lowest, 1 = the highest (the
     /// calibration's whole-world sample).</summary>
@@ -400,18 +402,18 @@ public sealed partial class WorldGenerator
     /// passes the column's own surface (valleys and grades never move a biome border), any other height as given (a crown's
     /// top, a hall's floor, a pad's level).</summary>
     private int BiomeAltitude(PlanetType planet, int worldX, int worldZ, int y)
-        => GeographyWorld && y == SurfaceHeight(planet, worldX, worldZ) ? NaturalSurfaceHeight(planet, worldX, worldZ) : y;
+        => GeographyWorldFor(planet) && y == SurfaceHeight(planet, worldX, worldZ) ? NaturalSurfaceHeight(planet, worldX, worldZ) : y;
 
     /// <summary>The ground height the public biome queries read: the natural one on a generation-40 world (so asking another
     /// body's biome never builds its river field), the surface height before.</summary>
     private int BiomeQueryHeight(PlanetType planet, int worldX, int worldZ)
-        => GeographyWorld ? NaturalSurfaceHeight(planet, worldX, worldZ) : SurfaceHeight(planet, worldX, worldZ);
+        => GeographyWorldFor(planet) ? NaturalSurfaceHeight(planet, worldX, worldZ) : SurfaceHeight(planet, worldX, worldZ);
 
     /// <summary>The river valleys' strength for a planet type, in percent (#3559): the type's <c>valleyStrength</c> (default
     /// 1), half of it for lava rivers; 0 before generation 40.</summary>
     private int ValleyStrengthPercent(PlanetType planet, bool lava)
     {
-        if (!GeographyWorld)
+        if (!GeographyWorldFor(planet))
         {
             return 0;
         }

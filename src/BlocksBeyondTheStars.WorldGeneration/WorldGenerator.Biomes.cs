@@ -188,7 +188,7 @@ public sealed partial class WorldGenerator
     /// the last entry caps the peaks. Regions stay large so per-biome weather covers a meaningful area.</summary>
     private int BiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
     {
-        if (GeographyWorld && calib.Planet is { } planet)
+        if (calib.Planet is { } planet && GeographyWorldFor(planet))
         {
             surfaceY = BiomeAltitude(planet, worldX, worldZ, surfaceY); // #3556: valleys and grades never move a biome border
         }

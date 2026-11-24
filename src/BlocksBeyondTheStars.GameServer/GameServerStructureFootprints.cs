@@ -26,8 +26,8 @@ public sealed partial class GameServer
 {
     private StructureFootprints Footprints => _worlds.Active.Footprints;
 
-    /// <summary>Whether the active world keeps clear through the registry (terrain generation 38+).</summary>
-    private bool UsesFootprintRegistry => _generator.TerrainGeneration >= WorldDescription.StructurePipelineGeneration;
+    /// <summary>Whether the active world keeps clear through the registry (terrain generation 38+; every map world, #3981).</summary>
+    private bool UsesFootprintRegistry => PipelineGeneration(_generator.TerrainGeneration) >= WorldDescription.StructurePipelineGeneration;
 
     /// <summary>A kind's placement rules (the shipped file over the C# defaults).</summary>
     private StructureTypeDefinition StructureType(string kind) => _content.StructureTypes.Get(kind);

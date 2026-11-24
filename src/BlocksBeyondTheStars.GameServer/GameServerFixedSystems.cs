@@ -170,6 +170,14 @@ public sealed partial class GameServer
     private IEnumerable<FixedSystemDefinition> DataFixedSystems()
         => _content.FixedSystems.Where(def => !TryGetPackSystem(def.Id, out _, out _));
 
+    /// <summary>Whether <paramref name="planet"/> is a type only a hand-made system places — a body of a data system (Sol) or the
+    /// body of a story pack's system (the Sounders' Soaniri). No rolled galaxy carries such a type, and its system joins saves
+    /// of every generation as a newcomer, so the rules written for the type hold on every save, whatever generation the save
+    /// was created with (<see cref="StructuresRestricted"/>).</summary>
+    private bool IsHandMadeSystemType(Shared.Definitions.PlanetType planet)
+        => _content.FixedSystems.Any(def => def.Bodies.Any(b => string.Equals(b.PlanetType, planet.Key, StringComparison.Ordinal)))
+           || DeclaredPackSystems().Any(p => string.Equals(p.System.PlanetType, planet.Key, StringComparison.Ordinal));
+
     /// <summary>Whether the galaxy's growth has reached a data system's <c>afterGrowth</c> (a growing world only).</summary>
     private bool FixedSystemDueByGrowth(FixedSystemDefinition def)
         => def.Appear.AfterGrowth > 0 && _meta.Description.GalaxyGrowth && Math.Max(0, _meta.GalaxyGrownSystems) >= def.Appear.AfterGrowth;

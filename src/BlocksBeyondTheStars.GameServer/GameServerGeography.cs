@@ -23,8 +23,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>True on a world of the geography generation.</summary>
-    private bool GeographyWorld => _meta.Description.TerrainGeneration >= WorldDescription.GeographyGeneration;
+    /// <summary>True on a world of the geography generation — and on every map world (#3981, <see cref="PipelineGeneration"/>).</summary>
+    private bool GeographyWorld => PipelineGeneration(_meta.Description.TerrainGeneration) >= WorldDescription.GeographyGeneration;
 
     /// <summary>While true, a fresh stamp may reserve ground: set only for the boot's structures stage of a body that had no
     /// block edit at load (an admin placing a landmark in a live world never moves the ground under players).</summary>
