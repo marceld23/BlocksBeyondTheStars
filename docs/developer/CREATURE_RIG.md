@@ -441,6 +441,53 @@ a tamed hound wags, and the ears prick while it watches you and pin back while i
 four legs walk, trot and — at a charge — bound (`CreatureGait.Select`). `CreatureView` lunges and snaps a hound's jaw
 exactly when the server's bite lands (the fresh hit report from it), never on the random attack cadence.
 
+## The animals of Earth (#3973)
+
+The first seven Earth animals are fixed species in `data/creatures.json` (`dog`, `cat`, `rabbit`, `cow`, `sheep`, `monkey`,
+`elephant`), built from the existing body plans and traits — no new plan:
+
+| Animal | Body | What makes it read as that animal |
+| --- | --- | --- |
+| Dog | `Hound`, size 0.8 | fur coat (the explicit coat's hide wins over the hound's scales), `Floppy` ears, a muzzle with teeth, the hound's long tail |
+| Cat | `Hound`, size 0.45 | `Pointed` ears, a short muzzle (`snoutLength` 0.25), claws, the long tail |
+| Rabbit | `Standard`, `Hopper`, size 0.35 | `Tall` ears (the ear trait works on every standard head) |
+| Cow | `Standard`, `Grazer`, size 1.5 | two horns, the `Patches` coats |
+| Sheep | `Standard`, `Grazer` | the `wool` hide, which `CreatureBuilder.Coat3d.cs` already draws as a shaggy fleece |
+| Monkey | `Biped` with two arms | the biped's tail (`hasTail`) |
+| Elephant | `Titan`, size 3.5 | `hasTrunk` (now on the record, so the titan builder draws the trunk), two horns worn as tusks, the `wrinkled` hide |
+
+The one new builder trait is `CreatureEarStyle.Floppy` (appended; `CreatureBuilder.Hound.cs` → `AddFloppyEars`): two flat flaps
+on pivots at the top edges of the skull, flipped to hang down beside the head and splayed a little outward, registered as the
+rig's ears so `PoseEars` sways them from that rest. A dog and a cat wear the hound body without being the Schuppenhund: the
+Schuppenhund's rules (aggro range, charge, one about at a time, VEGA's warning, the scan's bite line) follow
+`HoundRules.IsScaleHound` — the hound body that hunts — while `CreatureAnimator.Hound.cs`'s body language (the tail carried
+up, the wag when tamed) suits them as it is.
+
+**Coats.** Each record lists 4–7 weighted coats in real-life colours (`CoatVariant`, see "One look resolver" above): the
+dog black, brown, golden, white, black-and-tan (`Socks` in tan), dalmatian, brindle; the cat black, grey and ginger tabby,
+white, black-and-white (`Pinto`), tortoiseshell (`Patches`); the rabbit agouti (`Speckles`), grey, white, black-and-white; the
+cow Holstein and brown-and-white (`Patches`), brown, black; the sheep white, cream, black, brown; the monkey brown, grey,
+golden, black-and-white; the elephant grey, dark grey, dusty brown-grey, red-dusted (after a dust bath in red earth). Every animal picks one by its `AnimalSeed`, a
+companion keeps the seed, so a tamed dog keeps its coat.
+
+**Voices (#3973).** A species may name its own recorded calls (`voices` on the record → `CreatureSpecies.Voices`, a
+`SpeciesVoices` table by `VoiceMood`; on the wire `NetCreature.Voices` / `NetFaunaSpecies.Voices`, encoded
+`calm|alarm|friendly`). Each entry is a CALL (`animal_dog_bark`); its two takes (`_a`, `_b`, `AnimalCalls.Takes`) are the
+clips in `client/Assets/Resources/audio/`, so every call alternates. The mood rule (`CreatureView.Audio.cs`):
+
+| Mood | When | Dog | Cat |
+| --- | --- | --- | --- |
+| `Calm` | the idle call, a herd member's answer, the distant call | bark | meow |
+| `Alarm` | startled (and the herd's echo), hurt, turning on a player, a companion's warning | growl | hiss |
+| `Friendly` | begging, fed, tamed, content beside its owner, asleep (quietly) | whine | purr |
+
+An empty `alarm` or `friendly` list plays the calm calls — except asleep, where a species without a friendly call stays
+quiet (a cow does not moo in its sleep). `CreatureVoices.Derive` turns the table into a voice that is never processed (no op,
+no tail, no layer, one call per phrase, a flat contour) and keeps its natural pitch (`KeepsNaturalPitch(voice, plan)`, as for
+the Soundi); the calling rate is the body's. A client without the takes keeps the body plan's generated voice.
+`AnimalCalls.All` lists the 22 recorded calls; content load rejects any other name, and `EarthAnimalsTests` keeps the list
+and the bundled files in step.
+
 ## The bodies of Soaniri (#3355, #3359, #3366)
 
 The Sounders story pack (epic #3368) brings five body plans, appended after `Reindeer` (`Sounder` 15, `Soundi` 16, `Soundrak`

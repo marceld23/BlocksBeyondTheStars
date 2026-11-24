@@ -188,6 +188,15 @@ eaten inside that loop. VEGA explains it once (`vega.hint.favourite_food`); the 
 After a favourite squabble the herd comes back after 5 s instead of the 60-s cooldown. Toxic food never counts. Mini-Michi-Paul
 (Paul and Ben's biped) loves bananas: two bananas tame one. Tests: `BipedServerTests`.
 
+**Shy beggars (#3973).** `HerdRules.BegsForFood` accepts a skittish species as well as a passive one (the flag is still
+required, and the generator sets it on passive species only — a skittish beggar is always an authored record): it comes for
+the food a player holds, circles and eats like a herd animal, and flees again once the food is stowed. The animals of Earth
+use it: a dog loves raw meat (`creature_meat`), a cat milk, a monkey bananas — two meals from one player tame one. The dog
+also `defendsItself` (`CreatureSpecies.DefendsItself`): it flees like a skittish animal, but a hit provokes it like a
+territorial one (`CreatureBehaviour.RetaliatesWhenAttacked(species)` / `EffectiveTemperament(species, provoked)`), and it
+bites in chunks while provoked. The scan, the taming panel and the companion list name a fixed species in the player's
+language (`GameServerCreatureNames.cs`); a tamed animal keeps its coat through its `AnimalSeed`.
+
 ## The Feed key with a lamp: Soundelings carry lights (#3366, 2026-11-07)
 
 Not a tame: a Soundeling (Soaniri's light-loving fluff ball) is never anybody's pet, but the Feed action reaches it. With a lamp

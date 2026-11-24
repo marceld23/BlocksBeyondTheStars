@@ -79,6 +79,7 @@ public enum CreatureEarStyle
     Pointed, // short upright ears — Jafar's drawing
     Tall,    // long upright ears
     Swept,   // ears laid back along the skull
+    Floppy,  // #3973: ears that hang down at the sides of the head (a dog's)
 }
 
 /// <summary>
@@ -366,6 +367,21 @@ public sealed class CreatureSpecies
     /// every rolled species and every record so far — those keep the classic look.</summary>
     public List<CoatVariant> Coats { get; set; } = new();
 
+    // --- Fixed species of a home world (#3973, the animals of Earth). Empty/false/null on every rolled species and every older
+    // record, so no older world, companion snapshot or wire message changes. ---
+
+    /// <summary>#3973: the climate zones (flora theme names: "temperate", "savanna", …) this species is native to, beside its
+    /// <see cref="BiomeSurfaces"/> — a biome of one of these themes counts as its own ground (<see cref="CreatureBiomes"/>).</summary>
+    public string[] FloraThemes { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3973: the species' own recorded calls by mood (<see cref="SpeciesVoices"/>) instead of its body plan's
+    /// generated voice; null = the generated voice.</summary>
+    public SpeciesVoices? Voices { get; set; }
+
+    /// <summary>#3973: a shy animal that fights back — it flees the player like a skittish one, but a hit provokes it like a
+    /// territorial one (a dog). See <see cref="CreatureBehaviour.RetaliatesWhenAttacked(CreatureSpecies)"/>.</summary>
+    public bool DefendsItself { get; set; }
+
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;
 
@@ -391,6 +407,8 @@ public sealed class CreatureSpecies
         var copy = (CreatureSpecies)MemberwiseClone();
         copy.BiomeSurfaces = (string[])BiomeSurfaces.Clone();
         copy.Coats = Coats?.ConvertAll(v => v.Clone()) ?? new List<CoatVariant>(); // #3972
+        copy.FloraThemes = (string[])(FloraThemes ?? System.Array.Empty<string>()).Clone(); // #3973
+        copy.Voices = Voices?.Clone();
         copy.HasFins = CreatureMotion.HasFins(this);
         copy.Heads = System.Math.Max(1, Heads);
         copy.WingPairs = System.Math.Max(1, WingPairs);

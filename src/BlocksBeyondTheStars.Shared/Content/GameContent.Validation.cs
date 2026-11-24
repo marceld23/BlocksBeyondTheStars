@@ -622,7 +622,8 @@ public sealed partial class GameContent
                 }
             }
 
-            // #1763: every authored key must exist, and an "authored" roster must name at least one.
+            // #1763: every authored key must exist, and an "authored" roster must hold at least one (#3973: named by the type or
+            // living there by its own homes).
             foreach (var key in planet.AuthoredCreatures)
             {
                 if (!_authoredCreatures.ContainsKey(key))
@@ -631,7 +632,7 @@ public sealed partial class GameContent
                 }
             }
 
-            if (string.Equals(planet.CreatureAbundance, "authored", StringComparison.OrdinalIgnoreCase) && planet.AuthoredCreatures.Count == 0)
+            if (string.Equals(planet.CreatureAbundance, "authored", StringComparison.OrdinalIgnoreCase) && AuthoredCreaturesFor(planet).Count == 0)
             {
                 problems.Add($"Planet '{planet.Key}' has creatureAbundance \"authored\" but names no authored creature.");
             }
@@ -970,6 +971,7 @@ public sealed partial class GameContent
         ValidateEnemies(problems); // #2971: data/enemies.json
         ValidateBiomePalettes(problems); // #3289: data/blocks.json biomePalette / biomeLooks
         ValidateCreatureCoats(problems); // #3972: data/creatures.json coats
+        ValidateAuthoredCreatureSpecies(problems); // #3973: names, climate zones, voices, favourite foods
 
         if (problems.Count > 0)
         {

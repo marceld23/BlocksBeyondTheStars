@@ -18,6 +18,7 @@ internal static class AuthoredSpeciesMapping
     internal static readonly IReadOnlyCollection<string> RecordOnly = new[]
     {
         nameof(AuthoredCreature.MinGeneration), // CreatureGenerator.GenerateRoster / GenerateAuthoredGiant: when it joins
+        nameof(AuthoredCreature.Homes),         // GameContent.AuthoredCreaturesFor: which types' rosters it joins (#3973)
     };
 
     /// <summary>Builds the roster entry of an authored record (#1763): the designed traits verbatim, the name's
@@ -28,7 +29,8 @@ internal static class AuthoredSpeciesMapping
         string coined = NameGenerator.Creature(rng);
         int space = coined.IndexOf(' ');
         string second = space > 0 ? coined.Substring(0, space) : coined;
-        string name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
+        string name = !string.IsNullOrEmpty(a.NameKey) ? a.EnglishName // #3973: a localized species name; Name is its English fallback
+            : string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
             : a.FixedName ? a.NamePrefix // #2084: the kids' name, exactly as they wrote it
             : a.NamePrefix + " " + second;
 
@@ -50,21 +52,11 @@ internal static class AuthoredSpeciesMapping
         return species;
     }
 
-    /// <summary>The biome affinity by surface block: the first of the type's biomes whose surface the record names, so a
-    /// rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive, which the
-    /// spawner checks against the ground under the animal's feet.</summary>
+    /// <summary>The biome affinity by surface block or climate zone (#3973): the first of the type's biomes the record names, so
+    /// a rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive, which the
+    /// spawner checks against the ground under the animal's feet (<see cref="CreatureBiomes.OnOwnGround"/>).</summary>
     private static int AffinityOf(AuthoredCreature a, PlanetType planet)
-    {
-        for (int i = 0; i < planet.Biomes.Count; i++)
-        {
-            if (a.BiomeSurfaces.Contains(planet.Biomes[i].SurfaceBlock))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
+        => CreatureBiomes.AffinityIn(a.BiomeSurfaces, a.FloraThemes, planet);
 
     /// <summary>Identity, stats, body and look.</summary>
     private static CreatureSpecies Body(AuthoredCreature a, string name)
@@ -73,7 +65,7 @@ internal static class AuthoredSpeciesMapping
         return new CreatureSpecies
         {
             Id = "au_" + a.Key,
-            NameKey = "creature.generic.name",
+            NameKey = string.IsNullOrEmpty(a.NameKey) ? CreatureNames.GenericKey : a.NameKey, // #3973
             Name = name,
             Habitat = a.Habitat,
             Activity = a.Activity,
@@ -102,6 +94,7 @@ internal static class AuthoredSpeciesMapping
             WingPairs = System.Math.Clamp(a.WingPairs, 1, 3),
             FinPairs = System.Math.Clamp(a.FinPairs, 1, 3),
             Coats = a.Coats?.ConvertAll(v => v.Clone()) ?? new List<CoatVariant>(), // #3972: the fixed coats each animal picks from
+            Voices = a.Voices is { IsEmpty: false } ? a.Voices.Clone() : null,    // #3973: its own recorded calls
         };
     }
 
@@ -114,6 +107,7 @@ internal static class AuthoredSpeciesMapping
         species.DropCount = a.DropCount;
         species.DropKind = a.DropKind;
         species.BiomeSurfaces = a.BiomeSurfaces.ToArray();
+        species.FloraThemes = a.FloraThemes.ToArray(); // #3973: its climate zones, beside its surfaces
         species.BiomeExclusive = a.BiomeExclusive;
         species.AngeredByMining = a.AngeredByMining;
         species.GiftsWhenCalm = a.GiftsWhenCalm;
@@ -123,6 +117,7 @@ internal static class AuthoredSpeciesMapping
         species.SwallowsCreatures = a.SwallowsCreatures; // #2076: an authored worm says whether it hunts the animals
         species.DuelTame = a.DuelTame;         // #3365: the Soundi is tamed in a duel …
         species.PackDefender = a.PackDefender; // … and its pack defends it outside one
+        species.DefendsItself = a.DefendsItself; // #3973: a shy dog bites back
     }
 
     /// <summary>The traits of the bodies that need them: the biped's arms and head, the hound's head and feet, the giants.</summary>
@@ -141,6 +136,7 @@ internal static class AuthoredSpeciesMapping
         species.BackFeature = a.BackFeature;
         species.LegRatio = a.LegRatio;
         species.NeckLength = a.NeckLength;
+        species.HasTrunk = a.HasTrunk; // #3973: the elephant's trunk (the titan builder draws it)
         species.Mandibles = a.Mandibles;
         species.WormLength = a.WormLength;
         species.WormGirth = a.WormGirth;

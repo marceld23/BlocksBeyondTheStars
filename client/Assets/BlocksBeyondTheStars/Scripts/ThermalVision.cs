@@ -235,8 +235,8 @@ namespace BlocksBeyondTheStars.Client
 
                 float s = Mathf.Max(0.9f, c.Size * 1.6f);
                 string name = !string.IsNullOrEmpty(c.CustomName) ? c.CustomName
-                    : !string.IsNullOrEmpty(c.Name) ? c.Name
-                    : loc?.Get(c.NameKey) ?? string.Empty;
+                    : loc != null ? BlocksBeyondTheStars.Shared.Definitions.CreatureNames.Display(c.Name, c.NameKey, loc.Get, loc.Has) // #3973
+                    : c.Name ?? string.Empty;
                 Add(new Vector3(c.X, c.Y, c.Z), new Vector2(s, s), tint, name, living: true);
             }
 

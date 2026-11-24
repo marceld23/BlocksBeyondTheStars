@@ -79,6 +79,7 @@ public sealed partial class GameServer
             // A guest belongs to no biome of this world and to no herd: it is one animal beside its tank.
             sp.BiomeAffinity = -1;
             sp.BiomeSurfaces = Array.Empty<string>();
+            sp.FloraThemes = Array.Empty<string>(); // #3973
             sp.BiomeExclusive = false;
             sp.SocialGroupSize = 1;
             // #2868: a guest keeps the look of the world it was sampled on; an entry from before the stamp gets its origin's.
@@ -579,6 +580,10 @@ public sealed partial class GameServer
         child.FavouriteFood = string.Empty;
         child.FeedsToTame = 0;
         child.SwallowsCreatures = false;
+        child.FloraThemes = Array.Empty<string>(); // #3973: nor a parent's climate zones, its bite-back, its recorded calls
+        child.DefendsItself = false;
+        child.Voices = null;                       // (its voice comes from its own seed) …
+        child.Coats = new List<CoatVariant>();     // … and its mixed colours are its own, not a parent's fixed coats
         child.HasFins = CreatureMotion.FinsFor(child);
         return child;
     }

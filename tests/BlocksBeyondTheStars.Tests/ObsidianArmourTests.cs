@@ -122,7 +122,7 @@ public sealed class ObsidianArmourTests
         var hunter = w.Server.Creatures.First(c => c.Id == id);
         var sp = w.Server.SpeciesRoster.First(s => s.Id == hunter.SpeciesId);
         float range = 8f + Math.Max(0f, sp.Size - 2f); // the creature tick's aggro rule (#638), a hound's at least its own
-        range = HoundRules.IsHound(sp) ? Math.Max(range, HoundRules.AggroRange) : range;
+        range = HoundRules.IsScaleHound(sp) ? Math.Max(range, HoundRules.AggroRange) : range;
         double far = Math.Pow(range * SvGameServer.QuietStepsFactor + 0.5, 2);
         double near = Math.Pow(range * SvGameServer.QuietStepsFactor - 0.5, 2);
 
