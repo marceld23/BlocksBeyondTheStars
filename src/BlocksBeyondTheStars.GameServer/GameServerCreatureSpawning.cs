@@ -42,14 +42,16 @@ public sealed partial class GameServer
     /// probe radius. A column holding fewer than <paramref name="minDepth"/> water cells is passed over (Lyxette report
     /// 2026-11-18: water life asks for <see cref="CreatureBehaviour.MinSwimDepth"/> — a fish seated in one-cell water was
     /// set on the floor beside it by the swimmer's height probe, which calls one cell a puddle), and one holding more than
-    /// <paramref name="maxDepth"/> (#3975: a dolphin keeps to the coastal shallows).</summary>
+    /// <paramref name="maxDepth"/> (#3975: a dolphin keeps to the coastal shallows). <paramref name="seaOnly"/> (#4017) passes
+    /// over every column the world's sea does not cover (<see cref="WorldGenerator.IsSeaColumn"/>) — a pond, a lake, a river.</summary>
     private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY, int minDepth = 1,
-        int maxDepth = int.MaxValue)
+        int maxDepth = int.MaxValue, bool seaOnly = false)
     {
         foreach (var (dx, dz) in WaterProbe)
         {
             if (TryGetFluidColumn(x + dx, z + dz, _creatureWaterId, out waterTopY, out seabedY)
-                && waterTopY - seabedY >= minDepth && waterTopY - seabedY <= maxDepth)
+                && waterTopY - seabedY >= minDepth && waterTopY - seabedY <= maxDepth
+                && (!seaOnly || _generator.IsSeaColumn(_world.Planet, x + dx, z + dz)))
             {
                 wx = x + dx;
                 wz = z + dz;
@@ -66,10 +68,10 @@ public sealed partial class GameServer
 
     /// <summary>The nearest water column a species may be seated in at spawn (<see cref="WaterDepthBand"/>): water life needs
     /// room to swim (Lyxette report 2026-11-18) and keeps to its own depth band (#3975), an amphibian wades at the surface cell
-    /// of any water.</summary>
+    /// of any water; a sea animal (#4017, <see cref="CreatureSpecies.SeaOnly"/>) only in the world's sea.</summary>
     private bool TryFindSpawnWaterNear(CreatureSpecies sp, int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY)
         => TryFindWaterColumnNear(x, z, out wx, out wz, out waterTopY, out seabedY,
-            WaterDepthBand.MinSpawnDepth(sp), WaterDepthBand.MaxSpawnDepth(sp));
+            WaterDepthBand.MinSpawnDepth(sp), WaterDepthBand.MaxSpawnDepth(sp), sp.SeaOnly);
 
     /// <summary>The molten sibling of <see cref="TryFindWaterColumnNear"/> (#470/F4): the nearest lava
     /// column — a volcano crater pool, the global lava sea, or a lava flow — around a spot.</summary>

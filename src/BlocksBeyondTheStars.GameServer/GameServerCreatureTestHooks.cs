@@ -60,6 +60,11 @@ public sealed partial class GameServer
     public (int X, int Z, int Top, int Bed)? WaterColumnNearForTest(int x, int z)
         => TryFindWaterColumnNear(x, z, out int wx, out int wz, out int top, out int bed) ? (wx, wz, top, bed) : null;
 
+    /// <summary>Test-only (#4017): the column the spawner would seat <paramref name="speciesId"/> in near a spot — its depth band
+    /// and its sea rule applied — or null.</summary>
+    public (int X, int Z, int Top, int Bed)? SpawnWaterNearForTest(string speciesId, int x, int z)
+        => TryFindSpawnWaterNear(_speciesById[speciesId], x, z, out int wx, out int wz, out int top, out int bed) ? (wx, wz, top, bed) : null;
+
     /// <summary>Test-only: places the herd of a species around a spot exactly as the spawner does after the
     /// leader stands (#1718), against a cap of the hard cap.</summary>
     public void SpawnGroupAroundForTest(string speciesId, int x, int z)

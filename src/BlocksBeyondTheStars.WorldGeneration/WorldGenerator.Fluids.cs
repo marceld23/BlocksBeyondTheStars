@@ -514,6 +514,18 @@ public sealed partial class WorldGenerator
         return true;
     }
 
+    /// <summary>#4017: true if the world's WATER sea covers this surface column — its ground lies below the sea level, which is
+    /// how the generator tells the sea from the water above it: an upland pond, a lake or a river always lies on ground above
+    /// the sea level (the sea owns every column at or below it). A map world's sea is its map's ocean (elevation below 0 m).
+    /// Frozen columns still count (the sea is under the ice). False on a dry or lava-sea world.</summary>
+    public bool IsSeaColumn(PlanetType planet, int worldX, int worldZ)
+    {
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        return seaLevel != int.MinValue && seaFluid == waterId && !waterId.IsAir
+               && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel;
+    }
+
     /// <summary>True if this surface column is under a LAVA sea — or inside a volcano's molten summit
     /// crater (#477) — so a ship landing avoids it too (B54), the same way it avoids water.</summary>
     public bool IsSurfaceLava(PlanetType planet, int worldX, int worldZ)

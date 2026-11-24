@@ -13,7 +13,8 @@ using BlocksBeyondTheStars.WorldGeneration;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// The lively places, the household pets (docs/developer/LIVELY_PLACES.md): up to two households of a settlement keep a
+/// The lively places, the household pets (docs/developer/LIVELY_PLACES.md): up to two households of a settlement (six of a
+/// metropolis, #4017) keep a
 /// small peaceful animal of the world (from generation 49 also a dog or a cat, #3976 — <see cref="PersonPetSpecies"/>) that
 /// walks with its person — on the errand round, to the plaza, home again. It is the animal tamer's pet
 /// (<see cref="SyncTamerPets"/>) for people without that profession: owned by the NPC
@@ -27,6 +28,14 @@ public sealed partial class GameServer
 {
     /// <summary>How many households of one settlement keep a pet.</summary>
     internal const int HouseholdPetsPerPlace = 2;
+
+    /// <summary>#4017: how many households of a metropolis keep one — a few more for its eighty residents, still a handful, so
+    /// a walk through the streets meets a dog or a cat now and then. The first two keepers are the ones a place of any size
+    /// picks, so no village and no older keeper changes.</summary>
+    internal const int MetropolisPetsPerPlace = 6;
+
+    /// <summary>How many households of a settlement of <paramref name="tier"/> keep a pet.</summary>
+    internal static int HouseholdPetsFor(string tier) => tier == CityGenerator.Tier ? MetropolisPetsPerPlace : HouseholdPetsPerPlace;
 
     /// <summary>A pet appears when a player on foot comes this close to its person …</summary>
     private const float HouseholdPetAppear = 72f;
@@ -112,13 +121,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>Picks the pet keepers among a settlement's people without a post (not the night watch, who sleeps by day):
-    /// the ones whose person key hashes lowest — stable for a world, and no draw from any shared generator.</summary>
-    private static void AssignHouseholdPets(List<ServerNpc> plainResidents)
+    /// the ones whose person key hashes lowest — stable for a world, and no draw from any shared generator. How many follows
+    /// the settlement's <paramref name="tier"/> (<see cref="HouseholdPetsFor"/>).</summary>
+    private static void AssignHouseholdPets(List<ServerNpc> plainResidents, string tier)
     {
         var keepers = plainResidents
             .Where(n => n.Job.Length == 0 && n.PersonKey.Length > 0 && !n.IsRobot)
             .OrderBy(n => (uint)WorldGenerator.StableHash("house-pet:" + n.PersonKey))
-            .Take(HouseholdPetsPerPlace);
+            .Take(HouseholdPetsFor(tier));
         foreach (var npc in keepers)
         {
             npc.HasPet = true;

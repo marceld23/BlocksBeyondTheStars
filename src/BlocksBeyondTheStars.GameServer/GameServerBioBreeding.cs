@@ -586,6 +586,7 @@ public sealed partial class GameServer
         child.Coats = new List<CoatVariant>();     // … and its mixed colours are its own, not a parent's fixed coats
         child.MinWaterDepth = 0;                   // #3975: nor a parent's water band (it lives beside its tank)
         child.MaxWaterDepth = 0;
+        child.SeaOnly = false;                     // #4017: nor a parent's sea
         child.HasFins = CreatureMotion.FinsFor(child);
         return child;
     }

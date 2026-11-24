@@ -58,17 +58,27 @@ public sealed partial class GameContent
             }
 
             problems.AddRange(AnimalCalls.Problems(ctx, record.Voices));
-            if (record.MaxWaterDepth > 0 && record.MaxWaterDepth < record.MinWaterDepth)
-            {
-                problems.Add($"{ctx} water band is empty (maxWaterDepth {record.MaxWaterDepth} < minWaterDepth {record.MinWaterDepth})."); // #3975
-            }
-
+            ValidateWaterLife(record, ctx, problems);
             if (!string.IsNullOrEmpty(record.FavouriteFood) && !_items.ContainsKey(record.FavouriteFood))
             {
                 problems.Add($"{ctx} loves unknown item '{record.FavouriteFood}'.");
             }
 
             ValidatePeopleAnimal(record, ctx, problems);
+        }
+    }
+
+    /// <summary>#3975: a water band is not empty; #4017: only a water or amphibian species keeps to the sea.</summary>
+    private static void ValidateWaterLife(AuthoredCreature record, string ctx, List<string> problems)
+    {
+        if (record.MaxWaterDepth > 0 && record.MaxWaterDepth < record.MinWaterDepth)
+        {
+            problems.Add($"{ctx} water band is empty (maxWaterDepth {record.MaxWaterDepth} < minWaterDepth {record.MinWaterDepth}).");
+        }
+
+        if (record.SeaOnly && record.Habitat is not (CreatureHabitat.Water or CreatureHabitat.Amphibian))
+        {
+            problems.Add($"{ctx} keeps to the sea but lives no water life (habitat {record.Habitat}).");
         }
     }
 
