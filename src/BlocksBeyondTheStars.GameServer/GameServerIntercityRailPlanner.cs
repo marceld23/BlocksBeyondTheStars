@@ -575,12 +575,18 @@ public sealed partial class GameServer
         return BuildStation(s.Name, heading, new Vector3i(ox, exit?.FloorY ?? s.GroundY, oz), "slope", structure);
     }
 
-    /// <summary>A station from its pinned parts (heading, origin, seat): the structure is regenerated, the markers placed.</summary>
-    private IntercityStation BuildStation(string settlementName, int heading, Vector3i origin, string seat, SettlementStructure? structure = null)
+    /// <summary>A station from its pinned parts (heading, origin, seat, the hall's shape): the structure is regenerated, the
+    /// markers placed.</summary>
+    private IntercityStation BuildStation(string settlementName, int heading, Vector3i origin, string seat, SettlementStructure? structure = null,
+        IntercityHallShape shape = default)
     {
         int circ = _world.Circumference;
-        structure ??= RailStationGenerator.Generate(heading, _content);
-        var st = new IntercityStation { SettlementName = settlementName, Heading = heading, Origin = origin, Seat = seat, Structure = structure };
+        structure ??= RailStationGenerator.Generate(heading, _content, shape.Platforms, shape.Through);
+        var st = new IntercityStation
+        {
+            SettlementName = settlementName, Heading = heading, Origin = origin, Seat = seat, Structure = structure,
+            Platforms = shape.Platforms, Through = shape.Through,
+        };
         foreach (var m in structure.Markers)
         {
             var cell = WorldConstants.CanonicalBlock(new Vector3i(origin.X + m.LocalPos.X, origin.Y + m.LocalPos.Y, origin.Z + m.LocalPos.Z), circ);

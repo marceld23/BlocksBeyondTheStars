@@ -862,11 +862,15 @@ public sealed partial class GameServer
                     // sounder_world type only, right after the tablets and before the monuments (they reserve around them).
                     BootDetail("sounder world", StampSounderWorld);
                     BootDetail("civilizations", StampCivilizations); // #3639 (generation 43): a lost civilization on its home body — before the settlements, which keep clear of it
-                    if (_config.PlaceSettlements && Stamps(StructureTypeRules.Settlement))
+                    bool settles = _config.PlaceSettlements && Stamps(StructureTypeRules.Settlement);
+                    if (settles)
                     {
                         BootDetail("settlements", StampSettlement);
-                        BootDetail("intercity rail", StampIntercityRail); // #2125 (generation 19): right after the towns, before anything else reserves ground
                     }
+
+                    // #2125 (generation 19): right after the towns, before anything else reserves ground — the rolled line only
+                    // where the towns were stamped; #3985: a place list's lines on its cities' records whatever the options say.
+                    BootDetail("intercity rail", () => StampIntercityRail(rolled: settles));
 
                     if (_config.PlaceRuins && Stamps(StructureTypeRules.Ruin))
                     {

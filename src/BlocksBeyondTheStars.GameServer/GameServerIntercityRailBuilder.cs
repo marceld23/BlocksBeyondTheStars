@@ -28,9 +28,15 @@ public sealed partial class GameServer
     private void BuildIntercityLines(IReadOnlyList<IntercityPlan> lines, PlanetType planet, Stopwatch sw)
     {
         ActivateIntercity(lines);
-        var surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
+        var surface = IntercitySurface(planet);
         foreach (var line in lines)
         {
+            if (line.Listed)
+            {
+                LogListedRailLine(line, sw); // #3985: stamped section by section as players come near
+                continue;
+            }
+
             int carved = 0, trees = 0;
             string feature = IntercityFeatureOf(line.LineIndex);
             if (!FeatureStamped(feature))
@@ -46,6 +52,9 @@ public sealed partial class GameServer
                       $"in {sw.ElapsedMilliseconds} ms.");
         }
     }
+
+    /// <summary>The block the stations' foundations fall back to (the first biome's surface).</summary>
+    private static string IntercitySurface(PlanetType planet) => planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
 
     // =====================================================================================================
     // Pinning and replaying
@@ -63,16 +72,18 @@ public sealed partial class GameServer
         {
             var st = plan.Stops[i];
             RecordPlacement(IntercityStationKind, IntercityStationRecordIndex(plan.LineIndex, i), st.Origin, st.Origin.Y, onIsland: false, st.Seat,
-                st.SettlementName, template: "heading=" + st.Heading.ToString(CultureInfo.InvariantCulture));
+                st.SettlementName, template: st.Shape.Template(st.Heading));
         }
     }
 
-    /// <summary>Every placed line record of the body after line 0 (lines a given route pinned), replayed in index order.</summary>
+    /// <summary>Every placed line record of the body after line 0 (lines a given route pinned) below the listed lines' band
+    /// (<see cref="ListedRailLineIndexBase"/>, replayed with their places), in index order.</summary>
     private List<IntercityPlan> ReplayFurtherIntercityLines()
     {
         var lines = new List<IntercityPlan>();
         foreach (var rec in _meta.Placements
-                     .Where(r => r.LocationId == _world.LocationId && r.Kind == IntercityLineKind && r.Index > 0 && r.Placed)
+                     .Where(r => r.LocationId == _world.LocationId && r.Kind == IntercityLineKind && r.Index > 0
+                                 && r.Index < ListedRailLineIndexBase && r.Placed)
                      .OrderBy(r => r.Index))
         {
             if (ReplayIntercityLine(rec) is { } plan)
@@ -101,14 +112,12 @@ public sealed partial class GameServer
                 break; // the line's last stop was the one before
             }
 
-            if (rec is not { Placed: true } || !rec.Template.StartsWith("heading=", StringComparison.Ordinal)
-                || !int.TryParse(rec.Template.Substring("heading=".Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int heading)
-                || heading is < 0 or > 3)
+            if (rec is not { Placed: true } || !IntercityHallShape.TryParse(rec.Template, out int heading, out var shape))
             {
                 return null;
             }
 
-            plan.Stops.Add(BuildStation(rec.Name, heading, new Vector3i(rec.X, rec.GroundY, rec.Z), rec.Seat));
+            plan.Stops.Add(BuildStation(rec.Name, heading, new Vector3i(rec.X, rec.GroundY, rec.Z), rec.Seat, shape: shape));
         }
 
         foreach (string s in line.Composition ?? new List<string>())
@@ -148,9 +157,13 @@ public sealed partial class GameServer
         ic.Clear();
         foreach (var plan in lines)
         {
-            var state = new IntercityLineState { Index = plan.LineIndex };
+            var state = new IntercityLineState { Index = plan.LineIndex, Plan = plan };
             state.Stations.AddRange(plan.Stops);
             state.Pylons.AddRange(plan.Pylons);
+            if (plan.Listed)
+            {
+                state.Sections.AddRange(IntercitySections(plan));
+            }
             ic.Lines.Add(state);
             ic.Stations.AddRange(plan.Stops);
             foreach (var p in plan.Pylons)
@@ -217,10 +230,23 @@ public sealed partial class GameServer
     /// <summary>Stamps a line's stations, its pylon columns and its corridor. Returns the corridor cells and tree cells
     /// cleared. Must run inside a repo transaction.</summary>
     private (int Carved, int Trees) StampIntercityVoxels(IntercityPlan plan, string surface)
+        => StampIntercityVoxels(plan, surface, 0, plan.Pylons.Count - 1);
+
+    /// <summary>Stamps the part of a line from pylon <paramref name="first"/> to pylon <paramref name="last"/> (#3985: one
+    /// section): the stations whose hall span lies in it, its pylon columns and the corridor of its spans. Must run inside a
+    /// repo transaction.</summary>
+    private (int Carved, int Trees) StampIntercityVoxels(IntercityPlan plan, string surface, int first, int last)
     {
         var planet = _world.Planet;
         foreach (var st in plan.Stops)
         {
+            int at = plan.Pylons.IndexOf(st.EndPylon), other = plan.Pylons.IndexOf(st.ExitPylon);
+            int span = Math.Min(at, other);
+            if (span < first || span >= Math.Max(first + 1, last))
+            {
+                continue; // stamped with the section that holds the span inside its hall
+            }
+
             StampSettlementBlocks(new PlacedSettlement
             {
                 Structure = st.Structure,
@@ -241,7 +267,7 @@ public sealed partial class GameServer
             return (0, 0);
         }
 
-        for (int j = 0; j < plan.Pylons.Count; j++)
+        for (int j = first; j <= last; j++)
         {
             if (plan.IsStationPylon(j))
             {
@@ -256,18 +282,22 @@ public sealed partial class GameServer
             }
         }
 
-        return StampIntercityCorridor(plan);
+        return StampIntercityCorridor(plan, first, last);
     }
 
-    /// <summary>Clears a line's corridor (every span, the halls' own included): anything in it goes but fluids, the pylons,
-    /// the stops, the stations' own layout and the towns' blocks; a tree that reaches into it goes as a whole, within the
-    /// line's tree budget.</summary>
-    private (int Carved, int Trees) StampIntercityCorridor(IntercityPlan plan)
+    /// <summary>Clears a line's corridor between pylon <paramref name="first"/> and pylon <paramref name="last"/> (every
+    /// span, the halls' own included): anything in it goes but fluids, the pylons, the stops, the stations' own layout and
+    /// the towns' blocks; a tree that reaches into it goes as a whole, within the line's tree budget (a section's share of it
+    /// for a listed line). A listed line clears the land a metropolis left to nature inside its box too (#3985) — only the
+    /// city's claimed columns are its blocks.</summary>
+    private (int Carved, int Trees) StampIntercityCorridor(IntercityPlan plan, int first, int last)
     {
-        int carved = 0, trees = 0, treeCap = IntercityVegetationCapFor(_generator.TerrainGeneration, plan.RouteLength);
+        float route = plan.Listed ? IntercitySectionRoute(plan, first, last) : plan.RouteLength;
+        int carved = 0, trees = 0, treeCap = IntercityVegetationCapFor(_generator.TerrainGeneration, route);
         var veg = SettlementVegetationIds;
         var seen = new HashSet<Vector3i>();
-        for (int j = 0; j < plan.Pylons.Count - 1; j++)
+        Func<Vector3i, bool> town = plan.Listed ? InAnySettlementColumns : InAnySettlementBox;
+        for (int j = first; j < last; j++)
         {
             foreach (var cell in IntercityCorridor(plan.Pylons[j], plan.Pylons[j + 1]))
             {
@@ -285,14 +315,14 @@ public sealed partial class GameServer
 
                 var def = _content.BlockById(id);
                 if (def is null || def.Liquid || IsFluid(id.Value)
-                    || def.Key is RailRules.PylonBlockKey or RailRules.StopBlockKey || InAnySettlementBox(c))
+                    || def.Key is RailRules.PylonBlockKey or RailRules.StopBlockKey || town(c))
                 {
                     continue; // fluids stay (the line runs over them); the towns' blocks are never touched
                 }
 
                 if (veg.Contains(id.Value) && trees < treeCap)
                 {
-                    trees += ClearTreeAt(c, veg, treeCap - trees);
+                    trees += ClearTreeAt(c, veg, treeCap - trees, town);
                     continue;
                 }
 
@@ -340,7 +370,7 @@ public sealed partial class GameServer
 
     /// <summary>Takes a whole tree out of the world from one of its cells: every connected trunk, crown and fruit cell within
     /// a tree's reach, so the corridor leaves neither a stump nor a floating crown. Never inside a town. Returns the cells cleared.</summary>
-    private int ClearTreeAt(Vector3i seed, HashSet<ushort> veg, int budget)
+    private int ClearTreeAt(Vector3i seed, HashSet<ushort> veg, int budget, Func<Vector3i, bool> town)
     {
         const int Reach = 6, Rise = 26;
         const int PerTree = 600;
@@ -351,7 +381,7 @@ public sealed partial class GameServer
         while (stack.Count > 0 && cleared < budget && cleared < PerTree)
         {
             var c = stack.Pop();
-            if (!WithinBuildHeight(c.Y) || InAnySettlementBox(c) || IsStationLayoutCell(c))
+            if (!WithinBuildHeight(c.Y) || town(c) || IsStationLayoutCell(c))
             {
                 continue;
             }
@@ -386,6 +416,24 @@ public sealed partial class GameServer
         {
             int lx = WorldConstants.WrapDeltaX(pos.X - s.Min.X, circ);
             if (lx >= 0 && lx <= s.Max.X - s.Min.X && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z && pos.Y >= s.Min.Y - 48 && pos.Y <= s.Max.Y)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a cell lies on a settlement's own columns (#3985): inside its box and — for a settlement with a column
+    /// map, a metropolis — on a column it claims; the land a metropolis leaves to nature inside its box is no town ground.</summary>
+    private bool InAnySettlementColumns(Vector3i pos)
+    {
+        int circ = _world.Circumference;
+        foreach (var s in _settlements)
+        {
+            int lx = WorldConstants.WrapDeltaX(pos.X - s.Min.X, circ), lz = pos.Z - s.Min.Z;
+            if (lx >= 0 && lx <= s.Max.X - s.Min.X && lz >= 0 && lz <= s.Max.Z - s.Min.Z && pos.Y >= s.Min.Y - 48 && pos.Y <= s.Max.Y
+                && (s.Layout is not { HasColumnMap: true } layout || !layout.InBounds(lx, 0, lz) || layout.FloorAt(lx, lz) >= 0))
             {
                 return true;
             }
