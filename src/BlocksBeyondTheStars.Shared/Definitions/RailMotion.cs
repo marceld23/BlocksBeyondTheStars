@@ -74,12 +74,16 @@ public static class RailMotion
     /// server sends 0 for every train).</summary>
     public const float StartSpeed = Acceleration * (float)RailRules.BroadcastSeconds * 0.5f;
 
-    /// <summary>The fastest any setting runs (the last of <see cref="RailRules.SpeedTable"/>).</summary>
-    public static float MaxSpeed => RailRules.SpeedTable[RailRules.SpeedTable.Length - 1];
+    /// <summary>The fastest any train runs: the public train's express step (#3985; before it the last of
+    /// <see cref="RailRules.SpeedTable"/>). The bend limits are capped here, every train then at its own top speed — so a
+    /// train of the three settings runs exactly as before.</summary>
+    public static float MaxSpeed => Math.Max(RailRules.SpeedTable[RailRules.SpeedTable.Length - 1], RailRules.ExpressTopSpeed);
 
-    /// <summary>The top speed of a speed setting (1..3; clamped).</summary>
+    /// <summary>The top speed of a speed setting (1..3, clamped; the server's express step
+    /// <see cref="RailRules.PublicTrainExpressSpeed"/>, #3985).</summary>
     public static float TopSpeed(int setting)
-        => RailRules.SpeedTable[Math.Clamp(setting, 1, RailRules.SpeedTable.Length) - 1];
+        => setting == RailRules.PublicTrainExpressSpeed ? RailRules.ExpressTopSpeed
+            : RailRules.SpeedTable[Math.Clamp(setting, 1, RailRules.SpeedTable.Length) - 1];
 
     /// <summary>The cruise speed of a leg of <paramref name="leg"/> blocks under a top speed of <paramref name="cap"/>: the
     /// leg over <see cref="LegSeconds"/>, at least <see cref="MinCruise"/>, at most the cap. No leg (+∞, NaN — a loop

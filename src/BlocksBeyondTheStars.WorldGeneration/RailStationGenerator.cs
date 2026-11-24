@@ -49,6 +49,15 @@ public static class RailStationGenerator
     public const int StopU = 5;
     public const int StopV = TrackV + 2;
 
+    /// <summary>A through station's stop plate (#3985): in the hall's middle. The line runs on behind a through station's end
+    /// pylon, so nothing holds the halted train in from that end — centred on <see cref="StopU"/> its rear hung about 1.3
+    /// blocks out of the hall; centred here the cab and its passenger wagon (12.6 blocks) stand 4 blocks inside both ends.</summary>
+    public const int ThroughStopU = Length / 2;
+
+    /// <summary>A side-platform hall's width across the track (#3985): the 3-wide track bed and one platform with its bench
+    /// and posts — the full hall cut along the track bed's far edge.</summary>
+    public const int SidePlatformWidth = TrackV + 2;
+
     /// <summary>The structure tier the stamper sees.</summary>
     public const string Tier = "rail_station";
 
@@ -67,10 +76,24 @@ public static class RailStationGenerator
         _ => (1, 0),
     };
 
-    /// <summary>The structure's footprint (X extent, Z extent) for a heading.</summary>
-    public static (int W, int L) Footprint(int heading) => heading < 2 ? (Length, Width) : (Width, Length);
+    /// <summary>The structure's footprint (X extent, Z extent) for a heading and a hall's platforms.</summary>
+    public static (int W, int L) Footprint(int heading, RailHallPlatforms platforms = RailHallPlatforms.Both)
+    {
+        int across = AcrossWidth(platforms);
+        return heading < 2 ? (Length, across) : (across, Length);
+    }
 
-    /// <summary>Station-local (u, v) → structure-local (x, z) for a heading.</summary>
+    /// <summary>The hall's width across the track: the full hall, or a side-platform hall (#3985).</summary>
+    public static int AcrossWidth(RailHallPlatforms platforms) => platforms == RailHallPlatforms.Both ? Width : SidePlatformWidth;
+
+    /// <summary>The first full-hall cross index a hall keeps (a high-side platform hall drops the low platform).</summary>
+    public static int FirstV(RailHallPlatforms platforms) => platforms == RailHallPlatforms.High ? TrackV - 1 : 0;
+
+    /// <summary>The stop plate's cross index in the full hall: beside the track on the platform's side.</summary>
+    public static int StopVFor(RailHallPlatforms platforms) => platforms == RailHallPlatforms.Low ? TrackV - 2 : StopV;
+
+    /// <summary>Station-local (u, v) → structure-local (x, z) for a heading. The cross index maps the same way whatever the
+    /// hall's width: v = 0 is the low world coordinate across the track.</summary>
     public static (int X, int Z) ToStructure(int heading, int u, int v) => heading switch
     {
         1 => (Length - 1 - u, v),
@@ -79,9 +102,15 @@ public static class RailStationGenerator
         _ => (u, v),
     };
 
-    public static SettlementStructure Generate(int heading, GameContent content)
+    /// <summary>The station hall (#2125): both platforms, the stop four blocks from the line's end.</summary>
+    public static SettlementStructure Generate(int heading, GameContent content) => Generate(heading, content, RailHallPlatforms.Both, through: false);
+
+    /// <summary>A station hall with the given platforms (#3985: a city's hall beside a street keeps one) — a
+    /// <paramref name="through"/> station with its stop in the hall's middle (<see cref="ThroughStopU"/>).</summary>
+    public static SettlementStructure Generate(int heading, GameContent content, RailHallPlatforms platforms, bool through)
     {
-        var (w, l) = Footprint(heading);
+        var (w, l) = Footprint(heading, platforms);
+        int across = AcrossWidth(platforms), v0 = FirstV(platforms);
         int h = Height;
         var blocks = new ushort[w * h * l];
         var shapes = new Dictionary<int, int>();
@@ -89,7 +118,12 @@ public static class RailStationGenerator
 
         void Set(int u, int y, int v, ushort id, int shape)
         {
-            var (x, z) = ToStructure(heading, u, v);
+            if (v < v0 || v >= v0 + across)
+            {
+                return; // a side-platform hall: the far platform is not there
+            }
+
+            var (x, z) = ToStructure(heading, u, v - v0);
             if (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l)
             {
                 return;
@@ -107,12 +141,13 @@ public static class RailStationGenerator
             }
         }
 
-        LayHall(heading, content, Set);
+        int stopU = through ? ThroughStopU : StopU, stopV = StopVFor(platforms);
+        LayHall(heading, content, Set, stopU, stopV);
 
         // The line's markers: the end pylon, the exit pylon and the stop plate.
-        var (ex, ez) = ToStructure(heading, EndPylonU, TrackV);
-        var (xx, xz) = ToStructure(heading, ExitPylonU, TrackV);
-        var (sx, sz) = ToStructure(heading, StopU, StopV);
+        var (ex, ez) = ToStructure(heading, EndPylonU, TrackV - v0);
+        var (xx, xz) = ToStructure(heading, ExitPylonU, TrackV - v0);
+        var (sx, sz) = ToStructure(heading, stopU, stopV - v0);
         markers.Add(new SettlementMarker(EndPylonMarker, new Vector3i(ex, 0, ez)));
         markers.Add(new SettlementMarker(ExitPylonMarker, new Vector3i(xx, 0, xz)));
         markers.Add(new SettlementMarker(StopMarker, new Vector3i(sx, 0, sz)));
@@ -125,9 +160,10 @@ public static class RailStationGenerator
     /// Lays the station's whole ground plan in station-local coordinates through <paramref name="set"/> (u, y, v, block id,
     /// shape code): the floor, the posts, the roof with its skylight, the lamps, the benches (their backrests toward the
     /// outer wall of <paramref name="heading"/>), both pylons and the stop plate. Shared by the working station and the
-    /// abandoned one (<see cref="RailRuinGenerator"/>, #2166), so the ruin is the same hall, only fallen.
+    /// abandoned one (<see cref="RailRuinGenerator"/>, #2166), so the ruin is the same hall, only fallen. The stop plate
+    /// stands at (<paramref name="stopU"/>, <paramref name="stopV"/>) — a through or a side-platform hall moves it (#3985).
     /// </summary>
-    internal static void LayHall(int heading, GameContent content, Action<int, int, int, ushort, int> set)
+    internal static void LayHall(int heading, GameContent content, Action<int, int, int, ushort, int> set, int stopU = StopU, int stopV = StopV)
     {
         int h = Height;
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
@@ -198,6 +234,16 @@ public static class RailStationGenerator
         // The line: the end pylon (the train reverses over it), the exit pylon at the far end, the stop plate.
         Set(EndPylonU, 0, TrackV, pylon);
         Set(ExitPylonU, 0, TrackV, pylon);
-        Set(StopU, 0, StopV, stop);
+        Set(stopU, 0, stopV, stop);
     }
+}
+
+/// <summary>Which platforms a station hall has (#3985): both (the intercity station between towns), or only the one on the
+/// low or the high side across the track (a city's hall on the edge of its square, the track in the street beside it). Low is
+/// the lower world coordinate across the track: Z for a hall along X, X for a hall along Z.</summary>
+public enum RailHallPlatforms
+{
+    Both = 0,
+    Low = 1,
+    High = 2,
 }

@@ -101,7 +101,7 @@ public sealed class PlaceListTests
                 new PlaceDefinition { Key = "pooled", Kind = PlaceListKinds.City, Landmarks = { pooled } },
                 new PlaceDefinition { Key = "north", Kind = PlaceListKinds.Pad, Latitude = 90.0 },
                 new PlaceDefinition { Key = "east", Kind = PlaceListKinds.Pad, Longitude = 360.0 },
-                new PlaceDefinition { Key = "rail", Kind = "rail" },
+                new PlaceDefinition { Key = "tram", Kind = "tram" }, // #3985: "rail" is a kind now
                 new PlaceDefinition { Key = "ok", Kind = PlaceListKinds.Pad },
                 new PlaceDefinition
                 {
@@ -124,7 +124,7 @@ public sealed class PlaceListTests
         Assert.Contains(problems, p => p.Contains($"'{pooled}', which is not pinOnly", StringComparison.Ordinal));
         Assert.Contains(problems, p => p.StartsWith("place 'north' lies outside", StringComparison.Ordinal));
         Assert.Contains(problems, p => p.StartsWith("place 'east' lies outside", StringComparison.Ordinal));
-        Assert.Contains(problems, p => p.Contains("unknown kind 'rail'", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Contains("unknown kind 'tram'", StringComparison.Ordinal));
         Assert.Contains(problems, p => p.Contains("unique in its list", StringComparison.Ordinal)); // the second "ok"
         Assert.Contains("place 'hq' is a complex and names a template (its members name theirs)", problems);
         Assert.Contains("place 'hq' is a complex with a turn (its members stand unturned, in their shared frame)", problems);

@@ -28,7 +28,8 @@ public sealed class RailMotionTests
         Assert.Equal(24f, RailMotion.TopSpeed(3));
         Assert.Equal(8f, RailMotion.TopSpeed(0)); // clamped
         Assert.Equal(24f, RailMotion.TopSpeed(9));
-        Assert.Equal(24f, RailMotion.MaxSpeed);
+        Assert.Equal(32f, RailMotion.MaxSpeed); // #3985: the bend limits are capped at the public train's express step
+        Assert.Equal(32f, RailMotion.TopSpeed(RailRules.PublicTrainExpressSpeed));
         Assert.Equal(2, RailRules.NewCabSpeed);
         Assert.Equal(2, RailRules.PublicTrainSpeed);
     }
@@ -153,8 +154,8 @@ public sealed class RailMotionTests
         float total = corner.Spline.TotalArc;
         float atCorner = corner.MinOver(total * 0.5f - 4f, total * 0.5f + 4f);
         Assert.True(atCorner < 12f, $"the corner is taken at {atCorner}");
-        Assert.Equal(RailMotion.MaxSpeed, corner.At(10f), 3);
-        Assert.Equal(RailMotion.MaxSpeed, corner.At(total - 10f), 3);
+        Assert.True(corner.At(10f) >= RailMotion.TopSpeed(3), "flat out far from the corner");
+        Assert.True(corner.At(total - 10f) >= RailMotion.TopSpeed(3), "flat out far from the corner");
         for (float s = 0f; s + RailCurveLimits.Step <= total; s += RailCurveLimits.Step)
         {
             float a = corner.At(s), b = corner.At(s + RailCurveLimits.Step);
@@ -178,7 +179,7 @@ public sealed class RailMotionTests
         var wide = RailCurveLimits.Build(Bend(64f, 15.0));
         for (float s = 0f; s <= wide.Spline.TotalArc; s += 1f)
         {
-            Assert.Equal(RailMotion.MaxSpeed, wide.At(s), 3); // the whole line, its end spans too
+            Assert.True(wide.At(s) >= RailMotion.TopSpeed(3) - 1e-3f, $"flat out at {s}"); // the whole line, its end spans too
         }
 
         var closer = RailCurveLimits.Build(Bend(32f, 15.0));
@@ -196,7 +197,7 @@ public sealed class RailMotionTests
         float sharpest = 0f;
         for (float s = 0f; s <= hill.TotalArc; s += 1f)
         {
-            Assert.Equal(RailMotion.MaxSpeed, limits.At(s), 3);
+            Assert.True(limits.At(s) >= RailMotion.TopSpeed(3) - 1e-3f, $"flat out at {s}");
             var (sideways, vertical) = RailCurveLimits.Curvature(hill, s);
             Assert.Equal(0f, sideways, 5); // straight, seen from above
             sharpest = Math.Max(sharpest, vertical);

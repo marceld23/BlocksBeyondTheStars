@@ -16,6 +16,10 @@ public sealed class NetRailLine
 
     /// <summary>The arc positions of the line's stops (a <c>rail_stop</c> block within reach of the line).</summary>
     public float[] StopArcs { get; set; } = System.Array.Empty<float>();
+
+    /// <summary>#3985 (additive, contractless): the locale key of a named line's name (a place list's rail line — Earth's
+    /// "Atlantic Line"), empty for every other line and from an older server.</summary>
+    public string NameKey { get; set; } = string.Empty;
 }
 
 /// <summary>Every rail line of the current world (server → client, on join and on every change).</summary>
