@@ -418,10 +418,15 @@ Schuppenhund `.Hound.cs`); spawned live by `GameServerCreatures.cs` and its `Gam
   **two** eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
   otherwise every spawn in that region was its single native, and a base there drowned in one species.
   **Climate zones (#3973):** a record may name `floraThemes` (temperate, tropical, savanna, desert, tundra, alpine, … — the
-  flora theme of a biome, its own or else the type's) beside `biomeSurfaces`; `CreatureBiomes` is the one rule: the affinity is
-  the first pool biome whose surface OR zone the record names, and a `biomeExclusive` species spawns only on its surface or
-  in a biome of its zones (`OnOwnGround`; the spawner looks up the zone at the spot through `BiomePoolIndexAt`). An unknown
-  zone is a load error.
+  flora theme of a biome, its own or else the type's) beside `biomeSurfaces`; `CreatureBiomes` is the one rule: a record that
+  names zones is native to the first pool biome of the zone it lists FIRST (#4017 — the rabbit's `["temperate", "tundra"]`
+  makes it a native of Earth's temperate meadows; before, the affinity was the first pool biome the record named at all,
+  which on Earth was the tundra of biome 0, so in temperate Europe the natives-first pass always picked one of the five other
+  natives and rabbits were all but missing); when the type has no biome of that zone the next listed zone decides, and
+  without any the first pool biome whose surface the record names (a surface-only record — Leni — keeps exactly the old
+  affinity; `EarthFaunaZonesTests` compares every record × every type and only the Earth rabbit moves). A `biomeExclusive`
+  species spawns only on its surface or in a biome of its zones (`OnOwnGround`; the spawner looks up the zone at the spot
+  through `BiomePoolIndexAt`). An unknown zone is a load error.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world. A type with a `faunaPalette` (#3448, Soaniri) overrides both rolled
   colours afterwards with its own entries (§51).
@@ -434,7 +439,12 @@ Schuppenhund `.Hound.cs`); spawned live by `GameServerCreatures.cs` and its `Gam
   `CreatureNames`; its `Name` is the English text as the language-neutral fallback), its own recorded voice and fixed coats
   ([CREATURE_RIG.md](CREATURE_RIG.md) "The animals of Earth"). The twelve animals of `sol_earth`: dog, cat, rabbit, cow,
   sheep, monkey, elephant (#3973); chicken (a ground bird, temperate), parrot (tropical), eagle (alpine) (#3974); dolphin and
-  whale (#3975) — the sea animals name no climate zone and live in any sea, kept apart by their water depth band (below).
+  whale (#3975) — the sea animals name no climate zone and live in any sea, kept apart by their water depth band, and only in
+  the sea (`seaOnly`, #4017, below). Every land animal of Earth is `biomeExclusive`: the cat keeps to the temperate zone and
+  the savanna (#4017 — before, the second spawn pass filled it into the Sahara, the rain forests and the tundra). Cows,
+  sheep and chickens live wild as well as in the pens on purpose. `EarthFaunaSpawnTests` stands a player on the real
+  `sol_earth` at eight places (temperate France, the Kenyan savanna, the Amazon, the Himalaya, the Siberian tundra, the
+  Sahara, the mid-Atlantic, the Caribbean) and checks every animal it meets against its zones and its sea.
 - **Earth species elsewhere (#3976, generation 49, §64):** a record may say that people keep it (`pet: true` — the dog, the
   cat; `pen: "<item>"` — the cow `milk`, the sheep `wool`, the chicken `egg`) and that it lives wild away from home
   (`wildElsewhere: <chance>` — the dog and the cat, 0.15). A stray joins the roster of a habitable world that is not one of
@@ -453,7 +463,12 @@ runs the same probe from its own spot, #1718; **water depth band**, #3975: a wat
 `maxWaterDepth` — `WaterDepthBand` seats it only in a column whose depth lies in the band (the whale in water at least 12
 deep, the leviathan's deep sea; the dolphin in the coastal 3–16), and a swimmer with a lower bound never steps into shallower
 water than that bound while the step gets shallower (equal or deeper water stays open, so it is never trapped); without a band
-the classic `MinSwimDepth` rule holds exactly; cave animals only in caves — the cave-floor and shoreline
+the classic `MinSwimDepth` rule holds exactly; **sea animals**, #4017: a water species may say `seaOnly` (the dolphin, the
+whale — species `SeaOnly`, server-only) and is then seated only in a column the world's sea covers
+(`WorldGenerator.IsSeaColumn`: water sea, ground below the sea level — the generator's own line between the sea and the water
+above it, since a pond, a lake or a river always lies on ground above the sea level; on a map world that is the map's ocean),
+never in an upland pond, a lake or a river — three dolphins swam in a lake in Hesse before; a depression of a map below
+0 m that the generator fills with sea water counts as sea; cave animals only in caves — the cave-floor and shoreline
 probes never load a chunk, #1719; titans additionally need a 3×3 level-ground clearance),
 despawn beyond 70 blocks (titans and arachnids 110 — a landmark animal must not evaporate mid-approach). **No
 monoculture (#1325):** each species may hold at most a **share** of the live cap — 40 %, never below 3,
@@ -4232,8 +4247,10 @@ server decide with them where the record joins; the species never carries them.
 
 **Strays** (`WorldGeneration/StrayAnimals.cs`). A world takes strays when it has air to breathe, plants and animals
 (`PlanetType.HasLife`) and ground (no gas giant). A record joins when the world is not one of its homes, it finds ground of
-its own there (an exclusive species needs a biome of its climate zones — the dog's temperate and savanna; the cat is at
-home anywhere) and the world's own roll is below its chance: the roster seed salted with the planet type and
+its own there (an exclusive species needs a biome of its climate zones — the dog's and, since #4017, the cat's temperate and
+savanna; before, the cat was at home anywhere, so a world of generation 49 without either zone that rolled a wild cat no
+longer hosts one — the roster is derived, never stored, and the cat stays in the species table there as a kept pet) and
+the world's own roll is below its chance: the roster seed salted with the planet type and
 `stray:<key>`, so no generator of any other species is touched. The stray is appended after every rolled and authored
 species and the Schuppenhund (`GenerateRoster`'s `strays` argument; the server's one roster formula, `RosterFor`, passes
 `GameContent.StrayAnimalRecords`, so the live world and the ship's overview scan agree). It is built like every authored

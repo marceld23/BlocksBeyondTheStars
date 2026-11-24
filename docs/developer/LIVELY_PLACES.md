@@ -170,6 +170,14 @@ tamer's pet for people without that profession (owner `npc:<id>`, so it follows 
 creature rule spares it). Who keeps one comes from the people's own keys; the animal exists only while a player on foot
 is within 72 blocks of its person and is gone beyond 128.
 
+**The metropolises** (#4017): a metropolis (Earth's nine cities, up to 80 residents) keeps six
+(`MetropolisPetsPerPlace`, `HouseholdPetsFor(tier)`), so a walk through its streets meets a dog or a cat now and then. The
+keepers are picked the same way — the six plain residents whose person keys hash lowest — so the first two are the ones the
+city had before and nothing is stored: the keepers are derived again whenever the residents are spawned. A pet walks beside
+its person (`CompanionSpotNear`), so it stands where its person stands — in the streets and houses of the city's claimed
+columns, never on a roof (`EarthFaunaSpawnTests`). Many Earth worlds roll no village at all, so the cities are where the
+pets of Earth are seen.
+
 **Dogs and cats** (#3976, generation 49): on a world with air to breathe a person's pet — a household's or the tamer's — may
 be a dog or a cat although the world's roster does not hold them (`PersonPetSpecies` → `KeptAnimals.PoolFor`): every pet on
 Earth, half of them elsewhere (a stable hash of the person's key), all of them on a world without a peaceful animal of its
