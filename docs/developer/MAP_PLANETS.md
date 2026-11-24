@@ -2,7 +2,8 @@
 
 > Status: **Implemented** (#3977, #3978, #3979, 2026-11). The engine and the map format are in place;
 > `data/maps/earth.bbmap`, `moon.bbmap`, `mars.bbmap`, `venus.bbmap` and `mercury.bbmap` are built, and the browser
-> fetches them on demand (§6). Which planet types use a map is data (`terrainMap` in `data/planets.json`).
+> fetches them on demand (§6). Which planet types use a map is data (`terrainMap` in `data/planets.json`): Sol's Earth,
+> Moon, Mars, Venus and Mercury (§4). A map world's fixed places and landing pads come from its place list (#3981, §7).
 
 A procedural world is rolled from its seed. A **map world** takes its ground and its biomes from a **planet map**: a grid
 of real elevation and biome classes, sampled onto the torus. Everything else — rivers, caves, ores, small landforms,
@@ -104,6 +105,17 @@ columns wrap.
   spectacle families (generation 21). The map has its own mountains and coasts.
 - **On**: rivers (routed over the map's ground), river valleys and site grades (generation 40), caves, ores, the small
   landforms the type's tags select, flora, fauna, structures.
+- **Craters** (#3979): a cratered map world — the type's `cratered` (Mercury) or an airless moon (the Moon) — lays the
+  cratered form's impact bowls and crater chains (`CraterCarve`, `CraterChainCarve`, the body's own crater profile) on top of
+  the map's ground (`MapCraters`). Such a body is dry, so no crater crosses a waterline.
+- **One generation rule** (#3981, `MapWorldRules.PipelineGeneration`): a map world joins saves of every terrain generation —
+  Sol appends itself to old galaxies too — and its fixed places need the newer structure pipeline. So on a map world the
+  geography stages (river valleys, site grades, the river distance layers — `WorldGenerator.GeographyWorldFor`) and the
+  server's structure pipeline (the footprint registry of generation 38, the landmark overlays, rules and ruin revision of 39,
+  the reserved and graded ground and the site-biome foundations of 40 — `GameServer.PipelineGeneration`) run at least at
+  `GeographyGeneration` (40), whatever generation the save was created with. Server and client read the same rule (the far
+  view grades the same sites). Only map worlds read it, so no world that existed before changes; *which* kinds roll, and
+  from which generation, still follows the save's generation.
 - **The globe** (client): the polar-cap blend of the orbit globe (`PlanetGlobeCaps`, see
   [PLANET_VIEW_AND_WEATHER.md](PLANET_VIEW_AND_WEATHER.md) §1a) is off — the map's poles are real
   (`PlanetMapData.RealPoles`, `PlanetGlobeCaps.AppliesTo`, `WorldMinimap.RequestGlobe`).
@@ -120,6 +132,26 @@ columns wrap.
 | `mapOceanMetresPerBlock` | 120 | the sea-floor scale |
 | `mapOceanMaxDepth` | 48 | deepest ground below the sea (blocks) |
 | `mapDetailAmplitude` | 3 | the rolled detail (blocks, 0–16) |
+
+### Sol's map types (`data/planets.json`)
+
+| Type | Map | Curve (sea Y · lowland m/block · knee · highland m/block · ocean m/block, depth) | Highest cell → Y | Water |
+|---|---|---|---|---|
+| `sol_earth` | `earth` | 80 · 20 · 1,500 · **37** · 120, 48 | 6,309 m → 284 | yes (0.6) |
+| `sol_moon` | `moon` | 100 · 60 · 3,000 · 75 · 170, 50 | 9,725 m → 239 | dry |
+| `sol_mars` | `mars` | 80 · 40 · 3,000 · 150 · 160, 50 | 21,091 m (Olympus Mons) → 275 | dry |
+| `sol_venus` | `venus` | 80 · 20 · 1,500 · 70 · 120, 48 | 10,243 m → 279 | dry |
+| `sol_mercury` | `mercury` | 80 · 30 · 1,500 · 40 · 120, 48 | 4,169 m → 196 | dry |
+
+Each `atmosphereHeight` stands above its highest ground (Earth 320, Mars and Venus 310, the Moon 260, Mercury 220).
+**Earth's biomes**, in class order: ice (snow over ice, −25 °C), tundra (grass over peat, `tundra`, −6 °C), boreal forest
+(`tundra` flora, trees ×1.8, 2 °C), temperate (`temperate`, 12 °C), steppe/savanna (`savanna`, trees ×0.25, 22 °C), desert
+(sand over sandstone, almost bare, no trees, 33 °C), rain forest (grass over mud, `tropical`, flora ×1.6, trees ×2.4,
+27 °C), high mountains (stone, `alpine`, −8 °C). Its plants wear a fixed palette of natural greens (`floraPalette`, the
+seasons still turn them), `colourMood: balanced`; `creatureAbundance: authored` — only the Earth animals (`homes`) live
+there, no rolled aliens. The other four list class 0 (the poles: ice under the Moon's and Mercury's, Mars' polar caps of
+ice) and classes 1–7 from the lowest ground to the highest (the Moon's maria basalt, its highlands stone; Mars sand,
+sandstone and the basalt of the Tharsis heights; Venus basalt, ash and sulfur stone).
 
 ## 5. Building the maps (`tools/planet_maps`)
 
@@ -188,3 +220,69 @@ nobody needs before the Sol system appears. So:
 - **Not covered:** a browser save whose *start* world (`WorldMetadata.DefaultPlanetType`, generated inside
   `GameServer.Start`) is a map planet — no start body is one today; such a start would need the map before
   `BrowserLocalServer.StartServer`.
+
+## 7. Fixed places and landing pads (#3981)
+
+A map world's type may carry a **place list**: `data/places/<planetType>.json` (`PlaceListDefinition`, loaded by
+`ContentLoader.LoadPlaceLists` into `GameContent.PlaceLists`, `PlacesFor(type)`). Every body of that type reads it.
+
+```json
+{ "places": [
+  { "key": "pad_london", "kind": "pad",      "latitude": 51.51,  "longitude": -0.13 },
+  { "key": "berlin",     "kind": "city",     "latitude": 52.52,  "longitude": 13.40,
+    "landmarks": ["earth_brandenburg_gate", "earth_berlin_tv_tower"] },
+  { "key": "giza_great", "kind": "landmark", "latitude": 25.821, "longitude": 25.328, "template": "earth_pyramid_great", "turn": 0 }
+] }
+```
+
+| Field | Kinds | Meaning |
+|---|---|---|
+| `key` | all | unique in the list, lower-case letters, digits, underscores |
+| `kind` | all | `landmark`, `city` or `pad` (`PlaceListKinds`; a later kind, e.g. a rail stop, is one more constant and one more check) |
+| `longitude`, `latitude` | all | degrees, east and north positive: −180 ≤ longitude < 360, −90 < latitude < 90 |
+| `template` | landmark | a landmark template that is `pinOnly` (in no pool) |
+| `turn` | landmark (city later) | the quarter turn, 0..3 |
+| `theme`, `grid`, `kit`, `nameKey`, `landmarks` | city | stored for the metropolis package (theme = the key when empty, grid 0 = the composer's default, the landmark keys `pinOnly`); not stamped yet |
+
+**The projection** (`PlaceRules.BlockOf`, `PlaceDefinition.BlockOn(C)`): X = longitude / 360 · C wrapped to [0, C), Z =
+latitude / 180 · P with P = `WorldConstants.LatitudePeriodFor(C)`, rounded to the nearest block — the map's own projection
+(§2: column 0 = longitude 0, row 0 = the south edge = Z −P/2, so north is +Z). On Earth (16,000 blocks) that is 44.4 blocks
+per degree both ways.
+
+**Load checks** (`GameContent.ValidatePlaces`, `PlaceRules.Problems`, a content validation error): the list's type exists and
+has a terrain map; keys unique; kinds known; coordinates in range; turns 0..3; every named template exists and is `pinOnly`.
+**The place-only guard** (`PlaceListTests`, #3982): every template a list names is `pinOnly`, and every `earth_*` landmark is
+named by a place (a landmark entry or a city's `landmarks`).
+
+**The order is pinned.** A landmark place's record index and a pad's index follow the list, so a place is only ever
+appended.
+
+What the server does with it (`GameServerPlaceLists.cs`):
+
+- **Landmarks** — the default `GivenLandmarkSource` (`PlaceListLandmarks`): each `landmark` place, in order, is a given
+  landmark at its block column and turn, pinned under record 1000 + its position among the landmark places, stamped first
+  in the structures stage, its ground graded ([LANDMARKS.md](LANDMARKS.md) §2, [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md)
+  §4, *the given seat*).
+- **Landing pads** — a type with `pad` places has exactly that many pads (`PadCountFor`), at those columns, in list order:
+  pad 0, the home touchdown, is the first (`ListedPads`, from `ComputeLandingPadsUncached`). A listed pad is never nudged;
+  `DecidePad` decides it on its own ground (dry, wet, an islet) and the pad is pinned in `WorldMetadata.BodyLandingPads` like
+  every pad. So a pad must be listed on dry ground (below).
+- **Old saves** — both work on a save of any generation by the one rule of §4.
+
+**Earth** (`data/places/sol_earth.json`): ten pads — one at each metropolis centre (London first, the home pad; Paris,
+Berlin, Cairo, Tokyo, Sydney, Toronto, New York, Rio de Janeiro) and one in the rain forest about 250 blocks east of the SPS
+headquarters site (5.0 S 65.0 W); the nine cities on the same centres with their landmark keys; and the three pyramids of
+Giza as landmark places west of Cairo in their real arrangement (great north-east, second south-west of it, third further
+south-west). The pyramids are built 1:1 (the great one 231 × 238 blocks), so at this scale they stand hundreds of blocks
+from where they really are: each footprint 16 blocks clear of the next and outside a 120-block circle round Cairo's centre
+(a city is up to 216 across), on dry desert. **Coastal centres** are listed moved inland, each until a pad's footprint
+(radius 16) lies at least 20 m above the sea on the built map; the real coordinates are in the file's comments.
+`PlaceListTests.EveryPlaceAndPad_StandsOnLand_OnTheRealMap` holds every pad square and landmark footprint above the sea, and
+`EarthPlacesTests` stamps them on a real Earth (and on a generation-30 save) and replays them after a restart.
+
+**Earth's structure list.** `sol_earth` restricts its structures (`restrictStructures`, on every save — a hand-made system's
+type, `StructuresRestricted`) to settlements, lodges, SPS labs and guide towers, fallen guardian giants, giant ship wrecks and
+net fragments (`allowedStructures`; the whitelist keys `settlements` and `lodges` are new). So no G.D.S. ruin, rune monument,
+lost civilization, rail ruin, bandit camp, factory, rolled landmark or city world stands there; the rune shrines (chunk
+generation) need `monuments`, and the lone rune stones the new chunk-level key `rune_stones`, which every whitelisted type
+before Earth names and Earth does not.

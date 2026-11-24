@@ -193,8 +193,8 @@ The prop markers stay in the layout.
   median ground (`GivenOrigin`); the ground is graded to it by `ReserveSiteGround` (seat name `given`, the kind's grade; only
   in the structures stage of a body stamped for the first time, generation 40+), the box joins the footprint registry, and
   the record pins seat `given`. Two users:
-  - *Landmarks* — `GivenLandmarkSource` (body → list of template + seat; nothing sets it yet, the body place lists of a later
-    package will) is read by `StampGivenPlaces`, the structures stage's **first** stamper (right after the boot footprints),
+  - *Landmarks* — `GivenLandmarkSource` (body → list of template + seat; by default the `landmark` places of the body
+    type's place list, #3981, `GameServerPlaceLists.cs` — see [MAP_PLANETS.md](MAP_PLANETS.md) §7) is read by `StampGivenPlaces`, the structures stage's **first** stamper (right after the boot footprints),
     so every rolled kind keeps clear of the given landmarks (generation 38+, through the registry). Each is a landmark record
     at index `GivenLandmarkIndexBase` (1000) + its list position, written through `CommitLandmark` like any landmark
     (overlay storage, markers, protection); `StampLandmarks` and the admin's `/landmark` leave that index band alone. Every
