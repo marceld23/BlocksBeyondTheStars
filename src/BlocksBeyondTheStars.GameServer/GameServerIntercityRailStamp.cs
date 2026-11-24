@@ -68,6 +68,9 @@ public sealed partial class GameServer
         public HashSet<ushort> Vegetation { get; set; } = new();
         public Func<Vector3i, bool> Town { get; set; } = _ => true;
 
+        /// <summary>#4016: whether a cell holds a player's edit — a listed line's stamp keeps it (never for any other line).</summary>
+        public Func<Vector3i, bool> PlayerCell { get; set; } = _ => false;
+
         /// <summary>The corridor cells already looked at (the spans' corridors overlap at their pylons).</summary>
         public HashSet<Vector3i> Seen { get; } = new();
 
@@ -81,7 +84,7 @@ public sealed partial class GameServer
     /// a repo transaction.</summary>
     private (int Carved, int Trees) StampIntercityVoxels(IntercityPlan plan, string surface, int first, int last)
     {
-        var work = new IntercityStampWork(plan, surface, first, last);
+        var work = NewIntercityStampWork(plan, surface, first, last);
         AdvanceIntercityStamp(work, long.MaxValue, missing: null);
         return (work.Carved, work.Trees);
     }
@@ -155,7 +158,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        var cells = new BufferedCellSink(_world);
+        var cells = new BufferedCellSink(_world) { Keep = work.PlayerCell };
         StampSettlementBlocks(new PlacedSettlement
         {
             Structure = st.Structure,
@@ -194,7 +197,7 @@ public sealed partial class GameServer
         if (!work.Plan.IsStationPylon(j)) // a station's own pylons are part of its hall
         {
             var top = work.Plan.Pylons[j];
-            int foot = Math.Min(top.Y, PylonFoot(_world.Planet, top.X, top.Z));
+            int foot = Math.Min(top.Y, IntercityPlanFoot(work.Plan, top.X, top.Z));
             if (missing is not null && !AllResident(ColumnChunks(top.X, top.Z, foot, top.Y), missing))
             {
                 return false;
@@ -202,7 +205,11 @@ public sealed partial class GameServer
 
             for (int yy = foot; yy <= top.Y; yy++)
             {
-                _world.SetBlock(new Vector3i(top.X, yy, top.Z), work.PylonId);
+                var cell = new Vector3i(top.X, yy, top.Z);
+                if (!work.PlayerCell(cell))
+                {
+                    _world.SetBlock(cell, work.PylonId);
+                }
             }
         }
 
@@ -218,14 +225,25 @@ public sealed partial class GameServer
         float route = plan.Listed ? IntercitySectionRoute(plan, work.First, work.Last) : plan.RouteLength;
         work.TreeCap = IntercityVegetationCapFor(_generator.TerrainGeneration, route);
         work.Vegetation = SettlementVegetationIds;
-        work.Town = plan.Listed ? InAnySettlementColumns : InAnySettlementBox;
+        work.Town = plan.Listed ? c => InAnySettlementColumns(c) || work.PlayerCell(c) : InAnySettlementBox; // #4016: a player's cell stays
         work.Corridor = IntercityStretchCorridor(plan, work.First, work.Last).GetEnumerator();
         work.Step = IntercityStampStep.Corridor;
     }
 
-    /// <summary>The corridor cells of every span from pylon <paramref name="first"/> to pylon <paramref name="last"/>, in order.</summary>
+    /// <summary>The corridor cells of every span from pylon <paramref name="first"/> to pylon <paramref name="last"/>, in order —
+    /// for a listed line along the curve its trains ride (#4014, <see cref="ListedSplineCorridor"/>).</summary>
     private IEnumerable<Vector3i> IntercityStretchCorridor(IntercityPlan plan, int first, int last)
     {
+        if (plan.Listed)
+        {
+            foreach (var cell in ListedSplineCorridor(plan, first, last))
+            {
+                yield return cell;
+            }
+
+            yield break;
+        }
+
         for (int j = first; j < last; j++)
         {
             foreach (var cell in IntercityCorridor(plan.Pylons[j], plan.Pylons[j + 1]))
@@ -365,6 +383,9 @@ internal sealed class BufferedCellSink : IStructureCellSink
 
     public BufferedCellSink(ServerWorld world) => _world = world;
 
+    /// <summary>#4016: the cells the sink never writes (a player's, for a listed line's hall); none by default.</summary>
+    public Func<Vector3i, bool> Keep { get; init; } = _ => false;
+
     /// <summary>The writes kept, and how many of them are in the world.</summary>
     public int Count => _writes.Count;
     public int Written { get; private set; }
@@ -394,7 +415,10 @@ internal sealed class BufferedCellSink : IStructureCellSink
         while (Written < _writes.Count)
         {
             var (cell, block, tint, glow, shape) = _writes[Written++];
-            _world.SetBlock(cell, block, tint, glow, shape);
+            if (!Keep(cell))
+            {
+                _world.SetBlock(cell, block, tint, glow, shape);
+            }
             if (Written % 32 == 0 && System.Diagnostics.Stopwatch.GetTimestamp() >= deadline)
             {
                 break;

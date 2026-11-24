@@ -130,7 +130,7 @@ public sealed partial class GameServer
     /// <summary>Takes a section up: its chunk set, and the chunks of it that are not resident asked of the pool.</summary>
     private RailSectionStamp BeginSectionStamp(IntercityLineState line, IntercitySection section)
     {
-        var work = new IntercityStampWork(line.Plan, IntercitySurface(_world.Planet), section.First, section.Last);
+        var work = NewIntercityStampWork(line.Plan, IntercitySurface(_world.Planet), section.First, section.Last);
         var stamp = new RailSectionStamp(line, section, work, IntercitySectionChunks(line.Plan, section.First, section.Last));
         foreach (var chunk in stamp.Chunks.Where(c => !_world.IsChunkLoaded(c)))
         {

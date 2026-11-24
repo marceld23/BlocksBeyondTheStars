@@ -61,12 +61,13 @@ public sealed partial class GameServer
     // =====================================================================================================
 
     /// <summary>Pins a planned line: the line record (the first stop's origin, the stops' names, the pylon tops in line
-    /// order) and one record per stop (origin, floor, seat, name, heading).</summary>
-    private void PinIntercityPlan(IntercityPlan plan)
+    /// order; for a listed line the planner that made it, <paramref name="lineTemplate"/>, #4016) and one record per stop
+    /// (origin, floor, seat, name, heading).</summary>
+    private void PinIntercityPlan(IntercityPlan plan, string lineTemplate = "")
     {
         var first = plan.Stops[0];
         RecordPlacement(IntercityLineKind, plan.LineIndex, first.Origin, first.Origin.Y, onIsland: false, "line",
-            string.Join(" | ", plan.Stops.Select(s => s.SettlementName)),
+            string.Join(" | ", plan.Stops.Select(s => s.SettlementName)), template: lineTemplate,
             composition: plan.Pylons.Select(p => p.X.ToString(CultureInfo.InvariantCulture) + "," + p.Y.ToString(CultureInfo.InvariantCulture) + "," + p.Z.ToString(CultureInfo.InvariantCulture)).ToList());
         for (int i = 0; i < plan.Stops.Count; i++)
         {
@@ -205,7 +206,6 @@ public sealed partial class GameServer
     /// <summary>Every cell of every free pylon column of a line (its foot up to its top) is protected.</summary>
     private void ProtectIntercityPylons(IntercityPlan plan)
     {
-        var planet = _world.Planet;
         int circ = _world.Circumference;
         for (int j = 0; j < plan.Pylons.Count; j++)
         {
@@ -215,7 +215,7 @@ public sealed partial class GameServer
             }
 
             var top = plan.Pylons[j];
-            int foot = Math.Min(top.Y, PylonFoot(planet, top.X, top.Z));
+            int foot = Math.Min(top.Y, IntercityPlanFoot(plan, top.X, top.Z));
             for (int yy = foot; yy <= top.Y; yy++)
             {
                 Intercity.ProtectedCells.Add(WorldConstants.CanonicalBlock(new Vector3i(top.X, yy, top.Z), circ));
