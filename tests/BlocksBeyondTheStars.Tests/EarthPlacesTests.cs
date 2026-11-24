@@ -138,6 +138,7 @@ public sealed class EarthPlacesTests : IDisposable
             // Only the whitelisted rolled kinds stand on Earth: no G.D.S. ruin, monument, camp, factory, rail ruin, civilization.
             var kinds = server.PlacementRecordsForTest.Where(r => r.Placed && r.Kind != LandmarkRules.RecordKind).Select(r => r.Kind).Distinct().ToList();
             _output.WriteLine("rolled kinds on Earth: " + string.Join(", ", kinds));
+            _output.WriteLine("stamp report: " + string.Join(", ", server.StampReportForTest.Select(r => $"{r.Kind} {r.Placed}/{r.Requested}")));
             Assert.All(kinds, k => Assert.True(AllowedRolledKinds.Contains(k), $"'{k}' stands on Earth"));
             Assert.All(server.PlacementRecordsForTest.Where(r => r.Placed && r.Kind == LandmarkRules.RecordKind),
                 r => Assert.True(r.Index >= SvGameServer.GivenLandmarkIndexBase, "a rolled landmark stands on Earth"));
