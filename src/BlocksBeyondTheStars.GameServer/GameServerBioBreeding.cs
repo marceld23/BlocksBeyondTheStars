@@ -584,6 +584,8 @@ public sealed partial class GameServer
         child.DefendsItself = false;
         child.Voices = null;                       // (its voice comes from its own seed) …
         child.Coats = new List<CoatVariant>();     // … and its mixed colours are its own, not a parent's fixed coats
+        child.MinWaterDepth = 0;                   // #3975: nor a parent's water band (it lives beside its tank)
+        child.MaxWaterDepth = 0;
         child.HasFins = CreatureMotion.FinsFor(child);
         return child;
     }

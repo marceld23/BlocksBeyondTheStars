@@ -39,8 +39,9 @@ proportions are exactly what they were. The only per-animal variation is the col
 Eleven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
 **Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109),
 **Leviathan** (#2111) and **SkyGiant** (#2112); the flowerling (#1760) is the standard body with a petal head. The
-companions' **Robot** (#3295) and **Reindeer** (#3322) and the bodies of Soaniri — **Sounder**, **Soundi**, **Soundrak**,
-**Soundeling** and **Quali** (#3355, #3359, see "The bodies of Soaniri" below) — branch off after them in their own partials.
+companions' **Robot** (#3295) and **Reindeer** (#3322), the bodies of Soaniri — **Sounder**, **Soundi**, **Soundrak**,
+**Soundeling** and **Quali** (#3355, #3359, see "The bodies of Soaniri" below) — and the **Whale** of Earth (#3975, see "The
+birds and the sea animals" below) branch off after them in their own partials.
 
 **Worm (#2109, generation 18).** `BuildWorm`: a legless slitherer, knee- to hip-high (`WormRules`) — Marcel's finding
 on a sand sea was that every "worm" walked, because the generator never gave a Land species 0 legs and a long body
@@ -218,7 +219,9 @@ decision functions before the resolver existed.
 **Body-plan profiles (#3972).** What the decisions ask of a body plan — a box torso (the back overlays), a box head (the
 eye mask), legs with shins (socks), which tail rings, accents, countershading, a belly slab, the sandworm's armour coat, a
 hide worn head to tail, its own voice pool (and whether it is a recorded one), how its footprint and head reach are
-measured, whether it is a giant — is one row per plan in `Shared/Definitions/CreatureBodyPlans.cs`
+measured, whether it is a giant, whether a spawned body keeps its colliders (`Solid`: arachnid, Soundrak, whale), keeps the
+titan's despawn leash (`LongLeash`: titan, arachnid, whale) or swims with its whole body under water (`Submerged`: the whale)
+— is one row per plan in `Shared/Definitions/CreatureBodyPlans.cs`
 (`CreatureBodyPlans.Of(plan or wire name)`). `CreatureCoat.PatternsFor`, `CreatureHides.Pick`, `CreatureVoices.PoolFor` /
 `SungPool`, `CreatureFootprint.Radius` / `HeadReach`, `CreatureSpecies.IsGiant` and the roster's giant check read the
 table instead of comparing plan names; an unknown wire name (a newer server's plan) gets the `Unknown` row, which claims
@@ -384,7 +387,9 @@ Because the derivation reads only persisted fields, a companion snapshot saved b
 existed can be lifted on load — that is what `CreatureMotion.HasFins(sp)` is for, and it is what the
 server calls at the wire boundary rather than reading the raw flag.
 
-Geometrically: pectorals on the flanks, a vertical caudal on the tail's last link, and a dorsal when
+A species with a horizontal fluke (`TailFluke`, #3975 — the dolphin, the whale) always carries fins, ahead of the roll.
+
+Geometrically: pectorals on the flanks, a vertical caudal (or, fluked, two horizontal blades) on the tail's last link, and a dorsal when
 the species is not already wearing a crest there. They beat on the paddle phase, and an amphibian
 ashore folds them flat instead of rowing at nothing.
 
@@ -487,6 +492,50 @@ no tail, no layer, one call per phrase, a flat contour) and keeps its natural pi
 the Soundi); the calling rate is the body's. A client without the takes keeps the body plan's generated voice.
 `AnimalCalls.All` lists the 22 recorded calls; content load rejects any other name, and `EarthAnimalsTests` keeps the list
 and the bundled files in step.
+
+### The birds and the sea animals (#3974, #3975)
+
+The last five Earth animals bring three body parts and one body plan, all data-driven and absent on every older species:
+
+| Animal | Body | What makes it read as that animal |
+| --- | --- | --- |
+| Chicken | `Standard`, two legs, wings, size 0.45 | a ground bird (a winged land walker bounds when startled), `Cone` beak, comb and wattle, the feather coat |
+| Parrot | `Standard` flier, size 0.5 | a dark `Hooked` beak, bright coats (scarlet, blue-and-yellow, yellow, green, grey with red `TailRings`) |
+| Eagle | `Standard` flier, size 0.9 | a yellow `Hooked` beak and talons (`hasClaws`); the bald eagle's white head is a white `EyeMask` band |
+| Dolphin | `Standard` swimmer, size 1.3 | a `Rostrum` (the beak trait in the head's colours), `tailFluke`, the dorsal fin |
+| Whale | `Whale`, size 5 | its own body (below) |
+
+**The beak (#3974).** `beakStyle` (`CreatureBeakStyle`: `None`, `Cone`, `Hooked`, `Rostrum` — appended values only),
+`beakLength` (a share of the head's depth unit, 0 = the style's default, at most `CreatureBeaks.MaxLength`), `beakRgb`
+(0 = the species' horn colour; a rostrum wears the head's and the jaw's coat) and `hasComb` travel record → species → wire
+(`NetCreature`, `NetCompanion`). `CreatureBuilder.Beak.cs` builds it on the standard body's head like the hound's muzzle: the
+upper half on the skull below the eyes, the lower half on the jaw pivot in front of the jaw box, so it opens with every call.
+A cone is a base block and a narrower tip; a hooked beak a deep upper half whose front block hangs down over the short lower
+half; a rostrum a long jaw pair whose lower half leads. The comb is three red lobes on the crown (`CreatureBeaks.CombRgb` —
+combs are red in every breed, so it is no coat colour), the wattle hangs from the jaw. The depth in front of the face is
+`CreatureBeaks.Depth` (`length × 0.8u`, the muzzle's scale) — the builder draws exactly that, and the server's head reach adds
+it (`CreatureFootprint.HeadReach`; 0 without a beak, so no other head reach moves). The personal-space radius is unchanged.
+
+**The fluke (#3975).** `tailFluke` (record → species → wire) turns the finned standard body's vertical caudal fin into two
+flat blades swept back 28° from the tail stock (`CreatureBuilder.Cetacean.cs` → `AddCaudalBlade`, `AddFlukeBlades`),
+registered as `FinKind.Fluke`. A fluked species always carries fins (`CreatureMotion.FinsFor`: a fluke is a fin, before the
+seed's roll). `RigDescription.Fluked` changes three poses in `CreatureAnimator`: the tail links beat up and down (0.6 of the
+fish's arc, no rest curl), the fluke pitches a beat behind them, and the body rocks nose to tail (a quarter of the weave as
+pitch, a sixth left as yaw, a third of the roll).
+
+**The whale (#3975, `CreatureBodyPlan.Whale`, appended after `Quali`).** A body of its own, in the whale's unit
+`u = ½·clamp(size, 0.4, 5.5)` (`WhaleRules`, which the server's footprint and body height read): 8u long (a size-5 whale is
+20 blocks, its individuals 14–22), 1.5u high, drawn with its belly at the position and centred on it lengthwise. Three
+tapering torso boxes (the back sloping down, the belly rising a little), a belly plate, the big box head (1.4u deep) with its
+hinged jaw — the song moves the mouth —, small eyes low on the sides near the mouth's corner, a blowhole on top toward the
+back, five darker throat grooves under the jaw and the chest, a three-link tail stock ending in the fluke, two long flippers
+(swept back and down on an inner pivot, so the animator's scull poses the outer one; the accent tone — a humpback's white
+flippers) and a small dorsal fin far back. The torso boxes and the skull keep their colliders (`MakeGiantBody`), so the
+player bumps into it and can hit it. Its profile row: `Solid` (the client registers it with the giants' collider lookup),
+`LongLeash` (the titan's despawn range), `Submerged` (its swim band ends its body height under the surface), its own
+footprint (`BodyFootprint.Whale`: half its length, at most 11, inside `CreatureFootprint.MaxRadius`), no head reach (a
+swimmer), not a giant (the spawner places it like any animal, one or two). Coats: blue-grey mottled (`Speckles`), dark grey
+with a white belly, humpback black and white. Its song keeps its natural pitch like every recorded voice.
 
 ## The bodies of Soaniri (#3355, #3359, #3366)
 

@@ -29,7 +29,7 @@ public sealed partial class GameContent
     }
 
     /// <summary>The #3973 fields of every record: a name key of the species form that English knows, known climate zones, known
-    /// recorded calls, and a favourite food that is an item. A home naming an unknown type is only a warning
+    /// recorded calls, a favourite food that is an item, and (#3975) a water band that is not empty. A home naming an unknown type is only a warning
     /// (<see cref="WarnAuthoredCreatureHomes"/>): the type may come with another pack.</summary>
     private void ValidateAuthoredCreatureSpecies(List<string> problems)
     {
@@ -58,6 +58,11 @@ public sealed partial class GameContent
             }
 
             problems.AddRange(AnimalCalls.Problems(ctx, record.Voices));
+            if (record.MaxWaterDepth > 0 && record.MaxWaterDepth < record.MinWaterDepth)
+            {
+                problems.Add($"{ctx} water band is empty (maxWaterDepth {record.MaxWaterDepth} < minWaterDepth {record.MinWaterDepth})."); // #3975
+            }
+
             if (!string.IsNullOrEmpty(record.FavouriteFood) && !_items.ContainsKey(record.FavouriteFood))
             {
                 problems.Add($"{ctx} loves unknown item '{record.FavouriteFood}'.");

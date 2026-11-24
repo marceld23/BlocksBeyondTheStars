@@ -130,6 +130,13 @@ internal static class AuthoredSpeciesMapping
         species.SnoutLength = System.Math.Clamp(a.SnoutLength, 0f, HoundRules.MaxSnout);
         species.HasClaws = a.HasClaws;
         species.HasTeeth = a.HasTeeth;
+        species.BeakStyle = a.BeakStyle; // #3974: the birds of Earth (and the dolphin's snout)
+        species.BeakLength = System.Math.Clamp(a.BeakLength, 0f, CreatureBeaks.MaxLength);
+        species.BeakRgb = a.BeakRgb & 0xFFFFFF;
+        species.HasComb = a.HasComb;
+        species.TailFluke = a.TailFluke; // #3975: the dolphin's and the whale's horizontal fluke …
+        species.MinWaterDepth = System.Math.Max(0, a.MinWaterDepth); // … and the water they live in
+        species.MaxWaterDepth = System.Math.Max(0, a.MaxWaterDepth);
         species.BiteDamage = System.Math.Max(0f, a.BiteDamage); // #3326: bites in chunks when both are set
         species.BiteInterval = System.Math.Max(0f, a.BiteInterval);
         species.GiantHeight = a.GiantHeight;  // #1998: an authored giant (#2003) carries the same traits as a rolled one

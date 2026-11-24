@@ -18,8 +18,8 @@ using Xunit;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// #3973: the first seven animals of Earth — fixed species with a localized name, their homes and climate zones, their own
-/// recorded calls by mood and their real-life coats. The Earth planet type (<c>sol_earth</c>) comes with another package, so
+/// #3973: the animals of Earth (#3974/#3975 brought the last five) — fixed species with a localized name, their homes and
+/// climate zones, their own recorded calls by mood and their real-life coats. The Earth planet type (<c>sol_earth</c>) comes with another package, so
 /// the roster tests stand it in with a copy of a temperate living type under that key.
 /// </summary>
 public sealed class EarthAnimalsTests
@@ -32,10 +32,12 @@ public sealed class EarthAnimalsTests
     {
         ("dog", "Dog", "Hund"), ("cat", "Cat", "Katze"), ("rabbit", "Rabbit", "Hase"), ("cow", "Cow", "Kuh"),
         ("sheep", "Sheep", "Schaf"), ("monkey", "Monkey", "Affe"), ("elephant", "Elephant", "Elefant"),
+        ("chicken", "Chicken", "Huhn"), ("parrot", "Parrot", "Papagei"), ("eagle", "Eagle", "Adler"), // #3974
+        ("dolphin", "Dolphin", "Delfin"), ("whale", "Whale", "Wal"),                                // #3975
     };
 
     [Fact]
-    public void TheSevenRecords_LiveOnEarth_AndAreNamedInEnglishAndGerman()
+    public void TheRecords_LiveOnEarth_AndAreNamedInEnglishAndGerman()
     {
         var content = Shipped.Value;
         var en = content.CreateLocalizer(GameLocale.English);
@@ -49,14 +51,17 @@ public sealed class EarthAnimalsTests
             Assert.Equal(english, en.Get(record.NameKey));
             Assert.Equal(german, de.Get(record.NameKey));
             Assert.Equal(english, record.EnglishName); // the language-neutral fallback
-            Assert.InRange(record.Coats.Count, 4, 7);
+            Assert.InRange(record.Coats.Count, 3, 7);
             Assert.NotNull(record.Voices);
-            Assert.NotEmpty(record.FloraThemes);
+            if (record.Habitat != CreatureHabitat.Water)
+            {
+                Assert.NotEmpty(record.FloraThemes); // the sea animals live in any sea of the world
+            }
         }
     }
 
     [Fact]
-    public void AnEarthRoster_AppendsTheSeven_InFileOrder_AndMovesNoRolledSpecies()
+    public void AnEarthRoster_AppendsTheAnimals_InFileOrder_AndMovesNoRolledSpecies()
     {
         var content = Shipped.Value;
         var earth = EarthStandIn(content);
@@ -83,11 +88,17 @@ public sealed class EarthAnimalsTests
     public void NoOtherPlanetType_GainsOrLosesAnAuthoredSpecies()
     {
         // The roster consumes exactly this list, so an unchanged list is an unchanged roster for every existing type.
+        // The Earth type itself (#3970, data/planets.json) is the one that gains them — in file order, after its own list.
         var content = Shipped.Value;
         foreach (var type in content.Planets.Values)
         {
             var listed = type.AuthoredCreatures.Where(k => content.AuthoredCreatures.ContainsKey(k))
                 .Select(k => content.AuthoredCreatures[k].Key);
+            if (type.Key == Earth)
+            {
+                listed = listed.Concat(Animals.Select(a => a.Key));
+            }
+
             Assert.Equal(listed, content.AuthoredCreaturesFor(type).Select(r => r.Key));
         }
     }
@@ -189,7 +200,7 @@ public sealed class EarthAnimalsTests
             var sp = Sp(key);
             Assert.False(HoundRules.IsScaleHound(sp), key); // no VEGA warning, no one-about cap, no long aggro range
             Assert.False(sp.Hostile, key);
-            if (key is "dog" or "cat" or "monkey")
+            if (key is "dog" or "cat" or "monkey" or "parrot" or "dolphin" or "whale")
             {
                 Assert.NotEqual(CreatureDropKind.Food, sp.DropKind); // nothing edible
             }

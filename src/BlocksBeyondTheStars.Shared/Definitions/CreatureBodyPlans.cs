@@ -26,6 +26,7 @@ public enum BodyFootprint
     Medusa,
     Soaniri,  // each body of Soaniri by its own rule
     Giant,    // a rough envelope: half the height or length
+    Whale,    // #3975: half the whale's length (WhaleRules)
 }
 
 /// <summary>How far a body's head reaches ahead of its position (<see cref="CreatureFootprint.HeadReach"/>).</summary>
@@ -102,6 +103,18 @@ public sealed class BodyPlanProfile
 
     /// <summary>A one-per-world giant (#1998, #2111, #2112): never from the spawner, moves by its own rules.</summary>
     public bool Giant { get; init; }
+
+    /// <summary>An ordinary (spawned) animal whose body keeps its colliders on the giants' layer: the player bumps into it and
+    /// aims at its body (the arachnid, the Soundrak). The client registers it with the giants' collider lookup.</summary>
+    public bool Solid { get; init; }
+
+    /// <summary>A landmark-sized silhouette: it keeps the titan's longer despawn leash, so it does not vanish mid-approach
+    /// (the titan, the arachnid).</summary>
+    public bool LongLeash { get; init; }
+
+    /// <summary>A swimmer whose whole drawn body stays under the surface (the whale, #3975): the top of its swim band is lowered
+    /// by its body height, so a twenty-block body never rides out of the water.</summary>
+    public bool Submerged { get; init; }
 }
 
 /// <summary>
@@ -162,12 +175,12 @@ public static class CreatureBodyPlans
         // The classic quadruped: every placed pattern fits.
         [CreatureBodyPlan.Standard] = new() { Plan = CreatureBodyPlan.Standard, BoxTorso = true, BoxHead = true, SockLegs = true, Tail = BodyTail.IfTrait, Countershade = true },
         [CreatureBodyPlan.Medusa] = new() { Plan = CreatureBodyPlan.Medusa, BellySlab = false, Footprint = BodyFootprint.Medusa, HeadReach = BodyHeadReach.None },
-        [CreatureBodyPlan.Titan] = new() { Plan = CreatureBodyPlan.Titan, BoxTorso = true, BoxHead = true, SockLegs = true, Tail = BodyTail.IfTrait, Footprint = BodyFootprint.Titan },
+        [CreatureBodyPlan.Titan] = new() { Plan = CreatureBodyPlan.Titan, BoxTorso = true, BoxHead = true, SockLegs = true, Tail = BodyTail.IfTrait, Footprint = BodyFootprint.Titan, LongLeash = true },
         [CreatureBodyPlan.Floral] = new() { Plan = CreatureBodyPlan.Floral },
         [CreatureBodyPlan.Ray] = new() { Plan = CreatureBodyPlan.Ray, Footprint = BodyFootprint.Ray, HeadReach = BodyHeadReach.None },
         [CreatureBodyPlan.Colossus] = new() { Plan = CreatureBodyPlan.Colossus, BoxTorso = true, BoxHead = true, SockLegs = true, Tail = BodyTail.IfTrait, Footprint = BodyFootprint.Giant, HeadReach = BodyHeadReach.None, Giant = true },
         [CreatureBodyPlan.Sandworm] = new() { Plan = CreatureBodyPlan.Sandworm, ArmourCoat = true, Footprint = BodyFootprint.Giant, HeadReach = BodyHeadReach.None, Giant = true },
-        [CreatureBodyPlan.Arachnid] = new() { Plan = CreatureBodyPlan.Arachnid, SockLegs = true, Footprint = BodyFootprint.Arachnid, HeadReach = BodyHeadReach.Arachnid },
+        [CreatureBodyPlan.Arachnid] = new() { Plan = CreatureBodyPlan.Arachnid, SockLegs = true, Footprint = BodyFootprint.Arachnid, HeadReach = BodyHeadReach.Arachnid, Solid = true, LongLeash = true },
         [CreatureBodyPlan.Biped] = new() { Plan = CreatureBodyPlan.Biped, BoxHead = true, SockLegs = true, Tail = BodyTail.IfTrait, Countershade = true, Voice = BodyVoice.Biped, Footprint = BodyFootprint.Upright, HeadReach = BodyHeadReach.None },
         [CreatureBodyPlan.Worm] = new() { Plan = CreatureBodyPlan.Worm, BoxHead = true, Tail = BodyTail.Always, Footprint = BodyFootprint.Worm, HeadReach = BodyHeadReach.Worm },
         [CreatureBodyPlan.Leviathan] = new() { Plan = CreatureBodyPlan.Leviathan, Accents = true, Footprint = BodyFootprint.Giant, HeadReach = BodyHeadReach.None, Giant = true },
@@ -178,8 +191,10 @@ public static class CreatureBodyPlans
         [CreatureBodyPlan.Reindeer] = new() { Plan = CreatureBodyPlan.Reindeer },
         [CreatureBodyPlan.Sounder] = new() { Plan = CreatureBodyPlan.Sounder, Footprint = BodyFootprint.Soaniri, HeadReach = BodyHeadReach.None },
         [CreatureBodyPlan.Soundi] = new() { Plan = CreatureBodyPlan.Soundi, Voice = BodyVoice.Soundi, SungVoice = true, Footprint = BodyFootprint.Soaniri },
-        [CreatureBodyPlan.Soundrak] = new() { Plan = CreatureBodyPlan.Soundrak, Voice = BodyVoice.Soundrak, SungVoice = true, Footprint = BodyFootprint.Soaniri, HeadReach = BodyHeadReach.None },
+        [CreatureBodyPlan.Soundrak] = new() { Plan = CreatureBodyPlan.Soundrak, Voice = BodyVoice.Soundrak, SungVoice = true, Footprint = BodyFootprint.Soaniri, HeadReach = BodyHeadReach.None, Solid = true },
         [CreatureBodyPlan.Soundeling] = new() { Plan = CreatureBodyPlan.Soundeling, Voice = BodyVoice.Soundeling, SungVoice = true, Footprint = BodyFootprint.Soaniri },
         [CreatureBodyPlan.Quali] = new() { Plan = CreatureBodyPlan.Quali, Voice = BodyVoice.Quali, SungVoice = true, Footprint = BodyFootprint.Soaniri, HeadReach = BodyHeadReach.None },
+        // #3975: the whale — a big spawned swimmer: solid, a landmark's leash, its body kept under water; its coat is its own.
+        [CreatureBodyPlan.Whale] = new() { Plan = CreatureBodyPlan.Whale, Accents = true, Footprint = BodyFootprint.Whale, HeadReach = BodyHeadReach.None, Solid = true, LongLeash = true, Submerged = true },
     };
 }

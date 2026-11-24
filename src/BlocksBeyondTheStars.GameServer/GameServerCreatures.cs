@@ -489,12 +489,15 @@ public sealed partial class GameServer
     /// spot, returning its coordinates and the water-surface / seabed Y. False if no water is within the
     /// probe radius. A column holding fewer than <paramref name="minDepth"/> water cells is passed over (Lyxette report
     /// 2026-11-18: water life asks for <see cref="CreatureBehaviour.MinSwimDepth"/> — a fish seated in one-cell water was
-    /// set on the floor beside it by the swimmer's height probe, which calls one cell a puddle).</summary>
-    private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY, int minDepth = 1)
+    /// set on the floor beside it by the swimmer's height probe, which calls one cell a puddle), and one holding more than
+    /// <paramref name="maxDepth"/> (#3975: a dolphin keeps to the coastal shallows).</summary>
+    private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY, int minDepth = 1,
+        int maxDepth = int.MaxValue)
     {
         foreach (var (dx, dz) in WaterProbe)
         {
-            if (TryGetFluidColumn(x + dx, z + dz, _creatureWaterId, out waterTopY, out seabedY) && waterTopY - seabedY >= minDepth)
+            if (TryGetFluidColumn(x + dx, z + dz, _creatureWaterId, out waterTopY, out seabedY)
+                && waterTopY - seabedY >= minDepth && waterTopY - seabedY <= maxDepth)
             {
                 wx = x + dx;
                 wz = z + dz;
@@ -509,10 +512,12 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>The water a species is seated in at spawn: water life needs room to swim (Lyxette report 2026-11-18), an
-    /// amphibian wades at the surface cell of any water.</summary>
-    private static int MinSpawnWaterDepth(CreatureSpecies sp)
-        => sp.Habitat == CreatureHabitat.Water ? CreatureBehaviour.MinSwimDepth : 1;
+    /// <summary>The nearest water column a species may be seated in at spawn (<see cref="WaterDepthBand"/>): water life needs
+    /// room to swim (Lyxette report 2026-11-18) and keeps to its own depth band (#3975), an amphibian wades at the surface cell
+    /// of any water.</summary>
+    private bool TryFindSpawnWaterNear(CreatureSpecies sp, int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY)
+        => TryFindWaterColumnNear(x, z, out wx, out wz, out waterTopY, out seabedY,
+            WaterDepthBand.MinSpawnDepth(sp), WaterDepthBand.MaxSpawnDepth(sp));
 
     /// <summary>The molten sibling of <see cref="TryFindWaterColumnNear"/> (#470/F4): the nearest lava
     /// column — a volcano crater pool, the global lava sea, or a lava flow — around a spot.</summary>
@@ -624,7 +629,7 @@ public sealed partial class GameServer
                     // (upland ponds) fill flush to the surface — so probing surface+1 always hit air and water
                     // creatures never spawned. Seek the nearest water column (sea/pond) around the spot and place
                     // inside it; skip the species if there's no water nearby (no land fallback).
-                    if (!TryFindWaterColumnNear(x, z, out px, out pz, out int waterTopY, out int seabedY, MinSpawnWaterDepth(sp)))
+                    if (!TryFindSpawnWaterNear(sp, x, z, out px, out pz, out int waterTopY, out int seabedY))
                     {
                         continue;
                     }
@@ -928,7 +933,7 @@ public sealed partial class GameServer
             // #1718: a member runs the leader's probe from its own spot. It used to ask only its own column,
             // so beside a small pond the golden-angle spots landed on the bank and the school was the leader
             // alone — the water four blocks away was never looked at.
-            if (!TryFindWaterColumnNear(mx, mz, out mx, out mz, out int waterTopY, out int seabedY, MinSpawnWaterDepth(sp)))
+            if (!TryFindSpawnWaterNear(sp, mx, mz, out mx, out mz, out int waterTopY, out int seabedY))
             {
                 return false; // no water near this member's spot — the school stays smaller
             }
@@ -2092,6 +2097,11 @@ public sealed partial class GameServer
         // (depth 0) and let a swimmer steer out of its lake instead of along the shore.
         int curDepth = WaterDepthAtFeet(cx, cz, refY);
         int nextDepth = WaterDepthAtFeet(nx, nz, nextFeet);
+        if (WaterDepthBand.StepTooShallow(sp, curDepth, nextDepth))
+        {
+            return true; // #3975: a whale keeps to the deep sea — never into shallower water than its band while it gets shallower
+        }
+
         var gateClass = CreatureMotion.IsLandHoverer(sp, motion) ? MotionClass.Walker : motion; // #1862: a floating grazer is gated as a walker
         return CreatureBehaviour.TerrainStepBlocked(gateClass, CreatureMotion.IsGiant(sp), CreatureMotion.IsAmphibious(sp),
             curFeet, nextFeet, curDepth, nextDepth);
@@ -2639,6 +2649,7 @@ public sealed partial class GameServer
         CreatureBodyPlan.Biped or CreatureBodyPlan.Robot // #3295: the robot stands on the biped's proportions
             => BipedRules.BodyHeightCells(sp.Size, sp.HeadRatio, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2081: its real height
         CreatureBodyPlan.Sounder => Shared.Sounders.SounderRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #3355
+        CreatureBodyPlan.Whale => WhaleRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #3975: its girth
         _ => System.Math.Clamp((int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight),
     };
 
@@ -3077,7 +3088,7 @@ public sealed partial class GameServer
                 // #1697: over a pond the band is measured from the water, not from the bed underneath it.
                 return new Vector3f(p.X, AirRestSurfaceYAt(x, z, p.Y, hover) + hover, p.Z);
             case CreatureHabitat.Water:
-                return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface, p.Y), p.Z);
+                return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface, p.Y, clearance: SwimClearance(sp)), p.Z);
             case CreatureHabitat.Lava:
                 return _generator.TryGetLavaSurface(_world.Planet, x, z, out int lavaTop, out _)
                     ? new Vector3f(p.X, lavaTop, p.Z)
@@ -3112,7 +3123,7 @@ public sealed partial class GameServer
                 c.Vert.Airborne = false;
                 return new Vector3f(p.X, WaterColumnY(x, z, vertWave, surface, p.Y,
                     holdY: sp.Habitat == CreatureHabitat.Amphibian ? p.Y : null,
-                    bottom: CreatureMotion.IsBottomDweller(sp)), p.Z);
+                    bottom: CreatureMotion.IsBottomDweller(sp), clearance: SwimClearance(sp)), p.Z);
 
             case MotionClass.Hoverer:
                 {
@@ -3349,8 +3360,12 @@ public sealed partial class GameServer
     /// into a lake the player filled up — was never found: the fish was set on the ground under it, or into the fill
     /// (and the stuck-body rescue then lifted it onto the nearest floor).</para>
     ///
-    /// <para>Lyxette report 2026-11-18: and the dry answer never lifts a water animal (<see cref="WaterLifeDryRestY"/>).</para></summary>
-    private float WaterColumnY(int x, int z, float vertWave, int surface, float bodyY, float? holdY = null, bool bottom = false)
+    /// <para>Lyxette report 2026-11-18: and the dry answer never lifts a water animal (<see cref="WaterLifeDryRestY"/>).</para>
+    ///
+    /// <para>#3975: <paramref name="clearance"/> lowers the band's top (never below its bottom) — a whale keeps its whole body
+    /// under the surface (<see cref="SwimClearance"/>); 0 for every other swimmer, whose band is unchanged.</para></summary>
+    private float WaterColumnY(int x, int z, float vertWave, int surface, float bodyY, float? holdY = null, bool bottom = false,
+        float clearance = 0f)
     {
         int waterTopY = int.MinValue, seabedY = int.MinValue;
         int bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Floor(bodyY), FluidColumnScan);
@@ -3371,7 +3386,7 @@ public sealed partial class GameServer
             return holdY ?? WaterLifeDryRestY(x, z, bodyY, bedFeet);
         }
 
-        float lo = seabedY + 1f, hi = waterTopY - 0.5f;
+        float lo = seabedY + 1f, hi = System.Math.Max(lo, waterTopY - 0.5f - clearance);
         if (bottom)
         {
             // #1778: a ray hugs the bed — a low band just above the seabed, lifting a little on its wave.
@@ -3381,6 +3396,12 @@ public sealed partial class GameServer
 
         return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
     }
+
+    /// <summary>#3975: how far below the surface a swimmer's band ends — its body height above its position (the body is drawn
+    /// from the position up) for a plan whose body stays under water (<see cref="BodyPlanProfile.Submerged"/>: the whale), 0 for
+    /// every other swimmer.</summary>
+    private static float SwimClearance(CreatureSpecies sp)
+        => CreatureBodyPlans.Of(sp.BodyPlan).Submerged ? CreatureBodyHeight(sp) - 1f : 0f;
 
     /// <summary>Where a water animal rests in a column <see cref="WaterColumnY"/> finds no water to swim in (Lyxette report
     /// 2026-11-18). In a puddle — water one cell deep at or under its body — it rests on the puddle's bed, in the water.
@@ -3641,7 +3662,7 @@ public sealed partial class GameServer
             }
 
             float limitSq = _speciesById.TryGetValue(c.SpeciesId, out var sp)
-                            && sp.BodyPlan is CreatureBodyPlan.Titan or CreatureBodyPlan.Arachnid // #2009: a speeder-sized silhouette keeps the titan's leash
+                            && CreatureBodyPlans.Of(sp.BodyPlan).LongLeash // #2009: a speeder-sized silhouette keeps the titan's leash
                 ? titanSq
                 : maxSq;
             var nearest = NearestPlayerPosition(targets, c.Position);

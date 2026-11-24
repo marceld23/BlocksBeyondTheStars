@@ -52,6 +52,7 @@ namespace BlocksBeyondTheStars.Client
         private int _wingRows = 1; // #1781: the most wing pairs any wing reports — sets the beat rate
         private bool _skyGlider;   // #1778/#1779: a hoverer that glides — fins scull in the air, the wing wave runs
         private bool _ray;         // #1778: the ray plan — wing wave instead of a flap, a gentler body weave
+        private bool _fluked;      // #3975: a dolphin or a whale — tail and body beat up and down
         private Transform[] _eyelids = System.Array.Empty<Transform>();
         private Transform[] _ears = System.Array.Empty<Transform>();
         private Quaternion[] _earRest = System.Array.Empty<Quaternion>();
@@ -199,6 +200,7 @@ namespace BlocksBeyondTheStars.Client
             _skyGlider = _rig.SkyGlider;
             _hound = string.Equals(_rig.BodyPlan, "Hound", System.StringComparison.OrdinalIgnoreCase); // #3327
             _ray = string.Equals(_rig.BodyPlan, "Ray", System.StringComparison.OrdinalIgnoreCase);
+            _fluked = _rig.Fluked;
             _snarls = _rig.Hostile && string.Equals(_rig.BodyPlan, "Floral", System.StringComparison.OrdinalIgnoreCase);
             _eyelids = _rig.Eyelids ?? System.Array.Empty<Transform>();
             _ears = _rig.Ears ?? System.Array.Empty<Transform>();
@@ -759,6 +761,13 @@ namespace BlocksBeyondTheStars.Client
                 float lag = i * 0.55f;
                 float sway = (Mathf.Sin(t * rate - lag) * span + swat) / Mathf.Max(1, _tail.Length);
                 sway *= _tail.Length == 1 ? 1f : 1.6f;
+                if (_fluked)
+                {
+                    // #3975: a cetacean's tail stock beats up and down (a smaller arc), and it never curls to rest.
+                    _tail[i].localRotation = Quaternion.Euler(sway * 0.6f, 0f, 0f);
+                    continue;
+                }
+
                 if (_rest > 0f)
                 {
                     sway = Mathf.Lerp(sway, 38f * _restSide / Mathf.Max(1, _tail.Length), _rest); // curled around the body
@@ -779,7 +788,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float weave = 0f, roll = 0f, glide = 0f;
+            float weave = 0f, roll = 0f, glide = 0f, bodyPitch = 0f;
             if (undulates)
             {
                 float sp = t * 3.4f;
@@ -790,6 +799,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     weave *= 0.25f; // #1778: a disc glides; the wing wave carries the life, not a fish weave
                     roll *= 0.6f;
+                }
+
+                if (_fluked)
+                {
+                    bodyPitch = weave * 0.25f; // #3975: a cetacean's body rocks nose-to-tail with the fluke, barely side to side
+                    weave *= 0.15f;
+                    roll *= 0.3f;
                 }
             }
 
@@ -838,7 +854,7 @@ namespace BlocksBeyondTheStars.Client
                 footLift = _feet.BodyOffsetY;
             }
 
-            _body.localRotation = Quaternion.Euler(-footPitch, weave, roll);
+            _body.localRotation = Quaternion.Euler(bodyPitch - footPitch, weave, roll);
             _body.localPosition = new Vector3(0f, glide + bob - restDrop + footLift, 0f);
             _body.localScale = new Vector3(1f + squash * 0.6f, 1f - squash, 1f + squash * 0.6f);
         }
@@ -1202,6 +1218,10 @@ namespace BlocksBeyondTheStars.Client
 
                     case FinKind.Caudal:
                         fin.Pivot.localRotation = Quaternion.Euler(0f, Mathf.Sin(t * rate * 0.6f) * amp * 0.8f, 0f);
+                        break;
+
+                    case FinKind.Fluke: // #3975: the horizontal fluke beats up and down, a beat behind the tail stock
+                        fin.Pivot.localRotation = Quaternion.Euler(Mathf.Sin(t * rate * 0.6f - 0.6f) * amp * 0.7f, 0f, 0f);
                         break;
 
                     default:
