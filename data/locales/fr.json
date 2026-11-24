@@ -8083,7 +8083,6 @@
   "ui.train.state_halted": "Arrêté",
   "ui.train.state_stop": "À l'arrêt — départ dans {0} s",
   "ui.train.public_title": "Ligne interurbaine",
-  "ui.train.public": "Un train public : il circule tout seul entre les deux gares et s'y arrête. Personne ne le pilote — installe-toi et profite du trajet !",
   "ui.train.board_title": "Départs",
   "ui.train.board_next": "Prochain train dans {0}",
   "ui.train.board_here": "Le train est là · départ dans {0} s",

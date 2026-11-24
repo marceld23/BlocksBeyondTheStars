@@ -8085,7 +8085,7 @@
   "ui.train.state_halted": "Steht",
   "ui.train.state_stop": "An einer Haltestelle – fährt in {0} s",
   "ui.train.public_title": "Intercity-Linie",
-  "ui.train.public": "Ein öffentlicher Zug: Er fährt von selbst zwischen den beiden Bahnhöfen hin und her und wartet an jedem. Niemand muss ihn fahren – lehn dich zurück und genieß die Fahrt!",
+  "ui.train.public": "Ein öffentlicher Zug: Er fährt von selbst seine Linie entlang, von einem Ende zum anderen und wieder zurück, und hält an jedem Bahnhof. Niemand muss ihn fahren – lehn dich zurück und genieß die Fahrt!",
   "ui.train.board_title": "Abfahrt",
   "ui.train.board_title_line": "{0} · Abfahrt",
   "ui.train.board_next": "Nächster Zug in {0}",
