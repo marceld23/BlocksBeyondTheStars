@@ -8083,7 +8083,6 @@
   "ui.train.state_halted": "已停",
   "ui.train.state_stop": "在站点 — {0} 秒后出发",
   "ui.train.public_title": "城际线路",
-  "ui.train.public": "一列公共列车：在两站间按自己的线路运行并在每站停靠。没有人驾驶 — 放松享受旅程吧！",
   "ui.train.board_title": "发车",
   "ui.train.board_next": "下一班列车 {0} 后到站",
   "ui.train.board_here": "列车已到 · {0} 秒后发车",

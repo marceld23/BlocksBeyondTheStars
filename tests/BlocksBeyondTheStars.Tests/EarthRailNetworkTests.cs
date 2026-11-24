@@ -26,9 +26,10 @@ namespace BlocksBeyondTheStars.Tests;
 /// Earth's hover-rail network on a real Earth (#3985): the Atlantic and the Orient line plan on the first boot from the
 /// metropolises' records — every hall on a rail-hall square of its city with its track in the street beside it, Paris's two
 /// halls on two squares, a through station's halted train inside its hall, the Atlantic line over the X seam — and their
-/// public trains run at the express step on lines whose voxels are not stamped yet. Sections stamp near a station and over
-/// the open Atlantic (a pylon on the sea bed), and everything comes back after a restart without a new stamp. The boot's
-/// planning time and the section stamp times are written to the output.
+/// public trains run at the express step on lines whose voxels are not stamped yet. Sections stamp by the tick round Paris
+/// and over the open Atlantic (a pylon on the sea bed) without any tick spending long on them, the rest in one go, and
+/// everything comes back after a restart without a new stamp — but the section the restart cut short, which the tick then
+/// stamps again whole. The boot's planning time, the tick times and the one-go stamp times are written to the output.
 /// </summary>
 public sealed class EarthRailNetworkTests : IDisposable
 {
@@ -122,9 +123,13 @@ public sealed class EarthRailNetworkTests : IDisposable
         Assert.All(server.RailSectionsForTest, s => Assert.False(s.Built)); // nothing stamped at the boot
 
         RideTheWholeLine(server); // before a single section is stamped
+        var ticks = StampByTheTick(server, paris[0].Stop, "round Paris");
+        ticks.AddRange(StampByTheTick(server, DeepestPylon(lines[0]), "over the open Atlantic"));
         StampNearStations(server);
         AssertSeaPylonOnTheSeaBed(server, lines[0]);
-        var built = StampEverySection(server);
+        var berlin = lines[0].Stations[0];
+        var cut = BeginStampByTheTick(server, berlin.Stop); // stopped by the restart below, half written
+        var built = StampEverySection(server, cut);
         var before = lines.Select(l => l.Pylons.ToList()).ToList();
         server.Stop();
         _repos[^1].Dispose();
@@ -135,6 +140,88 @@ public sealed class EarthRailNetworkTests : IDisposable
         Assert.Equal(built.OrderBy(b => b), again.RailSectionsForTest.Where(s => s.Built).Select(s => (s.Line, s.Section)).OrderBy(b => b));
         Assert.Empty(again.RailSectionMillisForTest); // replayed, nothing stamped again
         Assert.Equal(2, again.TrainsForTest().Count(t => RailRules.IsPublic(t.OwnerId)));
+
+        // The section the restart cut short is stamped again from its start, and stands whole.
+        ticks.AddRange(StampByTheTick(again, berlin.Stop, "Berlin's section again after the restart"));
+        Assert.Contains(again.RailSectionsForTest, s => (s.Line, s.Section) == cut && s.Built);
+        Assert.Equal(Content.GetBlock(RailRules.StopBlockKey)!.NumericId, again.World.GetBlock(berlin.Stop));
+        Assert.Equal(Content.GetBlock(RailRules.PylonBlockKey)!.NumericId, again.World.GetBlock(berlin.ExitPylon));
+
+        // The tick never freezes for a section: its chunks come from the background pool and its cells a few ms per tick.
+        _output.WriteLine($"all ticks with a section: the longest {ticks.Max():F1} ms, 99th percentile {Percentile(ticks, 0.99):F1} ms");
+        Assert.True(ticks.Max() < LongestSectionTickMs, $"no tick spends more than {LongestSectionTickMs} ms on the rail sections (the longest {ticks.Max():F1} ms)");
+    }
+
+    /// <summary>The bound the test holds the longest tick to — well above the ~4 ms budget, as a shared test machine has
+    /// its pauses; the stamp in one go took a median 320 ms and up to 1.2 s.</summary>
+    private const double LongestSectionTickMs = 50;
+
+    /// <summary>Drives the section ticks as a player standing at <paramref name="at"/> (the default view's reach) until every
+    /// section in reach stands, and returns each tick's time (ms). A tick here comes right after the last (a short pause for
+    /// the workers), so the ride takes fewer ticks than the 15 Hz tick would.</summary>
+    private List<double> StampByTheTick(SvGameServer server, Vector3i at, string where)
+    {
+        var point = new Vector3f(at.X, at.Y, at.Z);
+        int before = server.RailSectionsForTest.Count(s => s.Built);
+        var ticks = new List<double>();
+        var wall = Stopwatch.StartNew();
+        for (int i = 0; i < MaxSectionTicks; i++)
+        {
+            var clock = Stopwatch.StartNew();
+            var (busy, unbuilt) = server.TickRailSectionsForTest(point, SectionReachBlocks, 1.0 / 15);
+            ticks.Add(clock.Elapsed.TotalMilliseconds);
+            if (!busy && unbuilt == 0)
+            {
+                break;
+            }
+
+            System.Threading.Thread.Sleep(1);
+        }
+
+        int stamped = server.RailSectionsForTest.Count(s => s.Built) - before;
+        Assert.True(stamped > 0, $"{where}: a section is stamped by the tick");
+        _output.WriteLine($"{where}: {stamped} sections stamped by the tick over {ticks.Count} ticks in {wall.ElapsedMilliseconds} ms: " +
+                          $"the longest tick {ticks.Max():F1} ms, 99th percentile {Percentile(ticks, 0.99):F1} ms, {ticks.Sum():F0} ms on the tick in all");
+        return ticks;
+    }
+
+    /// <summary>Starts the tick's stamp of the section round <paramref name="at"/> and drives it until its station stands and
+    /// its pylons are being written; returns which section it is (not built yet).</summary>
+    private static (int Line, int Section) BeginStampByTheTick(SvGameServer server, Vector3i at)
+    {
+        var point = new Vector3f(at.X, at.Y, at.Z);
+        for (int i = 0; i < MaxSectionTicks; i++)
+        {
+            server.TickRailSectionsForTest(point, SectionReachBlocks, 1.0 / 15);
+            if (server.RailSectionStampForTest is { Step: not SvGameServer.IntercityStampStep.Stations } s)
+            {
+                Assert.NotEqual(SvGameServer.IntercityStampStep.Done, s.Step);
+                Assert.DoesNotContain(server.RailSectionsForTest, b => (b.Line, b.Section) == (s.Line, s.Section) && b.Built);
+                return (s.Line, s.Section);
+            }
+
+            System.Threading.Thread.Sleep(1);
+        }
+
+        throw new Xunit.Sdk.XunitException("the tick never got to the section's pylons");
+    }
+
+    /// <summary>A player's reach at the default view: (4 chunks + the load-ahead ring + 3 chunks) × 16 blocks.</summary>
+    private const double SectionReachBlocks = (4 + 1 + 3) * 16;
+
+    private const int MaxSectionTicks = 20_000;
+
+    private static double Percentile(List<double> values, double p)
+    {
+        var sorted = values.OrderBy(v => v).ToList();
+        return sorted[Math.Min(sorted.Count - 1, (int)(p * sorted.Count))];
+    }
+
+    /// <summary>The line's pylon over the deepest water.</summary>
+    private static Vector3i DeepestPylon(SvGameServer.IntercityLineState line)
+    {
+        var terrain = MapTerrain.For(Content.GetPlanetMap("earth")!);
+        return line.Pylons.OrderBy(p => terrain.ElevationFixed(p.X, p.Z, Circumference, Circumference / 2)).First();
     }
 
     /// <summary>Every cell of a hall's footprint lies on a rail-hall square of its city or on a street beside it, and some
@@ -216,8 +303,9 @@ public sealed class EarthRailNetworkTests : IDisposable
         Assert.All(trains, t => Assert.True(t.Halted, "each starts halted at its first station"));
     }
 
-    /// <summary>Stamps every section that is left (what the first boot would have cost stamped whole) and returns them all.</summary>
-    private List<(int, int)> StampEverySection(SvGameServer server)
+    /// <summary>Stamps every section that is left in one go (what the first boot would have cost stamped whole) — all but the
+    /// one the tick is stamping (<paramref name="cut"/>) — and returns the built ones.</summary>
+    private List<(int, int)> StampEverySection(SvGameServer server, (int Line, int Section) cut)
     {
         int before = server.RailSectionMillisForTest.Count;
         var clock = Stopwatch.StartNew();
@@ -226,11 +314,11 @@ public sealed class EarthRailNetworkTests : IDisposable
             server.StampRailSectionsNearForTest(new Vector3f(st.X, st.Y, st.Z), 1);
         }
 
-        var all = server.RailSectionMillisForTest;
-        Assert.All(server.RailSectionsForTest, s => Assert.True(s.Built));
-        _output.WriteLine($"every section: {all.Count} in {all.Sum()} ms of stamping ({clock.ElapsedMilliseconds} ms with this test's walk), " +
-                          $"the rest of them {all.Count - before} in {all.Skip(before).Sum()} ms; the dearest {all.Max()} ms, the median {all.OrderBy(m => m).ElementAt(all.Count / 2)} ms");
-        return server.RailSectionsForTest.Select(s => (s.Line, s.Section)).ToList();
+        var rest = server.RailSectionMillisForTest.Skip(before).ToList();
+        Assert.All(server.RailSectionsForTest, s => Assert.Equal((s.Line, s.Section) != cut, s.Built));
+        _output.WriteLine($"every other section in one go: {rest.Count} in {rest.Sum()} ms of stamping ({clock.ElapsedMilliseconds} ms with this test's walk); " +
+                          $"the dearest {rest.Max()} ms, the median {rest.OrderBy(m => m).ElementAt(rest.Count / 2)} ms");
+        return server.RailSectionsForTest.Where(s => s.Built).Select(s => (s.Line, s.Section)).ToList();
     }
 
     /// <summary>Stamps the sections round Paris's and London's halls (as a player standing there would) and checks each
@@ -239,6 +327,7 @@ public sealed class EarthRailNetworkTests : IDisposable
     {
         var stopId = Content.GetBlock(RailRules.StopBlockKey)!.NumericId;
         var pylonId = Content.GetBlock(RailRules.PylonBlockKey)!.NumericId;
+        int before = server.RailSectionMillisForTest.Count;
         foreach (var st in server.IntercityLinesForTest.SelectMany(l => l.Stations).Where(s => s.SettlementName is "Paris" or "London"))
         {
             server.StampRailSectionsNearForTest(new Vector3f(st.Stop.X, st.Stop.Y, st.Stop.Z), 16);
@@ -247,16 +336,15 @@ public sealed class EarthRailNetworkTests : IDisposable
             Assert.Equal(pylonId, server.World.GetBlock(st.ExitPylon));
         }
 
-        var millis = server.RailSectionMillisForTest;
-        _output.WriteLine($"sections stamped near Paris and London: {millis.Count}, {string.Join(", ", millis)} ms (mean {millis.Average():F0} ms)");
+        var millis = server.RailSectionMillisForTest.Skip(before).ToList();
+        _output.WriteLine($"sections stamped in one go near Paris (what the tick left) and London: {millis.Count}, {string.Join(", ", millis)} ms");
     }
 
     /// <summary>The deepest-water pylon of the line's open-sea stretch, once its section is stamped, is one column from the
     /// sea bed up: pylon blocks all the way, solid ground under its foot.</summary>
     private void AssertSeaPylonOnTheSeaBed(SvGameServer server, SvGameServer.IntercityLineState line)
     {
-        var terrain = MapTerrain.For(Content.GetPlanetMap("earth")!);
-        var deepest = line.Pylons.OrderBy(p => terrain.ElevationFixed(p.X, p.Z, Circumference, Circumference / 2)).First();
+        var deepest = DeepestPylon(line);
         int before = server.RailSectionMillisForTest.Count;
         server.StampRailSectionsNearForTest(new Vector3f(deepest.X, deepest.Y, deepest.Z), 1);
         _output.WriteLine($"the open-sea section: {string.Join(", ", server.RailSectionMillisForTest.Skip(before))} ms");

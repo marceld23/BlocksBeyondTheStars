@@ -8083,7 +8083,6 @@
   "ui.train.state_halted": "Zatrzymany",
   "ui.train.state_stop": "Na stacji — odjazd za {0} s",
   "ui.train.public_title": "Linia międzymiastowa",
-  "ui.train.public": "Pociąg publiczny: kursuje samodzielnie między stacjami i zatrzymuje się na każdej z nich. Nikt nim nie steruje — rozsiądź się i ciesz jazdą!",
   "ui.train.board_title": "Odjazdy",
   "ui.train.board_next": "Następny pociąg za {0}",
   "ui.train.board_here": "Pociąg jest tutaj · odjeżdża za {0} s",

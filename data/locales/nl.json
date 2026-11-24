@@ -8083,7 +8083,6 @@
   "ui.train.state_halted": "Gestopt",
   "ui.train.state_stop": "Bij een halte — vertrekt over {0} s",
   "ui.train.public_title": "Intercitylijn",
-  "ui.train.public": "Een openbare trein: hij rijdt zelfstandig tussen de twee stations en wacht op elk station. Niemand bestuurt hem — ga zitten en geniet van de rit!",
   "ui.train.board_title": "Vertrektijden",
   "ui.train.board_next": "Volgende trein over {0}",
   "ui.train.board_here": "Trein is er · vertrekt over {0} s",

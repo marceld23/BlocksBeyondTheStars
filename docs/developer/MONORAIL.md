@@ -635,17 +635,33 @@ Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto 
 - **Section by section** (`GameServerRailSections.cs`). Stamped whole, the two lines' corridors would generate every chunk
   along 17,500 blocks on the first boot. Each listed line is cut into sections of 8 spans (a boundary moved on where it
   would split a hall); a section's stations, pylon columns and corridor are stamped the first time a joined player comes
-  within their streaming radius + the load-ahead ring + 3 chunks of its box (`TickRailSections`, 4 Hz, one section per tick,
-  right after the trains and before the chunks stream) — a rider is a player, so a ride stamps the line ahead of the train.
-  Each section is a stamped feature of its own (`intercityrail:<line>:<section>`, marked after its transaction), so the save
-  says which stand; chunks a player already holds in a freshly stamped section are streamed to them again. The rest never
-  waits for the voxels: the plan, the records, the graph, the rail line and the public train exist for the whole line from
-  the first load, and a train runs on its spline — so the public train shuttles end to end over sections nobody has seen.
+  within their streaming radius + the load-ahead ring + 3 chunks of its box (`TickRailSections`: looked for at 4 Hz, the
+  nearest first, one at a time, right after the trains and before the chunks stream) — a rider is a player, so a ride
+  stamps the line ahead of the train. Each section is a stamped feature of its own (`intercityrail:<line>:<section>`), so
+  the save says which stand; chunks a player already holds in a freshly stamped section are streamed to them again. The
+  rest never waits for the voxels: the plan, the records, the graph, the rail line and the public train exist for the whole
+  line from the first load, and a train runs on its spline — so the public train shuttles end to end over sections nobody
+  has seen.
+- **Stamped by the tick, never in one go** (`GameServerRailSectionTicks.cs`, the resumable stamp in
+  `GameServerIntercityRailStamp.cs`). Stamped in one go a section of 8 spans froze its tick for 20–1,200 ms, the median
+  320 ms (its chunks generated on the tick thread — the deep sea and the city halls the dearest). Now a section taken up
+  first asks the background chunk pool for every chunk it touches (`ChunkGenerationPool.Prefetch`, a lane behind the views'
+  own chunks that the streamer's speculation never drops; the corridor's band sampled every 4 blocks, with a tree's reach
+  round it over land, the corridor alone over water; the stations' footprints; the free pylon columns down to the sea bed)
+  and adopts each as a worker finishes it (`TryAdopt`). Once all are resident its cells are written **4 ms per tick**
+  (`IntercitySectionBudgetMs`, like the far tiles), each tick's slice in its own transaction: a station hall is worked out
+  into a `BufferedCellSink` in one tick and written from it over the next, then the pylon columns one by one, then the
+  corridor a few cells at a time. A step that needs a chunk that is not resident waits for it (the stamp never writes into
+  an unloaded chunk), and the section's chunks are pinned against the far-chunk sweep until it stands. Without background
+  threads (the in-browser singleplayer) the chunks are generated on the tick, as many per tick as the budget holds. The
+  section is marked only once its last cell is written (on the tick after it); a restart in between finds it unmarked and
+  stamps it again from its start — the same cells again. The rolled line and the given lines keep their one-go stamp at
+  the boot (the same resumable work run without a deadline: the same writes in the same order).
   Measured (development machine, `EarthRailNetworkTests`, seed 4242): planning both lines adds 1.3–1.6 s to Earth's first
-  boot (≈ 40 s with the cities); **stamping all 102 sections would add about 35 s** — hence the sections. One section of 8
-  spans takes 20–1,200 ms, the median 320 ms (its chunks generated on the tick thread — the deep sea and the city halls the
-  dearest); a rider at 32 blocks/s reaches a new section every 5–8 s. Open: generate a section's chunks on the background
-  chunk pool before the stamp, so the tick only writes the cells.
+  boot (≈ 40 s with the cities); stamping all 102 sections in one go would add about 35 s. By the tick: the longest tick
+  10–12 ms (the first section of a server, its code still cold; else 4–8 ms, 99 % of the ticks under 7–10 ms), a
+  section's whole stamp 20–45 ms of tick time spread over its ticks; round Paris five sections in 3.3 s of test time, two
+  open-sea sections in 0.5 s. A rider at 32 blocks/s reaches a new section every 5–8 s.
 - **The public trains**: one per line, the cab and a seat wagon shuttling end to end and halting at every stop for 30 s,
   at the **express step** (`RailRules.PublicTrainExpressSpeed`, setting 4, top speed 32 blocks/s — `PublicTrainSpeedFor`: a
   line of 4,000 blocks or more; no cab offers it, a player's speed intent stays 1..3). The bend limits are capped at the
@@ -666,9 +682,11 @@ Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto 
 Tests: `EarthRailNetworkTests` (a real Earth: both lines with their stops in order, every hall on a rail-hall square with
 its track in the street, Paris's two halls on two squares, the through stations, the Atlantic line over the X seam, no
 span over a landmark, a train halted at any stop inside its hall, the public trains at the express step; the Atlantic
-train riding its whole line on unstamped sections and halting inside every hall; sections stamped near Paris and London
-and over the open Atlantic — a sea pylon from the bed up — and then every section, timed; the lines, the built sections
-and the trains back after a restart without a new stamp), `RailNetworkTests` (the load checks, Earth's data, a hall's
+train riding its whole line on unstamped sections and halting inside every hall; sections stamped by the tick round Paris
+and over the open Atlantic — a sea pylon from the bed up — with every tick timed and held under 50 ms (the test machine's
+bound; ~4 ms is the budget), London and every other section in one go, timed; the lines, the built sections and the trains
+back after a restart without a new stamp — but Berlin's section, cut short half written by the restart, which the tick
+then stamps again whole), `RailNetworkTests` (the load checks, Earth's data, a hall's
 street on a synthetic district map — open, closed between a landmark's districts, toward the neighbour, a through
 station's both ways, one hall per square —, the side-platform and through halls, the station template),
 `IntercityGivenRouteTests` (the train halted at the through station stands inside its hall), `RailEtaTests` (the next

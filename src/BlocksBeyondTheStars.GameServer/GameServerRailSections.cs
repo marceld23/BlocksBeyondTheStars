@@ -17,9 +17,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// line is cut into <see cref="IntercitySection"/>s of <see cref="IntercitySectionPylons"/> spans, and a section's
 /// stations, pylon columns and corridor are stamped the first time a player on the body comes within their view of it
 /// (<see cref="TickRailSections"/>: the player's streaming radius and a few chunks more — a rider on the train is a player
-/// too, so a ride stamps the line ahead of it). Each section is its own stamped feature (<c>intercityrail:&lt;line&gt;:&lt;s&gt;</c>,
-/// marked after its transaction), so the save says which sections stand. Chunks a player already holds in the section are
-/// streamed to them again, so nobody keeps a chunk from before the stamp.
+/// too, so a ride stamps the line ahead of it). The tick never freezes for it: a section's chunks are generated on the
+/// background chunk pool first and its cells written a few milliseconds per tick (GameServerRailSectionTicks.cs). Each
+/// section is its own stamped feature (<c>intercityrail:&lt;line&gt;:&lt;s&gt;</c>, marked once its last cell is written), so the
+/// save says which sections stand — a section cut short by a restart is stamped again from its start (the stamp writes the
+/// same cells again). Chunks a player already holds in the section are streamed to them again, so nobody keeps a chunk from
+/// before the stamp.
 /// <para>The rest of the line does not wait for its voxels: the plan, the records, the graph, the rail line with its spline
 /// and the public train exist for the whole line from the first load, and a train runs on its spline, not on blocks — so the
 /// public train shuttles end to end on a line nobody has seen yet, and its riders see each section built before it streams
@@ -28,8 +31,8 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>Spans per section: about 145 blocks over land (a pylon every 18), 255 over open sea (every 32). Measured on a
-    /// real Earth: all 102 sections of both lines take about 35 s to stamp, one 20–1,200 ms (median 320 ms; its chunks
-    /// generated on the tick thread, the deep sea and the city halls the dearest).</summary>
+    /// real Earth: all 102 sections of both lines take about 35 s to stamp in one go, one 20–1,200 ms (median 320 ms; its
+    /// chunks generated on the tick thread, the deep sea and the city halls the dearest) — hence the stamp by the tick.</summary>
     private const int IntercitySectionPylons = 8;
 
     /// <summary>Chunks beyond a player's streaming radius at which a section is stamped.</summary>
@@ -37,9 +40,6 @@ public sealed partial class GameServer
 
     /// <summary>How often the sections near the players are looked for (seconds).</summary>
     private const double IntercitySectionCheckSeconds = 0.25;
-
-    /// <summary>At most this many sections are stamped in one tick (the rest come on the next).</summary>
-    private const int IntercitySectionsPerTick = 1;
 
     /// <summary>One section of a listed line: its pylons <see cref="First"/>..<see cref="Last"/> (it stamps the spans
     /// between them and the stations whose hall span is one of them), the box round them and their stations (world X
@@ -127,44 +127,6 @@ public sealed partial class GameServer
                   $"{state.Sections.Count(s => s.Built)}/{state.Sections.Count} sections built, planned in {sw.ElapsedMilliseconds} ms.");
     }
 
-    /// <summary>Per world, a few times a second: stamps the sections of the listed lines that a joined player has come near
-    /// (at most <see cref="IntercitySectionsPerTick"/> per tick).</summary>
-    private void TickRailSections(double dt)
-    {
-        _railSectionClock += dt;
-        if (_railSectionClock < IntercitySectionCheckSeconds || !Intercity.Active)
-        {
-            return;
-        }
-
-        _railSectionClock = 0;
-        int budget = IntercitySectionsPerTick;
-        foreach (var line in Intercity.Lines)
-        {
-            foreach (var section in line.Sections)
-            {
-                if (budget == 0)
-                {
-                    return;
-                }
-
-                if (!section.Built && JoinedInActiveWorld().Any(s => SectionInReach(s, section)))
-                {
-                    StampIntercitySection(line, section);
-                    budget--;
-                }
-            }
-        }
-    }
-
-    /// <summary>Whether a player is within their streaming radius and <see cref="IntercitySectionReachChunks"/> chunks more
-    /// of a section's box (wrap-aware).</summary>
-    private bool SectionInReach(PlayerSession session, IntercitySection section)
-    {
-        double reach = (EffectiveViewRadius(session) + LoadAheadRings + IntercitySectionReachChunks) * (double)WorldConstants.ChunkSize;
-        return SectionGap(section, session.State.Position.X, session.State.Position.Z) <= reach;
-    }
-
     /// <summary>The horizontal distance from a point to a section's box (0 inside; X the short way round the seam).</summary>
     private double SectionGap(IntercitySection section, double x, double z)
     {
@@ -175,21 +137,28 @@ public sealed partial class GameServer
         return Math.Sqrt((dx * dx) + (dz * dz));
     }
 
-    /// <summary>Stamps one section in its own transaction, marks it after, and streams its chunks again to every player who
-    /// holds one of them.</summary>
-    private void StampIntercitySection(IntercityLineState line, IntercitySection section)
+    /// <summary>Stamps one section in one go, in its own transaction, loading its chunks on the spot (the test seam's stamp —
+    /// the way it was done before the stamp by the tick, kept to measure against it), then finishes it.</summary>
+    private void StampIntercitySectionAtOnce(IntercityLineState line, IntercitySection section)
     {
         var clock = Stopwatch.StartNew();
         int carved = 0, trees = 0;
         string surface = IntercitySurface(_world.Planet);
         _repo.RunInTransaction(() => (carved, trees) = StampIntercityVoxels(line.Plan, surface, section.First, section.Last));
+        FinishIntercitySection(line, section, clock.ElapsedMilliseconds,
+            $"{carved} corridor cells + {trees} tree cells cleared in {clock.ElapsedMilliseconds} ms");
+    }
+
+    /// <summary>A section whose last cell is written: marks it, streams its chunks again to every player who holds one of
+    /// them, and logs it (<paramref name="how"/>).</summary>
+    private void FinishIntercitySection(IntercityLineState line, IntercitySection section, long tickMillis, string how)
+    {
         MarkFeatureStamped(IntercitySectionFeature(line.Index, section.Index));
         section.Built = true;
         RestreamSection(section);
-        _railSectionMillis.Add(clock.ElapsedMilliseconds);
+        _railSectionMillis.Add(tickMillis);
         _log.Info($"Rail line {line.Index.ToString(CultureInfo.InvariantCulture)} on '{_world.LocationId}': section {section.Index.ToString(CultureInfo.InvariantCulture)} " +
-                  $"(pylons {section.First.ToString(CultureInfo.InvariantCulture)}–{section.Last.ToString(CultureInfo.InvariantCulture)}) built, " +
-                  $"{carved} corridor cells + {trees} tree cells cleared in {clock.ElapsedMilliseconds} ms.");
+                  $"(pylons {section.First.ToString(CultureInfo.InvariantCulture)}–{section.Last.ToString(CultureInfo.InvariantCulture)}) built, {how}.");
     }
 
     /// <summary>Drops every chunk of a section's columns from the players' sent sets: they are streamed again, whole.</summary>
@@ -211,18 +180,18 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Test seam (#3985): stamps every section of the listed lines that the given point is in reach of (a player's
-    /// default view), as <see cref="TickRailSections"/> would; returns how many were stamped.</summary>
+    /// <summary>Test seam (#3985): stamps every section of the listed lines that the given point is in reach of in one go
+    /// (<see cref="StampIntercitySectionAtOnce"/>) — but the one the tick is stamping; returns how many were stamped.</summary>
     internal int StampRailSectionsNearForTest(Vector3f point, double reachBlocks)
     {
         int stamped = 0;
         foreach (var line in Intercity.Lines)
         {
-            foreach (var section in line.Sections.Where(s => !s.Built))
+            foreach (var section in line.Sections.Where(s => !s.Built && Intercity.SectionStamp?.Section != s))
             {
                 if (SectionGap(section, point.X, point.Z) <= reachBlocks)
                 {
-                    StampIntercitySection(line, section);
+                    StampIntercitySectionAtOnce(line, section);
                     stamped++;
                 }
             }
