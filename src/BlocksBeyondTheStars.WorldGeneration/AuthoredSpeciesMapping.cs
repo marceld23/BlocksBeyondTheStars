@@ -19,7 +19,13 @@ internal static class AuthoredSpeciesMapping
     {
         nameof(AuthoredCreature.MinGeneration), // CreatureGenerator.GenerateRoster / GenerateAuthoredGiant: when it joins
         nameof(AuthoredCreature.Homes),         // GameContent.AuthoredCreaturesFor: which types' rosters it joins (#3973)
+        nameof(AuthoredCreature.Pet),           // KeptAnimals: whose pet it may be (#3976)
+        nameof(AuthoredCreature.Pen),           // KeptAnimals: which pens keep it, and what they lay (#3976)
+        nameof(AuthoredCreature.WildElsewhere), // StrayAnimals: which other worlds' rosters it joins (#3976)
     };
+
+    /// <summary>The roster id of the species an authored record becomes: <c>"au_" + key</c>.</summary>
+    internal static string IdOf(string key) => "au_" + key;
 
     /// <summary>Builds the roster entry of an authored record (#1763): the designed traits verbatim, the name's
     /// second word coined per world, the formulas of the rolled species where the record leaves a stat null, and
@@ -64,7 +70,7 @@ internal static class AuthoredSpeciesMapping
         bool hostile = a.Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
         return new CreatureSpecies
         {
-            Id = "au_" + a.Key,
+            Id = IdOf(a.Key),
             NameKey = string.IsNullOrEmpty(a.NameKey) ? CreatureNames.GenericKey : a.NameKey, // #3973
             Name = name,
             Habitat = a.Habitat,

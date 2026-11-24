@@ -491,7 +491,9 @@ public sealed class FloraTests : IDisposable
                 Assert.Equal(fs.Active, onServer.Active);
             }
 
-            var creatures = CreatureGenerator.GenerateRoster(planet, rosterSeed);
+            // Generation 49 (#3976): the full formula — a fresh save's roster may hold a dog or a cat living wild.
+            var creatures = CreatureGenerator.GenerateRoster(planet, rosterSeed, generation, _content.AuthoredCreaturesFor(planet),
+                _content.StrayAnimalRecords);
             Assert.Equal(creatures.Select(c => c.Id + ":" + c.Name), server.SpeciesRoster.Select(c => c.Id + ":" + c.Name));
 
             Assert.Equal(BlocksBeyondTheStars.Shared.World.FloraTints.ForWorld(7, server.World.LocationId, generation, planet), server.FloraTint); // generation 48: in the world's colour harmony

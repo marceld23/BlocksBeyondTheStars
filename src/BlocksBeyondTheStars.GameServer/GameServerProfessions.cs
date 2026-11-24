@@ -432,10 +432,10 @@ public sealed partial class GameServer
             return; // a station has no animals, and neither has a world whose wildlife is switched off
         }
 
-        var candidates = _speciesRoster.Where(IsPersonPetSpecies).ToList();
+        bool any = AnyPersonPetSpecies;
         foreach (var npc in _npcs)
         {
-            if (npc.Job != "tamer" || candidates.Count == 0)
+            if (npc.Job != "tamer" || !any)
             {
                 continue;
             }
@@ -447,7 +447,11 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var sp = candidates[(int)((uint)WorldGenerator.StableHash("tamer-pet:" + npc.Name) % (uint)candidates.Count)];
+            if (PersonPetSpecies("tamer-pet:" + npc.Name) is not { } sp)
+            {
+                continue;
+            }
+
             _creatures.Add(new CombatEntity
             {
                 Id = NextEntityId(),
@@ -458,7 +462,7 @@ public sealed partial class GameServer
                 HullMax = sp.MaxHealth,
                 Position = CompanionSpotNear(sp, owner, npc.Pos),
                 DamagePerSecond = 0f,
-                SizeScale = PetScaleFor(sp, TamerPetScale),
+                SizeScale = PetScaleFor(sp, PreferredPetScale(sp, TamerPetScale)),
                 AnimalSeed = CoatVariants.AnimalSeedOf(owner), // #3972: always the same pet
                 OwnerId = owner,
                 CompanionId = owner,

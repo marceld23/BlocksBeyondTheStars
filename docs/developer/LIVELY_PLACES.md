@@ -170,6 +170,13 @@ tamer's pet for people without that profession (owner `npc:<id>`, so it follows 
 creature rule spares it). Who keeps one comes from the people's own keys; the animal exists only while a player on foot
 is within 72 blocks of its person and is gone beyond 128.
 
+**Dogs and cats** (#3976, generation 49): on a world with air to breathe a person's pet — a household's or the tamer's — may
+be a dog or a cat although the world's roster does not hold them (`PersonPetSpecies` → `KeptAnimals.PoolFor`): every pet on
+Earth, half of them elsewhere (a stable hash of the person's key), all of them on a world without a peaceful animal of its
+own. Such a pet comes at its own size and is known to the world's species table, so the client draws it with its coats and
+calls; it never roams the wild. The pens likewise may keep cows, sheep and chickens that lay milk, wool and eggs.
+[WORLD_GENERATION.md](WORLD_GENERATION.md) §64.
+
 **Small for real** (#3879): a person's pet — a household's or the tamer's — is never a giant, and its drawn body is never
 wider than `PetMaxRadius` (0.8 blocks of `CreatureFootprint.Radius`), so it fits the rooms and doorways it follows its person
 through. `PetScaleFor` keeps the usual size factor (× 0.6 household, × 0.8 tamer) for a species that fits and scales a big

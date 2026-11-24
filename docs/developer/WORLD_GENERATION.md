@@ -429,6 +429,12 @@ live by `GameServerCreatures.cs`.
   ([CREATURE_RIG.md](CREATURE_RIG.md) "The animals of Earth"). The twelve animals of `sol_earth`: dog, cat, rabbit, cow,
   sheep, monkey, elephant (#3973); chicken (a ground bird, temperate), parrot (tropical), eagle (alpine) (#3974); dolphin and
   whale (#3975) — the sea animals name no climate zone and live in any sea, kept apart by their water depth band (below).
+- **Earth species elsewhere (#3976, generation 49, §64):** a record may say that people keep it (`pet: true` — the dog, the
+  cat; `pen: "<item>"` — the cow `milk`, the sheep `wool`, the chicken `egg`) and that it lives wild away from home
+  (`wildElsewhere: <chance>` — the dog and the cat, 0.15). A stray joins the roster of a habitable world that is not one of
+  its homes by the world's own salted roll, last of all (`StrayAnimals`, the `strays` argument of `GenerateRoster`, which
+  every roster caller passes as `GameContent.StrayAnimalRecords`); the kept species come in beside the roster
+  (`KeptAnimals`). All three fields are record-only (`AuthoredSpeciesMapping.RecordOnly`).
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470; the tick's fill gate and cadence read
@@ -3906,7 +3912,8 @@ crate set into the −Z fence, an `entrance` marker above it, a trough, a lean-t
 (`GameServerSettlementFarms.cs`, `GameServerPenAnimals.cs`) gives field crops `FieldRegrowSeconds` (240) instead of 30,
 keeps two or three animals of a passive land species of the world in every pen (owner `pen:<x>:<z>`, exempt from the town
 rule, put back in when they wander out) and lays one product every 180 s into the pen's crate, up to 12: `egg` (winged or
-two-legged), `milk` (size ≥ 1.1), `wool`. Recipes: `fried_egg` and `pancake` (campfire), `rug_wool`, `bed_wool`; the grocer
+two-legged), `milk` (size ≥ 1.1), `wool` — from generation 49 a pen may keep a cow, a sheep or a chicken instead, which
+lays its record's item (§64). Recipes: `fried_egg` and `pancake` (campfire), `rug_wool`, `bed_wool`; the grocer
 sells eggs and milk.
 
 **The city that grew** (#3599, `CityGrowth`). A city kit with `grown` (`city_gds_grown_1`, weight 6 against the classic 2):
@@ -4194,3 +4201,59 @@ groups are not called).
 
 **Tests.** `WorldHarmonyTests`, `FloraGroupsTests`, `StarColorsTests`, `HyperspaceChartServerTests`, and the adjusted
 `SoaniriPaletteTests`, `FloraTests`, `MistProfileServerTests`, `SpsTowerTemplateTests`.
+
+## 64. Generation 49 — dogs and cats on other worlds, Earth species as pets and pen animals (#3976, 2026-11-24)
+
+**Why.** The animals of Earth (§7, #3973–#3975) lived on `sol_earth` only. A village elsewhere kept one of its own
+world's peaceful animals as a pet and in its pens — never a dog or a cat, never a cow giving milk. And a dog or a cat
+never turned up wild on another green world.
+
+**The gate.** `WorldDescription.EarthSpeciesGeneration` = 49 = `CurrentTerrainGeneration`. Server-side and roster only:
+no chunk changes, the save version stays.
+
+**The data** (`data/creatures.json`, validated at load — `GameContent.ValidatePeopleAnimal`):
+
+| Field | Meaning | Records |
+| --- | --- | --- |
+| `pet: true` | a person may keep it as a pet | dog, cat |
+| `pen: "<item>"` | a pen may keep it and lays this item (a known item) | cow `milk`, sheep `wool`, chicken `egg` |
+| `wildElsewhere: <0..1>` | the chance a habitable world that is not one of its homes hosts it wild | dog, cat: 0.15 |
+
+A pet or pen species must be a peaceful (passive or skittish) land animal. All three are record-only: the roster and the
+server decide with them where the record joins; the species never carries them.
+
+**Strays** (`WorldGeneration/StrayAnimals.cs`). A world takes strays when it has air to breathe, plants and animals
+(`PlanetType.HasLife`) and ground (no gas giant). A record joins when the world is not one of its homes, it finds ground of
+its own there (an exclusive species needs a biome of its climate zones — the dog's temperate and savanna; the cat is at
+home anywhere) and the world's own roll is below its chance: the roster seed salted with the planet type and
+`stray:<key>`, so no generator of any other species is touched. The stray is appended after every rolled and authored
+species and the Schuppenhund (`GenerateRoster`'s `strays` argument; the server's one roster formula, `RosterFor`, passes
+`GameContent.StrayAnimalRecords`, so the live world and the ship's overview scan agree). It is built like every authored
+species of the world (`CreatureGenerator.MakeAuthored`, the key-salted sub-seed) and keeps its coats, voices and name. It
+is a wild land animal like any other, so the town zone (§7, #3453) keeps it out of the settlements. Measured over 60 seeds
+of every habitable type: about 15 % of the worlds each (`EarthSpeciesElsewhereTests`).
+
+**Kept animals** (`WorldGeneration/KeptAnimals.cs`, server `GameServerKeptAnimals.cs`). On a world of generation 49 with air
+to breathe every kept record is kept; on a home world of a record (Earth) that record whatever the generation; never in a
+void. The species is the roster's own instance when the roster holds it (Earth, a world with wild dogs), else the record
+built for this world (`MakeAuthored`, the same species a stray there would be). The server registers such a species in the
+world's species table (`SpeciesById`, the movement profiles), not in the roster: every creature message carries its traits
+to the client, but it never spawns wild and does not call from afar (the distant-fauna roster is the roster — a village dog
+barks beside its person, not in the wilderness).
+
+- **The mix** (`KeptAnimals.PoolFor`, a stable hash of the person's or the pen's own key and the world seed, no draw from any
+  shared generator): on a home world every pet is a kept pet and every pen animal a kept pen animal — Earth's households
+  keep dogs and cats, its pens cows, sheep and chickens. Elsewhere half of the households and half of the pens take a kept
+  species and half the world's own candidates; a world without a candidate of its own takes the kept species every time.
+  Without kept species the pick is exactly the old one.
+- **Size.** A kept pet comes at its own size (a dog is no puppy) and a kept pen animal too; every other pet keeps × 0.6
+  (household) or × 0.8 (tamer), every other pen animal × 0.8. `PetScaleFor` still caps every pet at what a house allows.
+- **Products.** A pen of a kept species lays its record's item (`KeptAnimals.PenProductOf`); every other pen keeps the shape
+  rule (`PenProductOf`: winged or two-legged → egg, size ≥ 1.1 → milk, else wool).
+
+**What moves in an older world: nothing.** Below generation 49 (away from a home world) `StrayAnimals.AppendTo` returns at
+its first line and `KeptAnimals.For` returns `KeptAnimals.None`, whose pools hand back the world's own candidates unchanged.
+
+**Tests.** `EarthSpeciesElsewhereTests` (records, validation, older rosters unchanged, the strays' share and place, the kept
+species, Earth, the mix) and `EarthSpeciesElsewhereServerTests` (a pet dog or cat on the wire, no Earth pet on a
+generation-48 world, a pen of cows, sheep or chickens and its product, no stray in a town).
