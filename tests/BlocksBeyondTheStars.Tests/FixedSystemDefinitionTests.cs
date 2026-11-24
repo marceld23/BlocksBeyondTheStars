@@ -16,7 +16,13 @@ public sealed class FixedSystemDefinitionTests
 {
     private static FixedBodyDefinition Planet(string id, int circumference = 0, float gravity = 0f) => new()
     {
-        Id = id, Kind = "planet", PlanetType = "rocky", OrbitRadius = 500f, OrbitAngle = 90f, Circumference = circumference, Gravity = gravity,
+        Id = id,
+        Kind = "planet",
+        PlanetType = "rocky",
+        OrbitRadius = 500f,
+        OrbitAngle = 90f,
+        Circumference = circumference,
+        Gravity = gravity,
     };
 
     private static FixedSystemDefinition System(string id, params FixedBodyDefinition[] bodies)
@@ -63,8 +69,16 @@ public sealed class FixedSystemDefinitionTests
     {
         var def = System("tst", Planet("a", 1600, 0.5f), new FixedBodyDefinition
         {
-            Id = "m", Kind = "moon", Parent = "a", PlanetType = "rocky", OrbitRadius = 90f, OrbitAngle = 0f, OrbitPeriodDays = 1.5f,
-            Ring = true, NameKey = "body.none", VisibleDiameter = 40f,
+            Id = "m",
+            Kind = "moon",
+            Parent = "a",
+            PlanetType = "rocky",
+            OrbitRadius = 90f,
+            OrbitAngle = 0f,
+            OrbitPeriodDays = 1.5f,
+            Ring = true,
+            NameKey = "body.none",
+            VisibleDiameter = 40f,
         });
         def.Star = new FixedStarDefinition { Color = "0xFFF4E0" };
         FixedSystemRules.Normalize(def);

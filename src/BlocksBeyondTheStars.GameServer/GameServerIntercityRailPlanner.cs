@@ -584,8 +584,13 @@ public sealed partial class GameServer
         structure ??= RailStationGenerator.Generate(heading, _content, shape.Platforms, shape.Through);
         var st = new IntercityStation
         {
-            SettlementName = settlementName, Heading = heading, Origin = origin, Seat = seat, Structure = structure,
-            Platforms = shape.Platforms, Through = shape.Through,
+            SettlementName = settlementName,
+            Heading = heading,
+            Origin = origin,
+            Seat = seat,
+            Structure = structure,
+            Platforms = shape.Platforms,
+            Through = shape.Through,
         };
         foreach (var m in structure.Markers)
         {

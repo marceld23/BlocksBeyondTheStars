@@ -137,7 +137,8 @@ public sealed partial class GameServer
             var (city, hall) = (cities[k], halls[k]);
             var (cx, cz) = hall.Centre;
             var stop = new IntercityGivenStop(city.Name, WorldConstants.WrapX(city.Origin.X + cx, _world.Circumference), city.Origin.Z + cz,
-                hall.Heading, city.Origin.Y) { Platforms = hall.Platforms };
+                hall.Heading, city.Origin.Y)
+            { Platforms = hall.Platforms };
             if (k > 0)
             {
                 stop.Via.Add(ListedRailWorld(cities[k - 1], halls[k - 1].Exit));

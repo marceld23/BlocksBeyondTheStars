@@ -55,8 +55,13 @@ public sealed class EarthSpeciesElsewhereTests
     {
         var probe = new AuthoredCreature
         {
-            Key = "probe", DropItem = string.Empty, Habitat = CreatureHabitat.Water, Temperament = CreatureTemperament.Aggressive,
-            Pet = true, Pen = "unobtainium", WildElsewhere = 1.5,
+            Key = "probe",
+            DropItem = string.Empty,
+            Habitat = CreatureHabitat.Water,
+            Temperament = CreatureTemperament.Aggressive,
+            Pet = true,
+            Pen = "unobtainium",
+            WildElsewhere = 1.5,
         };
         var content = new GameContent(
             blocks: Array.Empty<BlockDefinition>(), items: Array.Empty<ItemDefinition>(), recipes: Array.Empty<RecipeDefinition>(),

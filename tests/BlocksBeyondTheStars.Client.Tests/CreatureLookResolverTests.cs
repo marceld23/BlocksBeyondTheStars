@@ -83,8 +83,16 @@ public sealed class CreatureLookResolverTests
         {
             var c = new NetCreature
             {
-                Id = "e" + i, SpeciesId = "au_cat", VoiceSeed = 1234, ColorRgb = 0x888888, BellyRgb = 0xDDDDDD, Hide = "fur",
-                CoatPattern = "Tabby", CoatPatternRgb = 0x333333, CoatMask = i % 7, AnimalSeed = 100 + i,
+                Id = "e" + i,
+                SpeciesId = "au_cat",
+                VoiceSeed = 1234,
+                ColorRgb = 0x888888,
+                BellyRgb = 0xDDDDDD,
+                Hide = "fur",
+                CoatPattern = "Tabby",
+                CoatPatternRgb = 0x333333,
+                CoatMask = i % 7,
+                AnimalSeed = 100 + i,
             };
             var look = CreatureLookResolver.Resolve(c, null, _ => true, _ => true);
             Assert.Equal(CreatureLookSource.Coat, look.Source);

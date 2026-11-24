@@ -182,7 +182,11 @@ public sealed class SpsHeadquartersTests : IDisposable
 
         t.Cells.Add(new TemplateCell
         {
-            X = 8, Y = 1, Z = 12, Kind = "marker", Id = LandmarkRules.GuardianGiantMarker,
+            X = 8,
+            Y = 1,
+            Z = 12,
+            Kind = "marker",
+            Id = LandmarkRules.GuardianGiantMarker,
             Config = $"{LandmarkRules.GuardianGiantFacingSetting}={facing}",
         });
         return t;

@@ -1168,7 +1168,7 @@ public sealed partial class WorldGenerator
                 }
 
                 w.BaseForm.RestrictFeatures(w); // #3977: a form drops the gates it does not carry, before the rows are chosen
-                var offsets =new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
+                var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
                 var seaOffsets = new System.Collections.Generic.List<LandmarkOffsetFn>();
                 var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
                 var cycles = new System.Collections.Generic.List<LandmarkCycleFn?>();

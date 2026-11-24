@@ -111,7 +111,7 @@ internal static class CreatureWireMapping
         n.BeakRgb = sp?.BeakRgb ?? 0;
         n.HasComb = sp?.HasComb ?? false;
         n.TailFluke = sp?.TailFluke ?? false; // #3975: the dolphin's and the whale's horizontal fluke
-        n.Heads =System.Math.Max(1, sp?.Heads ?? 1);         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
+        n.Heads = System.Math.Max(1, sp?.Heads ?? 1);         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
         n.WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1);
         n.FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1);
     }
@@ -208,7 +208,7 @@ internal static class CreatureWireMapping
         c.BeakRgb = sp.BeakRgb;
         c.HasComb = sp.HasComb;
         c.TailFluke = sp.TailFluke; // #3975
-        c.Heads =System.Math.Max(1, sp.Heads);
+        c.Heads = System.Math.Max(1, sp.Heads);
         c.WingPairs = System.Math.Max(1, sp.WingPairs);
         c.FinPairs = System.Math.Max(1, sp.FinPairs);
     }

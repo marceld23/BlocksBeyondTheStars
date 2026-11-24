@@ -78,7 +78,10 @@ public sealed class PlaceListTests
     {
         var complex = new PlaceDefinition
         {
-            Key = "c", Kind = PlaceListKinds.Complex, Longitude = 0.0, Latitude = 0.0,
+            Key = "c",
+            Kind = PlaceListKinds.Complex,
+            Longitude = 0.0,
+            Latitude = 0.0,
             Members = { new PlaceMember { Template = "a", East = -30, North = 5 } },
         };
         var listed = Assert.Single(PlaceRules.ListedLandmarks(new PlaceListDefinition { Places = { complex } }));

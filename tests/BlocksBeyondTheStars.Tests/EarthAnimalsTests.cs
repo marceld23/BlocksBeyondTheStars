@@ -222,7 +222,8 @@ public sealed class EarthAnimalsTests
 
         var planet = new PlanetType
         {
-            Key = "probe", FloraTheme = "temperate",
+            Key = "probe",
+            FloraTheme = "temperate",
             Biomes = { new Biome { SurfaceBlock = "snow", FloraTheme = "tundra" }, new Biome { SurfaceBlock = "grass" } },
         };
         Assert.Equal(1, CreatureBiomes.AffinityIn(Array.Empty<string>(), new[] { "temperate" }, planet)); // inherits the type's
@@ -235,8 +236,12 @@ public sealed class EarthAnimalsTests
     {
         var probe = new AuthoredCreature
         {
-            Key = "probe", DropItem = string.Empty, NameKey = "dog", Homes = { "no_such_type" },
-            FloraThemes = { "temperate", "jungle-ish" }, FavouriteFood = "unobtainium",
+            Key = "probe",
+            DropItem = string.Empty,
+            NameKey = "dog",
+            Homes = { "no_such_type" },
+            FloraThemes = { "temperate", "jungle-ish" },
+            FavouriteFood = "unobtainium",
             Voices = new SpeciesVoices { Calm = { "animal_dog_bark" }, Alarm = { "animal_dog_meow" } },
         };
         var content = new GameContent(

@@ -27,13 +27,26 @@ public sealed class SolSystemTests : IDisposable
     /// <summary>The bodies of Sol: id → (parent, circumference, gravity, fixed drawn diameter).</summary>
     private static readonly Dictionary<string, (string Parent, int Circumference, float Gravity, float Visible)> Bodies = new()
     {
-        ["mercury"] = ("", 6128, 0.5f, 0f), ["venus"] = ("", 15200, 0.9f, 0f), ["earth"] = ("", 16000, 1.0f, 0f),
-        ["moon"] = ("earth", 4368, 0.35f, 0f), ["mars"] = ("", 8512, 0.5f, 0f), ["phobos"] = ("mars", 800, 0.35f, 0f),
-        ["deimos"] = ("mars", 800, 0.35f, 0f), ["ceres"] = ("", 1200, 0.35f, 0f), ["vesta"] = ("", 896, 0.35f, 0f),
-        ["jupiter"] = ("", 16000, 1.6f, 242f), ["io"] = ("jupiter", 5776, 0.4f, 0f), ["europa"] = ("jupiter", 4896, 0.35f, 0f),
-        ["ganymede"] = ("jupiter", 6592, 0.4f, 0f), ["callisto"] = ("jupiter", 6048, 0.4f, 0f),
-        ["saturn"] = ("", 14400, 1.1f, 202f), ["titan"] = ("saturn", 6464, 0.35f, 0f), ["uranus"] = ("", 12000, 0.9f, 129f),
-        ["neptune"] = ("", 12000, 1.15f, 129f), ["triton"] = ("neptune", 3392, 0.35f, 0f), ["pluto"] = ("", 2976, 0.35f, 0f),
+        ["mercury"] = ("", 6128, 0.5f, 0f),
+        ["venus"] = ("", 15200, 0.9f, 0f),
+        ["earth"] = ("", 16000, 1.0f, 0f),
+        ["moon"] = ("earth", 4368, 0.35f, 0f),
+        ["mars"] = ("", 8512, 0.5f, 0f),
+        ["phobos"] = ("mars", 800, 0.35f, 0f),
+        ["deimos"] = ("mars", 800, 0.35f, 0f),
+        ["ceres"] = ("", 1200, 0.35f, 0f),
+        ["vesta"] = ("", 896, 0.35f, 0f),
+        ["jupiter"] = ("", 16000, 1.6f, 242f),
+        ["io"] = ("jupiter", 5776, 0.4f, 0f),
+        ["europa"] = ("jupiter", 4896, 0.35f, 0f),
+        ["ganymede"] = ("jupiter", 6592, 0.4f, 0f),
+        ["callisto"] = ("jupiter", 6048, 0.4f, 0f),
+        ["saturn"] = ("", 14400, 1.1f, 202f),
+        ["titan"] = ("saturn", 6464, 0.35f, 0f),
+        ["uranus"] = ("", 12000, 0.9f, 129f),
+        ["neptune"] = ("", 12000, 1.15f, 129f),
+        ["triton"] = ("neptune", 3392, 0.35f, 0f),
+        ["pluto"] = ("", 2976, 0.35f, 0f),
         ["charon"] = ("pluto", 1520, 0.35f, 0f),
     };
 

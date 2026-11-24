@@ -123,7 +123,11 @@ public sealed partial class GameServer
         var (mapX, mapY) = GuardianFinaleMapPosition(_galaxy);
         var system = new StarSystem
         {
-            Id = GuardianFinaleSystemId, Origin = StarSystemOrigin.Finale, Name = "Guardian Core", MapX = mapX, MapY = mapY,
+            Id = GuardianFinaleSystemId,
+            Origin = StarSystemOrigin.Finale,
+            Name = "Guardian Core",
+            MapX = mapX,
+            MapY = mapY,
         };
         system.Bodies.Add(new CelestialBody
         {
