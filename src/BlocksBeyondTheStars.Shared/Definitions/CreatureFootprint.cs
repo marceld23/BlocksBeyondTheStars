@@ -146,12 +146,17 @@ public static class CreatureFootprint
 
             case BodyHeadReach.Muzzle:
                 // #3325: the standard front plus the muzzle — the builder draws it SnoutLength × 0.8u in front of the face.
-                return Radius(sp, sizeScale) + HoundMuzzleDepth(sp.SnoutLength, Unit(size, 3f));
+                return Radius(sp, sizeScale) + Math.Max(HoundMuzzleDepth(sp.SnoutLength, Unit(size, 3f)), BeakDepth(sp, size));
 
             default: // Radius: Standard, Floral, Titan, Reindeer (#3322), Soundi, Soundeling
-                return Radius(sp, sizeScale);
+                return Radius(sp, sizeScale) + BeakDepth(sp, size); // #3974: a beak reaches past the face (0 without one)
         }
     }
+
+    /// <summary>#3974: how far a species' beak reaches in front of its face at drawn size <paramref name="size"/> — the standard
+    /// body's head carries it (<see cref="CreatureBeaks.Depth"/>, the builder's unit); 0 without a beak.</summary>
+    private static float BeakDepth(CreatureSpecies sp, float size)
+        => sp.BeakStyle == CreatureBeakStyle.None ? 0f : CreatureBeaks.Depth(sp.BeakStyle, sp.BeakLength, Unit(size, 3f));
 
     /// <summary>#3325: how far a hound's muzzle reaches in front of its face, for a body unit <paramref name="unit"/> — the
     /// client builds it with exactly this depth, so the head's reach follows the drawing.</summary>

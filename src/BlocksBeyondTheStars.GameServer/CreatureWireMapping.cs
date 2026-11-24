@@ -104,7 +104,11 @@ internal static class CreatureWireMapping
         n.SnoutLength = sp?.SnoutLength ?? 0f;
         n.HasClaws = sp?.HasClaws ?? false;
         n.HasTeeth = sp?.HasTeeth ?? false;
-        n.Heads = System.Math.Max(1, sp?.Heads ?? 1);         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
+        n.BeakStyle = (sp?.BeakStyle ?? CreatureBeakStyle.None).ToString(); // #3974: the birds' beaks, the chicken's comb
+        n.BeakLength = sp?.BeakLength ?? 0f;
+        n.BeakRgb = sp?.BeakRgb ?? 0;
+        n.HasComb = sp?.HasComb ?? false;
+        n.Heads =System.Math.Max(1, sp?.Heads ?? 1);         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
         n.WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1);
         n.FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1);
     }
@@ -196,7 +200,11 @@ internal static class CreatureWireMapping
         c.SnoutLength = sp.SnoutLength;
         c.HasClaws = sp.HasClaws;
         c.HasTeeth = sp.HasTeeth;
-        c.Heads = System.Math.Max(1, sp.Heads);
+        c.BeakStyle = sp.BeakStyle.ToString(); // #3974: a tamed bird keeps its beak
+        c.BeakLength = sp.BeakLength;
+        c.BeakRgb = sp.BeakRgb;
+        c.HasComb = sp.HasComb;
+        c.Heads =System.Math.Max(1, sp.Heads);
         c.WingPairs = System.Math.Max(1, sp.WingPairs);
         c.FinPairs = System.Math.Max(1, sp.FinPairs);
     }

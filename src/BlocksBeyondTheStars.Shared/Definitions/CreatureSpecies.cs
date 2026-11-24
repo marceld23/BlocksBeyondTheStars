@@ -382,6 +382,23 @@ public sealed class CreatureSpecies
     /// territorial one (a dog). See <see cref="CreatureBehaviour.RetaliatesWhenAttacked(CreatureSpecies)"/>.</summary>
     public bool DefendsItself { get; set; }
 
+    // --- Beaks (#3974, the birds of Earth). None/zero/false on every other species, so no older world, companion snapshot or
+    // wire message changes. ---
+
+    /// <summary>#3974: the beak on the head (<see cref="CreatureBeakStyle"/>); <see cref="CreatureBeakStyle.None"/> on every
+    /// species but the birds of Earth and the dolphin.</summary>
+    public CreatureBeakStyle BeakStyle { get; set; }
+
+    /// <summary>#3974: how far the beak reaches in front of the face, as a share of the head's depth unit (like
+    /// <see cref="SnoutLength"/>); 0 = the style's default (<see cref="CreatureBeaks.LengthOf"/>).</summary>
+    public float BeakLength { get; set; }
+
+    /// <summary>#3974: the beak's colour (0xRRGGBB); 0 = the species' horn colour. A rostrum wears the head's coat.</summary>
+    public int BeakRgb { get; set; }
+
+    /// <summary>#3974: a red comb on the crown and a wattle under the beak (a chicken's).</summary>
+    public bool HasComb { get; set; }
+
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => CreatureBodyPlans.Of(BodyPlan).Giant;
 

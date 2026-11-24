@@ -207,6 +207,9 @@ namespace BlocksBeyondTheStars.Client
                 // #3327: the Schuppenhund's muzzle, nose, teeth and ears (all zero on every other species — nothing is built).
                 AddHoundHead(c, unit, headW, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f);
 
+                // #3974: a bird's beak (a dolphin's snout, #3975) and a chicken's comb (none on every other species).
+                AddBeak(c, unit, headW, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f);
+
                 // #1760: the flowerling — a ring of petals around the head, and a face that is a wide grin while it is
                 // calm and a toothed maw while it is hostile (the server flips Hostile with the mining grudge; the view
                 // rebuilds the body on that flip, so the face follows).

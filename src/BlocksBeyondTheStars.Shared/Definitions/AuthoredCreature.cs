@@ -161,6 +161,12 @@ public sealed class AuthoredCreature
     /// <summary>#3973: a shy animal that bites back when hit — see <see cref="CreatureSpecies.DefendsItself"/>.</summary>
     public bool DefendsItself { get; set; }
 
+    // --- Beaks (#3974): see CreatureSpecies.BeakStyle. None on every older record. ---
+    public CreatureBeakStyle BeakStyle { get; set; }
+    public float BeakLength { get; set; }
+    public int BeakRgb { get; set; }
+    public bool HasComb { get; set; }
+
     /// <summary>#3973: the English text of <see cref="NameKey"/> — the species' language-neutral fallback name (logs, saves, an
     /// older client). Filled at content load from the English locale; empty without a name key.</summary>
     public string EnglishName => _englishName;
