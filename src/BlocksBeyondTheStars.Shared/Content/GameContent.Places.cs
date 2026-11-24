@@ -43,7 +43,7 @@ public sealed partial class GameContent
                 problems.Add($"The place list '{list.PlanetType}' names no loaded planet type with a terrain map.");
             }
 
-            problems.AddRange(PlaceRules.Problems(list, LandmarkByKey).Select(p => $"Place list '{list.PlanetType}': {p}."));
+            problems.AddRange(PlaceRules.Problems(list, LandmarkByKey, key => GetBlock(key) is not null).Select(p => $"Place list '{list.PlanetType}': {p}."));
         }
     }
 }

@@ -134,7 +134,8 @@ public sealed partial class StructureGeneratorGoldenTests
     {
         var cases = new List<(string, ulong)>();
         var zones = CityZones();
-        var pool = ModulePool();
+        // #3983: the modules the G.D.S. desert can see (its pool is planet-filtered) — the Earth city kit's modules are Earth's
+        var pool = ModulePool().Where(t => t.PlanetTypes.Count == 0 || t.PlanetTypes.Contains("gds_desert")).ToList();
         foreach (long seed in Seeds.Take(2))
         {
             cases.Add(($"city:procedural:{N(seed)}", Hash(CityGenerator.Generate(seed, Content, zones))));

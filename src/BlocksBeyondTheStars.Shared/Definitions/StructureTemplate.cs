@@ -271,6 +271,13 @@ public static class StructureRoles
     public const string CityGarden = "city_garden";
     public const string CityTower = "city_tower";
 
+    /// <summary>#3983: a metropolis's landing plaza (the district map's <c>P</c>) — a kit city may fill it with a module; the
+    /// G.D.S. city keeps its procedural plaza.</summary>
+    public const string CityPlaza = "city_plaza";
+
+    /// <summary>#3983: a quay along a metropolis's coast (the district map's <c>Q</c>).</summary>
+    public const string CityQuay = "city_quay";
+
     /// <summary>The tier value of a city-composer module: the district envelope, not a settlement size.</summary>
     public const string MetropolisTier = "metropolis";
 
@@ -316,14 +323,14 @@ public static class StructureRoles
     public static bool IsLandmark(string? function) => function != null && function.StartsWith(LandmarkPrefix, System.StringComparison.Ordinal);
 
     public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot, Field, Garden, Pen };
-    public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
+    public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower, CityPlaza, CityQuay };
 
     /// <summary>Every role, in the order the editor's pick list shows them (whole first).</summary>
     public static readonly string[] All =
     {
         string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot,
         Field, Garden, Pen,
-        CityHousing, CityMarket, CityHall, CityGarden, CityTower,
+        CityHousing, CityMarket, CityHall, CityGarden, CityTower, CityPlaza, CityQuay,
     };
 
     /// <summary>Where a planned settlement puts a function (#3586, #3587): 0 at the plaza (market, notice house, tavern), 2 at

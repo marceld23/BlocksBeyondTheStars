@@ -74,6 +74,15 @@ public static partial class CityGenerator
 
         /// <summary>#3599: no district here (the district map's <c>.</c>) — the grown city's outline leaves it to the land.</summary>
         None,
+
+        /// <summary>#3983: part of a metropolis's landmark square (<c>L</c>) — paved, nothing above: a landmark stands there.</summary>
+        Landmark,
+
+        /// <summary>#3983: the free square a metropolis keeps for its rail hall (<c>S</c>) — paved and lit, nothing built yet.</summary>
+        Station,
+
+        /// <summary>#3983: a quay along a metropolis's coast (<c>Q</c>).</summary>
+        Quay,
     }
 
     /// <summary>The role of the module at grid cell (<paramref name="gx"/>, <paramref name="gz"/>) — public so
@@ -82,7 +91,8 @@ public static partial class CityGenerator
 
     /// <summary>The district role for any odd grid (#1876): the centre is the plaza, the corners towers, the ring
     /// around the plaza markets / hall / gardens / housing, every third outer district a garden — unless a kit's
-    /// district map (<paramref name="roleMap"/>: one string per row, letters P O M H G T R) says otherwise.</summary>
+    /// district map (<paramref name="roleMap"/>: one string per row, letters P O M H G T R, <c>.</c> for none and — a metropolis,
+    /// #3983 — L S Q) says otherwise.</summary>
     public static Role RoleAtFor(int gx, int gz, int grid, IReadOnlyList<string>? roleMap)
     {
         if (roleMap != null && gz < roleMap.Count && gx < roleMap[gz].Length)
@@ -97,6 +107,9 @@ public static partial class CityGenerator
                 case 'T': return Role.Tower;
                 case 'R': return Role.Housing;
                 case '.': return Role.None; // #3599
+                case 'L': return Role.Landmark; // #3983
+                case 'S': return Role.Station;
+                case 'Q': return Role.Quay;
             }
         }
 
@@ -140,7 +153,9 @@ public static partial class CityGenerator
     public static (int X, int Z) ModuleOriginFor(int gx, int gz, int size, int street)
         => (street + gx * (size + street), street + gz * (size + street));
 
-    /// <summary>The kit function a district of <paramref name="role"/> takes ("" for the plaza / open ground).</summary>
+    /// <summary>The kit function a district of <paramref name="role"/> takes ("" for open ground, a landmark square and the
+    /// station's square). #3983: the plaza takes <see cref="StructureRoles.CityPlaza"/> — only a kit with a plaza module fills
+    /// it (no G.D.S. kit has one, so every G.D.S. city keeps its procedural plaza).</summary>
     public static string CityRoleName(Role role) => role switch
     {
         Role.Market => StructureRoles.CityMarket,
@@ -148,8 +163,15 @@ public static partial class CityGenerator
         Role.Garden => StructureRoles.CityGarden,
         Role.Tower => StructureRoles.CityTower,
         Role.Housing => StructureRoles.CityHousing,
+        Role.Plaza => StructureRoles.CityPlaza,
+        Role.Quay => StructureRoles.CityQuay,
         _ => string.Empty,
     };
+
+    /// <summary>Whether a district of <paramref name="role"/> may be filled with a module: never open ground, a landmark square,
+    /// the station's square or no district; the plaza only from a kit (#3983).</summary>
+    private static bool TakesModule(Role role, bool fromKit)
+        => role is not (Role.Open or Role.None or Role.Landmark or Role.Station) && (role != Role.Plaza || fromKit);
 
     /// <summary>Composes the city. <paramref name="modules"/> (#1827) are the authored district modules the
     /// world allows (tier <see cref="StructureRoles.MetropolisTier"/>, role <c>city_*</c>); with
@@ -160,13 +182,14 @@ public static partial class CityGenerator
     /// <paramref name="terrainGeneration"/> (#3519): from generation 38 a district module's markers carry their settings (a
     /// chest's content, a sound, a den), like a landmark's; the default 0 composes as every older world does.
     /// <paramref name="theme"/> (#3980): the city place's theme key — the composer's rng lane <c>city:&lt;theme&gt;</c>; the
-    /// G.D.S. theme composes every existing city exactly as before.</summary>
+    /// G.D.S. theme composes every existing city exactly as before. <paramref name="materials"/> (#3983): what the district
+    /// modules' material tokens resolve to — a metropolis's theme palette; null = the G.D.S. city's (<see cref="ModuleMaterials.ForCity"/>).</summary>
     public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
         CityLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
         bool legacyModuleRoll = false, int terrainGeneration = 0, IList<string>? suburbPlans = null,
-        string theme = CityPlace.DefaultTheme)
+        string theme = CityPlace.DefaultTheme, ModuleMaterials? materials = null)
     {
         // #1876: a kit city takes its grid from the layout spec (districts per side, district size, street width, height, map).
         var spec = layout ?? CityLayoutSpec.Default;
@@ -206,7 +229,7 @@ public static partial class CityGenerator
         // floor lamps.
         var furniture = RoomFurnisher.PaletteFor(RoomFurnisher.Style.Town, content);
         furniture.CeilingLit = true;
-        var materials = ModuleMaterials.ForCity(content); // #1885: the district modules' material tokens
+        materials ??= ModuleMaterials.ForCity(content); // #1885: the district modules' material tokens (#3983: or the theme's)
 
         ushort Get(int x, int y, int z) => x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l ? (ushort)0 : blocks[(x * h + y) * l + z];
 
@@ -343,16 +366,9 @@ public static partial class CityGenerator
                 // #1827: an authored district of this role? Stamped centred on the paved floor; its own
                 // markers (residents, vendors, doors, rooms) replace the procedural ones.
                 StructureTemplate? authored = null;
-                if (role != Role.Plaza && role != Role.Open)
+                if (TakesModule(role, fromKit: assigned != null || replay))
                 {
-                    string moduleRole = role switch
-                    {
-                        Role.Market => StructureRoles.CityMarket,
-                        Role.Hall => StructureRoles.CityHall,
-                        Role.Garden => StructureRoles.CityGarden,
-                        Role.Tower => StructureRoles.CityTower,
-                        _ => StructureRoles.CityHousing,
-                    };
+                    string moduleRole = CityRoleName(role);
                     int district = gx * grid + gz;
                     bool StyleOk(StructureTemplate m) => m.Tier == StructureRoles.MetropolisTier;
                     var pool = kitModules ?? modules;
@@ -386,11 +402,15 @@ public static partial class CityGenerator
                 switch (role)
                 {
                     case Role.Plaza:
-                        StampPlaza(mx, mz);
+                        StampPlaza(mx, mz, guards: !spec.Metro); // #3983: a metropolis has no G.D.S. guardians
                         break;
                     case Role.Open:
+                    case Role.Station: // #3983: the rail hall's square, kept free
+                    case Role.Quay:    // #3983: without a quay module
                         StampOpen(mx, mz);
                         break;
+                    case Role.Landmark:
+                        break; // #3983: the landmark stands here — paving only
                     case Role.Market:
                         StampMarket(mx, mz);
                         break;
@@ -417,13 +437,16 @@ public static partial class CityGenerator
             CityGrowth.Wall(spec, gates, (x, y, z, b, t) => { tint = t; Set(x, y, z, b); tint = 0; }, wall, lamp, markers);
             buildings += CityGrowth.Suburbs(spec, gates, seed, content, kit, kitModules ?? modules, suburbPlans, warn, SetCell, markers);
         }
-        else
+        else if (!spec.Metro)
         {
-            StampWall();
+            StampWall(); // #3983: a metropolis is an open city — no wall, no gate guards
         }
 
         tint = 0;
-        return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
+        return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes)
+        {
+            ColumnFloors = spec.Metro ? MetropolisPlanner.ColumnFloors(spec) : null, // #3983: the districts left to the land stay unclaimed
+        };
 
         // ------------------------------------------------------------------ modules
 
@@ -657,7 +680,7 @@ public static partial class CityGenerator
             buildings++;
         }
 
-        void StampPlaza(int mx, int mz)
+        void StampPlaza(int mx, int mz, bool guards)
         {
             // The landing plaza: steel paving under the pad ring, a lamp every 45° at radius 13 and four
             // guard posts that watch the ship come down.
@@ -678,6 +701,11 @@ public static partial class CityGenerator
             {
                 double a = i * System.Math.PI / 4.0;
                 LampPost(cx + (int)System.Math.Round(System.Math.Cos(a) * 13), cz + (int)System.Math.Round(System.Math.Sin(a) * 13), 4);
+            }
+
+            if (!guards)
+            {
+                return;
             }
 
             markers.Add(new SettlementMarker("guard_post", new Vector3i(cx - 14, 1, cz - 14)));

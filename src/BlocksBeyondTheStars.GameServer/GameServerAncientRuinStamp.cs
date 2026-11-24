@@ -27,7 +27,7 @@ public sealed partial class GameServer
     private bool TrySeatAncientRuinUnderCity(AncientRuinPlan plan)
     {
         var cityRec = FindPlacementRecord("settlement", 0);
-        if (cityRec is not { Placed: true } || _worlds.Active.CityFootprint is null)
+        if (cityRec is not { Placed: true } || _worlds.Active.CityFootprints.Count == 0)
         {
             return false;
         }

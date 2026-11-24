@@ -3,7 +3,8 @@
 > Status: **Implemented** (#3977, #3978, #3979, 2026-11). The engine and the map format are in place;
 > `data/maps/earth.bbmap`, `moon.bbmap`, `mars.bbmap`, `venus.bbmap` and `mercury.bbmap` are built, and the browser
 > fetches them on demand (§6). Which planet types use a map is data (`terrainMap` in `data/planets.json`): Sol's Earth,
-> Moon, Mars, Venus and Mercury (§4). A map world's fixed places and landing pads come from its place list (#3981, §7).
+> Moon, Mars, Venus and Mercury (§4). A map world's fixed places and landing pads come from its place list (#3981, §7),
+> its metropolises are laid out on its land (#3983, §8).
 
 A procedural world is rolled from its seed. A **map world** takes its ground and its biomes from a **planet map**: a grid
 of real elevation and biome classes, sampled onto the torus. Everything else — rivers, caves, ores, small landforms,
@@ -252,7 +253,7 @@ A map world's type may carry a **place list**: `data/places/<planetType>.json` (
 | `template` | landmark | a landmark template that is `pinOnly` (in no pool) |
 | `turn` | landmark (city later) | the quarter turn, 0..3; a complex stands unturned (0) |
 | `members` | complex | its parts, in pinned order (`PlaceMember`): each a `pinOnly` `template` whose footprint's low (south-west) corner lies `east` blocks east and `north` blocks north of the anchor |
-| `theme`, `grid`, `kit`, `nameKey`, `landmarks` | city | stored for the metropolis package (theme = the key when empty, grid 0 = the composer's default, the landmark keys `pinOnly`); not stamped yet |
+| `theme`, `grid`, `plaza`, `stations`, `palette`, `kit`, `nameKey`, `landmarks` | city | a metropolis (§8): theme = the key when empty, grid 3..12 (0 = the composer's default), the plaza district `[column, row]`, the rail-hall squares (0..3, default 1), the palette (token → `block#RRGGBB`), the kit (default `city_earth_1`), the name key, the landmark keys (`pinOnly`) |
 
 **The projection** (`PlaceRules.BlockOf`, `PlaceDefinition.BlockOn(C)`): X = longitude / 360 · C wrapped to [0, C), Z =
 latitude / 180 · P with P = `WorldConstants.LatitudePeriodFor(C)`, rounded to the nearest block — the map's own projection
@@ -308,3 +309,66 @@ net fragments (`allowedStructures`; the whitelist keys `settlements` and `lodges
 lost civilization, rail ruin, bandit camp, factory, rolled landmark or city world stands there; the rune shrines (chunk
 generation) need `monuments`, and the lone rune stones the new chunk-level key `rune_stones`, which every whitelisted type
 before Earth names and Earth does not.
+
+## 8. The metropolises (#3983)
+
+Every `city` place of a body's place list is a **metropolis**: an inhabited space-age city laid out on the land round the
+place's landing pad (Earth: London, Paris, Berlin, Cairo, Tokyo, Sydney, Toronto, New York, Rio de Janeiro). Code:
+`WorldGeneration/MetropolisPlanner.cs` (the ground plan), `CityGenerator` (the composer, `CityLayoutSpec.Metro`),
+`GameServer/GameServerMetropolis.cs` (the stamp), the kit `city_earth_1` (`tools/gen_earth_city_modules.py`).
+
+**The place** (`ListedCityPlaces`). A `CityPlace` with `Metro` set: centre = the place's block column; the pad listed at the
+same spot lies in the middle of the **plaza district** (`plaza` `[column, row]` of its `grid` of 32-block districts with
+4-block streets), its level is the city's **floor**; the pad ring (radius 11) is an open zone. Record: settlement
+`1000 + i` (its position among the list's cities), seat `shelf`, template `city:<theme>`, the kit, the laid district map as
+`KitLayout` (sixth field `metro`), `Plan = storage=overlay`; the seed hashes the place key and the body; the name is the
+English text of `nameKey`, shown in each player's language on the map and in VEGA's "settlement near" line
+(`SettlementNameFor`, `SettlementInstance.NameKey`). A body that was played on before its city appeared records a skip.
+
+**The ground plan** (`MetropolisPlanner.Lay`, once; the map is pinned, a replay never reads the terrain). Each district is
+sampled every 4 blocks (`SampleDistrict`): **sea** (surface water), **kept** (dry, within 24 blocks of the floor) or **out of
+reach**. Only the plaza's **landmass** counts — a four-way flood fill over land districts from the plaza — so London stays
+on Great Britain and never jumps the Channel. Then:
+
+| letter | what | rule |
+|---|---|---|
+| `P` | the landing plaza | the kit's `city_plaza` module (lamps, planters, benches, the lit landing ring) |
+| `L` | a landmark square | largest landmark first: the free rectangle of landmass districts nearest the plaza that holds the template's footprint plus a block each side, either way round (out-of-reach land may be part of it: the square is levelled) |
+| `M`, `H` | the market halls (1, from a 6-grid 2), the notice house, the inn, the workshop | the kept districts nearest the plaza |
+| `S` | the rail hall's free square(s) (`stations`, Paris 2) | paving and lamps, two rings out or more — **the rail network builds its halls on the `S` districts of the pinned map** |
+| `T` | the large high-rises | the nearest free sixth of the kept districts (at least two): the skyline round the centre |
+| `Q` | a quay | a kept district with a tenth of its samples sea that touches the sea or a left-out district |
+| `G` | a park | the outermost free district, then about every fifth |
+| `R` | housing (high-rises small and medium, the housing block) | every other kept district |
+| `.` | left to the land | the sea, the land out of reach, other landmasses |
+
+**The composer.** A `Metro` layout has no wall and no guard posts; the plaza takes the kit's plaza module; the structure is
+48 high and carries a **column map** (`SettlementStructure.ColumnFloors`, `MetropolisPlanner.ColumnFloors`): every district on
+the map and the streets round it claimed at floor 0, every `.` district unclaimed — so the planned-settlement stamper
+(`StampPlannedBlocks`) clears, floors and skirts only the city's own columns, and protection, the creature town zone and the
+far silhouette follow them. The theme's **palette** (`ModuleMaterials.FromPalette`) resolves the modules' material tokens: a
+block and a dye per token (`WallTint`, `FloorTint`, `PathTint` besides the roof and accent dyes).
+
+**The stamp.** The metropolises are planned in the settlement stage **before the hospitality roll** (`PlanMetropolises`); the
+roll keeps clear of their boxes and both are committed together (`CommitMetropolises` → `CommitSettlements`, the cities
+first). The ground is reserved per claimed rectangle at the floor with the city grade (radius 24, cut and fill 32; a sea
+column is never raised). The cells go through an overlay sink into **one structure overlay** `city:<index>`
+(`StampSettlementCells`, `StoreStructureOverlay`) — no block edits. The landmarks follow on their squares (LANDMARKS.md §4,
+records `1500 + 10 × city + k`). Everything else is an ordinary settlement: residents by bed (capped at 80 like the G.D.S.
+city), the professions, children, pets, the mission board, the lively places' day and night. On every load the city is
+composed again from its record (markers, beds, the column map) and its overlay applies with the chunks.
+
+**Performance** (a first visit of Earth in a test, on the development machine — not yet measured on the low-end preset or in
+the browser; `EarthMetropolisTests` writes these numbers to its output):
+
+| | value |
+|---|---|
+| Earth's first boot without the settlement stage / with the nine cities, their landmarks and the villages | 24.6 s / 36 s |
+| of it: planning the nine cities / committing them with the villages (cells, instances, residents) / their landmarks | 1.0 s / 10 s / 1.5 s |
+| the same before the overlay city cleared its columns instead of carving trees (the carve generated every chunk) | 70–83 s |
+| the overlays per city (cells / bytes stored) | Berlin 0.47 M / 10 KB … London 1.5 M / 56 KB |
+| blocks built per city / residents per city | 34,000 (Berlin) … 152,000 (London) / 41 … 80 (the G.D.S. city's cap of 80 by bed) |
+| NPCs on Earth after the first boot | 672 |
+
+To keep in mind: every load composes all nine cities again from their records (about a second); the composed structures
+stay in memory for the beds, the column maps and protection (London's is 400 × 48 × 400).

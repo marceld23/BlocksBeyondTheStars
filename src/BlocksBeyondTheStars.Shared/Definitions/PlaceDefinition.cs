@@ -48,12 +48,24 @@ public sealed class PlaceDefinition
     /// <summary>The quarter turn (0..3) the structure stands at.</summary>
     public int Turn { get; set; }
 
-    /// <summary>A <c>city</c>: its theme key (the city record's <c>city:&lt;theme&gt;</c>); empty = the place's key. Stored for
-    /// the metropolis package, not stamped yet.</summary>
+    /// <summary>A <c>city</c>: its theme key (the city record's <c>city:&lt;theme&gt;</c>, the composer's lane); empty = the
+    /// place's key.</summary>
     public string Theme { get; set; } = string.Empty;
 
-    /// <summary>A <c>city</c>: its district grid (cells per side); 0 = the composer's default.</summary>
+    /// <summary>A <c>city</c>: its district grid (districts per side, <see cref="PlaceRules.MinCityGrid"/>..<see cref="PlaceRules.MaxCityGrid"/>);
+    /// 0 = the composer's default.</summary>
     public int Grid { get; set; }
+
+    /// <summary>A <c>city</c>: its plaza district <c>[column, row]</c> (X index, Z index) — the place's centre and landing pad
+    /// lie in its middle; empty = the centre district.</summary>
+    public List<int> Plaza { get; set; } = new();
+
+    /// <summary>A <c>city</c>: how many free squares it keeps for rail halls (the rail network builds them).</summary>
+    public int Stations { get; set; } = 1;
+
+    /// <summary>A <c>city</c>: its colours — per material token (<c>wall accent roof floor path</c>) a block key with an
+    /// optional dye, <c>concrete#F0E2C0</c>; a token it leaves out keeps the city kit's default.</summary>
+    public Dictionary<string, string> Palette { get; set; } = new(StringComparer.Ordinal);
 
     /// <summary>A <c>city</c>: a pinned city kit; empty = the theme's own.</summary>
     public string Kit { get; set; } = string.Empty;
@@ -61,7 +73,7 @@ public sealed class PlaceDefinition
     /// <summary>A <c>city</c>: the locale key of its name; empty = none.</summary>
     public string NameKey { get; set; } = string.Empty;
 
-    /// <summary>A <c>city</c>: the landmark templates that stand in it (each <c>pinOnly</c>).</summary>
+    /// <summary>A <c>city</c>: the landmark templates that stand in it, each on a square of its own (each <c>pinOnly</c>).</summary>
     public List<string> Landmarks { get; set; } = new();
 
     /// <summary>A <c>complex</c>: its parts, in their pinned order (each part's landmark record follows it), placed around the
@@ -136,7 +148,7 @@ public static class PlaceListKinds
     /// of its own, stamped like a <see cref="Landmark"/> place.</summary>
     public const string Complex = "complex";
 
-    /// <summary>A city (a <c>CityPlace</c> of the metropolis package): stored now, stamped later.</summary>
+    /// <summary>A city (#3983: a metropolis, a <c>CityPlace</c> laid out on the land round the place's landing pad).</summary>
     public const string City = "city";
 
     /// <summary>A landing pad: a body with pad places takes exactly these pads, in list order (the first is the home touchdown).</summary>
@@ -150,6 +162,37 @@ public static class PlaceRules
 {
     /// <summary>The folder under the data directory that holds the lists.</summary>
     public const string DataFolder = "places";
+
+    /// <summary>The smallest and the largest district grid of a city place.</summary>
+    public const int MinCityGrid = 3;
+    public const int MaxCityGrid = 12;
+
+    /// <summary>The most rail-hall squares a city place keeps.</summary>
+    public const int MaxCityStations = 3;
+
+    /// <summary>The token names a city palette may set (the material tokens without their <c>@</c>).</summary>
+    public static readonly string[] PaletteTokens = { "wall", "accent", "roof", "floor", "path" };
+
+    /// <summary>A palette entry: a block key, optionally <c>#RRGGBB</c> after it for a dye (0 = none). False when malformed.</summary>
+    public static bool TryParsePaletteEntry(string? text, out string block, out int tint)
+    {
+        block = string.Empty;
+        tint = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        int hash = text!.IndexOf('#');
+        block = (hash < 0 ? text : text.Substring(0, hash)).Trim();
+        if (hash >= 0 && !(text.Length - hash - 1 == 6 && int.TryParse(text.Substring(hash + 1), System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out tint)))
+        {
+            return false;
+        }
+
+        return block.Length > 0;
+    }
 
     /// <summary>
     /// The block column of a longitude and latitude on a body of <paramref name="circumference"/>: X = longitude / 360 · C,
@@ -166,8 +209,9 @@ public static class PlaceRules
     }
 
     /// <summary>What is wrong with a list, one sentence each (empty = fine). <paramref name="landmark"/> finds a landmark
-    /// template by key (null = unknown).</summary>
-    public static List<string> Problems(PlaceListDefinition list, Func<string, StructureTemplate?> landmark)
+    /// template by key (null = unknown); <paramref name="blockKnown"/>, when given, says whether a block key exists (a city
+    /// palette's blocks).</summary>
+    public static List<string> Problems(PlaceListDefinition list, Func<string, StructureTemplate?> landmark, Func<string, bool>? blockKnown = null)
     {
         var problems = new List<string>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -194,14 +238,14 @@ public static class PlaceRules
                 problems.Add($"{at} has a turn outside 0..3");
             }
 
-            problems.AddRange(KindProblems(place, landmark).Select(p => $"{at} {p}"));
+            problems.AddRange(KindProblems(place, landmark, blockKnown).Select(p => $"{at} {p}"));
         }
 
         return problems;
     }
 
     /// <summary>The checks of the fields a kind owns.</summary>
-    private static IEnumerable<string> KindProblems(PlaceDefinition place, Func<string, StructureTemplate?> landmark)
+    private static IEnumerable<string> KindProblems(PlaceDefinition place, Func<string, StructureTemplate?> landmark, Func<string, bool>? blockKnown)
     {
         if (place.Kind != PlaceListKinds.Complex && place.Members.Count > 0)
         {
@@ -225,17 +269,9 @@ public static class PlaceRules
 
                 break;
             case PlaceListKinds.City:
-                if (place.Grid < 0)
+                foreach (string cityProblem in CityProblems(place, landmark, blockKnown))
                 {
-                    yield return "has a negative grid";
-                }
-
-                foreach (string key in place.Landmarks)
-                {
-                    if (TemplateProblem(key, landmark) is { } cityProblem)
-                    {
-                        yield return cityProblem;
-                    }
+                    yield return cityProblem;
                 }
 
                 break;
@@ -286,6 +322,47 @@ public static class PlaceRules
             }
 
             boxes.Add(box);
+        }
+    }
+
+    /// <summary>The checks of a city's fields: its grid, plaza and station count in range, its palette's tokens and entries
+    /// (blocks the content knows, when <paramref name="blockKnown"/> is given), its landmarks <c>pinOnly</c>.</summary>
+    private static IEnumerable<string> CityProblems(PlaceDefinition place, Func<string, StructureTemplate?> landmark, Func<string, bool>? blockKnown)
+    {
+        if (place.Grid != 0 && place.Grid is < MinCityGrid or > MaxCityGrid)
+        {
+            yield return $"has a grid outside {MinCityGrid}..{MaxCityGrid}";
+        }
+
+        int grid = place.Grid == 0 ? MinCityGrid : place.Grid;
+        if (place.Plaza.Count != 0 && (place.Plaza.Count != 2 || place.Plaza.Any(c => c < 0 || c >= grid)))
+        {
+            yield return "names a plaza that is no [column, row] of its grid";
+        }
+
+        if (place.Stations is < 0 or > MaxCityStations)
+        {
+            yield return $"keeps a station count outside 0..{MaxCityStations}";
+        }
+
+        foreach (var kv in place.Palette)
+        {
+            if (Array.IndexOf(PaletteTokens, kv.Key) < 0)
+            {
+                yield return $"has the palette token '{kv.Key}' ({string.Join(" | ", PaletteTokens)})";
+            }
+            else if (!TryParsePaletteEntry(kv.Value, out string block, out _) || (blockKnown is not null && !blockKnown(block)))
+            {
+                yield return $"has the palette entry '{kv.Value}' for '{kv.Key}', which is no known block (with an optional #RRGGBB)";
+            }
+        }
+
+        foreach (string key in place.Landmarks)
+        {
+            if (TemplateProblem(key, landmark) is { } cityProblem)
+            {
+                yield return cityProblem;
+            }
         }
     }
 

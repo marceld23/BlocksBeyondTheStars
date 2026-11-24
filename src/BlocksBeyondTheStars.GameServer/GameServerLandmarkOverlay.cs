@@ -148,6 +148,14 @@ public sealed partial class GameServer
 
         var sink = new OverlayCellSink(_world);
         WriteLandmarkCells(sink, lm, seat);
+        return StoreStructureOverlay(key, sink);
+    }
+
+    /// <summary>Stores what an overlay sink collected under <paramref name="key"/> (inside the caller's transaction), hands it to
+    /// the world (the resident chunks get its cells at once and are re-streamed) and gives the cells that carried an edit their
+    /// row. Returns the overlay's cells. Shared by the landmarks and the metropolises (#3983).</summary>
+    private int StoreStructureOverlay(string key, OverlayCellSink sink)
+    {
         var overlay = sink.Cells.Build();
         _repo.SaveStructureOverlay(new StoredStructureOverlay { Planet = _world.LocationId, Key = key, Data = overlay.Encode() });
         var resident = _world.AddStructureOverlay(key, overlay);

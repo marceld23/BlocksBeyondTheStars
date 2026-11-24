@@ -98,15 +98,15 @@ public sealed class EarthPlacesTests : IDisposable
 
     /// <summary>The given landmarks as (template, centre X, centre Z, ground Y).</summary>
     private static List<(string Key, int X, int Z, int GroundY)> Pyramids(SvGameServer server)
-        => server.LandmarksForTest.OrderBy(l => l.Key, StringComparer.Ordinal)
+        => server.LandmarksForTest.Where(l => l.Key.StartsWith("earth_pyramid", StringComparison.Ordinal)).OrderBy(l => l.Key, StringComparer.Ordinal)
             .Select(l => (l.Key, l.Origin.X + (l.Structure.Width / 2), l.Origin.Z + (l.Structure.Length / 2), l.GroundY)).ToList();
 
     private static void AssertPlacesAndPads(SvGameServer server)
     {
         // The pyramids and the parts of the SPS headquarters stand exactly on their places (no search), pinned as given
-        // landmarks in list order …
+        // landmarks in list order (#3983: the cities' landmarks stand beside them) …
         var places = PlaceRules.ListedLandmarks(EarthPlaces).ToList();
-        Assert.Equal(places.Count, server.LandmarksForTest.Count);
+        Assert.Equal(places.Count, server.LandmarksForTest.Count(l => places.Exists(p => p.Template == l.Key)));
         for (int i = 0; i < places.Count; i++)
         {
             var lm = Assert.Single(server.LandmarksForTest, l => l.Key == places[i].Template);

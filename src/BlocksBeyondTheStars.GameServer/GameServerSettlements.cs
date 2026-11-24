@@ -59,8 +59,13 @@ public sealed partial class GameServer
     /// <summary>Number of inhabited (non-ruin) settlements on this world.</summary>
     public int InhabitedSettlementCount => _settlements.Count(s => !s.Ruined);
 
-    /// <summary>Test seam (#1793): the city world's footprint, null on every other world.</summary>
-    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprintForTest => _worlds.Active.CityFootprint;
+    /// <summary>Test seam (#1793): the first city's footprint (the city world's one city), null on a world without one.</summary>
+    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprintForTest
+        => _worlds.Active.CityFootprints.Count > 0 ? (_worlds.Active.CityFootprints[0].MinX, _worlds.Active.CityFootprints[0].MinZ,
+            _worlds.Active.CityFootprints[0].MaxX, _worlds.Active.CityFootprints[0].MaxZ) : null;
+
+    /// <summary>Test seam (#3983): every city footprint of the active world, in stamp order.</summary>
+    internal IReadOnlyList<CityFootprint> CityFootprintsForTest => _worlds.Active.CityFootprints;
 
     /// <summary>Test seam: the settlement tiers on this world, in stamp order.</summary>
     public IReadOnlyList<string> SettlementTiersForTest => _settlements.Select(s => s.Tier).ToList();
@@ -102,7 +107,7 @@ public sealed partial class GameServer
             pois.Add(new NetPoi
             {
                 Type = s.Ruined ? "settlement_ruin" : "settlement",
-                Name = s.Name,
+                Name = SettlementNameFor(s, session.Locale), // #3983: a metropolis in the player's language
                 X = (s.Min.X + s.Max.X) * 0.5f,
                 Z = (s.Min.Z + s.Max.Z) * 0.5f,
             });
@@ -230,7 +235,23 @@ public sealed partial class GameServer
         /// <summary>The whole template's protection on this world (generation 39: <c>auto</c> / <c>protected</c> / <c>open</c>,
         /// see GameServerStructureProtection.cs); <c>auto</c> everywhere else.</summary>
         public string Protection = LandmarkRules.ProtectionAuto;
+
+        /// <summary>Where the stamp's cells go (<see cref="CellsOf"/>): null = straight into the active world, one
+        /// <see cref="ServerWorld.SetBlock"/> per cell (every structure but a place-list city, which collects them into one
+        /// structure overlay).</summary>
+        public IStructureCellSink? Cells { get; set; }
+
+        /// <summary>#3983: the structure-overlay key the cells are stored under (a metropolis, <c>city:&lt;index&gt;</c>); null
+        /// = block edits, as every other structure.</summary>
+        public string? OverlayKey { get; set; }
+
+        /// <summary>#3983: the locale key of the name (a metropolis), empty = none.</summary>
+        public string NameKey { get; set; } = string.Empty;
     }
+
+    /// <summary>The sink a settlement's stamp writes through: its own (<see cref="PlacedSettlement.Cells"/>) or the active
+    /// world's — the very <see cref="ServerWorld.SetBlock"/> / <see cref="ServerWorld.GetBlock"/> the stamp called before.</summary>
+    private IStructureCellSink CellsOf(PlacedSettlement p) => p.Cells ?? new WorldCellSink(_world);
 
     private void StampSettlement()
     {
@@ -262,10 +283,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3983: the metropolises of the body's place list first (GameServerMetropolis.cs) — the roll keeps clear of them and
+        // both are committed together. No place list, no metropolis: nothing is drawn, the roll below is unchanged.
+        var metros = factor > 0 ? PlanMetropolises(rng, kitPool) : new List<MetroCity>();
         double h = Hospitability(planet);
         if (factor <= 0 || h <= 0 || !StructureConditionsHold(StructureTypeRules.Settlement, planet))
         {
-            return; // airless / no atmosphere (the shipped condition), or settlements switched off ⇒ none
+            CommitMetropolises(metros, new List<PlacedSettlement>(), rng); // airless / no atmosphere, or settlements switched off ⇒ no roll
+            return;
         }
 
         // Count = hospitability × world size × base density × frequency × a per-world "character" multiplier
@@ -281,6 +306,7 @@ public sealed partial class GameServer
         int requested = PinnedCount("settlement", DrawCount(rng, lambda, rules.Cap));
         if (requested <= 0)
         {
+            CommitMetropolises(metros, new List<PlacedSettlement>(), rng);
             return;
         }
 
@@ -298,10 +324,11 @@ public sealed partial class GameServer
         var (wreckX, wreckZ) = WreckAnchorFor(_landingPads); // one shared rule, not a second copy of the offset (#1684)
         reserved.Add((wreckX, wreckZ, WreckReservedHalfExtent, WreckReservedHalfExtent));
         reserved = KeepClearFor(StructureTypeRules.Settlement, reserved); // #3514: generation 38 keeps clear through the registry
+        reserved.AddRange(metros.Select(m => MetroReservation(m.City))); // #3983: not in the registry before the commit
 
         // Phase A — decide each settlement's design + a collision-free, dry/flat (or sky-island) spot.
         var placed = new List<PlacedSettlement>();
-        var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        var usedNames = new HashSet<string>(metros.Select(m => m.City.Name), System.StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < requested; i++)
         {
             long instSeed = sSeed ^ unchecked((long)(i + 1) * (long)0x9E3779B97F4A7C15);
@@ -562,10 +589,18 @@ public sealed partial class GameServer
         ReportStamp("settlement", requested, placed.Count);
         if (placed.Count == 0)
         {
+            CommitMetropolises(metros, placed, rng);
             return;
         }
 
-        CommitSettlements(placed, surface, rng);
+        if (metros.Count > 0)
+        {
+            CommitMetropolises(metros, placed, rng); // #3983: the cities first, then the rolled settlements, in one commit
+        }
+        else
+        {
+            CommitSettlements(placed, surface, rng);
+        }
 
         int ruins = _settlements.Count(s => s.Ruined);
         _log.Info($"Stamped {placed.Count}/{requested} settlement(s) on '{_world.LocationId}' " +
@@ -586,7 +621,7 @@ public sealed partial class GameServer
             {
                 foreach (var p in fresh)
                 {
-                    StampSettlementBlocks(p, surface);
+                    StampSettlementCells(p, surface);
                 }
             });
 
@@ -611,6 +646,7 @@ public sealed partial class GameServer
                 Ruined = p.Ruined,
                 Tier = p.Tier,
                 Name = p.Name,
+                NameKey = p.NameKey,
                 Inhabitant = p.Structure.Inhabitant,
                 OnIsland = p.OnIsland,
                 GroundY = p.GroundY,
@@ -725,6 +761,7 @@ public sealed partial class GameServer
         }
 
         var s = p.Structure;
+        var cells = CellsOf(p);
         int gy = p.GroundY;
         var origin = p.Origin;
         bool shelf = p.Seat == "shelf";
@@ -753,7 +790,7 @@ public sealed partial class GameServer
             for (int z = 0; z < s.Length; z++)
                 for (int y = 1; y < clearH; y++)
                 {
-                    _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z), BlockId.Air);
+                    cells.Put(origin.X + x, gy + y, origin.Z + z, BlockId.Air);
                 }
 
         // 1b) Vegetation carve (#1659). The terrain carve above is only as deep as the ground rises — on flat
@@ -788,9 +825,9 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    if (vegetation.Contains(_world.GetBlock(cell).Value))
+                    if (vegetation.Contains(cells.Get(cell.X, cell.Y, cell.Z).Value))
                     {
-                        _world.SetBlock(cell, BlockId.Air);
+                        cells.Put(cell.X, cell.Y, cell.Z, BlockId.Air);
                     }
                 }
             }
@@ -811,7 +848,7 @@ public sealed partial class GameServer
                 for (int z = 0; z < s.Length; z++)
                 {
                     int wx = origin.X + x, wz = origin.Z + z;
-                    _world.SetBlock(new Vector3i(wx, gy, wz), floorId); // flat floor row
+                    cells.Put(wx, gy, wz, floorId); // flat floor row
 
                     if (p.OnIsland)
                     {
@@ -829,7 +866,7 @@ public sealed partial class GameServer
                             int pileFloor = System.Math.Max(seabedY + 1, gy - maxSkirt);
                             for (int y = gy - 1; y >= pileFloor; y--)
                             {
-                                _world.SetBlock(new Vector3i(wx, y, wz), pileId);
+                                cells.Put(wx, y, wz, pileId);
                             }
                         }
 
@@ -845,7 +882,7 @@ public sealed partial class GameServer
                             int pileFloor = System.Math.Max(iceTopY + 1, gy - maxSkirt);
                             for (int y = gy - 1; y >= pileFloor; y--)
                             {
-                                _world.SetBlock(new Vector3i(wx, y, wz), pileId);
+                                cells.Put(wx, y, wz, pileId);
                             }
                         }
 
@@ -856,7 +893,7 @@ public sealed partial class GameServer
                     int floorY = System.Math.Max(colSurf + 1, gy - maxSkirt);
                     for (int y = gy - 1; y >= floorY; y--) // fill the gap down to the natural ground
                     {
-                        _world.SetBlock(new Vector3i(wx, y, wz), skirtId);
+                        cells.Put(wx, y, wz, skirtId);
                     }
                 }
 
@@ -877,8 +914,7 @@ public sealed partial class GameServer
                     if (b != 0)
                     {
                         var (tint, glow) = s.GetModifier(x, y, z);
-                        _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z),
-                            new BlockId(b), tint, glow, s.GetShape(x, y, z));
+                        cells.Set(origin.X + x, gy + y, origin.Z + z, new BlockId(b), tint, glow, s.GetShape(x, y, z));
                     }
                 }
     }
@@ -1499,6 +1535,7 @@ public sealed partial class GameServer
 
         var planet = _world.Planet;
         var s = p.Structure;
+        var cells = CellsOf(p);
         int gy = p.GroundY;
         bool seaIceIsWet = SeaIceIsWet; // #2738: a frozen sea is wet ground too — no terrace dug into its ice
         for (int ring = 1; ring <= 2; ring++)
@@ -1524,7 +1561,7 @@ public sealed partial class GameServer
                     int floorY = System.Math.Max(colSurf + 1, stepY - 4); // short footing, not another wall
                     for (int y = stepY; y >= floorY; y--)
                     {
-                        _world.SetBlock(new Vector3i(x, y, z), fill);
+                        cells.Put(x, y, z, fill);
                     }
                 }
         }
