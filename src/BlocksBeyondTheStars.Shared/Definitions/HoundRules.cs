@@ -71,5 +71,9 @@ public static class HoundRules
     /// <summary>The ear styles a hound rolls (never <see cref="CreatureEarStyle.None"/>: "Ohren", 2026-11-07).</summary>
     public static readonly System.Collections.Generic.IReadOnlyList<CreatureEarStyle> EarStyles = new[] { CreatureEarStyle.Pointed, CreatureEarStyle.Pointed, CreatureEarStyle.Tall, CreatureEarStyle.Swept };
 
-    public static bool IsHound(CreatureSpecies sp) => sp.BodyPlan == CreatureBodyPlan.Hound;
+    /// <summary>Whether <paramref name="sp"/> is the Schuppenhund class — the hound body that HUNTS. Its rules (the long aggro
+    /// range, the charge, one about at a time, VEGA's warning, the scan's bite line) follow this, not the body plan alone: a
+    /// peaceful animal may wear the hound body too (a dog, a cat) and is then only drawn like one. Every hound the generator
+    /// rolls is a hunter, so this is the plan check for every species that existed before.</summary>
+    public static bool IsScaleHound(CreatureSpecies sp) => sp.BodyPlan == CreatureBodyPlan.Hound && sp.Hostile;
 }

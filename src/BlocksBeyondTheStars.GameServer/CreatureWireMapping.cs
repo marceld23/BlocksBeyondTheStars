@@ -45,6 +45,8 @@ internal static class CreatureWireMapping
         nameof(CreatureSpecies.SwallowsCreatures),
         nameof(CreatureSpecies.DuelTame),
         nameof(CreatureSpecies.PackDefender),
+        nameof(CreatureSpecies.FloraThemes),      // #3973: the spawner's climate zones, like BiomeSurfaces
+        nameof(CreatureSpecies.DefendsItself),    // #3973: the provoke rule; the wire carries the hostility itself
     };
 
     /// <summary>Writes the species traits of a live animal onto <paramref name="n"/>. <paramref name="sp"/> null (a species the
@@ -63,6 +65,7 @@ internal static class CreatureWireMapping
         WriteLook(n, sp, worldLook);
         WriteCoat(n, sp, animalSeed);
         n.VoiceSeed = sp?.VoiceSeed ?? 0; // 0 → client falls back to hashing the trait tuple (#907)
+        n.Voices = sp?.Voices?.Encode() ?? string.Empty; // #3973: its own recorded calls by mood
     }
 
     /// <summary>The giant traits (#1998) — written only for a live giant (<c>WithGiantWire</c>), so every other animal keeps
@@ -157,6 +160,7 @@ internal static class CreatureWireMapping
         HasGasSac = sp.HasGasSac,
         Glows = sp.Glows,
         Activity = sp.Activity.ToString(),
+        Voices = sp.Voices?.Encode() ?? string.Empty, // #3973: a distant dog barks, not the hound's generated call
     };
 
     /// <summary>Writes the species traits of a tamed companion's snapshot onto its companion-list entry (the portrait);

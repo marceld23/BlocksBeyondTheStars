@@ -411,9 +411,23 @@ live by `GameServerCreatures.cs`.
   type only 30 % of the species were native in their own biome, 55 % in another and 15 % nowhere. A biome with fewer than
   **two** eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
   otherwise every spawn in that region was its single native, and a base there drowned in one species.
+  **Climate zones (#3973):** a record may name `floraThemes` (temperate, tropical, savanna, desert, tundra, alpine, … — the
+  flora theme of a biome, its own or else the type's) beside `biomeSurfaces`; `CreatureBiomes` is the one rule: the affinity is
+  the first pool biome whose surface OR zone the record names, and a `biomeExclusive` species spawns only on its surface or
+  in a biome of its zones (`OnOwnGround`; the spawner looks up the zone at the spot through `BiomePoolIndexAt`). An unknown
+  zone is a load error.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world. A type with a `faunaPalette` (#3448, Soaniri) overrides both rolled
   colours afterwards with its own entries (§51).
+- **Fixed species of a home world (#3973, the animals of Earth):** an authored record may name the planet types it lives on
+  (`homes`) instead of being listed in each type's `authoredCreatures`. `GameContent.AuthoredCreaturesFor` — the list every
+  roster caller passes to `GenerateRoster` — is the type's own list, then every record whose `homes` names the type, in the
+  order of `data/creatures.json`; the roster appends them like any authored species (its own key-salted sub-seed), so no
+  rolled species moves and no other type's roster changes. A home naming a type the content does not have is a load warning
+  (`WarnAuthoredCreatureHomes`), not an error. Such a species carries a localized name (`nameKey` → `creature.<key>.name`,
+  `CreatureNames`; its `Name` is the English text as the language-neutral fallback), its own recorded voice and fixed coats
+  ([CREATURE_RIG.md](CREATURE_RIG.md) "The animals of Earth"). The seven animals of `sol_earth`: dog, cat, rabbit, cow,
+  sheep, monkey, elephant.
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470; the tick's fill gate and cadence read

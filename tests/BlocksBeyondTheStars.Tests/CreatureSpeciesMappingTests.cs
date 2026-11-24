@@ -265,6 +265,11 @@ public sealed class CreatureSpeciesMappingTests
             return Sample(t, 3, name); // an empty collection becomes a filled one
         }
 
+        if (current is null && t.IsClass && t != typeof(string))
+        {
+            return Sample(t, 3, name); // #3973: an absent element object (a voice table) becomes a filled one
+        }
+
         throw new System.InvalidOperationException($"unhandled property type {t} on {name} — teach the completeness test it");
     }
 }

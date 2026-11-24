@@ -239,6 +239,7 @@ public static partial class ContentLoader
             : null);
 
         content.Validate();
+        content.WarnAuthoredCreatureHomes(warn); // #3973: a home on a type this content does not have
         SetPlanetMaps(content, Path.Combine(dataDir, PlanetMapCodec.DataFolder), warn);
 
         // User ships (#3520): one file per ship from the ship editor. Checked against the validated content and kept apart

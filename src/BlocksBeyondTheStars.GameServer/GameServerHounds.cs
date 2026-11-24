@@ -101,12 +101,12 @@ public sealed partial class GameServer
 
     /// <summary>How far a hunter notices its prey: the hound further than the classic range.</summary>
     private static float HoundAggro(CreatureSpecies sp, float aggro)
-        => HoundRules.IsHound(sp) ? System.Math.Max(aggro, HoundRules.AggroRange) : aggro;
+        => HoundRules.IsScaleHound(sp) ? System.Math.Max(aggro, HoundRules.AggroRange) : aggro;
 
     /// <summary>The charge (#3326): a hunting hound within <see cref="HoundRules.ChargeRange"/> of its prey runs faster.</summary>
     private void ApplyHoundCharge(CombatEntity creature, CreatureSpecies sp, bool aggressor, Vector3f? prey, ref LocomotionProfile profile)
     {
-        if (!aggressor || !HoundRules.IsHound(sp) || creature.IsCompanion || creature.GiveUpTimer > 0 || prey is not { } p
+        if (!aggressor || !HoundRules.IsScaleHound(sp) || creature.IsCompanion || creature.GiveUpTimer > 0 || prey is not { } p
             || WrapDistSq(creature.Position, p) > HoundRules.ChargeRange * HoundRules.ChargeRange)
         {
             return;
@@ -118,7 +118,7 @@ public sealed partial class GameServer
 
     /// <summary>Whether the spawner must skip <paramref name="sp"/> because it lives alone and one is already about.</summary>
     internal bool HoundAlreadyAbout(CreatureSpecies sp)
-        => HoundRules.IsHound(sp) && WildCountOf(sp.Id) >= HoundRules.MaxWildAtOnce;
+        => HoundRules.IsScaleHound(sp) && WildCountOf(sp.Id) >= HoundRules.MaxWildAtOnce;
 
     /// <summary>#3326: VEGA warns the first time a hound comes within <see cref="HoundRules.SightingRange"/> of a player — once
     /// per session, so the line is a warning, not a nag.</summary>
@@ -140,7 +140,7 @@ public sealed partial class GameServer
     /// species). Placed 14–22 blocks out — far enough to see it come — on a spot the spawner would accept.</summary>
     private void AdminSummonHound(PlayerSession session)
     {
-        var sp = _speciesRoster.FirstOrDefault(HoundRules.IsHound);
+        var sp = _speciesRoster.FirstOrDefault(HoundRules.IsScaleHound);
         if (sp is null)
         {
             var planet = _content.GetPlanet(_worlds.Active.PlanetType);

@@ -48,8 +48,13 @@ namespace BlocksBeyondTheStars.Client
         public static CreatureVoice For(NetCreature c)
         {
             int seed = c.VoiceSeed != 0 ? c.VoiceSeed : TraitHash(c);
+            if (_voices.TryGetValue(seed, out var cached))
+            {
+                return cached;
+            }
+
             return For(seed, new VoiceTraits(c.Habitat, c.Temperament, c.BodyPlan, c.Size, c.Legs, c.Eyes,
-                c.Horns, c.BodySegments, c.Tentacles, c.HasGasSac, c.Glows));
+                c.Horns, c.BodySegments, c.Tentacles, c.HasGasSac, c.Glows, SpeciesVoices.Decode(c.Voices))); // #3973: its own calls
         }
 
         /// <summary>#3245: the voice of a species known only from the world's roster (a distant caller) — the same voice the

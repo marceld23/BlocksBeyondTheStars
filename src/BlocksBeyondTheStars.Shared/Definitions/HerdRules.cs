@@ -110,10 +110,13 @@ public static class HerdRules
     public static int WeightedCount(CreatureSpecies sp, int members)
         => IsBigHerd(sp) ? (members + BigHerdCapDivisor - 1) / BigHerdCapDivisor : members;
 
-    /// <summary>The species begs: the rolled flag on a passive Land species that is not a giant. The flag alone is not enough —
-    /// an authored record may set it on anything, and the temper and the habitat are the rule (skittish never beg).</summary>
+    /// <summary>The species begs: the flag on a peaceful Land species that is not a giant. The flag alone is not enough — an
+    /// authored record may set it on anything, and the temper and the habitat are the rule: passive, or (#3973) skittish — a
+    /// shy stray that comes for a treat and keeps its distance otherwise (the dog, the cat). The generator sets the flag on
+    /// passive species only, so a skittish beggar is always an authored one; hunters never beg.</summary>
     public static bool BegsForFood(CreatureSpecies sp)
-        => sp.BegsForFood && sp.Habitat == CreatureHabitat.Land && sp.Temperament == CreatureTemperament.Passive && !sp.IsGiant;
+        => sp.BegsForFood && sp.Habitat == CreatureHabitat.Land
+            && sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish && !sp.IsGiant;
 
     /// <summary>What a begging animal smells: a consumable that restores hunger and does not poison (decision 2026-09-26). The
     /// taming baits restore no hunger and therefore do not count; toxic berries heal negatively and do not either.</summary>

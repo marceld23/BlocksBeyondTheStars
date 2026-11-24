@@ -39,7 +39,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string current = string.IsNullOrEmpty(target.CustomName) ? target.Name : target.CustomName;
+            var loc = Game.Localizer; // #3973: a fixed species (a dog) is named in the player's language
+            string current = !string.IsNullOrEmpty(target.CustomName) ? target.CustomName
+                : loc != null ? BlocksBeyondTheStars.Shared.Definitions.CreatureNames.Display(target.Name, target.NameKey, loc.Get, loc.Has) : target.Name;
             string creatureId = target.Id;
             Game.Context.Panel<BeaconLabelUi>()?.Open(Game.Localizer?.Get("ui.companion.tag_prompt") ?? "Name tag", current, name =>
                 Game.Network?.SendSetCompanionName(creatureId, string.IsNullOrWhiteSpace(name) ? current : name, useNameTag: true));
