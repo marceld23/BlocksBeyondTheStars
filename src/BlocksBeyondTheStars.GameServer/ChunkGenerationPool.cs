@@ -20,6 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// calling thread, and waiting for those in flight.</item>
 /// <item><see cref="Speculate"/> queues the next chunks of a view behind the batch, so by the next pass they are
 /// usually ready and adopting them costs only the persisted-edit lookup.</item>
+/// <item><see cref="Prefetch"/> queues chunks a stamper will write behind both (#3985: a rail section), kept until a worker
+/// takes them; the stamper adopts each with <see cref="TryAdopt"/> and writes only once all are resident.</item>
 /// </list>
 /// Every worker owns its own <see cref="WorldGenerator"/> (a sibling of the server's): no mutable generator state is
 /// shared between threads, and the generator's static caches are lock-guarded. The repository is never touched off
@@ -36,6 +38,15 @@ internal sealed class ChunkGenerationPool : IDisposable
     /// <summary>Upper bound of speculative jobs queued at once, per worker.</summary>
     private const int SpeculativePerWorker = 6;
 
+    /// <summary>A job's queue: the batch the tick waits for, the views' next chunks, the chunks asked for ahead (in that
+    /// order of the workers' choice).</summary>
+    private enum Lane
+    {
+        Priority,
+        Speculative,
+        Background,
+    }
+
     private sealed class Job
     {
         public ServerWorld World = null!;
@@ -47,7 +58,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         public SiteFlat[] Sites = Array.Empty<SiteFlat>(); // generation 40 (#3569)
         public string LocationId = string.Empty;
         public double OreBoost;
-        public bool Priority;
+        public Lane Lane;
         public bool Claimed;   // taken by the tick thread (inline) or a worker
         public bool Done;
         public ChunkData? Chunk;
@@ -66,6 +77,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         public readonly object Lock = new();
         public readonly LinkedList<Job> Priority = new();
         public readonly LinkedList<Job> Speculative = new();
+        public readonly LinkedList<Job> Background = new();
         public readonly WorldGenerator Template;
 
         /// <summary>The streaming pass the pool is in (guarded by <see cref="Lock"/>); stamps a finished job.</summary>
@@ -94,7 +106,7 @@ internal sealed class ChunkGenerationPool : IDisposable
             Job job;
             lock (Lock)
             {
-                while (!Stopped && Priority.Count == 0 && Speculative.Count == 0)
+                while (!Stopped && Priority.Count == 0 && Speculative.Count == 0 && Background.Count == 0)
                 {
                     Monitor.Wait(Lock);
                 }
@@ -104,7 +116,7 @@ internal sealed class ChunkGenerationPool : IDisposable
                     return false;
                 }
 
-                var list = Priority.Count > 0 ? Priority : Speculative;
+                var list = Priority.Count > 0 ? Priority : Speculative.Count > 0 ? Speculative : Background;
                 job = list.First!.Value;
                 list.RemoveFirst();
                 job.Claimed = true;
@@ -171,6 +183,7 @@ internal sealed class ChunkGenerationPool : IDisposable
     private readonly object _lock;                 // the crew's lock: every field below changes under it
     private readonly LinkedList<Job> _priority;    // the crew's queues, filled here and emptied by the workers
     private readonly LinkedList<Job> _speculative;
+    private readonly LinkedList<Job> _background;
     private readonly Dictionary<(ServerWorld World, ChunkCoord Coord), Job> _jobs = new();
     private readonly List<Thread> _threads = new();
     private readonly int _workers;
@@ -191,6 +204,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         _lock = _crew.Lock;
         _priority = _crew.Priority;
         _speculative = _crew.Speculative;
+        _background = _crew.Background;
         _workers = workers;
     }
 
@@ -280,7 +294,7 @@ internal sealed class ChunkGenerationPool : IDisposable
                     {
                         // Still queued (speculative, most likely): promote it — the tick needs it now.
                         Unlink(job);
-                        job.Priority = true;
+                        job.Lane = Lane.Priority;
                         _priority.AddFirst(job);
                     }
 
@@ -288,7 +302,7 @@ internal sealed class ChunkGenerationPool : IDisposable
                     continue;
                 }
 
-                var fresh = NewJob(world, coord, priority: true);
+                var fresh = NewJob(world, coord, Lane.Priority);
                 _jobs[(world, coord)] = fresh;
                 _priority.AddLast(fresh);
                 (waiting ??= new List<Job>()).Add(fresh);
@@ -401,13 +415,62 @@ internal sealed class ChunkGenerationPool : IDisposable
                     continue;
                 }
 
-                var job = NewJob(world, coord, priority: false);
+                var job = NewJob(world, coord, Lane.Speculative);
                 _jobs[(world, coord)] = job;
                 _speculative.AddLast(job);
             }
 
             Monitor.PulseAll(_lock);
         }
+    }
+
+    /// <summary>Queues <paramref name="coords"/> for background generation behind the views' own chunks (#3985: a rail
+    /// section's chunks before it is stamped). Unlike <see cref="Speculate"/>'s these stay queued until a worker takes them;
+    /// resident chunks and chunks already queued are skipped, so asking again is cheap. Tick thread only.</summary>
+    public void Prefetch(ServerWorld world, IEnumerable<ChunkCoord> coords)
+    {
+        lock (_lock)
+        {
+            bool any = false;
+            foreach (var raw in coords)
+            {
+                var coord = WorldConstants.CanonicalChunk(raw, world.Circumference);
+                if (world.IsChunkLoaded(coord) || _jobs.ContainsKey((world, coord)))
+                {
+                    continue;
+                }
+
+                var job = NewJob(world, coord, Lane.Background);
+                _jobs[(world, coord)] = job;
+                _background.AddLast(job);
+                any = true;
+            }
+
+            if (any)
+            {
+                Monitor.PulseAll(_lock);
+            }
+        }
+    }
+
+    /// <summary>Adopts one chunk's finished result (tick thread): true when it was ready and is resident now; false while it is
+    /// queued or in flight, or when nothing was asked for it (dropped — ask again with <see cref="Prefetch"/>).</summary>
+    public bool TryAdopt(ServerWorld world, ChunkCoord coord)
+    {
+        Job? job;
+        lock (_lock)
+        {
+            var key = (world, WorldConstants.CanonicalChunk(coord, world.Circumference));
+            if (!_jobs.TryGetValue(key, out job) || !job.Done)
+            {
+                return false;
+            }
+
+            _jobs.Remove(key);
+        }
+
+        Adopt(job);
+        return true;
     }
 
     /// <summary>Adopts every finished speculative result for <paramref name="world"/> (tick thread). Cheap when
@@ -469,7 +532,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         }
     }
 
-    private Job NewJob(ServerWorld world, ChunkCoord coord, bool priority) => new()
+    private Job NewJob(ServerWorld world, ChunkCoord coord, Lane lane) => new()
     {
         World = world,
         Coord = coord,
@@ -480,12 +543,17 @@ internal sealed class ChunkGenerationPool : IDisposable
         Sites = SiteFlat.Snapshot(world.SiteFlats),
         LocationId = world.LocationId,
         OreBoost = world.FrontierOreBoost,
-        Priority = priority,
+        Lane = lane,
     };
 
     private void Unlink(Job job)
     {
-        var list = job.Priority ? _priority : _speculative;
+        var list = job.Lane switch
+        {
+            Lane.Priority => _priority,
+            Lane.Speculative => _speculative,
+            _ => _background,
+        };
         list.Remove(job);
     }
 

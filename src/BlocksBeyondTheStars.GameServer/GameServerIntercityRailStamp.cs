@@ -14,11 +14,12 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// A line's voxel stamp as resumable work (#3985; the builder is GameServerIntercityRailBuilder.cs): the stations whose hall
-/// span lies in the stamped stretch, then its pylon columns, then the corridor of its spans, cell by cell. Run in one go it
-/// is the stamp it always was (<see cref="StampIntercityVoxels(IntercityPlan, string, int, int)"/>); run under a deadline it
-/// stops after any station, pylon or a few corridor cells and goes on where it stopped (a listed line's section, a few
-/// milliseconds per tick); run with a list of missing chunks it never reads a chunk that is not resident — it stops before
-/// the station, pylon or corridor cell that needs one and names the chunks it waits for.
+/// span lies in the stamped stretch (each worked out into a <see cref="BufferedCellSink"/> first, then written), then its
+/// pylon columns, then the corridor of its spans, cell by cell. Run in one go it is the stamp it always was
+/// (<see cref="StampIntercityVoxels(IntercityPlan, string, int, int)"/>: the same writes in the same order); run under a
+/// deadline it stops after a station worked out, a few of its cells written, a pylon or a few corridor cells and goes on where
+/// it stopped (a listed line's section, a few milliseconds per tick); run with a list of missing chunks it never reads a chunk
+/// that is not resident — it stops before the station, pylon or corridor cell that needs one and names the chunks it waits for.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -59,6 +60,9 @@ public sealed partial class GameServer
         public IEnumerator<Vector3i>? Corridor { get; set; }
         public Vector3i? Held { get; set; }
 
+        /// <summary>The station being written: its stamp worked out, its cells not all written yet.</summary>
+        public BufferedCellSink? StationCells { get; set; }
+
         public BlockId PylonId { get; set; }
         public int TreeCap { get; set; }
         public HashSet<ushort> Vegetation { get; set; } = new();
@@ -92,7 +96,7 @@ public sealed partial class GameServer
         {
             bool stepped = work.Step switch
             {
-                IntercityStampStep.Stations => StampNextIntercityStation(work, missing),
+                IntercityStampStep.Stations => StampNextIntercityStation(work, deadline, missing),
                 IntercityStampStep.Pylons => StampNextIntercityPylon(work, missing),
                 _ => ClearIntercityCorridorCells(work, deadline, missing),
             };
@@ -118,9 +122,21 @@ public sealed partial class GameServer
         return span >= first && span < Math.Max(first + 1, last);
     }
 
-    /// <summary>Stamps the next station of the stretch (or moves on to the pylons when none is left).</summary>
-    private bool StampNextIntercityStation(IntercityStampWork work, List<ChunkCoord>? missing)
+    /// <summary>The next station of the stretch: its stamp worked out into a buffer (reading the world as it goes), then its
+    /// cells written from the buffer until the deadline, run after run; then the next station, or the pylons after the last.</summary>
+    private bool StampNextIntercityStation(IntercityStampWork work, long deadline, List<ChunkCoord>? missing)
     {
+        if (work.StationCells is { } pending)
+        {
+            if (pending.WriteUntil(deadline))
+            {
+                work.StationCells = null;
+                work.Next++;
+            }
+
+            return true;
+        }
+
         var plan = work.Plan;
         while (work.Next < plan.Stops.Count && !StampsWithStretch(plan, plan.Stops[work.Next], work.First, work.Last))
         {
@@ -139,6 +155,7 @@ public sealed partial class GameServer
             return false;
         }
 
+        var cells = new BufferedCellSink(_world);
         StampSettlementBlocks(new PlacedSettlement
         {
             Structure = st.Structure,
@@ -150,8 +167,9 @@ public sealed partial class GameServer
             Name = st.SettlementName,
             Rng = new Random(1),
             Seat = st.Seat,
+            Cells = cells,
         }, work.Surface, crownRing: false);
-        work.Next++;
+        work.StationCells = cells;
         return true;
     }
 
@@ -331,4 +349,60 @@ public sealed partial class GameServer
             }
         }
     }
+}
+
+/// <summary>
+/// A structure stamp worked out before it is written (#3985: a rail section's station hall): the builder's writes are kept in
+/// order and its reads see them first, then the world — the very cells <see cref="GameServer"/>'s world sink reads and writes
+/// (X wrapped round the seam) — and <see cref="WriteUntil"/> writes them into the world in that order, as many as a deadline
+/// holds, run after run. Written out it leaves the world as the builder writing straight into it would.
+/// </summary>
+internal sealed class BufferedCellSink : IStructureCellSink
+{
+    private readonly ServerWorld _world;
+    private readonly List<(Vector3i Cell, BlockId Block, int Tint, int Glow, int Shape)> _writes = new();
+    private readonly Dictionary<Vector3i, BlockId> _latest = new();
+
+    public BufferedCellSink(ServerWorld world) => _world = world;
+
+    /// <summary>The writes kept, and how many of them are in the world.</summary>
+    public int Count => _writes.Count;
+    public int Written { get; private set; }
+
+    public void Set(int x, int y, int z, BlockId block, int tint, int glow, int shape)
+    {
+        var cell = Cell(x, y, z);
+        _writes.Add((cell, block, tint, glow, shape));
+        _latest[cell] = block;
+    }
+
+    public BlockId Get(int x, int y, int z)
+    {
+        var cell = Cell(x, y, z);
+        return _latest.TryGetValue(cell, out var block) ? block : _world.GetBlock(cell);
+    }
+
+    public void Mark(string type, int x, int y, int z, string data)
+    {
+        // A station hall has no markers (the world sink of a settlement stamp acts on none either).
+    }
+
+    /// <summary>Writes the kept cells in order until the <paramref name="deadline"/> (a <see cref="System.Diagnostics.Stopwatch"/>
+    /// timestamp; a few at least); true once all are written.</summary>
+    public bool WriteUntil(long deadline)
+    {
+        while (Written < _writes.Count)
+        {
+            var (cell, block, tint, glow, shape) = _writes[Written++];
+            _world.SetBlock(cell, block, tint, glow, shape);
+            if (Written % 32 == 0 && System.Diagnostics.Stopwatch.GetTimestamp() >= deadline)
+            {
+                break;
+            }
+        }
+
+        return Written == _writes.Count;
+    }
+
+    private Vector3i Cell(int x, int y, int z) => new(WorldConstants.WrapX(x, _world.Circumference), y, z);
 }

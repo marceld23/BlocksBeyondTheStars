@@ -239,8 +239,12 @@ public sealed partial class GameServer
         /// <summary>The stations and the routes' spans as footprints later stampers keep clear of.</summary>
         public List<(int Cx, int Cz, int Hw, int Hl)> Reservations { get; } = new();
 
+        /// <summary>The section the tick is stamping now (#3985), null when none.</summary>
+        public RailSectionStamp? SectionStamp { get; set; }
+
         public void Clear()
         {
+            SectionStamp = null;
             Lines.Clear();
             Stations.Clear();
             PylonTops.Clear();

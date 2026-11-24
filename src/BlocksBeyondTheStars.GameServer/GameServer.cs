@@ -3626,7 +3626,7 @@ public sealed partial class GameServer
         // anchored chunks (Crystal Nets, base builds) stay resident wherever they are — refreshed here, at the sweep's pace.
         int keepRadius = maxViewRadius + 4;
         RefreshChunkAnchors();
-        var removed = _world.UnloadFarChunks(anchors, keepRadius, _worlds.Active.ChunkAnchors.Anchored);
+        var removed = _world.UnloadFarChunks(anchors, keepRadius, PinnedChunks(_worlds.Active.ChunkAnchors.Anchored)); // #3985: + a rail section being stamped
 
         // Also drop the evicted coords from every player's sent-set. A swept chunk is far from EVERY anchor (that
         // is the sweep's condition), so this is safe for all sessions — and it lets the client unload the same far
