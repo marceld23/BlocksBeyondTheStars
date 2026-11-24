@@ -39,6 +39,10 @@ public sealed partial class GameServer
     /// <summary>Wall-clock milliseconds a tick spends at most on the section being stamped (a step started is finished).</summary>
     private const double IntercitySectionBudgetMs = 4.0;
 
+    /// <summary>Test seam: a smaller per-tick budget than <see cref="IntercitySectionBudgetMs"/> (null = the shipped one), so
+    /// a test can catch a section half-written on a machine fast enough to stamp a short section in one tick.</summary>
+    internal double? SectionBudgetMsForTest { get; set; }
+
     /// <summary>Blocks between two samples of a span's chunk band.</summary>
     private const int IntercityBandSampleStep = 4;
 
@@ -156,7 +160,7 @@ public sealed partial class GameServer
         }
 
         long start = Stopwatch.GetTimestamp();
-        long deadline = start + (long)(IntercitySectionBudgetMs * Stopwatch.Frequency / 1000.0);
+        long deadline = start + (long)((SectionBudgetMsForTest ?? IntercitySectionBudgetMs) * Stopwatch.Frequency / 1000.0);
         if (LoadSectionChunks(stamp, deadline))
         {
             WriteSectionCells(stamp, deadline);

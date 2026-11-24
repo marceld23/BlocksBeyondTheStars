@@ -26,7 +26,11 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚝 Sol follow-ups: Earth's rail keeps clear of buildings, the Earth animals where they belong, a red Mars without ruins — #4014–#4018, PR pending — ✅ done 2026-11-24 (server + shared + worldgen + client + data + tools; **save version 21** (two new blocks shift the ids), terrain generation unchanged (49), protocol unchanged; 9 new texts in all 14 languages; ⚠ playtest open)
+### 🚝 Sol follow-ups: Earth's rail keeps clear of buildings, the Earth animals where they belong, a red Mars without ruins — #4014–#4018, PR #4019 (`81c3a4c8`) — ✅ done 2026-11-24 (server + shared + worldgen + client + data + tools; **save version 21** (two new blocks shift the ids), terrain generation unchanged (49), protocol unchanged; 9 new texts in all 14 languages; ⚠ playtest open)
+
+- **Follow-up (main CI).** `EarthRailNetworkTests` cuts a section short by a restart, but on a fast runner the 4 ms tick
+  budget stamped the short first Berlin section whole in one tick; the test now lowers the budget while it begins that
+  stamp (`SectionBudgetMsForTest`).
 
 - **#4014 Rail keeps clear.** A ride along the real train curve after stamping found Earth's listed lines inside city
   buildings on 5 of 6 seeds (New York, Toronto, Paris), in the pavement and scraping the Alps. Now a line's halls are chosen
