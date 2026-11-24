@@ -117,7 +117,7 @@ internal static class AuthoredSpeciesMapping
         species.BiomeExclusive = a.BiomeExclusive;
         species.AngeredByMining = a.AngeredByMining;
         species.GiftsWhenCalm = a.GiftsWhenCalm;
-        species.BegsForFood = a.BegsForFood;  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
+        species.BegsForFood = a.BegsForFood;  // #2018: a worksheet species may beg (the rule honours it on passive or skittish Land species only)
         species.FavouriteFood = a.FavouriteFood;                  // #2082: empty = the generation-16 roll for a beggar
         species.FeedsToTame = System.Math.Max(0, a.FeedsToTame);
         species.SwallowsCreatures = a.SwallowsCreatures; // #2076: an authored worm says whether it hunts the animals

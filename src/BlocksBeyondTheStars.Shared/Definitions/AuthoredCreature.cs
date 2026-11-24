@@ -87,7 +87,7 @@ public sealed class AuthoredCreature
     public bool GiftsWhenCalm { get; set; }
 
     /// <summary>The species begs for the food a player holds (#2018) — see <see cref="CreatureSpecies.BegsForFood"/>. The rule
-    /// (<see cref="HerdRules.BegsForFood"/>) honours it on passive Land species only.</summary>
+    /// (<see cref="HerdRules.BegsForFood"/>) honours it on passive or skittish (a shy beggar, #3973) Land species only.</summary>
     public bool BegsForFood { get; set; }
 
     /// <summary>#2081: the arms of a biped (2); ignored by the other plans.</summary>

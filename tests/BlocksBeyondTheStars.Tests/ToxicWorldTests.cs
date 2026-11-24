@@ -65,8 +65,14 @@ public sealed class ToxicWorldTests
         Assert.All(p.Biomes, b => Assert.NotNull(_content.GetBlock(b.SurfaceBlock)));
 
         // Every classic type keeps the no-op defaults (Titas' water stays always toxic). Toxica-Maxima (#2062, generation 15)
-        // is the one other type that uses these fields — always corrosive, no settlements — and has its own tests.
-        foreach (var other in _content.Planets.Values.Where(t => t.Key != Key && t.Key != "toxica_maxima" && t.Key != "arena_nigra")) // #2078: no settlements on the black sand either
+        // is the one other type that uses these fields — always corrosive, no settlements — and has its own tests. The bodies of a
+        // fixed system (Sol, #3970) are authored one by one and may set them too (Venus is always corrosive; Venus, Mars and
+        // Titan carry only ruined settlements) — a hand-made body, never a rolled one.
+        var fixedBodyTypes = _content.FixedSystems.SelectMany(s => s.Bodies).Select(b => b.PlanetType).ToHashSet();
+        Assert.Equal(1.0, _content.GetPlanet("sol_venus")!.CorrosiveAirChance);
+        Assert.True(_content.GetPlanet("sol_venus")!.AirDamagePerSecond > 0, "always-corrosive air needs a damage rate");
+        foreach (var other in _content.Planets.Values.Where(t => t.Key != Key && t.Key != "toxica_maxima" && t.Key != "arena_nigra" // #2078: no settlements on the black sand either
+            && !fixedBodyTypes.Contains(t.Key)))
         {
             Assert.Equal(0.0, other.CorrosiveAirChance);
             Assert.Equal(1.0, other.WaterDamageChance);

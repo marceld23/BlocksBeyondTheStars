@@ -110,16 +110,24 @@ public sealed class ToxicaMaximaWorldTests
         // that names its sky and its precipitation — and has its own tests.
         // #2112: the gas giant names its sky and its storm too; #3307: KuBa-W names its pale-green sky (and has its own tests);
         // #3358: Soaniri, the Sounders' home world, names its soft violet sky.
+        // #3970: the bodies of a fixed system (Sol) are authored one by one and name their real skies, rains and storms (Venus'
+        // acid clouds, Mars' dust, the giants' storms) — but none of them is a Toxica: no dead forests, no tainted fauna, no
+        // factories.
+        var fixedBodyTypes = Content.FixedSystems.SelectMany(s => s.Bodies).Select(b => b.PlanetType).ToHashSet();
         foreach (var other in Content.Planets.Values.Where(t => t.Key is not (Key or "arena_nigra" or "gas_giant" or "asteroid_kuba_w" or "sounder_world")))
         {
-            Assert.Equal(0, other.SkyColor);
-            Assert.Equal(string.Empty, other.Precipitation);
+            if (!fixedBodyTypes.Contains(other.Key))
+            {
+                Assert.Equal(0, other.SkyColor);
+                Assert.Equal(string.Empty, other.Precipitation);
+                Assert.NotEqual("stormy", other.Weather);
+            }
+
             Assert.Equal(string.Empty, other.DeadTreeBlock);
             Assert.False(other.ContaminatedFauna);
             Assert.Equal(0, other.EyeColor);
             Assert.Empty(other.FactoryCount);
             Assert.Empty(other.FactoryRecipes);
-            Assert.NotEqual("stormy", other.Weather);
         }
     }
 

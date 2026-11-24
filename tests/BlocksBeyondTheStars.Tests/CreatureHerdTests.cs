@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// The big herds and the begging trait (#2018, generation 12): the rolls come after every older roll and only on a
 /// generation-12 world, a passive land species begs with 30 % (and then lives in a herd of 8–12), other peaceful land species
-/// roll a herd of 6–9 with 20 %, skittish species never beg — and the <see cref="HerdRules"/> the server reads are pure.
+/// roll a herd of 6–9 with 20 %, a rolled skittish species never begs (only an authored record may make a shy beggar, #3973) —
+/// and the <see cref="HerdRules"/> the server reads are pure.
 /// </summary>
 public sealed class CreatureHerdTests
 {
@@ -142,21 +143,27 @@ public sealed class CreatureHerdTests
     }
 
     [Fact]
-    public void AnAuthoredBeggar_ReachesTheRoster_ButTheRuleIgnoresASkittishOne()
+    public void AnAuthoredBeggar_ReachesTheRoster_AShyOneToo_ButTheRuleIgnoresAHunter()
     {
+        // #3973: an authored skittish record with the flag is a shy beggar (the dog, the cat) — the rule honours it. A hunter
+        // with the flag still never begs: the temper is the rule, not the flag alone.
         var planet = Content.GetPlanet("jungle")!;
         var authored = new[]
         {
             new AuthoredCreature { Key = "muncher", NamePrefix = "Muncher", Temperament = CreatureTemperament.Passive, BegsForFood = true, SocialGroupSize = 8 },
             new AuthoredCreature { Key = "flincher", NamePrefix = "Flincher", Temperament = CreatureTemperament.Skittish, BegsForFood = true, SocialGroupSize = 8 },
+            new AuthoredCreature { Key = "snapper", NamePrefix = "Snapper", Temperament = CreatureTemperament.Aggressive, BegsForFood = true, SocialGroupSize = 2 },
         };
         var roster = CreatureGenerator.GenerateRoster(planet, 7, Gen12, authored);
         var muncher = Assert.Single(roster, sp => sp.Id == "au_muncher");
         var flincher = Assert.Single(roster, sp => sp.Id == "au_flincher");
+        var snapper = Assert.Single(roster, sp => sp.Id == "au_snapper");
         Assert.True(muncher.BegsForFood);
         Assert.True(HerdRules.BegsForFood(muncher));
-        Assert.True(flincher.BegsForFood);       // the record says so...
-        Assert.False(HerdRules.BegsForFood(flincher)); // ...but skittish species never beg
+        Assert.True(flincher.BegsForFood);
+        Assert.True(HerdRules.BegsForFood(flincher)); // the authored shy beggar
+        Assert.True(snapper.BegsForFood);              // the record says so...
+        Assert.False(HerdRules.BegsForFood(snapper));  // ...but hunters never beg
     }
 
     [Fact]
@@ -178,7 +185,10 @@ public sealed class CreatureHerdTests
     {
         Assert.True(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Passive, BegsForFood = true }));
         Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Passive }));
-        Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Skittish, BegsForFood = true }));
+        Assert.True(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Skittish, BegsForFood = true })); // #3973 shy beggar
+        Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Skittish }));
+        Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Territorial, BegsForFood = true }));
+        Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Aggressive, BegsForFood = true }));
         Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Air, Temperament = CreatureTemperament.Passive, BegsForFood = true }));
         Assert.False(HerdRules.BegsForFood(new CreatureSpecies { Habitat = CreatureHabitat.Land, Temperament = CreatureTemperament.Passive, BegsForFood = true, BodyPlan = CreatureBodyPlan.Colossus }));
     }

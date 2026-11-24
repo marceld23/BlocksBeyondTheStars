@@ -75,6 +75,9 @@ public sealed class TerrainTagsAndGenerationTests
         // Toxica-Maxima (#2068) is tag-driven too: its hoodoos come from the tag, not from a classic key or style.
         // #2342: the four spectacle types are tag-driven too (the ossuary world carries buttes on a flats style).
         var gen1Types = new HashSet<string> { "red_desert", "boreal", "archipelago", "glacier", "meadowlands", "ashen_ocean", "dust_bowl", "frozen_ocean", "gds_desert", "sand_sea", "toxica_maxima", "arena_nigra", "gas_giant", "arch_lands", "pillar_world", "hollow_world", "bone_desert" }; // #2078: the black dunes are tag-driven like the sand sea; #2112: the gas giant has no ground at all
+        // #3970: the bodies of a fixed system (Sol) are new, data-only and tag-driven the same way (Venus and Io route lava
+        // from the volcanic tag) — there was never a key or style gate to reproduce for them.
+        gen1Types.UnionWith(Content.FixedSystems.SelectMany(s => s.Bodies).Select(b => b.PlanetType));
         foreach (var planet in Content.Planets.Values.Where(p => !gen1Types.Contains(p.Key)))
         {
             var gates = gen.WonderGatesForTest(planet);

@@ -394,7 +394,10 @@ public sealed class LandscapeFluidsPaintsTests
     [Fact]
     public void LavaRivers_RouteOnEveryVolcanicType()
     {
-        foreach (var planet in Content.Planets.Values.Where(p => p.HasTag(TerrainTag.Volcanic)))
+        // Lava rivers drain into the lava sea. A volcanic type whose data says "no lava" outright (lavaAbundance 0 — Sol's
+        // Venus, #3978: volcanic basalt plains under acid clouds, no molten sea) has nothing to drain into; every other one
+        // routes them.
+        foreach (var planet in Content.Planets.Values.Where(p => p.HasTag(TerrainTag.Volcanic) && p.LavaAbundance != 0.0))
         {
             var gen = Gen(5, 1);
             int lavaColumns = 0;
