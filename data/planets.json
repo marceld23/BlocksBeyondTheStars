@@ -1576,6 +1576,11 @@
     "weatherVolatility": 1.2, "seasonAmplitude": 0.3,
     "weatherEvents": { "gale": 3.0, "fog": 0.0, "ground_fog": 0.0, "drizzle": 0.0, "acid_rain": 0.0, "heatwave": 0.0 },
     "settlementsBias": 0.0, "ruinedSettlementsOnly": true,
+    // #4018: nothing anybody built stands on Mars (on every save — a hand-made system's type): only the net fragments. No
+    // G.D.S. ruin, rune monument, shrine or lone rune stone, fallen town, rail ruin, bandit camp, factory, wreck, vault,
+    // lost civilization, rolled landmark, guide tower or fallen giant, and none of the chunk generation's ruin props.
+    "restrictStructures": true,
+    "allowedStructures": ["net_fragments"],
     "biomes": [
       { "surfaceBlock": "ice",            "subSurfaceBlock": "stone", "temperature": -110 },
       { "surfaceBlock": "sand",           "subSurfaceBlock": "sandstone" },

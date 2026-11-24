@@ -311,6 +311,19 @@ lost civilization, rail ruin, bandit camp, factory, rolled landmark or city worl
 generation) need `monuments`, and the lone rune stones the new chunk-level key `rune_stones`, which every whitelisted type
 before Earth names and Earth does not.
 
+**Mars's structure list** (#4018). `sol_mars` restricts its structures the same way to the net fragments alone: nothing
+anybody built stands on Mars — no G.D.S. ruin, rune monument or shrine, lone rune stone, fallen town, rail ruin, bandit camp,
+factory, wreck or giant wreck, vault, data cube, chest, lost civilization, rolled landmark, guide tower or fallen giant, and
+none of the chunk generation's ruin props (monoliths, stone circles, wall fragments, buried pillars). `MarsTests` holds the
+list and stamps a first visit. **Existing saves**: a Mars not visited yet plans none of them. On a Mars visited before the
+change, what was stamped stays: the cell-by-cell kinds (ruins, fallen towns, monuments, factories, rail ruins, vaults …)
+are block edits in the save, the overlay kinds (landmarks, giant wrecks, guide towers, civilization sites) structure
+overlays the world loads whatever the stampers do, and their graded ground is pinned site flats. Only their replays stop —
+the server no longer registers them, so they lose what a replay adds every load (protection, markers, residents). There
+is no safe clean-up: a stamped cell cannot be told from a player's edit of it, and dropping an overlay would leave the
+player's edits inside it hanging in the air. The chunk generation's ruin props, which no save stores, are gone on every
+Mars.
+
 ## 8. The metropolises (#3983)
 
 Every `city` place of a body's place list is a **metropolis**: an inhabited space-age city laid out on the land round the
