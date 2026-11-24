@@ -426,8 +426,9 @@ live by `GameServerCreatures.cs`.
   rolled species moves and no other type's roster changes. A home naming a type the content does not have is a load warning
   (`WarnAuthoredCreatureHomes`), not an error. Such a species carries a localized name (`nameKey` → `creature.<key>.name`,
   `CreatureNames`; its `Name` is the English text as the language-neutral fallback), its own recorded voice and fixed coats
-  ([CREATURE_RIG.md](CREATURE_RIG.md) "The animals of Earth"). The seven animals of `sol_earth`: dog, cat, rabbit, cow,
-  sheep, monkey, elephant.
+  ([CREATURE_RIG.md](CREATURE_RIG.md) "The animals of Earth"). The twelve animals of `sol_earth`: dog, cat, rabbit, cow,
+  sheep, monkey, elephant (#3973); chicken (a ground bird, temperate), parrot (tropical), eagle (alpine) (#3974); dolphin and
+  whale (#3975) — the sea animals name no climate zone and live in any sea, kept apart by their water depth band (below).
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470; the tick's fill gate and cadence read
@@ -436,7 +437,11 @@ the clamped value too, #1717, or a world modelling above 64 spun in the fast fil
 spawn rotates on the wild count, #1720), habitat gates (water animals only in
 water columns — the water and lava probes read **real blocks first** and the generator only for unloaded
 columns, so a pool the player built hosts a school and a drained pond does not, and every herd member
-runs the same probe from its own spot, #1718; cave animals only in caves — the cave-floor and shoreline
+runs the same probe from its own spot, #1718; **water depth band**, #3975: a water species may name `minWaterDepth` /
+`maxWaterDepth` — `WaterDepthBand` seats it only in a column whose depth lies in the band (the whale in water at least 12
+deep, the leviathan's deep sea; the dolphin in the coastal 3–16), and a swimmer with a lower bound never steps into shallower
+water than that bound while the step gets shallower (equal or deeper water stays open, so it is never trapped); without a band
+the classic `MinSwimDepth` rule holds exactly; cave animals only in caves — the cave-floor and shoreline
 probes never load a chunk, #1719; titans additionally need a 3×3 level-ground clearance),
 despawn beyond 70 blocks (titans and arachnids 110 — a landmark animal must not evaporate mid-approach). **No
 monoculture (#1325):** each species may hold at most a **share** of the live cap — 40 %, never below 3,
@@ -539,7 +544,9 @@ Y is resolved each tick (`GameServer.ResolveVertical`, state in `CombatEntity.Ve
   floor rides up over the surface even when its reference cell lies in a cave below, where the probe would
   otherwise hold its depth. Air spawns (leader and herd) are placed at that band (`AirSpawnY`), no longer at
   the generator surface + 4, which over a pond was inside the water.
-- **Swimmers** porpoise their local water column as before.
+- **Swimmers** porpoise their local water column as before. A body plan whose whole body stays under water
+  (`BodyPlanProfile.Submerged`, the whale #3975 — drawn from its position up) ends its band its body height under the surface
+  (`WaterColumnY`'s clearance), so a twenty-block whale does not ride out of the sea; every other swimmer's band is unchanged.
 
 The wire carries the class and vertical state as additive `NetCreature` fields (`Motion`,
 `Airborne`, `Perched`, `VertVel`); since #2664/#2665 the client draws the arcs from interpolated snapshots
