@@ -3466,10 +3466,13 @@ worlds created with a game version that has generation 43 have them; an older wo
   stops at every city for 30 seconds; anyone may ride it. The station halls stand at the cities' edges (Paris has
   one for each line — change on foot). The boards show the line and the next stops. On the long lines the train
   runs faster than a player's own train.
-- **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep, chickens, monkeys,
-  parrots, elephants, eagles, dolphins and whales. Every animal looks a little different (a cat may be black, tabby,
-  ginger or tortoiseshell). Dogs and cats are tamed by feeding them (meat or milk), monkeys beg for bananas. In the
-  villages people keep dogs and cats, and the pens keep cows (milk), sheep (wool) and chickens (eggs).
+- **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep and chickens on the
+  temperate meadows (dogs, cats and cows also in the savanna, sheep also high in the mountains, rabbits also in the
+  tundra), monkeys and parrots in the rain forests, elephants in the savanna, eagles in the high mountains, and dolphins
+  and whales out at sea — never in a lake or a river. Every animal looks a little different (a cat may be black, tabby,
+  ginger or tortoiseshell). Dogs and cats are tamed by feeding them (meat or milk), monkeys beg for bananas. People keep
+  dogs and cats as pets — in the villages and in the big cities, where you meet them walking beside their owners — and
+  the pens keep cows (milk), sheep (wool) and chickens (eggs).
 - **Dogs and cats on other worlds** (worlds created since generation 49): on some worlds with breathable air they live
   wild, and villagers keep them as pets.
 - Somewhere deep in the **Amazon rain forest** lie the ruins of the **SPS headquarters**: the main building, a hangar
