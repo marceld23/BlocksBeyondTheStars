@@ -54,10 +54,11 @@ namespace BlocksBeyondTheStars.Client.Playtests
         /// <summary>
         /// The last step of the slider <paramref name="option"/>: the client turns an index into the server's word by
         /// looking it up in the slider's own table, so an index past the end would throw while the test world is being
-        /// created (#3840). The life-support and danger sliders have four steps, the others five.
+        /// created (#3840). The life-support and danger sliders and the universe size (#3997) have four steps, the others five.
         /// </summary>
         public static int MaxIndexOf(string option)
-            => option == "Oxygen" || option == "Hunger" || option == "Hazards" || option == "DeathPenalty" ? 3 : MaxOptionIndex;
+            => option == "Oxygen" || option == "Hunger" || option == "Hazards" || option == "DeathPenalty" || option == "UniverseSize"
+                ? 3 : MaxOptionIndex;
 
         public PlaytestWorldRefusal Refusal { get; private set; }
 

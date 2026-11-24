@@ -156,10 +156,11 @@ public sealed partial class GameServer
 
     /// <summary>The star map's player list as <paramref name="session"/> is sent it: everybody joined, without the
     /// observers (#3052: an observer is listed to nobody but themselves) and without whoever is over there while the
-    /// receiver is not (#3905).</summary>
+    /// receiver is not (#3905), nor whoever is in a system the receiver's hidden star chart does not show (#3997).</summary>
     private NetPlayerLocation[] StarMapPlayersFor(PlayerSession session)
         => _sessions.Values
-            .Where(s => s.Joined && (!s.Spectating || s == session) && !HiddenFrom(session, s))
+            .Where(s => s.Joined && (!s.Spectating || s == session) && !HiddenFrom(session, s)
+                        && (s == session || !ChartHiddenFor(session, CurrentSystemOf(s))))
             .Select(s => new NetPlayerLocation { Name = s.State.Name, LocationId = s.CurrentLocationId })
             .ToArray();
 

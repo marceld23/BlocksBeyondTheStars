@@ -309,12 +309,14 @@ public sealed partial class GameServer
         Send(session, new AllianceList { Allies = allies, Incoming = incoming, Outgoing = outgoing });
     }
 
-    /// <summary>Re-sends the roster to a player if they are online (no-op otherwise).</summary>
+    /// <summary>Re-sends the roster to a player if they are online (no-op otherwise). Every alliance and crew change ends here,
+    /// so on a hidden star map the shared chart (#3997) goes out with it.</summary>
     private void RefreshAllianceRoster(string playerId)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
             SendAllianceList(session);
+            RefreshSharedCharts(playerId);
         }
     }
 

@@ -30,7 +30,7 @@ problem is reported through the content warnings and **dropped** — never a fai
 | `nameKey` / `name` | The system's name: the locale key (each player's star map shows it in their language), else the fixed name. |
 | `star` | `name`/`nameKey`, `color` (`"0xRRGGBB"` or `"#RRGGBB"`; empty = the rolled colour a hand-made system gets) and `visibleSize` (1 = an ordinary star; stored, not drawn yet). |
 | `placement` | `edge` (past every rolled star, on a bearing of its own) or `inside` (the emptiest spot among the stars). |
-| `appear` | Exactly one of `afterGrowth: N` (joins with the galaxy's N-th growth, `WorldMetadata.GalaxyGrownSystems` ≥ N, only in a world created with a growing galaxy) and `visibleIf` (story conditions; joins the first time a player meets them and is then per player on the star map, like a pack system). |
+| `appear` | Either `afterGrowth: N` (joins with the galaxy's N-th growth, `WorldMetadata.GalaxyGrownSystems` ≥ N, only in a world created with a growing galaxy) and/or `afterSystems: N` (#3997: only on a hidden star map — joins the first time a player has entered N rolled systems and is on the star map of every player who did, or whose ally did), or `visibleIf` (story conditions; joins the first time a player meets them and is then per player on the star map, like a pack system) — never both kinds. |
 | `bodies[]` | Moons after their parent. See below. |
 
 A body (`FixedBodyDefinition`):
@@ -62,6 +62,9 @@ A body (`FixedBodyDefinition`):
 - **Growth** — `MaybeGrowGalaxy` appends the new rolled system first and then reveals every data system whose
   `afterGrowth` the galaxy now meets (`RevealFixedSystemsByGrowth`). An older save that already grew that far gets the
   system at its next start. A world without `GalaxyGrowth` never gets a growth system.
+- **Systems entered** (#3997) — on a hidden star map (`WorldDescription.HiddenStarMap`, which never grows) a player's
+  arrival reveals every data system whose `afterSystems` they or an ally reached (`RevealFixedSystemsBySystems`);
+  `FixedSystemHiddenBySystems` keeps it off the star map of everyone else. See [HIDDEN_STAR_MAP.md](HIDDEN_STAR_MAP.md).
 - **Story condition** — the 1 Hz pack tick (`TickPackSystemsFor`) also reveals a data system whose `visibleIf` a player
   meets; `SystemHiddenFor` keeps it off the star map and out of jumps for players who do not (unless they are or were in
   it).

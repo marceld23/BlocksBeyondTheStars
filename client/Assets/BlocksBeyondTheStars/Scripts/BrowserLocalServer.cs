@@ -171,6 +171,10 @@ namespace BlocksBeyondTheStars.Client
                     MaxAnchoredChunks = 128,
                 };
 
+                // #3997: a new browser world gets the same galaxy as a new desktop one (36 systems, the hidden star map); a
+                // restored world keeps the description stored in its save.
+                config.ApplyNewWorldDefaults();
+
                 // Same as the native bundled host (#642): the solo player is the WorldAdmin, so admin
                 // cheat commands (/tp, /give, /fly …) work out of the box in browser singleplayer too.
                 config.Rules.AdminCheats = true;

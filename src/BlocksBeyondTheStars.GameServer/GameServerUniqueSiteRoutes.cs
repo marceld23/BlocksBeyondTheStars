@@ -50,6 +50,20 @@ public sealed partial class GameServer
             string.Equals(hereSystem, _galaxy?.FindBody(target)?.SystemId, StringComparison.Ordinal));
     }
 
+    /// <summary>#3997: <see cref="RouteToUniqueSite"/> for a story lead, which names the site's world on its chip — on a hidden
+    /// star map the world's system is charted for the player first (<see cref="ChartNamedPlace"/>), so the lead never points
+    /// into a system they cannot jump to.</summary>
+    private UniqueSiteRoute? ChartedRouteToUniqueSite(PlayerSession s, string kind, LoadedWorld? world)
+    {
+        var route = RouteToUniqueSite(s, kind, world);
+        if (route is { Exists: true } site)
+        {
+            ChartNamedPlace(s, site.NameBodyId);
+        }
+
+        return route;
+    }
+
     /// <summary>The <c>unique_site:&lt;kind&gt;</c> marker of a pack step, wherever the player is (#3415). On the site's world
     /// the ground marker with <see cref="StepMarkedLine"/> — the marker is spent. For the shrine (#3416) the nearest complete
     /// rune shrine of the player's world comes first: any singing shrine answers the Sounders, so its altar is marked instead
@@ -140,6 +154,7 @@ public sealed partial class GameServer
         else if (!esc.SiteFarLineSent && GalaxySystemName(s, route.Target) is { Length: > 0 } systemName)
         {
             esc.SiteFarLineSent = true;
+            ChartNamedPlace(s, route.NameBodyId); // #3997: the line names a world elsewhere — its system goes on a hidden map
             SendPackLine(s, step.Pack, StepMarkedWorldLine, worldName + LineText.ArgSeparator + systemName);
         }
     }

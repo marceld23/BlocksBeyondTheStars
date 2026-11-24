@@ -252,9 +252,17 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether a data system with a story condition is kept off this player's star map and out of their jumps — they
-    /// do not meet its condition and are not in it and never were (like a pack's). A growth system is never hidden.</summary>
+    /// do not meet its condition and are not in it and never were (like a pack's). A growth system is never hidden; on a
+    /// hidden star map a system with an <c>afterSystems</c> rule stays hidden until the player (or an ally) entered that
+    /// many systems (#3997, <see cref="FixedSystemHiddenBySystems"/>).</summary>
     private bool FixedSystemHiddenFor(PlayerSession s, string? systemId)
     {
+        if (!string.IsNullOrEmpty(systemId) && !StarSystemIds.HasRolledPrefix(systemId)
+            && _content.GetFixedSystem(systemId) is { Appear.VisibleIf.Count: 0 } bySystems)
+        {
+            return FixedSystemHiddenBySystems(s, bySystems);
+        }
+
         if (string.IsNullOrEmpty(systemId) || StarSystemIds.HasRolledPrefix(systemId)
             || _content.GetFixedSystem(systemId) is not { Appear.VisibleIf.Count: > 0 } def
             || ConditionTextsHold(def.Appear.VisibleIf, s) || s.State.KnownSystems.Contains(systemId!))

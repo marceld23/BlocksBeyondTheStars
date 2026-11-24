@@ -613,7 +613,7 @@ public sealed partial class GameServer
     /// <see cref="RouteToUniqueSite"/>).</summary>
     private void ResolveUniqueSite(PlayerSession s, ResolvedStoryLead lead, LoadedWorld? world)
     {
-        if (RouteToUniqueSite(s, lead.Arg, world) is not { } route)
+        if (ChartedRouteToUniqueSite(s, lead.Arg, world) is not { } route) // #3997: the chip names the world — charted first
         {
             return; // the galaxy has no such site
         }

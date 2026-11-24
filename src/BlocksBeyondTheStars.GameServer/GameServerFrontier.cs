@@ -112,7 +112,8 @@ public sealed partial class GameServer
     /// stored — a restart regenerates the grown systems byte-identically from (seed, N).</summary>
     private void MaybeGrowGalaxy(PlayerSession session, string systemId)
     {
-        if (!_meta.Description.GalaxyGrowth || _galaxy is null
+        // #3997: a hidden-map world is whole from the start — it never grows, whatever its growth flag says.
+        if (!_meta.Description.GalaxyGrowth || _meta.Description.HiddenStarMap || _galaxy is null
             || !StarSystemIds.IsRolled(systemId) || !IsEdgeSystem(systemId))
         {
             return;

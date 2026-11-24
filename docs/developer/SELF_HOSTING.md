@@ -62,6 +62,7 @@ Created on first run; editable directly or through the admin UI.
 | `maxAnchoredChunks` | Chunks per world kept loaded away from the players for Crystal Nets, lifts and base builds while someone is on that body (0 = off, at most 8192; the in-browser game uses 128) — see below | `512` |
 | `tickRate` | Simulation Hz (10–20 recommended) | `15` |
 | `seed` | World seed (0 = derive from world name) | `0` |
+| `world.starSystemCount` / `world.hiddenStarMap` | The galaxy a NEW world is created with: its size (1–64; CLI `--systems`) and whether each player charts its star map (CLI `--hidden-map`, see [HIDDEN_STAR_MAP.md](HIDDEN_STAR_MAP.md)). A first `server.json` is written with `36` / `true`; a file from an older version keeps its values (12 open systems) until you change them. An existing world keeps the galaxy it was created with. | `36` / `true` |
 | `startPlanet` | Starting planet type | `varied` |
 | `adminBindAddress` | Admin UI bind address | `127.0.0.1` |
 | `gameplayBindAddress` | Which interfaces the native UDP gameplay port binds: empty = every interface, `127.0.0.1` = this machine only, or one IPv4 address (`--bind`, `BBS_BIND`) | *(empty)* |

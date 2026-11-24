@@ -136,6 +136,9 @@ public sealed class PlayerSnapshot
     /// <summary>Star systems this player has entered (reveals their bodies + mini map on the travel screen).</summary>
     public List<string> KnownSystems { get; set; } = new();
 
+    /// <summary>#3997: systems this player charted without entering them (the hidden star map). Additive.</summary>
+    public List<string> ChartedSystems { get; set; } = new();
+
     /// <summary>Explored-map bitmaps per body (#1113; body id → cell bits, base64 in the JSON). Absent in
     /// older saves — the map then starts fogged, exactly as before, and nothing else is lost.</summary>
     public Dictionary<string, byte[]> ExploredCells { get; set; } = new();
@@ -317,6 +320,7 @@ public static class StateMapper
         UnlockedGames = p.UnlockedGames.ToList(),
         LandedBodies = p.LandedBodies.ToList(),
         KnownSystems = p.KnownSystems.ToList(),
+        ChartedSystems = p.ChartedSystems.ToList(),
         ExploredCells = CloneExploredCells(p.ExploredCells),
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
@@ -651,6 +655,7 @@ public static class StateMapper
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
         LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),
+        ChartedSystems = new HashSet<string>(s.ChartedSystems ?? new List<string>()),
         ExploredCells = CloneExploredCells(s.ExploredCells),
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),

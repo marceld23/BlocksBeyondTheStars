@@ -75,10 +75,11 @@ public static class FixedSystemRules
             problems.Add($"the placement '{def.Placement}' is none of {string.Join(", ", FixedSystemPlacements.All)}");
         }
 
-        bool byGrowth = def.Appear.AfterGrowth > 0, byStory = def.Appear.VisibleIf.Count > 0;
-        if (byGrowth == byStory || def.Appear.AfterGrowth < 0)
+        // #3997: afterGrowth and afterSystems may stand together (a growing and a hidden-map world each read their own).
+        bool byGrowth = def.Appear.AfterGrowth > 0 || def.Appear.AfterSystems > 0, byStory = def.Appear.VisibleIf.Count > 0;
+        if (byGrowth == byStory || def.Appear.AfterGrowth < 0 || def.Appear.AfterSystems < 0)
         {
-            problems.Add("appear needs exactly one of afterGrowth (1 or more) and visibleIf");
+            problems.Add("appear needs afterGrowth and/or afterSystems (1 or more), or visibleIf — exactly one of the two kinds");
         }
 
         if (def.Star is { } star && !string.IsNullOrEmpty(star.Color) && star.ColorRgb <= 0)

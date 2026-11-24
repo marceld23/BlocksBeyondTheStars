@@ -235,6 +235,22 @@ public sealed class ServerConfig
         SettlementTemplateUse = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
     };
 
+    /// <summary>
+    /// The galaxy a NEW world gets when the server starts from its own defaults (#3997): the whole galaxy at the world
+    /// options' "Normal" size, its star map charted per player (<see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.HiddenStarMap"/>).
+    /// Applied where a config is born from code — <see cref="LoadForStartup"/> with <c>--no-config</c> (the bundled
+    /// singleplayer host), <see cref="Load"/> writing a first <c>server.json</c> (dedicated and hosted servers), and the
+    /// browser singleplayer host — and deliberately NOT in the <see cref="World"/> initializer: hundreds of tests build a
+    /// plain <c>new ServerConfig()</c> and rely on its 12 open systems. An existing <c>server.json</c> keeps its values, and
+    /// a loaded save always keeps the description stored in its metadata. Returns this config.
+    /// </summary>
+    public ServerConfig ApplyNewWorldDefaults()
+    {
+        World.HiddenStarMap = true;
+        World.StarSystemCount = BlocksBeyondTheStars.Shared.World.WorldDescription.NewWorldStarSystemCount;
+        return this;
+    }
+
     /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>
     public AiLevel AiLevel { get; set; } = AiLevel.Off;
 
@@ -620,13 +636,13 @@ public sealed class ServerConfig
     /// Dedicated servers omit the flag and keep the auto-generated, editable <c>config/server.json</c>.
     /// </summary>
     public static ServerConfig LoadForStartup(string[]? args, string path)
-        => (args is not null && Array.IndexOf(args, "--no-config") >= 0) ? new ServerConfig() : Load(path);
+        => (args is not null && Array.IndexOf(args, "--no-config") >= 0) ? new ServerConfig().ApplyNewWorldDefaults() : Load(path);
 
     public static ServerConfig Load(string path)
     {
         if (!File.Exists(path))
         {
-            var fresh = new ServerConfig();
+            var fresh = new ServerConfig().ApplyNewWorldDefaults();
             fresh.Save(path);
             return fresh;
         }
