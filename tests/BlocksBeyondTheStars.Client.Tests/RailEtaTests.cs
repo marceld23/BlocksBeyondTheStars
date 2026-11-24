@@ -178,4 +178,40 @@ public sealed class RailEtaTests
         standing.Autopilot = false;
         Assert.Equal(RailEtaState.None, eta.Read(standing, 1 - here).State);
     }
+
+    /// <summary>#3985: on a line of three stops the board names the stops the next train calls at, in order — at the middle
+    /// one those beyond it the way the train leaves, at the first one both others (it turns round there while it stands).</summary>
+    [Fact]
+    public void TheBoard_NamesTheNextStops_TheWayTheTrainLeaves()
+    {
+        var points = Enumerable.Range(0, 11).Select(i => new Vector3f(i * 30f, 10f, 0f)).ToList();
+        var spline = RailSpline.Build(points, false, 4096);
+        var eta = new RailEta(spline, new[] { 10f, spline.TotalArc * 0.5f, spline.TotalArc - 10f });
+        float span = RailRules.TrainSpan(2);
+        var train = new NetTrain
+        {
+            // Halted at the middle stop, heading on toward the far end.
+            Arc = RailRules.ArcForMiddleAt(RailRules.HaltMiddleArc(spline.TotalArc * 0.5f, span, spline.TotalArc, false), -1, span),
+            Facing = -1,
+            Direction = 1,
+            Speed = 2,
+            Autopilot = true,
+            Halted = true,
+            HaltRemaining = 5f,
+            Wagons = RailRules.PublicTrainWagons,
+            OwnerId = RailRules.PublicOwnerId,
+        };
+
+        var here = eta.Read(train, 1);
+        Assert.Equal(RailEtaState.Here, here.State);
+        Assert.Equal(1, here.Direction);
+        Assert.Equal(new[] { 2 }, eta.StopsAfter(1, here.Direction));
+
+        var first = eta.Read(train, 0); // out to the far end, back past the middle, turned round at the first stop
+        Assert.Equal(RailEtaState.Coming, first.State);
+        Assert.Equal(1, first.Direction);
+        Assert.Equal(new[] { 1, 2 }, eta.StopsAfter(0, first.Direction));
+        Assert.Equal(new[] { 1, 0 }, eta.StopsAfter(2, -1));
+        Assert.Empty(eta.StopsAfter(1, 0));
+    }
 }

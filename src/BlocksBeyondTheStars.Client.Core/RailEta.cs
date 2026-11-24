@@ -24,15 +24,20 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>A board's reading: the state and the seconds that go with it, as of the train list it was computed from.</summary>
     public readonly struct RailEtaReading
     {
-        public RailEtaReading(RailEtaState state, double seconds)
+        public RailEtaReading(RailEtaState state, double seconds, int direction = 0)
         {
             State = state;
             Seconds = seconds;
+            Direction = direction;
         }
 
         public RailEtaState State { get; }
 
         public double Seconds { get; }
+
+        /// <summary>#3985: the way the train leaves the stop after this halt along the line's arc (+1 / −1; 0 without a
+        /// forecast) — which of the line's other stops it calls at next (<see cref="RailEta.StopsAfter"/>).</summary>
+        public int Direction { get; }
 
         public static RailEtaReading None => new RailEtaReading(RailEtaState.None, 0.0);
     }
@@ -55,7 +60,8 @@ namespace BlocksBeyondTheStars.Client
         /// fraction of a second).</summary>
         public const double StepSeconds = 0.1;
 
-        /// <summary>The forecast looks this far ahead at most (seconds); a train later than that reads as no forecast.</summary>
+        /// <summary>The forecast looks this far ahead at least (seconds); a train later than that reads as no forecast. A long
+        /// line looks as far as a round trip at the slowest setting with every halt (#3985: Earth's lines are ~9,000 blocks).</summary>
         public const double HorizonSeconds = 1200.0;
 
         private const float SameArc = 0.001f;
@@ -63,6 +69,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly RailSpline _spline;
         private readonly RailCurveLimits _curves;
         private readonly float[] _stops;
+        private readonly double _horizon;
 
         /// <summary>A forecast for one line: its spline (the one the client poses its trains on) and its stops' arcs.</summary>
         public RailEta(RailSpline spline, IReadOnlyList<float> stopArcs)
@@ -74,6 +81,50 @@ namespace BlocksBeyondTheStars.Client
             {
                 _stops[i] = stopArcs![i];
             }
+
+            double round = 2.0 * ((spline.TotalArc / RailRules.SpeedTable[0]) + (_stops.Length * RailRules.PublicStopHaltSeconds));
+            _horizon = Math.Max(HorizonSeconds, round);
+        }
+
+        /// <summary>#3985: the line's other stops a train leaving stop <paramref name="stop"/> along <paramref name="direction"/>
+        /// calls at, in the order it reaches them — on an open line those beyond the stop that way, on a loop all the others
+        /// round the loop. Empty without a direction.</summary>
+        public IReadOnlyList<int> StopsAfter(int stop, int direction)
+        {
+            var after = new List<int>();
+            if (stop < 0 || stop >= _stops.Length || direction == 0)
+            {
+                return after;
+            }
+
+            float from = _stops[stop], total = _spline.TotalArc;
+            var ahead = new List<(float Gap, int Stop)>();
+            for (int i = 0; i < _stops.Length; i++)
+            {
+                if (i == stop)
+                {
+                    continue;
+                }
+
+                float gap = (_stops[i] - from) * Math.Sign(direction);
+                if (_spline.Closed && gap <= 0f)
+                {
+                    gap += total;
+                }
+
+                if (gap > 0f)
+                {
+                    ahead.Add((gap, i));
+                }
+            }
+
+            ahead.Sort((a, b) => a.Gap.CompareTo(b.Gap));
+            foreach (var (_, i) in ahead)
+            {
+                after.Add(i);
+            }
+
+            return after;
         }
 
         /// <summary>The spline this forecast was built for (a rebuilt line has a new one: build a new forecast).</summary>
@@ -99,7 +150,7 @@ namespace BlocksBeyondTheStars.Client
             var run = Run.From(train, this);
             if (run.Halted && run.Last == stop)
             {
-                return new RailEtaReading(RailEtaState.Here, Math.Max(0.0, train.HaltRemaining));
+                return new RailEtaReading(RailEtaState.Here, Math.Max(0.0, train.HaltRemaining), run.Direction);
             }
 
             if (run.Halted && !(train.HaltRemaining > 0f))
@@ -108,7 +159,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             double eta = Simulate(ref run, stop);
-            return eta < 0.0 ? RailEtaReading.None : new RailEtaReading(RailEtaState.Coming, eta);
+            return eta < 0.0 ? RailEtaReading.None : new RailEtaReading(RailEtaState.Coming, eta, run.Direction);
         }
 
         /// <summary>The stop nearest to a world arc on the line (−1 without stops) — the board's own stop.</summary>
@@ -170,7 +221,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Runs the train forward until it halts at <paramref name="stop"/>: the seconds that took, or −1 past the
-        /// horizon.</summary>
+        /// horizon. The run is left halted there (its direction the way it will leave).</summary>
         private double Simulate(ref Run r, int stop)
         {
             float total = _spline.TotalArc;
@@ -178,7 +229,7 @@ namespace BlocksBeyondTheStars.Client
             var (lo, hi) = RailRules.CabRange(total, r.Span, r.Facing);
             float midLo = RailRules.MiddleArc(lo, r.Facing, r.Span), midHi = RailRules.MiddleArc(hi, r.Facing, r.Span);
             double t = 0.0;
-            while (t < HorizonSeconds)
+            while (t < _horizon)
             {
                 if (r.Halted)
                 {
@@ -193,12 +244,12 @@ namespace BlocksBeyondTheStars.Client
                 t += StepSeconds;
                 if (target >= 0 && run >= ahead)
                 {
+                    HaltAt(ref r, target, lo, hi, total, closed);
                     if (target == stop)
                     {
                         return t;
                     }
 
-                    HaltAt(ref r, target, lo, hi, total, closed);
                     continue;
                 }
 
