@@ -148,13 +148,19 @@ public sealed class EarthRailNetworkTests : IDisposable
         Assert.Equal(Content.GetBlock(RailRules.PylonBlockKey)!.NumericId, again.World.GetBlock(berlin.ExitPylon));
 
         // The tick never freezes for a section: its chunks come from the background pool and its cells a few ms per tick.
-        _output.WriteLine($"all ticks with a section: the longest {ticks.Max():F1} ms, 99th percentile {Percentile(ticks, 0.99):F1} ms");
-        Assert.True(ticks.Max() < LongestSectionTickMs, $"no tick spends more than {LongestSectionTickMs} ms on the rail sections (the longest {ticks.Max():F1} ms)");
+        // One tick over the bound is a pause of the shared test machine (a GC or a descheduled runner, seen at 50.9 ms
+        // with a 99th percentile of 0.9 ms); a section stamped in one go would put each of the eight sections over it.
+        int slow = ticks.Count(t => t >= LongestSectionTickMs);
+        _output.WriteLine($"all ticks with a section: the longest {ticks.Max():F1} ms, 99th percentile {Percentile(ticks, 0.99):F1} ms, {slow} over {LongestSectionTickMs} ms");
+        Assert.True(slow <= AllowedPauseTicks, $"at most {AllowedPauseTicks} tick spends {LongestSectionTickMs} ms or more on the rail sections ({slow} did, the longest {ticks.Max():F1} ms)");
     }
 
-    /// <summary>The bound the test holds the longest tick to — well above the ~4 ms budget, as a shared test machine has
-    /// its pauses; the stamp in one go took a median 320 ms and up to 1.2 s.</summary>
+    /// <summary>The bound the test holds a tick to — well above the ~4 ms budget, as a shared test machine has its pauses;
+    /// the stamp in one go took a median 161–320 ms and up to 1.2 s.</summary>
     private const double LongestSectionTickMs = 50;
+
+    /// <summary>How many ticks may pass <see cref="LongestSectionTickMs"/> — one pause of the test machine, not a section.</summary>
+    private const int AllowedPauseTicks = 1;
 
     /// <summary>Drives the section ticks as a player standing at <paramref name="at"/> (the default view's reach) until every
     /// section in reach stands, and returns each tick's time (ms). A tick here comes right after the last (a short pause for
