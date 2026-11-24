@@ -128,7 +128,7 @@ public sealed partial class GameServer
         PinCityComposition(rec, composition, index);
         PinSettlementTraits(rec ?? FindPlacementRecord("settlement", index), CityGenerator.Tier, ruined: false); // #3513: like every settlement
         SavePlacementRecords();
-        SeatCityGround(structure, origin, fresh: rec is null);
+        SeatCityGround(place, structure, origin, fresh: rec is null);
         return new PlacedSettlement
         {
             Structure = structure,
@@ -231,12 +231,18 @@ public sealed partial class GameServer
         return (origin, groundY, name, true);
     }
 
-    /// <summary>The city's ground: the first city's footprint is the world's city footprint (the G.D.S. cool rooms); #3571: a
-    /// city composed right now reserves its whole footprint at its centre's level (the pads inside keep their own levelling,
+    /// <summary>The city's ground: its footprint joins the world's city footprints (the G.D.S. theme's with cool rooms); #3571:
+    /// a city composed right now reserves its whole footprint at its centre's level (the pads inside keep their own levelling,
     /// which runs last) and grades a wide ring around it.</summary>
-    private void SeatCityGround(SettlementStructure structure, Vector3i origin, bool fresh)
+    private void SeatCityGround(CityPlace place, SettlementStructure structure, Vector3i origin, bool fresh)
     {
-        _worlds.Active.CityFootprint ??= (origin.X, origin.Z, origin.X + structure.Width - 1, origin.Z + structure.Length - 1);
+        var footprint = new CityFootprint(origin.X, origin.Z, origin.X + structure.Width - 1, origin.Z + structure.Length - 1,
+            CoolRooms: place.ThemeKey == CityPlace.DefaultTheme);
+        if (!_worlds.Active.CityFootprints.Contains(footprint))
+        {
+            _worlds.Active.CityFootprints.Add(footprint);
+        }
+
         if (fresh)
         {
             ReserveSiteGround(StructureTypeRules.Settlement, structure.Width, structure.Length, origin, origin.Y, "shelf", CityGrade());

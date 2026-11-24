@@ -59,8 +59,13 @@ public sealed partial class GameServer
     /// <summary>Number of inhabited (non-ruin) settlements on this world.</summary>
     public int InhabitedSettlementCount => _settlements.Count(s => !s.Ruined);
 
-    /// <summary>Test seam (#1793): the city world's footprint, null on every other world.</summary>
-    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprintForTest => _worlds.Active.CityFootprint;
+    /// <summary>Test seam (#1793): the first city's footprint (the city world's one city), null on a world without one.</summary>
+    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprintForTest
+        => _worlds.Active.CityFootprints.Count > 0 ? (_worlds.Active.CityFootprints[0].MinX, _worlds.Active.CityFootprints[0].MinZ,
+            _worlds.Active.CityFootprints[0].MaxX, _worlds.Active.CityFootprints[0].MaxZ) : null;
+
+    /// <summary>Test seam (#3983): every city footprint of the active world, in stamp order.</summary>
+    internal IReadOnlyList<CityFootprint> CityFootprintsForTest => _worlds.Active.CityFootprints;
 
     /// <summary>Test seam: the settlement tiers on this world, in stamp order.</summary>
     public IReadOnlyList<string> SettlementTiersForTest => _settlements.Select(s => s.Tier).ToList();
@@ -230,7 +235,16 @@ public sealed partial class GameServer
         /// <summary>The whole template's protection on this world (generation 39: <c>auto</c> / <c>protected</c> / <c>open</c>,
         /// see GameServerStructureProtection.cs); <c>auto</c> everywhere else.</summary>
         public string Protection = LandmarkRules.ProtectionAuto;
+
+        /// <summary>Where the stamp's cells go (<see cref="CellsOf"/>): null = straight into the active world, one
+        /// <see cref="ServerWorld.SetBlock"/> per cell (every structure but a place-list city, which collects them into one
+        /// structure overlay).</summary>
+        public IStructureCellSink? Cells { get; set; }
     }
+
+    /// <summary>The sink a settlement's stamp writes through: its own (<see cref="PlacedSettlement.Cells"/>) or the active
+    /// world's — the very <see cref="ServerWorld.SetBlock"/> / <see cref="ServerWorld.GetBlock"/> the stamp called before.</summary>
+    private IStructureCellSink CellsOf(PlacedSettlement p) => p.Cells ?? new WorldCellSink(_world);
 
     private void StampSettlement()
     {
@@ -725,6 +739,7 @@ public sealed partial class GameServer
         }
 
         var s = p.Structure;
+        var cells = CellsOf(p);
         int gy = p.GroundY;
         var origin = p.Origin;
         bool shelf = p.Seat == "shelf";
@@ -753,7 +768,7 @@ public sealed partial class GameServer
             for (int z = 0; z < s.Length; z++)
                 for (int y = 1; y < clearH; y++)
                 {
-                    _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z), BlockId.Air);
+                    cells.Put(origin.X + x, gy + y, origin.Z + z, BlockId.Air);
                 }
 
         // 1b) Vegetation carve (#1659). The terrain carve above is only as deep as the ground rises — on flat
@@ -788,9 +803,9 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    if (vegetation.Contains(_world.GetBlock(cell).Value))
+                    if (vegetation.Contains(cells.Get(cell.X, cell.Y, cell.Z).Value))
                     {
-                        _world.SetBlock(cell, BlockId.Air);
+                        cells.Put(cell.X, cell.Y, cell.Z, BlockId.Air);
                     }
                 }
             }
@@ -811,7 +826,7 @@ public sealed partial class GameServer
                 for (int z = 0; z < s.Length; z++)
                 {
                     int wx = origin.X + x, wz = origin.Z + z;
-                    _world.SetBlock(new Vector3i(wx, gy, wz), floorId); // flat floor row
+                    cells.Put(wx, gy, wz, floorId); // flat floor row
 
                     if (p.OnIsland)
                     {
@@ -829,7 +844,7 @@ public sealed partial class GameServer
                             int pileFloor = System.Math.Max(seabedY + 1, gy - maxSkirt);
                             for (int y = gy - 1; y >= pileFloor; y--)
                             {
-                                _world.SetBlock(new Vector3i(wx, y, wz), pileId);
+                                cells.Put(wx, y, wz, pileId);
                             }
                         }
 
@@ -845,7 +860,7 @@ public sealed partial class GameServer
                             int pileFloor = System.Math.Max(iceTopY + 1, gy - maxSkirt);
                             for (int y = gy - 1; y >= pileFloor; y--)
                             {
-                                _world.SetBlock(new Vector3i(wx, y, wz), pileId);
+                                cells.Put(wx, y, wz, pileId);
                             }
                         }
 
@@ -856,7 +871,7 @@ public sealed partial class GameServer
                     int floorY = System.Math.Max(colSurf + 1, gy - maxSkirt);
                     for (int y = gy - 1; y >= floorY; y--) // fill the gap down to the natural ground
                     {
-                        _world.SetBlock(new Vector3i(wx, y, wz), skirtId);
+                        cells.Put(wx, y, wz, skirtId);
                     }
                 }
 
@@ -877,8 +892,7 @@ public sealed partial class GameServer
                     if (b != 0)
                     {
                         var (tint, glow) = s.GetModifier(x, y, z);
-                        _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z),
-                            new BlockId(b), tint, glow, s.GetShape(x, y, z));
+                        cells.Set(origin.X + x, gy + y, origin.Z + z, new BlockId(b), tint, glow, s.GetShape(x, y, z));
                     }
                 }
     }
@@ -1499,6 +1513,7 @@ public sealed partial class GameServer
 
         var planet = _world.Planet;
         var s = p.Structure;
+        var cells = CellsOf(p);
         int gy = p.GroundY;
         bool seaIceIsWet = SeaIceIsWet; // #2738: a frozen sea is wet ground too — no terrace dug into its ice
         for (int ring = 1; ring <= 2; ring++)
@@ -1524,7 +1539,7 @@ public sealed partial class GameServer
                     int floorY = System.Math.Max(colSurf + 1, stepY - 4); // short footing, not another wall
                     for (int y = stepY; y >= floorY; y--)
                     {
-                        _world.SetBlock(new Vector3i(x, y, z), fill);
+                        cells.Put(x, y, z, fill);
                     }
                 }
         }
