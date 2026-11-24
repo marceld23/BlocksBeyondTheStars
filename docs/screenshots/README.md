@@ -12,9 +12,9 @@ docs/screenshots/
 
 The world stills carry no text, so there is one set for every language. They come from
 `scripts/capture-stills.ps1` (see [World stills](#world-stills--capture-stillsps1) below); the HUD set
-from `scripts/capture-screenshots.ps1`. The older per-planet HUD shots `de|en/surface_<key>.png`
-(2026-08-09) stay in place as reference images for other material that links them; the README no
-longer shows them.
+from `scripts/capture-screenshots.ps1`. The per-planet HUD shots `de|en/surface_<key>.png` stay in place
+as reference images for other material that links them (re-shot with the new look on 2026-11-23); the
+README does not show them.
 
 ## The HUD set
 
@@ -22,7 +22,7 @@ Gallery shows the English set (`en/`); a matching German set lives in `de/`.
 
 <table>
   <tr>
-    <td width="50%"><img src="en/start_screen.png" width="100%" alt="Main menu"><br><sub><b>start_screen.png</b> — Main menu with the Continue card (2026-11: the dev build's version label bottom right painted out)</sub></td>
+    <td width="50%"><img src="en/start_screen.png" width="100%" alt="Main menu"><br><sub><b>start_screen.png</b> — Main menu with the Continue card (shot from a local build, so its dev version label shows bottom right)</sub></td>
     <td width="50%"><img src="en/cockpit_hud.png" width="100%" alt="Cockpit HUD"><br><sub><b>cockpit_hud.png</b> — The ship cockpit with the in-game HUD</sub></td>
   </tr>
   <tr>
@@ -37,6 +37,26 @@ Gallery shows the English set (`en/`); a matching German set lives in `de/`.
 
 `planet_surface.png` stands at the best view near the landed ship (the `vista` pose, see below) in
 morning light, with the block selection frame and the first-person hand hidden (#2765).
+
+## The new look (2026-11-23)
+
+Every picture in this folder was re-shot for the reworked look (#3949, always on since v2026.11.27): the HUD set,
+the per-planet surface shots, the menus and editors (EN; the German set has the HUD set and the surface shots) and
+all world stills. Two world stills are new: `world/creature_savanna.jpg` and `world/life_village.jpg`.
+
+- **Builds.** Most pictures come from a v2026.11.27 build. Nine were re-taken after review on v2026.11.28 and so also
+  show its terrain drawn as micro-cube forms (#3964) and the floating-island fix in the far view (#3963):
+  `en/surface_jungle.png`, `en|de/surface_lava.png`, `en/surface_skylands.png`, `en/vega_guardian_giant.png`,
+  `en/vega_labyrinth.png`, `world/world_skylands.jpg`, `world/life_village.jpg`, `world/life_village_night.jpg`.
+- **Seeds.** Terrain generation 48 gives every world a new colour palette, so the earlier picks no longer applied.
+  Each still was shot on several seeds; a variant whose run log showed a failed pose, a `/tp` that found no site or
+  no subject to frame was dropped, and the rest were ordered by the rough picture score — the final choice was
+  made by eye. The places in **Things to discover** (giant wrecks, guardian giants, Soaniri, the school club's
+  buildings, the Labyrinth Builders' maze) were found with a headless seed search over the server's stamp log and
+  reached with the in-game `/tp` (`giantwreck1`, `giant1`, `landmark1`, `civ1`, …).
+- **Local tooling.** Besides the menu walk and the VEGA line (see below), the hovering HUD views
+  (`surface_desert.png`, `surface_lava.png`, `vega_*.png`) and the views turned toward a site's buildings
+  (`life_village*.jpg`) use capture tooling that is not merged either.
 
 ## The 2026-11 additions (v2026.11.19)
 
@@ -105,6 +125,8 @@ HUD-free stills, one language-neutral set (`world/<name>.jpg`, the names are the
   <tr>
     <td width="25%"><img src="world/creature_jungle.jpg" width="100%" alt="Floaters over the jungle"><br><sub>Floaters over the jungle</sub></td>
     <td width="25%"><img src="world/life_reef.jpg" width="100%" alt="Under the sea"><br><sub>Under the sea</sub></td>
+    <td width="25%"><img src="world/creature_savanna.jpg" width="100%" alt="Wildlife on the savanna"><br><sub>Wildlife on the savanna</sub></td>
+    <td width="25%"><img src="world/life_village.jpg" width="100%" alt="A village by day"><br><sub>A village by day</sub></td>
   </tr>
 </table>
 
