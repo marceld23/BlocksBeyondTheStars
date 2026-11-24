@@ -128,7 +128,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A whale's throat grooves: thin, slightly darker stripes along the underside, across <paramref name="width"/>.</summary>
         private void AddThroatGrooves(Transform parent, Vector3 centre, float width, float length, float u)
         {
-            var groove = Lit(_coat.Mat(CoatPart.Belly).color * 0.72f, null);
+            Color tone = _coat.Mat(CoatPart.Belly).color * 0.72f;
+            tone.a = 1f;
+            var groove = Lit(tone, null);
             const int Count = 5;
             for (int i = 0; i < Count; i++)
             {

@@ -126,6 +126,11 @@ namespace BlocksBeyondTheStars.Client
                 AddPartTo(_headPivot, "Comb" + i, new Vector3(0f, top + lobeH * 0.45f, z), new Vector3(w * 0.12f, lobeH, d * 0.26f), red);
             }
 
+            if (_jawPivot == null)
+            {
+                return;
+            }
+
             float wattleH = h * 0.26f;
             AddPartTo(_jawPivot, "Wattle", new Vector3(0f, -h * JawHalfShare - wattleH * 0.4f, d * 0.94f + beakLen * 0.15f),
                 new Vector3(w * 0.14f, wattleH, d * 0.12f), red);
