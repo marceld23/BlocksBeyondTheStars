@@ -232,108 +232,6 @@ public sealed partial class GameServer
     private (int Carved, int Trees) StampIntercityVoxels(IntercityPlan plan, string surface)
         => StampIntercityVoxels(plan, surface, 0, plan.Pylons.Count - 1);
 
-    /// <summary>Stamps the part of a line from pylon <paramref name="first"/> to pylon <paramref name="last"/> (#3985: one
-    /// section): the stations whose hall span lies in it, its pylon columns and the corridor of its spans. Must run inside a
-    /// repo transaction.</summary>
-    private (int Carved, int Trees) StampIntercityVoxels(IntercityPlan plan, string surface, int first, int last)
-    {
-        var planet = _world.Planet;
-        foreach (var st in plan.Stops)
-        {
-            int at = plan.Pylons.IndexOf(st.EndPylon), other = plan.Pylons.IndexOf(st.ExitPylon);
-            int span = Math.Min(at, other);
-            if (span < first || span >= Math.Max(first + 1, last))
-            {
-                continue; // stamped with the section that holds the span inside its hall
-            }
-
-            StampSettlementBlocks(new PlacedSettlement
-            {
-                Structure = st.Structure,
-                Origin = st.Origin,
-                GroundY = st.Origin.Y,
-                Tier = RailStationGenerator.Tier,
-                Ruined = false,
-                OnIsland = false,
-                Name = st.SettlementName,
-                Rng = new Random(1),
-                Seat = st.Seat,
-            }, surface, crownRing: false);
-        }
-
-        var pylonId = _content.GetBlock(RailRules.PylonBlockKey)?.NumericId ?? BlockId.Air;
-        if (pylonId.IsAir)
-        {
-            return (0, 0);
-        }
-
-        for (int j = first; j <= last; j++)
-        {
-            if (plan.IsStationPylon(j))
-            {
-                continue; // a station's own pylons are part of its hall
-            }
-
-            var top = plan.Pylons[j];
-            int foot = Math.Min(top.Y, PylonFoot(planet, top.X, top.Z));
-            for (int yy = foot; yy <= top.Y; yy++)
-            {
-                _world.SetBlock(new Vector3i(top.X, yy, top.Z), pylonId);
-            }
-        }
-
-        return StampIntercityCorridor(plan, first, last);
-    }
-
-    /// <summary>Clears a line's corridor between pylon <paramref name="first"/> and pylon <paramref name="last"/> (every
-    /// span, the halls' own included): anything in it goes but fluids, the pylons, the stops, the stations' own layout and
-    /// the towns' blocks; a tree that reaches into it goes as a whole, within the line's tree budget (a section's share of it
-    /// for a listed line). A listed line clears the land a metropolis left to nature inside its box too (#3985) — only the
-    /// city's claimed columns are its blocks.</summary>
-    private (int Carved, int Trees) StampIntercityCorridor(IntercityPlan plan, int first, int last)
-    {
-        float route = plan.Listed ? IntercitySectionRoute(plan, first, last) : plan.RouteLength;
-        int carved = 0, trees = 0, treeCap = IntercityVegetationCapFor(_generator.TerrainGeneration, route);
-        var veg = SettlementVegetationIds;
-        var seen = new HashSet<Vector3i>();
-        Func<Vector3i, bool> town = plan.Listed ? InAnySettlementColumns : InAnySettlementBox;
-        for (int j = first; j < last; j++)
-        {
-            foreach (var cell in IntercityCorridor(plan.Pylons[j], plan.Pylons[j + 1]))
-            {
-                var c = WorldConstants.CanonicalBlock(cell, _world.Circumference);
-                if (!seen.Add(c) || !WithinBuildHeight(c.Y) || IsStationLayoutCell(c) || Intercity.PylonTops.Contains(c))
-                {
-                    continue; // the station's own blocks stand clear of the corridor by design; anything else in it goes
-                }
-
-                var id = _world.GetBlock(c);
-                if (id.IsAir)
-                {
-                    continue;
-                }
-
-                var def = _content.BlockById(id);
-                if (def is null || def.Liquid || IsFluid(id.Value)
-                    || def.Key is RailRules.PylonBlockKey or RailRules.StopBlockKey || town(c))
-                {
-                    continue; // fluids stay (the line runs over them); the towns' blocks are never touched
-                }
-
-                if (veg.Contains(id.Value) && trees < treeCap)
-                {
-                    trees += ClearTreeAt(c, veg, treeCap - trees, town);
-                    continue;
-                }
-
-                _world.SetBlock(c, BlockId.Air);
-                carved++;
-            }
-        }
-
-        return (carved, trees);
-    }
-
     /// <summary>The corridor of one span: first exactly the cells <c>LinkClear</c> checks (so the generated link passes the
     /// player's own clearance rule), then the wagon's whole box (3 wide, 3.2 high over its floor) swept along the straight
     /// run between the two pylon tops half a block at a time, reaching to the box's edges.</summary>
@@ -368,11 +266,14 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>How far a tree the corridor takes out reaches sideways (blocks, each way) and up or down from the cell it was
+    /// found at.</summary>
+    private const int IntercityTreeReach = 6, IntercityTreeRise = 26;
+
     /// <summary>Takes a whole tree out of the world from one of its cells: every connected trunk, crown and fruit cell within
     /// a tree's reach, so the corridor leaves neither a stump nor a floating crown. Never inside a town. Returns the cells cleared.</summary>
     private int ClearTreeAt(Vector3i seed, HashSet<ushort> veg, int budget, Func<Vector3i, bool> town)
     {
-        const int Reach = 6, Rise = 26;
         const int PerTree = 600;
         int cleared = 0;
         var stack = new Stack<Vector3i>();
@@ -397,8 +298,8 @@ public sealed partial class GameServer
             foreach (var face in CrystalNetRules.Faces)
             {
                 var n = WorldConstants.CanonicalBlock(c + face, _world.Circumference);
-                if (Math.Abs(WorldConstants.WrapDeltaX(n.X - seed.X, _world.Circumference)) <= Reach && Math.Abs(n.Z - seed.Z) <= Reach
-                    && Math.Abs(n.Y - seed.Y) <= Rise && seen.Add(n))
+                if (Math.Abs(WorldConstants.WrapDeltaX(n.X - seed.X, _world.Circumference)) <= IntercityTreeReach && Math.Abs(n.Z - seed.Z) <= IntercityTreeReach
+                    && Math.Abs(n.Y - seed.Y) <= IntercityTreeRise && seen.Add(n))
                 {
                     stack.Push(n);
                 }
