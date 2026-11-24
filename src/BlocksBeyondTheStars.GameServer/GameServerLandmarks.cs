@@ -59,6 +59,11 @@ public sealed partial class GameServer
 
         public required long Seed { get; init; }
 
+        /// <summary>#3986: the index of the landmark's placement record (<see cref="LandmarkRules.RecordKind"/>) — set for a
+        /// landmark proper, null for the other kinds built on the landmark stack (giant wrecks, civilization sites, guide
+        /// towers). Its fallen guardian giants are numbered from it (GameServerLandmarkGiants.cs).</summary>
+        public int? RecordIndex { get; init; }
+
         public string Key => Template.Key;
 
         public SettlementStructure Structure => Layout.Structure;
@@ -437,6 +442,7 @@ public sealed partial class GameServer
             Origin = new Vector3i(plan.OriginX, plan.GroundY - layout.GroundRow, plan.OriginZ),
             GroundY = plan.GroundY,
             Seed = plan.Seed,
+            RecordIndex = plan.Index,
             LegacyRules = legacy,
             Protected = legacy ? plan.Template.Protected && !layout.Ruined : LandmarkRules.IsProtected(plan.Template, byKind: !layout.Ruined),
         };
@@ -452,6 +458,7 @@ public sealed partial class GameServer
         }
 
         _landmarks.Add(instance);
+        PinLandmarkGiants(instance); // #3986: the records of the fallen giants it carries (none for almost every landmark)
         if (instance.Protected && !legacy)
         {
             // generation 39: the box, down through the plinth (or the piles), is protected through the footprint registry

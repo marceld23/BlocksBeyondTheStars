@@ -60,9 +60,11 @@ public sealed class WorldMetadata
     /// 17 = the abandoned bed (<c>bed_abandoned</c>, terrain generation 44: a ruin's or a wreck's bed that looks like the bed and
     /// works as none). 18 = the sky-lights and the other side (#3894, epic #3891: the blue lamp <c>light_blue</c> and its
     /// unlit twin <c>light_blue_off</c>, the guide towers' <c>sps_console</c>, the guard posts' <c>capsule_tank</c> and
-    /// <c>capsule_tank_open</c>, and the other side's <c>sound_block</c>).</para>
+    /// <c>capsule_tank_open</c>, and the other side's <c>sound_block</c>). 19 = the Sol system's SPS headquarters (#3986, epic
+    /// #3988: the ancient <c>server_rack</c> and its blinking <c>server_rack_lit</c>, the <c>cable_tray</c> and the dead
+    /// <c>core_pillar</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 18;
+    public const int CurrentSaveVersion = 19;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>
