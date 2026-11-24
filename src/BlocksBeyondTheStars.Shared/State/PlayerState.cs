@@ -322,6 +322,13 @@ public sealed class PlayerState
     /// "jump here" entry until visited. Server-authoritative, persisted. The current system always counts.</summary>
     public HashSet<string> KnownSystems { get; set; } = new();
 
+    /// <summary>#3997, hidden star map: rolled systems this player has CHARTED without entering them — neighbours of a system
+    /// they entered, radar finds, a wormhole's scanned far end, the system of a place the story named. A charted (or
+    /// entered, <see cref="KnownSystems"/>) system is on their star map and a jump target; every other rolled system is
+    /// hidden from them. Only read in a world created with <c>WorldDescription.HiddenStarMap</c>. Server-authoritative,
+    /// persisted additively (an older save reads empty).</summary>
+    public HashSet<string> ChartedSystems { get; set; } = new();
+
     /// <summary>#2952: this player's own names for star systems, planets and moons — place id (a system or body id) →
     /// name. Private: only this player is ever sent them (the star map's <c>CustomName</c>), so nobody else can read
     /// them. A place can be named once it was visited (<see cref="LandedBodies"/>, <see cref="KnownSystems"/>); no

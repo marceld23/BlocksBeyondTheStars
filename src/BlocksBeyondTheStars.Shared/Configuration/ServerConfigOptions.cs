@@ -309,7 +309,7 @@ public static class ServerConfigOptions
         Switch("station-templates", Choice<Frequency>((c, v) => c.World.StationTemplateUse = v), "How often stations use hand-designed templates (world option)."),
         Switch("settlement-templates", Choice<Frequency>((c, v) => c.World.SettlementTemplateUse = v), "How often settlements use hand-designed templates (world option)."),
         Switch("structure-packs", ApplyStructurePacks, "Enabled structure-template packs (\"a,b\"); empty = all packs, \"__none__\" = none."),
-        Switch("systems", Int((c, v) => c.World.StarSystemCount = Math.Clamp(v, 1, 32)), "Star systems in the galaxy (clamped to 1..32)."),
+        Switch("systems", Int((c, v) => c.World.StarSystemCount = Math.Clamp(v, 1, WorldDescription.MaxStarSystemCount)), "Star systems in the galaxy (clamped to 1..64)."),
         Switch("planets-min", ApplyPlanetsMin, "Minimum planets per system (clamped to 1..10; raises the maximum to match)."),
         Switch("planets-max", ApplyPlanetsMax, "Maximum planets per system (clamped to 1..12; lowers the minimum to match)."),
         Switch("moons-max", Int((c, v) => c.World.MoonsPerPlanetMax = Math.Clamp(v, 0, 8)), "Maximum moons per planet (clamped to 0..8, #546)."),
@@ -318,6 +318,7 @@ public static class ServerConfigOptions
         Switch("continents", OnOff((c, v) => c.World.TerrainContinents = v), "Continents and real oceans (#704; true/false or on/off)."),
         Switch("terrain-generation", Int((c, v) => c.World.TerrainGeneration = v, v => v >= 0 && v <= WorldDescription.CurrentTerrainGeneration), "Terrain generation a new world is created with (#1644; 0 = classic, up to the current one)."),
         Switch("galaxy-growth", OnOff((c, v) => c.World.GalaxyGrowth = v), "Growing galaxy (#1123; true/false or on/off)."),
+        Switch("hidden-map", OnOff((c, v) => c.World.HiddenStarMap = v), "Hidden star map: systems are charted per player (#3997; true/false or on/off)."),
         Switch("danger", Choice<Frequency>((c, v) => c.World.Danger = v), "Global hostility multiplier (#547)."),
         Switch("planet-types", ApplyPlanetTypes, "Per-type planet frequencies (\"corrupted=Rare,ocean=Frequent\"); unparseable pairs are skipped."),
     };

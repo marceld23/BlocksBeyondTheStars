@@ -65,13 +65,18 @@ public sealed class FixedStarDefinition
 }
 
 /// <summary>When a <see cref="FixedSystemDefinition"/> joins the galaxy: after the galaxy grew <see cref="AfterGrowth"/> times
-/// (only a world created with a growing galaxy), or the first time a player meets <see cref="VisibleIf"/> (the story-pack
-/// rule) — exactly one of the two.</summary>
+/// (only a world created with a growing galaxy) and/or once a player entered <see cref="AfterSystems"/> systems (only a world
+/// with a hidden star map), or the first time a player meets <see cref="VisibleIf"/> (the story-pack rule) — the growth and
+/// systems rules or the story rule, never both kinds.</summary>
 public sealed class FixedSystemAppearance
 {
     /// <summary>The system appears with the galaxy's N-th growth (<c>WorldMetadata.GalaxyGrownSystems</c> ≥ N); 0 = not by
     /// growth.</summary>
     public int AfterGrowth { get; set; }
+
+    /// <summary>#3997: on a hidden star map (<c>WorldDescription.HiddenStarMap</c>) the system appears once a player has entered
+    /// N rolled systems, and is on the star map of every player who did (or whose ally did); 0 = not by systems.</summary>
+    public int AfterSystems { get; set; }
 
     /// <summary>Conditions (story grammar; a string or a list = all of them) under which a player may see and target the
     /// system; it joins the galaxy the first time any player meets them. Empty = not by a story condition.</summary>

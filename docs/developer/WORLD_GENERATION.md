@@ -41,10 +41,12 @@ and guarantee passes); the per-system layout — header and name, planets, moons
 wreck, in that draw order — is `UniverseGenerator.Systems.cs`, the start-system guarantees `UniverseGenerator.StartSystem.cs`.
 The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World/Galaxy.cs).
 
-- **12 star systems** per galaxy by default (`StarSystemCount`, #1616), each with a random 2D star-map
-  position. The launcher's Universe-size tiers send 6 / 12 / 20 / 32 (Small / Normal / Large / Huge, #1615);
-  "Growing" starts at 12 and appends systems at the frontier (#1123, soft cap 48). The CLI clamps
-  `--systems` to 1..32. The galaxy is metadata only — a system costs nothing until a player is in it.
+- **36 star systems** in a new world (`WorldDescription.NewWorldStarSystemCount`, #3997; the class default stays 12
+  for older configs and tests), each with a random 2D star-map position. The launcher's Universe-size tiers send
+  24 / 36 / 48 / 64 (Small / Normal / Large / Huge) with the normal planets and moons per system, and every new world
+  charts its star map per player ([HIDDEN_STAR_MAP.md](HIDDEN_STAR_MAP.md)). Older worlds keep their 6 / 12 / 20 / 32
+  tiers (#1615) or their "Growing" galaxy (#1123, soft cap 48). The CLI clamps `--systems` to 1..64. The galaxy is
+  metadata only — a system costs nothing until a player is in it.
 - Per system: **2–6 planets**, each with **0–3 moons**, plus **2–3 landable asteroids** and (rarely)
   **1–3 space stations**.
 - Each asteroid rolls one of five **families** (#515) — `asteroid` (stony), `asteroid_metallic`,

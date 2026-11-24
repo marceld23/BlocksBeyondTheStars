@@ -83,7 +83,8 @@ public sealed partial class GameServer
         {
             if (sys.Id == id)
             {
-                return session.State.KnownSystems.Contains(id) || here?.SystemId == id ? sys.Name : null;
+                // #3997: the systems the star map reveals by name — on a hidden map an ally's entered ones too.
+                return StarMapKnownSystems(session).Contains(id) || here?.SystemId == id ? sys.Name : null;
             }
         }
 

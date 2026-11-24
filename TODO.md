@@ -26,6 +26,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗺️ The hidden star map: the whole galaxy at creation, charted per player — epic #3997 (#3998, #3999), branch `feat/hidden-star-map` — 🚧 PR open (server + shared + worldgen + client + Client.Core + data + docs; no new terrain generation, no save version, protocol unchanged; all new texts in 14 languages)
+- **The idea.** Marcel, 2026-11-24: choose how big the universe can become, and uncover the map by flying instead of the
+  "Growing" step. Done as a whole galaxy behind a per-player map, because every special feature (wormholes, debris
+  fields, derelicts, giant wrecks, civilisation homes, guaranteed types, unique sites, the red/blue sun) is placed over
+  the systems a galaxy starts with — a small growing core would keep them all in the core.
+- ✅ **World options:** Universe size Small 24 · Normal 36 · Large 48 · Huge 64 systems, the normal planets and moons for
+  every size; "Growing" is gone (old growing worlds keep growing). `--systems` 1..64, new switch `--hidden-map`.
+- ✅ **New-world default** 36 systems + hidden map via `ServerConfig.ApplyNewWorldDefaults` — the bundled and browser
+  singleplayer hosts and a first `server.json` (dedicated + hosted); an older `server.json` keeps its values.
+- ✅ **Charting** (`GameServerStarChart.cs`, `StarChartRules`): first entry → 1–4 nearest (10/35/35/20 %, home ≥ 2), radar
+  array → 2 more per jump, wormhole scan → far end, named places (unique-site leads/markers, guide-tower marker, NPC site
+  hint, mission travel targets, the unlinked-system survey), relay systems for everyone, never stuck (2 nearest), allies
+  (alliance or crew) share charts incl. offline allies, observers/admins see all, admin travel ignores the chart.
+- ✅ **Sol** joins a hidden-map world after 8 entered systems (`afterSystems`), visible to those players and their allies.
+- ✅ Tests `StarChartRulesTests`, `HiddenStarMapTests`; docs `docs/developer/HIDDEN_STAR_MAP.md`, FIXED_SYSTEMS,
+  WORLD_GENERATION, SELF_HOSTING, USER_MANUAL.
+- Open, not in this PR: scale the map area with the size, stop sending worlds of never-entered systems, a "still N
+  hidden" line on the chart, an admin "whole map" command.
+
 ### 🌸 Lyxette's reports of 2026-11-24: natural rock and ore tiles, flower seeds, bush cuttings and bush saplings — #4000, #4001, #4003 — ✅ done 2026-11-24 (PR pending; client tiles + server + shared + worldgen + data; **save version 20** (one new block, ids shift), protocol unchanged; 8 new texts in all 14 languages, 2 new item icons, 40 tiles)
 
 - **#4000 Rock and ore tiles.** Lyxette (v2026.11.28): the new look made leaves and grass better but rock flat — granite

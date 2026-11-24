@@ -210,8 +210,13 @@ public sealed partial class GameServer
 
     /// <summary>#2506 + #3357: the one per-player gate of the star map, the hyperjump and the travel screen — the Guardian's
     /// system while the story is off, a pack system the player may not see, a data system whose story condition they do not
-    /// meet (#3969).</summary>
+    /// meet (#3969), and on a hidden star map a rolled system the player has not charted (#3997, <see cref="ChartHiddenFor"/>).</summary>
     internal bool SystemHiddenFor(PlayerSession s, string? systemId)
+        => StorySystemHiddenFor(s, systemId) || ChartHiddenFor(s, systemId);
+
+    /// <summary>The story half of <see cref="SystemHiddenFor"/> — what an admin's travel command still respects (#3997: the
+    /// star chart does not bind it).</summary>
+    internal bool StorySystemHiddenFor(PlayerSession s, string? systemId)
         => GuardianSystemHidden(systemId) || PackSystemHiddenFor(s, systemId) || FixedSystemHiddenFor(s, systemId);
 
     /// <summary>The 1 Hz part of <see cref="TickPackExtrasFor"/>: a pack system this player may see joins the galaxy (the first

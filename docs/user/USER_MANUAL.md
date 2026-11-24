@@ -92,7 +92,9 @@ Last updated: 2026-11-22.
 - **World options** ("Weltoptionen") at world creation: pick a preset (**Friedlich / Standard /
   Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, Guardian UFOs),
   survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,
-  wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus the page **"Planet types & frequency…"**
+  wrecks, vaults, stations, wormholes, exotic worlds, universe size — **Small 24 · Normal 36 · Large 48 · Huge 64**
+  star systems, the whole galaxy from the start, its star map uncovered as you fly, see *The hidden star map* in
+  "Travel & the star map"), plus the page **"Planet types & frequency…"**
   with a frequency slider per planet type (Off · Very rare · Rare · Normal · Frequent). Each row shows its **share of
   the planets in %**; **Only this** on a row leaves just that type (all others Off — 100 % of the planets), **All
   normal** gives an even mix, and **Reset overrides** goes back to the game's own mix plus the *Exotic worlds* slider.
@@ -2743,6 +2745,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   the owner leaves, the longest-serving member takes over. Crew and manual alliances are **independent**: leaving
   the crew keeps an alliance you formed yourself, and ending a manual alliance never cuts crew access. Crew mates
   appear in your Allies list with a "Crew" tag (no End button — leave the crew instead).
+- **Allies share their star map** (worlds with the hidden star map): while you are allied — alliance or crew — you
+  see the star systems your ally has charted or flown to, with their names and worlds, and they see yours. Landing
+  rights for quick travel, achievements and story progress stay your own. When the alliance ends, each of you keeps
+  only what you charted yourself.
 - Allies can **beam to each other**: a held **suit teleporter** (right-click) lists every ally standing on the
   same planet — see *Suit teleporter* below. Ships stay private: the jump is refused while your ally is
   aboard theirs.
@@ -3425,9 +3431,12 @@ worlds created with a game version that has generation 43 have them; an older wo
 - **Admins**: `/spstower list` and `/spstower <key> [post|nopost]` lay a tower in front of you, `/tp tower [n]` travels
   to the towers of a world.
 
-### Sol — our own solar system (growing galaxies)
-- In a world whose galaxy **grows** (world option *Growing galaxy*), our own solar system appears after the galaxy has
-  grown six times: **Sol**, out past the rim, on the star map in your language. It has its real 21 bodies — Mercury,
+### Sol — our own solar system
+- In a world with the **hidden star map** (every new world), our own solar system appears once you have flown to
+  **eight star systems**: faint signals come in from far out, and **Sol** is on your star map — and on your allies' —
+  out past the rim, in your language. Other players get it when they have been that far too. In an older world whose
+  galaxy **grows** (world option *Growing galaxy*), Sol appears after the galaxy has grown six times. It has its real
+  21 bodies — Mercury,
   Venus, Earth with its Moon, Mars with Phobos and Deimos, Ceres and Vesta in the asteroid belt, Jupiter with Io,
   Europa, Ganymede and Callisto, Saturn with its ring and Titan, Uranus, Neptune with Triton, Pluto and Charon. The gas
   giants look much bigger than the Earth in the flight view, and you can land on their sky islands like on any gas
@@ -4513,6 +4522,18 @@ controls line at the bottom leaves out the quick-bar keys.
   system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
   discover. A fitted **`radar_array`** module decodes the beacon signals and reveals all system names.
+- **The hidden star map** (every new world): the whole galaxy is there from the start, but your star map shows only
+  what you have **charted**. At first that is your home system and at least two stars near it. Systems that are not on
+  your map cannot be jumped to yet. Your map grows by itself:
+  - The **first time you enter a system**, your sensors chart **1 to 4** of the nearest stars you do not have yet
+    ("Your sensors charted new star systems").
+  - With a **radar array** fitted, **every hyperjump** charts **two more** — also into a system you know.
+  - **Scanning a wormhole** charts the system at its other end; flying through takes you there.
+  - When **VEGA, a story step, a villager or a mission names a place** in another system, that system goes on your map.
+  - A system with a finished **SPS relay** is on everyone's map.
+  - **Allies share their map** (see *Alliances*).
+  - You never run out: if every star on your map has been visited and some are still hidden, the two nearest appear.
+- Older worlds keep the open star map they were created with (every system visible from the start).
 - **Your own names** (#2952): you are the explorer, so a **planet or moon you have landed on** and a **star system
   you have been to** can get a name of your own. On **Tab → Map** — or in flight on the chart (**M**) — select it and
   type into **"Your own name — only you see it"**, then **Name it**; an empty field gives it its real name back. Only **you** see the name — on the map, the
@@ -4543,11 +4564,11 @@ controls line at the bottom leaves out the quick-bar keys.
 - **Friendly visitors** (Character tab → world rules, world admin, **on** by default in every preset): neighbours,
   travelling merchants and lost travellers now and then visit your base while you are home (a neighbour from a far town on your
   monorail line comes by train); see § Bases.
-- **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 12
-  systems — but every time someone hyperjumps into one of the current **outermost** systems, deep-space
-  telescopes report a **brand-new system beyond it**. The galaxy literally grows at your frontier, up to a
-  generous cap ("the frontier is quiet"). Growth is permanent: new systems survive save/reload like any
-  others. Worlds created with a fixed size never change.
+- **Growing galaxy** (older worlds only — new worlds have the hidden star map instead, see "Travel & the star map"):
+  a world created with the former Universe size **"Growing"** started at 12 systems, and every time someone
+  hyperjumps into one of the current **outermost** systems, deep-space telescopes report a **brand-new system beyond
+  it**, up to a generous cap ("the frontier is quiet"). Such worlds keep growing; worlds created with a fixed size
+  never change.
 
 ### Day/night & weather
 - **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings

@@ -1043,7 +1043,9 @@ public sealed partial class GameServer
         // the body they are at (the leave-space path), so nobody is stranded.
         bool landingWhereTheyAre = allowCurrentBody
             && string.Equals(intent.DestinationBodyId, session.CurrentLocationId, StringComparison.Ordinal);
-        if (body is null || (SystemHiddenFor(session, body.SystemId) && !landingWhereTheyAre))
+        // #3997: an admin's travel command is not bound by the hidden star chart, only by the story's rules.
+        bool hidden = body is not null && (adminBypass ? StorySystemHiddenFor(session, body.SystemId) : SystemHiddenFor(session, body.SystemId));
+        if (body is null || (hidden && !landingWhereTheyAre))
         {
             Reject(session, "travel", "@srv.travel.no_destination");
             return false;
@@ -1441,6 +1443,7 @@ public sealed partial class GameServer
         SetActiveWorld(session.CurrentLocationId);
         SetCurrent(session);
         MarkArrivedOnBody(session, session.CurrentLocationId); // the home body is a quick-travel target from the start
+        OnStarChartJoin(session); // #3997: a fresh view of this player's chart + the never-stuck check
         RestoreFleet(session);
         MigrateBaseSettlerMemory(session); // pre-#1262 saves: settler keyed by base NAME → duplicates per rename
         int restoredPad = session.AssignedPadIndex;
@@ -6935,7 +6938,7 @@ public sealed partial class GameServer
         // This player's own progression: bodies landed on + systems entered. The body/system the player is
         // currently on always counts (covers legacy saves + the very first spawn before anything was marked).
         var landed = new HashSet<string>(session.State.LandedBodies);
-        var known = new HashSet<string>(session.State.KnownSystems);
+        var known = StarMapKnownSystems(session); // #3997: on a hidden map the allies' entered systems too
         // #1856: aboard a station the location id is the station's WORLD (`station:<id>`); the map speaks body ids,
         // so resolve it — "you are here" then lands on the station body and the client can find its system.
         var hereBody = ResolveLocationBody(session.CurrentLocationId);
@@ -7015,11 +7018,13 @@ public sealed partial class GameServer
             }
         }
 
-        if (!string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId))
+        bool firstEntry = !string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId);
+        if (firstEntry)
         {
             OnSystemMapped(session, body.SystemId);
         }
 
+        ChartOnArrival(session, body.SystemId, firstEntry, jumped: false); // #3997: the hidden star map's neighbours
         SendExploredMap(session, body.Id); // #1113: the remembered fog for this body's planet map
     }
 
@@ -7027,15 +7032,18 @@ public sealed partial class GameServer
     /// the system's bodies + mini map on the travel screen, without marking any body landed. Persisted.</summary>
     private void MarkSystemKnown(PlayerSession session, string systemId)
     {
-        if (!string.IsNullOrEmpty(systemId) && session.State.KnownSystems.Add(systemId))
+        bool firstEntry = !string.IsNullOrEmpty(systemId) && session.State.KnownSystems.Add(systemId);
+        if (session.Spectating)
         {
-            if (session.Spectating)
-            {
-                return; // booked, nothing more — see MarkArrivedOnBody (#2460, N1)
-            }
+            return; // booked, nothing more — see MarkArrivedOnBody (#2460, N1)
+        }
 
+        if (firstEntry)
+        {
             OnSystemMapped(session, systemId);
         }
+
+        ChartOnArrival(session, systemId, firstEntry, jumped: true); // #3997: neighbours, and the radar array's finds
     }
 
     /// <summary>A player's first arrival in a star system: the explorer achievements, a story milestone and the

@@ -69,7 +69,11 @@ namespace BlocksBeyondTheStars.Client
         /// content). Used to translate <see cref="DisabledPacks"/> into the enabled list the server wants.</summary>
         public readonly List<string> KnownPacks = new List<string>();
 
-        /// <summary>0 Klein · 1 Normal · 2 Groß · 3 Riesig (systems / planets / moons ranges).</summary>
+        /// <summary>The galaxy sizes of the four "Universe size" steps (#3997): Small · Normal · Large · Huge systems.</summary>
+        public static readonly int[] UniverseSystems = { 24, 36, 48, 64 };
+
+        /// <summary>Index into <see cref="UniverseSystems"/> (1 = Normal, 36 systems). Every size keeps the server's normal
+        /// planets and moons per system; the whole galaxy exists from the start and is charted per player.</summary>
         public int UniverseSize = 1;
 
         // Survival (creation-time; part of the world's rules)
@@ -225,27 +229,12 @@ namespace BlocksBeyondTheStars.Client
                 Arg("structure-packs", "\"" + (enabled.Count > 0 ? string.Join(",", enabled) : "__none__") + "\"");
             }
 
-            if (UniverseSize != 1)
-            {
-                // Klein / Normal / Groß / Riesig / Wachsend → systems + planets-per-system + moons.
-                // Tiers 6 / 12 / 20 / 32 since #1615 (were 4 / 8 / 12 / 18): more to explore in the same game.
-                // System count is metadata only — worlds load per occupied body — so Huge stays inside the
-                // server's --systems clamp (32) and the growth soft cap (48). "Growing" (#1123) starts as
-                // the normal 12-system galaxy and appends a system whenever a player hyperjumps into one of
-                // the current outermost ones.
-                (int systems, int pMin, int pMax, int moons) = UniverseSize switch
-                {
-                    0 => (6, 2, 4, 2),
-                    2 => (20, 3, 8, 3),
-                    3 => (32, 3, 10, 4),
-                    _ => (12, 2, 6, 3),
-                };
-                Arg("systems", systems.ToString());
-                Arg("planets-min", pMin.ToString());
-                Arg("planets-max", pMax.ToString());
-                Arg("moons-max", moons.ToString());
-                if (UniverseSize == 4) Arg("galaxy-growth", "true");
-            }
+            // #3997: always emitted, like the terrain generation — the whole galaxy at the chosen size (24 / 36 / 48 / 64
+            // systems, the server's normal planets and moons per system), its star map charted per player. A galaxy is
+            // metadata only (worlds load per occupied body), so even 64 systems cost nothing until someone is there.
+            int size = UniverseSize < 0 ? 0 : UniverseSize >= UniverseSystems.Length ? UniverseSystems.Length - 1 : UniverseSize;
+            Arg("systems", UniverseSystems[size].ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Arg("hidden-map", "true");
 
             if (Oxygen != 2) Arg("oxygen", OxygenSteps[Oxygen]);
             if (Hunger != 2) Arg("hunger", HungerSteps[Hunger]);

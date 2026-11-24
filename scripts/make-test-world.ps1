@@ -194,7 +194,9 @@ function Get-ServerArgs([string] $worldName, [string] $planetKey) {
         '--saves', $savesDir, '--data', $dataDir, '--usercontent', $userContentDir, '--stdin-stop', 'true',
         # LocalServerLauncher's fixed singleplayer args
         '--free-flight', 'true', '--space-combat', 'PvE', '--space-npcs', 'Normal', '--voice', 'true',
-        '--guarantee-start-cube', 'true', '--admin-cheats', 'true', '--no-config', 'true'
+        '--guarantee-start-cube', 'true', '--admin-cheats', 'true', '--no-config', 'true',
+        # #3997: the classic open 12-system galaxy — the seeds found for structure worlds were found in it
+        '--systems', '12', '--hidden-map', 'false'
     ))
     if ($Seed -ne 0) { $a.AddRange([string[]]@('--seed', "$Seed")) }
     if ($Sandbox) {

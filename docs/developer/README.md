@@ -122,8 +122,11 @@ refreshed 2026-10-23.
   hotbar, server-checked readouts for every space object, the planet overview card, the three data-driven tiers
   (cockpit · Deep · Quantum) with module replacement, and the life-pod and anomaly models.
 - [FIXED_SYSTEMS.md](FIXED_SYSTEMS.md) — fixed star systems (#3969, #3970): a system's origin, `data/systems/<key>.json`,
-  joining by growth or story condition, the pinned map spot, the body profile (fixed size, gravity, drawn diameter) and
-  Sol, our solar system.
+  joining by growth, systems entered or story condition, the pinned map spot, the body profile (fixed size, gravity,
+  drawn diameter) and Sol, our solar system.
+- [HIDDEN_STAR_MAP.md](HIDDEN_STAR_MAP.md) — the hidden star map (#3997): the whole galaxy at creation (24/36/48/64
+  systems), charted per player — neighbours on first entry, radar, wormhole scans, named story places, allies, relays,
+  the never-stuck rule — the new-world defaults and where each hook sits.
 - [WORMHOLES.md](WORMHOLES.md) — wormholes (#2242): seed-pure pair placement beyond the outer orbit, the story-system
   lock, the world option, the transit gates and pose, the scanner reading, and the rift shader and transit effect.
 - [DEBRIS_FIELDS.md](DEBRIS_FIELDS.md) — debris fields (#2351): seed-pure placement after the generator, the field in

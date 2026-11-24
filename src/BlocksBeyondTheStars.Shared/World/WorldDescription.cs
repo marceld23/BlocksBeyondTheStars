@@ -140,7 +140,8 @@ public sealed class WorldDescription
     /// <summary>Systems in a fixed galaxy. 12 since #1616 (was 8): the launcher's "Normal" tier sends no
     /// explicit count, so this default IS a normal singleplayer world and every dedicated server without
     /// <c>--systems</c>. The galaxy is metadata only (worlds load per occupied body), so the count is a
-    /// content knob, not a performance one; the CLI clamps it to 1..32.</summary>
+    /// content knob, not a performance one; the CLI clamps it to 1..<see cref="MaxStarSystemCount"/>. New worlds start
+    /// with <see cref="NewWorldStarSystemCount"/> (#3997, <c>ServerConfig.ApplyNewWorldDefaults</c>).</summary>
     public int StarSystemCount { get; set; } = 12;
 
     public int PlanetsPerSystemMin { get; set; } = 2;
@@ -691,8 +692,23 @@ public sealed class WorldDescription
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and
     /// persisted via <c>WorldMetadata.GalaxyGrownSystems</c>), up to a soft cap. Defaults to false so every
-    /// existing save keeps its fixed galaxy; the creation UI offers it as the "growing" universe size.</summary>
+    /// existing save keeps its fixed galaxy. Since #3997 the creation UI no longer offers it (new worlds get the
+    /// <see cref="HiddenStarMap"/> instead); worlds created with it keep growing.</summary>
     public bool GalaxyGrowth { get; set; }
+
+    /// <summary>Hidden star map (#3997, docs/developer/HIDDEN_STAR_MAP.md): the whole galaxy is generated at creation, but
+    /// a rolled system stays off a player's star map — and is no jump or travel target — until that player (or an ally)
+    /// has charted it: entering a system charts 1–4 of its nearest neighbours, a radar array charts more, a wormhole scan
+    /// charts its far end, a named story place charts its system, a finished relay shows its system to everyone. A world
+    /// with it never grows (<see cref="GalaxyGrowth"/> is ignored). MUST default to false: a save whose metadata predates
+    /// the feature keeps its open map. New worlds get it from <c>ServerConfig.ApplyNewWorldDefaults</c>.</summary>
+    public bool HiddenStarMap { get; set; }
+
+    /// <summary>The galaxy size a new world gets by default (#3997): the world options' "Normal" of 24 / 36 / 48 / 64.</summary>
+    public const int NewWorldStarSystemCount = 36;
+
+    /// <summary>The largest galaxy the server accepts (<c>--systems</c> is clamped to 1..this).</summary>
+    public const int MaxStarSystemCount = 64;
 
     // --- World options (creation-time; baked into the save's metadata — they shape worldgen) ---
 

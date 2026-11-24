@@ -262,6 +262,7 @@ public sealed partial class GameServer
         }
 
         session.State.Missions.Add(NewMissionProgress(session.State, def, place));
+        ChartMissionTargets(session, def); // #3997: a travel target in another system goes on a hidden star map
 
         // The board's quartermaster remembers that this player took a job from them (item 14) — #3087: the ship's board
         // has no quartermaster.

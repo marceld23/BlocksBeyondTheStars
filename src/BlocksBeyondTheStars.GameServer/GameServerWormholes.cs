@@ -230,6 +230,7 @@ public sealed partial class GameServer
         if (twin is not null)
         {
             session.State.Scanned.Add(WormholeScanKey(twin.Id));
+            ChartNamedPlace(session, twin.SystemId); // #3997: the far end goes on a hidden star map
             SendStarMap(session); // the line on the star chart
         }
 

@@ -1,5 +1,6 @@
 // #3970: Sol — our own solar system as a fixed star system (#3969, docs/developer/FIXED_SYSTEMS.md). It joins a growing
-// galaxy with its sixth growth, out past the rim. The order and the names are real; distances and orbit periods follow the
+// galaxy with its sixth growth, out past the rim — and a hidden-map galaxy (#3997) once a player entered eight systems,
+// on the star map of that player and their allies. The order and the names are real; distances and orbit periods follow the
 // order, not the true ratios (the flight view must keep its clear gaps), and gravity is pressed into the tested 0.35–1.6.
 // One block is about 2.5 km: Earth is 16,000 blocks around. The gas giants are drawn far bigger than they walk
 // (visibleDiameter; Earth's own drawn size from 16,000 blocks is about 81).
@@ -9,7 +10,7 @@
   "name": "Sol",
   "star": { "name": "Sol", "color": "0xFFF4E0", "visibleSize": 1.0 },
   "placement": "edge",
-  "appear": { "afterGrowth": 6 },
+  "appear": { "afterGrowth": 6, "afterSystems": 8 },
   "bodies": [
     { "id": "mercury", "kind": "planet", "planetType": "sol_mercury", "orbitRadius": 420, "orbitAngle": 20, "orbitPeriodDays": 6,
       "circumference": 6128, "gravity": 0.5, "nameKey": "body.sol_mercury.name", "name": "Mercury" },

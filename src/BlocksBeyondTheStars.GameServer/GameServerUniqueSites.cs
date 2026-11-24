@@ -266,6 +266,7 @@ public sealed partial class GameServer
             }
 
             string bodyName = _galaxy?.FindBody(bodyId)?.Name ?? bodyId;
+            ChartNamedPlace(session, bodyId); // #3997: the hint names a world — its system goes on a hidden star map
             return Localize(session.Locale, "npc.hint.site").Replace("{name}", bodyName);
         }
 

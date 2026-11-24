@@ -59,7 +59,7 @@ public sealed class ServerConfigOptionsTests
         "starter-teleporter", "return-to-ship", "friendly-visitors", "machine-catchup", "bases-per-world", "base-yield", "story", "story-density", "tutorial", "disable-stories",
         "flora", "ore", "settlements", "planet-wrecks", "vaults", "stations", "wormholes", "debris-fields", "derelicts",
         "giant-wrecks", "sps-towers", "exotic", "station-templates", "settlement-templates", "structure-packs", "systems", "planets-min", "planets-max",
-        "moons-max", "variance", "belts", "continents", "terrain-generation", "galaxy-growth", "danger", "planet-types",
+        "moons-max", "variance", "belts", "continents", "terrain-generation", "galaxy-growth", "hidden-map", "danger", "planet-types",
         "allow-user-ship-crafting", "bind",
     };
 
@@ -167,6 +167,7 @@ public sealed class ServerConfigOptionsTests
         { "continents", "off", "continents" },
         { "terrain-generation", "0", "terrain-generation" },
         { "galaxy-growth", "off", "galaxy-growth" },
+        { "hidden-map", "on", "hidden-map" },
         { "danger", "Rare", "danger" },
         { "planet-types", "ocean=Rare", "planet-types" },
         { "allow-user-ship-crafting", "true", "allow-user-ship-crafting" }, // #3520
@@ -187,7 +188,7 @@ public sealed class ServerConfigOptionsTests
     {
         var covered = HistoricalSwitches().Select(row => (string)row[0]).ToList();
 
-        Assert.Equal(104, covered.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks, #3707: --bind, #3893: --sps-towers
+        Assert.Equal(105, covered.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks, #3707: --bind, #3893: --sps-towers, #3997: --hidden-map
         Assert.Equal(HistoricalSwitchSpellings.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
             covered.OrderBy(s => s, StringComparer.Ordinal));
     }
@@ -271,6 +272,7 @@ public sealed class ServerConfigOptionsTests
             ("belts", c => c.World.AsteroidBelts, (c, v) => c.World.AsteroidBelts = v),
             ("continents", c => c.World.TerrainContinents, (c, v) => c.World.TerrainContinents = v),
             ("galaxy-growth", c => c.World.GalaxyGrowth, (c, v) => c.World.GalaxyGrowth = v),
+            ("hidden-map", c => c.World.HiddenStarMap, (c, v) => c.World.HiddenStarMap = v), // #3997
         };
 
         foreach (var (sw, get, set) in regimes)
@@ -312,7 +314,7 @@ public sealed class ServerConfigOptionsTests
 
         var systems = new ServerConfig();
         Assert.Equal(new[] { "systems" }, systems.ApplyCommandLine(new[] { "--systems", "99" }));
-        Assert.Equal(32, systems.World.StarSystemCount);
+        Assert.Equal(64, systems.World.StarSystemCount); // #3997: the Huge universe has 64 systems
         systems.ApplyCommandLine(new[] { "--systems", "-3" });
         Assert.Equal(1, systems.World.StarSystemCount);
 
@@ -647,9 +649,9 @@ public sealed class ServerConfigOptionsTests
     // --- The option table itself (ServerConfigOptions.All) ---
 
     [Fact]
-    public void Table_HasExactly116Rows_EachWithANameAndHelp()
+    public void Table_HasExactly117Rows_EachWithANameAndHelp()
     {
-        Assert.Equal(116, ServerConfigOptions.All.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks, #3707: --bind, #3893: --sps-towers
+        Assert.Equal(117, ServerConfigOptions.All.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks, #3707: --bind, #3893: --sps-towers, #3997: --hidden-map
         foreach (var option in ServerConfigOptions.All)
         {
             Assert.True(option.CommandLineName is not null || option.EnvironmentName is not null, "a row needs a switch or a variable");
@@ -677,12 +679,12 @@ public sealed class ServerConfigOptionsTests
             .SelectMany(option => option.CommandLineAliases.Prepend(option.CommandLineName!))
             .ToList();
 
-        Assert.Equal(106, HistoricalSwitchSpellings.Length); // #3347: --disable-stories, #3520, #3614, #3707, #3893: --sps-towers
-        Assert.Equal(106, spellings.Count);
+        Assert.Equal(107, HistoricalSwitchSpellings.Length); // #3347: --disable-stories, #3520, #3614, #3707, #3893: --sps-towers, #3997: --hidden-map
+        Assert.Equal(107, spellings.Count);
         Assert.Equal(spellings.Count, spellings.Distinct(StringComparer.Ordinal).Count());
         Assert.All(spellings, name => Assert.Equal(name.ToLowerInvariant(), name));
         Assert.Equal(HistoricalSwitchSpellings.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
-        Assert.Equal(93, ServerConfigOptions.All.Count(option => option.CommandLineName is not null)); // #3347, #3520, #3614, #3707, #3893
+        Assert.Equal(94, ServerConfigOptions.All.Count(option => option.CommandLineName is not null)); // #3347, #3520, #3614, #3707, #3893, #3997
     }
 
     [Fact]
