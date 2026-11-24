@@ -530,7 +530,8 @@ abandoned stations followed a generation later as ruins — see the next section
   **Given routes** (`IntercityGivenRoute`: stops by centre column, optional heading and floor, waypoints per leg) are planned
   by `PlanGivenIntercityRoute`: termini at both ends, every stop between them a **through station** (the line enters its
   hall from behind over the end pylon and leaves over the exit pylon), a pylon every ≤ 18 blocks through the waypoints; the
-  route keeps clear of nothing on its own. A place list's rail lines feed it (#3985, *The rail network* below;
+  route keeps clear of nothing on its own. A place list's rail lines feed it with their legs already routed (#3985, #4014,
+  *The rail network* below;
   `IntercityGivenRouteTests` builds a three-stop route on a flat world through a test seam). A **through station**'s stop
   plate stands in its hall's middle (`RailStationGenerator.ThroughStopU`, #3985): the line runs on behind its end pylon, so
   nothing held the halted train in from that end, and centred on the terminus's stop four blocks in its rear hung about 1.3
@@ -591,8 +592,9 @@ here). `StructureTypeRulesTests` (`chanceFrom` by generation, a broken one dropp
 
 ## The rail network (#3985, Earth)
 
-Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto – New York – Rio de Janeiro) and the **Orient**
-(Paris – Cairo – Tokyo – Sydney) — are data: `rail` places of the body's place list (`data/places/sol_earth.json`,
+Earth's three lines — the **Atlantic** (Berlin – Paris – London – New York – Toronto), the **Orient** (Paris – Cairo –
+Tokyo – Sydney) and the **Americas** (New York – Rio de Janeiro) — are data (#4015: Toronto ends the Atlantic line, because
+London and New York both lie east of it and a line through it had to double back across the city): `rail` places of the body's place list (`data/places/sol_earth.json`,
 [MAP_PLANETS.md](MAP_PLANETS.md) §7). Each is an ordered list of city keys with optional waypoints per leg and a name key:
 
 ```json
@@ -602,11 +604,13 @@ Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto 
 
 - **Load checks** (`PlaceRules.RailProblems`): a name key, two stops or more, every stop a city of the list (none twice in a
   line), each waypoint a `[longitude, latitude]` in range, none before the first stop — and no city serves more lines than
-  it keeps rail-hall squares (`stations`; Paris keeps two: one hall per line, change on foot — there are no switches).
+  it keeps rail-hall squares (`stations`; Paris and New York keep two: one hall per line, change on foot — there are no
+  switches).
 - **Records** (`GameServerRailNetwork.cs`): the *i*-th rail place is line `100 + i` (`ListedRailLineIndexBase`, far above
   the rolled line 0 and the given lines below it): `rail_line`/100 + i, its stations `rail_station`/(100 + i) × 64 + stop.
-  Planned once, replayed from its records on every later load; a line that cannot be planned (a city not on the body) is
-  left off that load and tried again on the next — nothing is pinned for it.
+  Planned once, replayed from its records on every later load; a line that cannot be planned (a city not on the body, no
+  clear way) is left off that load with a warning and tried again on the next — nothing is pinned for it. The line record's
+  template names the planner that made it (`ListedRailPlanPin`, `listed:routed` since #4014).
 - **Its own step.** The stamp-chain step (`StampIntercityRail(rolled)`) runs on every body now: the rolled line and the
   given lines only where the settlements were stamped (as before), the listed lines from the **cities' records** whatever
   the settlement options say, on every save generation (a map world's rule), even on a world without rolled settlements.
@@ -617,21 +621,59 @@ Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto 
   hall cut along the track bed's far edge, 20 × 7) — platform, bench and posts on the square's outer four cells, the track
   bed in the three street cells beside it — and the line runs straight along that street out of the city and 8 blocks
   beyond its box. A terminus needs the street open from the hall to the edge on one side, a through station on both; a
-  street is closed where it runs between two districts of a landmark square. Of every open choice (four streets round each
-  free square, two directions) the cheapest wins: the street run plus the straight way from the city's edge to the
-  neighbouring stop (its first waypoint, else its city's centre; for the previous stop its chosen way out), with a heavy
-  penalty when that way runs back over the city's districts. The stops are chosen in line order; a square, footprint or
-  street run an earlier line took is out, so Paris's two lines use its two squares. The halls' floor is the city's floor.
-- **The route** (`PlanGivenIntercityRoute` under `IntercityLimits.Listed`): per leg the previous city's way out, the
-  waypoints, this city's way in; no length cap, no pylon-height cap (sea pylons stand on the sea bed — Earth's deepest about
+  street is closed where it runs between two districts of a landmark square. A square, footprint or street run an earlier
+  line took is out, so Paris's and New York's two lines use their two squares. The halls' floor is the city's floor.
+- **The halls of a line are chosen together** (#4014, `ListedRailHallChain`, WorldGeneration, pure). Until #4014 each city
+  picked its hall alone (`MetroRailHalls.Choose`, still there for one city), aiming at the next city's *centre* and checking
+  only its own districts — so the legs between Paris and London (5 blocks apart) or Toronto and New York (23 apart) ran over
+  a neighbour's districts, and Toronto, a through station with both neighbours to its east, doubled back over itself: on
+  five of six seeds the Atlantic line ran through buildings. Now every city offers its open halls
+  (`MetroRailHalls.Candidates`) and the line is a shortest path through them (Viterbi): each hall's street runs, each leg's
+  routed length and the turns where a leg leaves and joins a street (0.1 block per degree). A leg that cannot be routed is
+  never taken; a line whose cities leave no chain is not planned (the warning says why).
+- **The legs are routed** (`GameServerRailNetworkRoutes.cs`, `RailLegRouter`, WorldGeneration, pure). A leg runs from where
+  one hall's street run ends (8 blocks beyond its city) through the stop's waypoints to where the next one's begins, round
+  every obstacle near it: the districts of **every** city of the list (`MetroRailHalls.MergedDistrictRects` — not their
+  streets, not the land they leave to nature), the landmarks outside the cities, the villages and every other box of the
+  footprint registry (pads, the wreck site, …) but the lines' own reservations. The router grows each box by 5.5 blocks (the
+  wagon's half width, what a rounded turn cuts into a corner, and one to spare) and searches the visibility graph of the
+  boxes' corners with A*.
+- **The turns are rounded** (`RailTurnRounding`, pure). The train rides the Catmull-Rom curve through the pylon tops; at a
+  sharp turn between long spans it swung out by up to 6 blocks, beyond the carved corridor. Every turn over 1° becomes a
+  circular arc tangent to both straights (reach 6 blocks, one point per 15° of turn) with two taper points on each
+  straight, so the spacing grows gradually from the arc's to the route's; the curve then keeps to the way within half a
+  block. The trains slow for those bends by the bend limits, as on any curve.
+- **The curve is checked** before the line is pinned (`ListedRailCurveProblem`, GameServerRailNetworkChecks.cs): every half
+  block of the spline, the wagon's middle and both sides (1.45 blocks out) off every district, landmark, village and
+  footprint, outside the line's own halls, and the wagon's floor over a town's floor. A line that fails is left off that
+  load with the reason — it is never built through something.
+- **The route** (`PlanGivenIntercityRoute` under `IntercityLimits.Listed`, `IntercityGivenRoute.Listed`): per leg its
+  routed and rounded points; no length cap, no pylon-height cap (sea pylons stand on the sea bed — Earth's deepest about
   50 blocks), no cut cap; a pylon every ≤ 18 blocks over land and every 32 (`AutoLinkRange`, a span a player could have
   linked) over open water (`AddGivenLegOverSea`: the next 32 blocks and the wagon's width either side all water). The line
   may run over the X seam (London's box spans it). The rolled planner's limits are unchanged (`IntercityLimits.Rolled`).
-  Inside a metropolis's box the corridor clears the land the city left to nature (`InAnySettlementColumns`: only claimed
-  columns are town ground); the city's own blocks are never touched. Measured (seed 4242): the Atlantic line 364 pylons over
-  8,125 blocks, the Orient 448 over 9,438 (its highest pylon top Y 270, on the Tibetan plateau; the deepest sea pylon 50
-  blocks from the bed at Y 32); no waypoints are needed yet — the straight legs keep clear of every landmark. The Atlantic
-  public train runs its whole line in 519 s with the four halts (Rio → New York 156 s).
+  A free pylon that would stand in a volcano's crater moves along the line to the nearest dry column
+  (`NudgeListedPylonsOffLava`; the legs are routed round structures, not volcanoes).
+  Inside a town's columns the town's floor is the ground (`IntercityColumns.TownFloor`, `TownFloorAt`): the line keeps over
+  it and its pylons stand on it — before #4014 the profile read the terrain under the city, and the line sank into a street
+  or ran under it. Inside a metropolis's box the corridor clears the land the city left to nature (`InAnySettlementColumns`:
+  only claimed columns are town ground); the city's own blocks are never touched. A listed line's corridor is carved along
+  the curve the train rides (`ListedSplineCorridor`: the wagon's box swept along the spline every quarter block, plus the
+  cells the player's link rule checks per span) — the straight sweep left rock in the wagon's way where the curve dipped in
+  the Alps. Measured (seed 4242, before #4014): the Atlantic line then to Rio 364 pylons over 8,125 blocks, the Orient 448 over
+  9,438 (its highest pylon top Y 270, on the Tibetan plateau; the deepest sea pylon 50 blocks from the bed at Y 32).
+- **Players' cells are kept** (#4016, `GameServerRailNetworkPlayerCells.cs`). A listed line is planned once but stamped
+  section by section as players come near — on a body they may have built on since. Its halls, pylon columns and corridor
+  never overwrite a cell whose edit row carries a player's name (per stretch the store is asked once which chunks hold a
+  player's edit, `ListPlayerEditedChunks`, and only a cell in one of them is looked up), and its planner does not refuse a way
+  a player built on (`IntercityColumns.KeepsPlayerCells`) — the train may pass through what a player built in its way.
+- **Lines pinned by an older planner** (#4016, `GameServerRailNetworkMigration.cs`). A listed line record without the
+  planner pin, for other stops than its place names, or of a line the list no longer has is retired on the load that finds
+  it, before any line plans: what its stamped sections wrote comes back cell by cell (the halls' rows, its pylon blocks, the
+  air its corridor and the trees it took out left — never a row a player wrote since, never a town's columns, never another
+  structure's box; the terrain, the city overlay and the trees come back with the row gone), its records and its sections'
+  marks go, and when the rail state loads its public train, links, nodes and stops go (`PurgeRetiredRailLines`); the new
+  plan then pins and stamps afresh.
 - **Section by section** (`GameServerRailSections.cs`). Stamped whole, the two lines' corridors would generate every chunk
   along 17,500 blocks on the first boot. Each listed line is cut into sections of 8 spans (a boundary moved on where it
   would split a hall); a section's stations, pylon columns and corridor are stamped the first time a joined player comes
@@ -673,15 +715,20 @@ Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto 
   240 a second (16 per tick at 15 Hz) the server streams to a player; at the slider's 8 chunks about 57 %. 48 blocks/s would
   ask 85 % at 8 chunks and leave nothing for the sections stamped ahead.
 - **Departure boards** show the line's name ("Atlantic Line · Departures", `NetRailLine.NameKey` — additive, contractless,
-  empty for every other line) and the stations the next train calls at after this one, in order ("→ London · Toronto ·
-  New York · Rio de Janeiro"): `RailEta.Read` now also says which way the train leaves the stop after that halt
+  empty for every other line) and the stations the next train calls at after this one, in order ("→ London · New York ·
+  Toronto"): `RailEta.Read` now also says which way the train leaves the stop after that halt
   (`RailEtaReading.Direction`, a terminus turns it round), `RailEta.StopsAfter` lists the stops beyond it that way. The
   forecast's horizon grows with the line (a round trip at 8 blocks/s with every halt, at least 1200 s). A station on the
   map names its metropolis in the player's language ("Bahnhof Kairo").
 
-Tests: `EarthRailNetworkTests` (a real Earth: both lines with their stops in order, every hall on a rail-hall square with
-its track in the street, Paris's two halls on two squares, the through stations, the Atlantic line over the X seam, no
-span over a landmark, a train halted at any stop inside its hall, the public trains at the express step; the Atlantic
+Tests: `EarthRailClearanceTests` (#4014–#4016, slow: on six seeds every line plans and its curve keeps off every district,
+landmark and village and over the town floor; on two seeds, every section stamped, not one solid cell in the wagon's box
+outside its own halls; a line of the old planner re-planned, its pylon gone and a player's cell kept, its graph and train
+following), `RailLegRoutingTests` (the router, the rounding with the curve through it, the chain, a city's boxes),
+`EarthRailNetworkTests` (a real Earth: the three lines with their stops in order, every hall on a rail-hall square with
+its track in the street, Paris's and New York's two halls on two squares, the through stations, the Atlantic line over the X seam, no
+span over a landmark, a train halted at any stop inside its hall, every public train at its line's speed step (the Atlantic
+and the Orient at the express step); the Atlantic
 train riding its whole line on unstamped sections and halting inside every hall; sections stamped by the tick round Paris
 and over the open Atlantic — a sea pylon from the bed up — with every tick timed and held under 50 ms (the test machine's
 bound; ~4 ms is the budget), London and every other section in one go, timed; the lines, the built sections and the trains
