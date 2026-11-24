@@ -3641,7 +3641,7 @@ public sealed partial class GameServer
             }
 
             float limitSq = _speciesById.TryGetValue(c.SpeciesId, out var sp)
-                            && sp.BodyPlan is CreatureBodyPlan.Titan or CreatureBodyPlan.Arachnid // #2009: a speeder-sized silhouette keeps the titan's leash
+                            && CreatureBodyPlans.Of(sp.BodyPlan).LongLeash // #2009: a speeder-sized silhouette keeps the titan's leash
                 ? titanSq
                 : maxSq;
             var nearest = NearestPlayerPosition(targets, c.Position);

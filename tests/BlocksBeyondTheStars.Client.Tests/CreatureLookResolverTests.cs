@@ -27,7 +27,14 @@ public sealed class CreatureLookResolverTests
     /// <see cref="CreatureLookResolver.Resolve"/> and the body-plan profile table.</summary>
     private const string LegacyDigest = "B096C8441FE48ABF";
 
-    private static readonly string[] Plans = Enum.GetNames(typeof(CreatureBodyPlan)).Concat(new[] { "", "Unknown" }).ToArray();
+    /// <summary>The plans the digest was taken over — pinned to the enum as it stood then, so a plan appended later (#3975, the
+    /// whale) does not reshuffle the random cases. A new plan's own row is checked by
+    /// <see cref="EveryBodyPlan_HasItsProfileRow_AndAnUnknownNameClaimsNothing"/>.</summary>
+    private static readonly string[] Plans =
+    {
+        "Standard", "Medusa", "Titan", "Floral", "Ray", "Colossus", "Sandworm", "Arachnid", "Biped", "Worm", "Leviathan",
+        "SkyGiant", "Robot", "Hound", "Reindeer", "Sounder", "Soundi", "Soundrak", "Soundeling", "Quali", "", "Unknown",
+    };
     private static readonly string[] Habitats = Enum.GetNames(typeof(CreatureHabitat));
     private static readonly string[] Tempers = Enum.GetNames(typeof(CreatureTemperament));
     private static readonly string[] NamedHides = { "", "", "", "shaggy", "plated", "fur", "scales", "petal", "unknownhide" };

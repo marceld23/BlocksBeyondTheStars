@@ -377,7 +377,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         SetUpGiant(entry, c); // #1998: colliders into the aim lookup, footfalls into dust + shake
                     }
-                    else if (c.BodyPlan == "Arachnid" || c.BodyPlan == "Soundrak")
+                    else if (CreatureBodyPlans.Of(c.BodyPlan).Solid)
                     {
                         RegisterGiant(c.Id, root, c.BodyPlan); // #2009: solid to bump into and hit on its body, but no footfall shake (#3359: the Soundrak too)
                     }
