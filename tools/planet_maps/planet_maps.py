@@ -1,9 +1,9 @@
 """Builds the planet maps of the map worlds (#3978): data/maps/<key>.bbmap plus a PNG preview in the cache.
 
-    uv run planet_maps.py earth            # Earth, 2048 x 1024: ETOPO1 elevation + Natural Earth I land cover
+    uv run planet_maps.py earth            # Earth, 2048 x 1024: ETOPO1 elevation + Köppen-Geiger climate, Natural Earth I
     uv run planet_maps.py moon mars        # 1024 x 512: LRO LOLA / MGS MOLA elevation, biome bands from elevation
     uv run planet_maps.py venus mercury    # 1024 x 512: Magellan / MESSENGER elevation (USGS mosaics, rows read remotely)
-    uv run planet_maps.py earth --probe    # print the source colour, elevation and class at known places
+    uv run planet_maps.py earth --probe    # print the climate, elevation and class at the probe places (always checked)
 
 Downloads go to tools/planet_maps/.cache (git-ignored, never committed); only the derived .bbmap is committed. The
 sources, licences and attributions are in README.md and in the repository's NOTICES.md.
@@ -35,6 +35,8 @@ ETOPO_URL = (
     "?altitude%5B(-90.0):5:(90.0)%5D%5B(-180.0):5:(180.0)%5D"
 )
 NATURAL_EARTH_URL = "https://naciscdn.org/naturalearth/10m/raster/NE1_LR_LC.zip"
+KOPPEN_URL = "https://ndownloader.figshare.com/files/12407516"  # Beck_KG_V1.zip, figshare article 6396959
+KOPPEN_MEMBER = "Beck_KG_V1_present_0p083.tif"
 LOLA_URL = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_4.img"
 MOLA_URL = "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg004/megt90n000cb.img"
 VENUS_URL = "https://planetarymaps.usgs.gov/mosaic/Venus_Magellan_Topography_Global_4641m_v02.tif"
@@ -58,20 +60,100 @@ MERCURY_PLACES = [
     ("Borealis Planitia", 73.4, -79.5),
 ]
 
-# Known places for --probe and the self-check: (name, latitude, longitude, the class Earth should show there).
+# Earth's climate groups: the eight map classes plus two groups classify_earth resolves per cell by the land cover —
+# the tropical wet-and-dry climate (Aw): rain forest where Natural Earth I shows forest (South-east Asia's monsoon
+# forest), savanna elsewhere; and the temperate climates with a dry season (Cs*, Cw*): savanna in open tropical
+# country (the Serengeti, the Kenyan and Ethiopian highlands), temperate everywhere else.
+TROPICAL_WET_DRY = 8
+DRY_SEASON_TEMPERATE = 9
+CLIMATE_GROUP_NAMES = [*bbmap.CLASS_NAMES, "tropical wet-dry", "dry-season temperate"]
+
+# The Köppen–Geiger codes of the Beck et al. (2018) legend (1..30; 0 = sea, no group) as climate groups.
+NO_GROUP = 255
+KOPPEN_GROUPS = np.full(256, NO_GROUP, dtype=np.uint8)
+for _codes, _group in [
+    ((1, 2), bbmap.RAINFOREST),  # Af, Am
+    ((3,), TROPICAL_WET_DRY),  # Aw
+    ((4, 5), bbmap.DESERT),  # BWh, BWk
+    ((6, 7), bbmap.STEPPE),  # BSh, BSk
+    (range(8, 14), DRY_SEASON_TEMPERATE),  # Csa, Csb, Csc, Cwa, Cwb, Cwc
+    ((14, 15, 16), bbmap.TEMPERATE),  # Cfa, Cfb, Cfc
+    ((17, 18, 21, 22, 25, 26), bbmap.TEMPERATE),  # Dsa, Dsb, Dwa, Dwb, Dfa, Dfb: warm-summer continental
+    ((19, 20, 23, 24, 27, 28), bbmap.BOREAL),  # Dsc, Dsd, Dwc, Dwd, Dfc, Dfd: the taiga
+    ((29,), bbmap.TUNDRA),  # ET
+    ((30,), bbmap.ICE),  # EF
+]:
+    KOPPEN_GROUPS[list(_codes)] = _group
+
+TROPIC_DEGREES = 23.5  # the dry-season temperate group is savanna in open country within the tropics
+FOREST_GREENNESS = 0.05  # Natural Earth I forest: green at least this far above both red and blue
+GREENNESS_BLUR_CELLS = 2.0  # the land-cover rules read the greenness smoothed over a few cells, so no border speckles
+OPEN_GREENNESS = 0.005  # Natural Earth I open land (tundra grey, dry tan): green at most this far above red and blue
+TREELINE_DEGREES = 58.0  # beyond it, taiga climate in open grey country is tundra
+ALPINE_DEGREES = 50.0  # within it, the polar climates (ET, EF) are mountain tops: high mountains
+HIGH_MOUNTAIN_METRES = 3000.0  # a cell whose mean elevation reaches this is high mountains (outside the polar caps)
+
+# Known places Earth's map must get right: (name, latitude, east longitude, the expected class). Every Earth build checks
+# them and fails on a wrong one; --probe prints the whole table.
 EARTH_PLACES = [
+    # Temperate: western and central Europe, the eastern USA, eastern China, Japan, south-east Australia, southern Brazil.
+    ("London", 51.5, -0.1, bbmap.TEMPERATE),
+    ("Paris", 48.9, 2.4, bbmap.TEMPERATE),
+    ("Berlin", 52.5, 13.4, bbmap.TEMPERATE),
+    ("Germany", 51.0, 10.0, bbmap.TEMPERATE),
+    ("Warsaw", 52.2, 21.0, bbmap.TEMPERATE),
+    ("Rome", 41.9, 12.5, bbmap.TEMPERATE),
+    ("New York", 40.7, -74.0, bbmap.TEMPERATE),
+    ("Atlanta", 33.7, -84.4, bbmap.TEMPERATE),
+    ("Shanghai", 31.2, 121.5, bbmap.TEMPERATE),
+    ("Wuhan", 30.6, 114.3, bbmap.TEMPERATE),
+    ("Tokyo", 35.7, 139.7, bbmap.TEMPERATE),
+    ("Sydney", -33.9, 151.2, bbmap.TEMPERATE),
+    ("Melbourne", -37.8, 145.2, bbmap.TEMPERATE),
+    ("Porto Alegre", -30.0, -51.2, bbmap.TEMPERATE),
+    # Desert.
     ("Sahara", 23.0, 12.0, bbmap.DESERT),
+    ("Western Desert (Egypt)", 26.0, 28.0, bbmap.DESERT),
+    ("Rub' al Khali", 20.0, 50.0, bbmap.DESERT),
+    ("Australian outback", -25.0, 133.0, bbmap.DESERT),
+    ("Gobi", 43.0, 105.0, bbmap.DESERT),
+    ("Atacama", -23.5, -69.8, bbmap.DESERT),
+    ("Kalahari", -25.0, 21.0, bbmap.DESERT),
+    # Steppe and savanna.
+    ("Kazakh steppe", 49.0, 68.0, bbmap.STEPPE),
+    ("Great Plains", 41.0, -103.0, bbmap.STEPPE),
+    ("Pampas", -37.0, -65.0, bbmap.STEPPE),
+    ("Serengeti", -2.5, 35.0, bbmap.STEPPE),
+    ("Sahel (Niamey)", 13.5, 2.1, bbmap.STEPPE),
+    ("Northern Australia", -17.0, 133.0, bbmap.STEPPE),
+    # Rain forest.
     ("Amazon", -4.0, -62.0, bbmap.RAINFOREST),
     ("Congo", 0.5, 22.0, bbmap.RAINFOREST),
+    ("Borneo", 1.0, 114.0, bbmap.RAINFOREST),
+    ("Sumatra", 0.0, 102.0, bbmap.RAINFOREST),
+    ("Malay Peninsula", 4.5, 102.0, bbmap.RAINFOREST),
+    ("New Guinea", -5.0, 142.0, bbmap.RAINFOREST),
+    # Boreal forest.
     ("Siberian taiga", 61.0, 100.0, bbmap.BOREAL),
+    ("Canadian boreal", 55.0, -98.0, bbmap.BOREAL),
+    ("Finland", 64.0, 27.0, bbmap.BOREAL),
+    ("Northern Sweden", 65.0, 18.0, bbmap.BOREAL),
+    ("Alaska interior", 65.0, -150.0, bbmap.BOREAL),
+    # Tundra.
     ("Canadian tundra", 66.0, -100.0, bbmap.TUNDRA),
-    ("Kazakh steppe", 49.0, 68.0, bbmap.STEPPE),
-    ("Germany", 51.0, 10.0, bbmap.TEMPERATE),
+    ("Taymyr", 73.0, 100.0, bbmap.TUNDRA),
+    ("Yamal", 70.0, 70.0, bbmap.TUNDRA),
+    ("Alaska North Slope", 70.0, -152.0, bbmap.TUNDRA),
+    # Ice.
     ("Greenland", 75.0, -40.0, bbmap.ICE),
+    ("Southern Greenland", 67.0, -42.0, bbmap.ICE),
     ("Antarctica", -80.0, 30.0, bbmap.ICE),
+    # High mountains.
     ("Tibet", 33.0, 88.0, bbmap.HIGH_MOUNTAINS),
-    ("Australian outback", -25.0, 133.0, bbmap.DESERT),
-    ("Serengeti", -2.5, 35.0, bbmap.STEPPE),
+    ("Himalaya", 28.0, 86.0, bbmap.HIGH_MOUNTAINS),
+    ("Altiplano", -17.0, -68.5, bbmap.HIGH_MOUNTAINS),
+    ("Alps", 46.5, 10.0, bbmap.HIGH_MOUNTAINS),
+    ("Rockies", 39.5, -106.0, bbmap.HIGH_MOUNTAINS),
 ]
 
 
@@ -150,63 +232,95 @@ def earth_land_cover(width: int, height: int) -> np.ndarray:
     return np.roll(rgb, -width // 2, axis=1)
 
 
-def classify_earth(elev: np.ndarray, rgb: np.ndarray) -> np.ndarray:
-    """The eight classes from the land-cover colour, the latitude and the elevation (documented in README.md)."""
+def earth_climate(width: int, height: int) -> np.ndarray:
+    """The Köppen–Geiger map (Beck et al. 2018, present day, 1/12 degree) as climate-group shares: (groups, height,
+    width), each cell's area share of every group (all zero where the source has no land). Row 0 = the south edge,
+    column 0 = longitude 0."""
+    archive = download(KOPPEN_URL, "beck_kg_v1")
+    tif = archive.parent / KOPPEN_MEMBER
+    if not tif.exists():
+        with zipfile.ZipFile(archive) as z:
+            tif.write_bytes(z.read(KOPPEN_MEMBER))
+    Image.MAX_IMAGE_PIXELS = None
+    with Image.open(tif) as img:
+        codes = np.asarray(img, dtype=np.uint8)[::-1]  # the image starts at the north edge, column 0 at 180 W
+    groups = KOPPEN_GROUPS[np.roll(codes, -codes.shape[1] // 2, axis=1)]  # column 0 = longitude 0
+    rows, cols = overlap_matrix(codes.shape[0], height), overlap_matrix(codes.shape[1], width)
+    return np.stack([rows @ (groups == g).astype(np.float64) @ cols.T for g in range(len(CLIMATE_GROUP_NAMES))])
+
+
+def classify_earth(elev: np.ndarray, rgb: np.ndarray, climate: np.ndarray) -> np.ndarray:
+    """The eight classes from the Köppen–Geiger climate shares, refined by the Natural Earth I land cover (tundra,
+    savanna, glaciers) and the elevation (high mountains) — documented in README.md."""
     height, width = elev.shape
     signed = latitudes(height)[:, None].repeat(width, axis=1)
-    lat = np.abs(signed) + wobble(height, width, 5.0)  # the latitude thresholds wander, so no band is a straight line
+    lat = np.abs(signed)
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    v = rgb.max(axis=2)
+    greenness = ndimage.gaussian_filter(g - np.maximum(r, b), GREENNESS_BLUR_CELLS, mode=("nearest", "wrap"))
+    forest = greenness >= FOREST_GREENNESS
     land = elev >= 0.0
 
-    # Natural Earth I is a pastel palette: forests a light green, deserts an ivory tan, steppe and savanna a light
-    # yellow-tan, tundra a neutral grey, ice a bluish white. Later rules win.
-    greenness = g - np.maximum(r, b)  # forest: green above both other channels
-    warmth = r - b                    # arid country: red well over blue
-    forest = greenness >= 0.05
-    classes = np.full(elev.shape, bbmap.TEMPERATE, dtype=np.uint8)
-    arid = (warmth >= 0.10) & ~forest
-    classes[arid] = bbmap.STEPPE
-    classes[arid & (r - g >= 0.02) & (lat <= 45.0)] = bbmap.DESERT  # tan, not yellow; the high-latitude dry land is steppe
-    classes[forest & (lat <= 20.0)] = bbmap.RAINFOREST
-    classes[forest & (lat > 20.0) & (lat <= 54.0)] = bbmap.TEMPERATE
-    classes[forest & (lat > 54.0)] = bbmap.BOREAL
-    classes[~forest & (lat > 58.0)] = bbmap.TUNDRA
-    classes[((b - r >= 0.03) & (v >= 0.92)) | (lat > 78.0) | (signed < -60.0)] = bbmap.ICE  # all of Antarctica is ice
-    classes[(elev >= 3000.0) & (lat < 60.0)] = bbmap.HIGH_MOUNTAINS  # Tibet, the Andes; not the polar ice caps
-    return fill_sea_from_land(classes, land)
+    shares = climate[: len(bbmap.CLASS_NAMES)].copy()
+    resolve_group(shares, climate[TROPICAL_WET_DRY], forest, bbmap.RAINFOREST, bbmap.STEPPE)
+    open_tropics = (lat < TROPIC_DEGREES) & ~forest
+    resolve_group(shares, climate[DRY_SEASON_TEMPERATE], open_tropics, bbmap.STEPPE, bbmap.TEMPERATE)
+    # A coast cell the climate map counts as sea takes its nearest neighbour's climate.
+    classes = fill_from_nearest(shares.argmax(axis=0).astype(np.uint8), shares.sum(axis=0) > 1e-6)
+
+    # The Köppen tundra line (a 10 degC warmest month) runs north of the real tree line in Canada and Alaska; Natural
+    # Earth I's open grey there is the barren land.
+    classes[(classes == bbmap.BOREAL) & (greenness < OPEN_GREENNESS) & (lat > TREELINE_DEGREES)] = bbmap.TUNDRA
+    alpine = np.isin(classes, (bbmap.TUNDRA, bbmap.ICE)) & (lat < ALPINE_DEGREES)  # the Alps' and Andes' tops
+    # Natural Earth I paints glaciers a bluish white; beyond 78 degrees and on Antarctica it is ice regardless.
+    classes[((b - r >= 0.03) & (rgb.max(axis=2) >= 0.92)) | (lat > 78.0) | (signed < -60.0)] = bbmap.ICE
+    classes[alpine | ((elev >= HIGH_MOUNTAIN_METRES) & (lat < 60.0))] = bbmap.HIGH_MOUNTAINS  # not the polar caps
+    return fill_from_nearest(classes, land)
 
 
-def wobble(height: int, width: int, amplitude: float, seed: int = 3978) -> np.ndarray:
-    """A smooth, fixed (seeded) noise field in [-amplitude, amplitude], wrapping east-west — a few hundred kilometres
-    per wave, so a class border drawn along a latitude follows a natural line instead of a ruler."""
-    rng = np.random.default_rng(seed)
-    field = ndimage.gaussian_filter(rng.standard_normal((height, width)), sigma=width / 96.0, mode="wrap")
-    return field / np.abs(field).max() * amplitude
+def resolve_group(shares: np.ndarray, group: np.ndarray, where: np.ndarray, if_true: int, if_false: int) -> None:
+    """Adds a climate group's share to class if_true where the mask holds, else to class if_false."""
+    shares[if_true] += np.where(where, group, 0.0)
+    shares[if_false] += np.where(where, 0.0, group)
 
 
-def fill_sea_from_land(classes: np.ndarray, land: np.ndarray) -> np.ndarray:
-    """Every sea cell takes the class of the nearest land cell (wrapping east-west), so a coast's biome border is the
-    land's own even where the game's border jitter reaches a few cells out to sea."""
+def fill_from_nearest(classes: np.ndarray, known: np.ndarray) -> np.ndarray:
+    """Every cell outside known takes the class of the nearest known cell (wrapping east-west). For the land mask this
+    gives every sea cell its coast's class, so a coast's biome border is the land's own even where the game's border
+    jitter reaches a few cells out to sea."""
     width = classes.shape[1]
-    tiled_land = np.concatenate([land, land, land], axis=1)
+    tiled_known = np.concatenate([known, known, known], axis=1)
     tiled = np.concatenate([classes, classes, classes], axis=1)
-    _, (iy, ix) = ndimage.distance_transform_edt(~tiled_land, return_indices=True)
+    _, (iy, ix) = ndimage.distance_transform_edt(~tiled_known, return_indices=True)
     nearest = tiled[iy, ix]
-    return np.where(land, classes, nearest[:, width : 2 * width]).astype(np.uint8)
+    return np.where(known, classes, nearest[:, width : 2 * width]).astype(np.uint8)
 
 
 def build_earth(width: int, height: int, probe: bool) -> tuple[np.ndarray, np.ndarray]:
     elev = earth_elevation(width, height)
-    rgb = earth_land_cover(width, height)
-    classes = classify_earth(elev, rgb)
-    if probe:
-        for name, la, lo, want in EARTH_PLACES:
-            row, col = cell_of(la, lo, width, height)
-            c = rgb[row, col]
-            print(f"{name:20s} rgb=({c[0]:.2f},{c[1]:.2f},{c[2]:.2f}) elev={elev[row, col]:7.0f} "
-                  f"class={bbmap.CLASS_NAMES[classes[row, col]]:15s} expected={bbmap.CLASS_NAMES[want]}")
+    climate = earth_climate(width, height)
+    classes = classify_earth(elev, earth_land_cover(width, height), climate)
+    check_earth_places(elev, climate, classes, probe)
     return elev, classes
+
+
+def check_earth_places(elev: np.ndarray, climate: np.ndarray, classes: np.ndarray, probe: bool) -> None:
+    """Checks the class at every place of EARTH_PLACES; prints the table with --probe (else only the misses) and stops
+    the build when a place shows the wrong class."""
+    height, width = elev.shape
+    wrong = []
+    for name, la, lo, want in EARTH_PLACES:
+        row, col = cell_of(la, lo, width, height)
+        got = classes[row, col]
+        cell = climate[:, row, col]
+        source = CLIMATE_GROUP_NAMES[cell.argmax()] if cell.sum() > 1e-6 else "sea"
+        line = (f"{name:24s} {la:6.1f} {lo:7.1f} elev={elev[row, col]:6.0f} climate={source:20s} "
+                f"class={bbmap.CLASS_NAMES[got]:15s} expected={bbmap.CLASS_NAMES[want]}")
+        if got != want:
+            wrong.append(line)
+        if probe or got != want:
+            print(("WRONG " if got != want else "ok    ") + line)
+    if wrong:
+        raise SystemExit(f"earth: {len(wrong)} of {len(EARTH_PLACES)} probe places show the wrong class")
 
 
 # --- Airless and hostile bodies: elevation only, classes as elevation bands -----------------------------------------

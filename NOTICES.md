@@ -267,13 +267,18 @@ assets: they are drawn in code (`src/BlocksBeyondTheStars.Client.Core/Creatures/
   --notdef-outline` — add a code point there to give a new weather glyph a shape.
 
 **Planet maps** (`data/maps/*.bbmap`, #3978) — derived by `tools/planet_maps` (resampled and classified); the raw data
-is never bundled. Sources, all public domain:
+is never bundled. Sources (public domain unless noted):
 
 - `data/maps/earth.bbmap` (elevation) — ETOPO1 1 Arc-Minute Global Relief Model, ice surface — NOAA (U.S. Government
   work) — public domain — Amante, C. and B.W. Eakins, 2009, NOAA Technical Memorandum NESDIS NGDC-24,
   doi:10.7289/V5C8276M — read through NOAA CoastWatch ERDDAP (`etopo180`).
-- `data/maps/earth.bbmap` (biome classes) — Natural Earth I, land cover (`NE1_LR_LC`) — public domain — made with
-  Natural Earth, https://www.naturalearthdata.com.
+- `data/maps/earth.bbmap` (biome classes) — Present and future Köppen–Geiger climate classification maps at 1-km
+  resolution, V1, present-day map at 0.0833° — **CC BY 4.0** (https://creativecommons.org/licenses/by/4.0/) — Beck,
+  H.E., N.E. Zimmermann, T.R. McVicar, N. Vergopolan, A. Berg, E.F. Wood, 2018, Scientific Data 5:180214,
+  doi:10.1038/sdata.2018.214 — data doi:10.6084/m9.figshare.6396959. Changed: resampled to 2048 × 1024 by area share
+  and regrouped into the game's eight biome classes.
+- `data/maps/earth.bbmap` (biome refinement: forest, open tundra, glaciers) — Natural Earth I, land cover (`NE1_LR_LC`)
+  — public domain — made with Natural Earth, https://www.naturalearthdata.com.
 - `data/maps/moon.bbmap` — LRO LOLA Gridded Data Record `LDEM_4` — NASA Planetary Data System, Geosciences Node —
   public domain — https://pds-geosciences.wustl.edu.
 - `data/maps/mars.bbmap` — MGS MOLA Mission Experiment Gridded Data Record `MEGT90N000CB` — NASA Planetary Data System,
