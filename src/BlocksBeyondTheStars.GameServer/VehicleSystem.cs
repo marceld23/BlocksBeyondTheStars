@@ -42,7 +42,7 @@ internal interface IVehicleHost : IServerHost
 
     void RespawnPlayer(PlayerSession session, string reason);
 
-    // Ground and pad probes (GameServerCreatures.cs, GameServerBaseLife.cs, GameServerSpace.cs)
+    // Ground and pad probes (GameServerCreatureTerrain.cs, GameServerBaseLife.cs, GameServerSpace.cs)
     bool TryGroundFeetYAt(int x, int z, int refY, int headroom, int maxScan, out int feetY);
 
     Vector3f? StandableSpot(int x, int y, int z);

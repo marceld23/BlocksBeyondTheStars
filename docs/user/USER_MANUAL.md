@@ -3416,6 +3416,37 @@ worlds created with a game version that has generation 43 have them; an older wo
 - **Admins**: `/spstower list` and `/spstower <key> [post|nopost]` lay a tower in front of you, `/tp tower [n]` travels
   to the towers of a world.
 
+### Sol — our own solar system (growing galaxies)
+- In a world whose galaxy **grows** (world option *Growing galaxy*), our own solar system appears after the galaxy has
+  grown six times: **Sol**, out past the rim, on the star map in your language. It has its real 21 bodies — Mercury,
+  Venus, Earth with its Moon, Mars with Phobos and Deimos, Ceres and Vesta in the asteroid belt, Jupiter with Io,
+  Europa, Ganymede and Callisto, Saturn with its ring and Titan, Uranus, Neptune with Triton, Pluto and Charon. The gas
+  giants look much bigger than the Earth in the flight view, and you can land on their sky islands like on any gas
+  giant.
+- **Earth, the Moon, Mars, Venus and Mercury are made from real maps**: the continents, mountains, seas and climate
+  zones are where they are on the real planets (the Sahara is desert, the Amazon rain forest, Siberia boreal forest,
+  Greenland ice). The scale is small — one block is about 2.5 km — so a city covers a whole region and the mountains
+  are much steeper than in reality. The other bodies are generated like every other world.
+- **The Earth** has nine big, inhabited cities of the space age, each with its landing pad in the middle, its own
+  colours and its landmarks: **London** (covers the whole island), **Paris** (the Tech Eiffel Tower), **Berlin** (the
+  Brandenburg Gate and the TV tower), **Cairo** (the pyramids of Giza stand in the desert south-west of it), **Tokyo**
+  (the Sky Signal Tower), **Sydney** (the Harbour Shell Hall), **Toronto** (the Sky Needle), **New York** (the Statue
+  of the Stars and the red-and-purple **G.D.S. Tower**, guarded by the G.D.S. machines, with traders inside) and **Rio
+  de Janeiro** (the Statue on the Mountain). The city landmarks are protected; the pyramids are ancient ruins you can
+  walk into. You land at London first.
+- **The Earth's animals** live there in their climate zones: dogs, cats, rabbits, cows, sheep, chickens, monkeys,
+  parrots, elephants, eagles, dolphins and whales. Every animal looks a little different (a cat may be black, tabby,
+  ginger or tortoiseshell). Dogs and cats are tamed by feeding them (meat or milk), monkeys beg for bananas. In the
+  villages people keep dogs and cats, and the pens keep cows (milk), sheep (wool) and chickens (eggs).
+- **Dogs and cats on other worlds** (worlds created since generation 49): on some worlds with breathable air they live
+  wild, and villagers keep them as pets.
+- Somewhere deep in the **Amazon rain forest** lie the ruins of the **SPS headquarters**: the main building, a hangar
+  with old ships, three levels of huge broken servers underground with the chamber where the first CORE lived, and the
+  great hall with a fallen guardian giant and a broken glass sphere. The nearest landing pad is a long walk away; the
+  map shows the place once you have found it.
+- **Admins**: `/sol` makes Sol appear at once (for testing); `/system <key>` does the same for any hand-made star
+  system.
+
 ### The escort cruiser (the space boss)
 - Sometimes VEGA warns of **a jump signature** — and about twelve seconds later a big Guardian cruiser with a long
   barrel comes out of hyperspace, far away from you. A boss bar at the top shows its hull and shield, and the boss music
@@ -6088,6 +6119,7 @@ confirmation is the brief HUD toast.
 | `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`). It arrives at once and holds **everywhere on the planet for five minutes** at full strength, whatever the biome or the height; then the world's own weather takes over again. What falls still follows the world: `rain` is snow on a frozen world and a sandstorm on a dry desert |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
+| `/sol` · `/system key` | Make **Sol** (our solar system) — or another hand-made star system by its key — join the galaxy at once, at its pinned spot past the rim; the star map shows it to everyone |
 | `/giant guardian` | Lay a **guardian giant that can wake** about 30 blocks in front of you (its feet toward you) on fairly flat, dry ground — a new one each time, for testing the boss fight; `/tp giant` takes you to the giants of this world |
 | `/spstower list` · `/spstower key [post\|nopost]` | List the guide-tower ruins of the game · lay that ruin in front of you, with or without its guard post (worlds of generation 47 and later); `/tp tower [n]` takes you to the towers of this world |
 | `/cruiser` · `/cruiser echo` | Call the escort cruiser (the space boss) into your current flight — it arrives about twelve seconds later · the story's cruiser that carries ECHO |

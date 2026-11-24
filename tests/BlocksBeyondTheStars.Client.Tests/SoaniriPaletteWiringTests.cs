@@ -85,8 +85,11 @@ public sealed class SoaniriPaletteWiringTests
         Assert.Contains(FaunaThemes.Themes["cold"], f => f.Family == "softskin");
         Assert.NotEmpty(FaunaTints.PaletteOf(soaniri));
 
-        // The builder hands the world's look (with its palette) to the pattern colour; the micro-fauna read the type's palette.
-        Assert.Contains("CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern, _look)", Script("CreatureBuilder.cs"));
+        // The builder asks the look resolver with the world's look (with its palette), which hands it to the pattern colour
+        // (#3972); the micro-fauna read the type's palette.
+        Assert.Contains("CreatureLookResolver.Resolve(c, FaunaThemes.For(c, Planets)", Script("CreatureBuilder.Materials.cs"));
+        Assert.Contains("CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern, world)",
+            File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "src", "BlocksBeyondTheStars.Client.Core", "Creatures", "CreatureLookResolver.cs")));
         string bugs = Script("MicroFaunaView.cs");
         Assert.Contains("RefreshFaunaPalette();", bugs);
         Assert.Contains("FaunaTints.PaletteOf(Game.Content.GetPlanet(type))", bugs);
