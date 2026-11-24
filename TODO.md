@@ -26,9 +26,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚝 Sol follow-ups: Earth's rail keeps clear of buildings, the Earth animals where they belong, a red Mars without ruins — #4014–#4018, PR #4019 (`81c3a4c8`) — ✅ done 2026-11-24 (server + shared + worldgen + client + data + tools; **save version 21** (two new blocks shift the ids), terrain generation unchanged (49), protocol unchanged; 9 new texts in all 14 languages; ⚠ playtest open)
+### 🚝 Sol follow-ups: Earth's rail keeps clear of buildings, the Earth animals where they belong, a red Mars without ruins — #4014–#4018, PR #4019 (`81c3a4c8`) — ✅ released in v2026.11.30 (server + shared + worldgen + client + data + tools; **save version 21** (two new blocks shift the ids), terrain generation unchanged (49), protocol unchanged; 9 new texts in all 14 languages; ⚠ playtest open)
 
-- **Follow-up (main CI).** `EarthRailNetworkTests` cuts a section short by a restart, but on a fast runner the 4 ms tick
+- **Follow-up (main CI), PR #4020 (`58488b89`).** `EarthRailNetworkTests` cuts a section short by a restart, but on a fast runner the 4 ms tick
   budget stamped the short first Berlin section whole in one tick; the test now lowers the budget while it begins that
   stamp (`SectionBudgetMsForTest`).
 
@@ -53,7 +53,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   tiles by `tools/ai-assets/calm_tiles/make_mars_tiles.py`); new type fields `altitudeSnow` (Mars was solid ice at −40 °C)
   and `sandBlock`. Mars's ground changes on every world. Tests `MarsTests`; atlas and mesher EditMode goldens re-pinned.
 
-### 🌻 Lyxette's afternoon reports of 2026-11-24: carved rock stays smooth, flower pictures from dyed seeds — #4011, #4012, PR #4013 (`3b8abf26`) — ✅ done 2026-11-24 (server + shared + client + shaders + data; protocol: one additive chunk field, no version bump; no save change; 1 changed text in all 14 languages)
+### 🌻 Lyxette's afternoon reports of 2026-11-24: carved rock stays smooth, flower pictures from dyed seeds — #4011, #4012, PR #4013 (`3b8abf26`) — ✅ released in v2026.11.30 (server + shared + client + shaders + data; protocol: one additive chunk field, no version bump; no save change; 1 changed text in all 14 languages)
 
 - **#4011 Carved rock keeps flat walls.** Lyxette (v2026.11.28) carved a room out of a mountain and its walls and pillar grew
   the terrain forms' grooves (#3964). Placed blocks were never formed, but mined air carries no edited mark, so the client
