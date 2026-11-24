@@ -44,7 +44,7 @@ public sealed class SoaniriPaletteWiringTests
     public void TheSky_AsksWhetherTheWorldsTypeIsEvergreen()
     {
         string sky = Script("Sky.Seasons.cs");
-        Assert.Contains("SeasonLook.TargetFor(env.Season, env.SeasonProgress, EvergreenFlora())", sky);
+        Assert.Contains("SeasonLook.LookFor(env, EvergreenFlora())", sky); // #3996: the profile- and hemisphere-aware look
         Assert.Contains("Game.Content.GetPlanet(Game.LoadingPlanetType ?? string.Empty)", sky);
         Assert.Contains("planet.EvergreenFlora", sky);
     }

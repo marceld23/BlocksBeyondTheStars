@@ -53,6 +53,18 @@ public sealed class WorldEnvironment
     public float SeasonProgress { get; set; }
     public float SeasonWarmth { get; set; }
 
+    /// <summary>#3994: how strongly the player's place feels its season, 0..1 — 1 on a planet without hemispheres, fading to 0
+    /// in the tropics and at the torus seam of a planet with them (<c>PlanetSeasons.HemisphereStrength</c>). An older server
+    /// sends none, which reads as the default 1.</summary>
+    public float SeasonStrength { get; set; } = 1f;
+
+    /// <summary>#3994: <c>north</c> or <c>south</c> on a planet with opposite hemispheres, empty otherwise.</summary>
+    public string SeasonHemisphere { get; set; } = string.Empty;
+
+    /// <summary>#3993: the planet's season cycle (<c>SeasonProfiles</c>: four, two, rain, one; empty = none or an older
+    /// server, read as four).</summary>
+    public string SeasonCycle { get; set; } = string.Empty;
+
     /// <summary>Air temperature at the player, in °C (base per world + weather + day/night). Shown in the HUD.</summary>
     public float Temperature { get; set; } = 15f;
 

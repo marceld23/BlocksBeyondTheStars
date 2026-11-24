@@ -439,11 +439,21 @@ namespace BlocksBeyondTheStars.Client
             sb.Append("  •  ").Append(m.FrontDistance >= 0f
                 ? string.Format(Localizer?.Get("weather.forecast.front") ?? "Front {0} blocks away", Mathf.RoundToInt(m.FrontDistance))
                 : Localizer?.Get("weather.forecast.no_front") ?? "No front nearby");
-            sb.Append("  •  ").Append(Localizer?.Get(
-                m.SeasonWetness >= 0.5f ? "weather.forecast.season_wet" : "weather.forecast.season_dry") ?? string.Empty);
-            if (!string.IsNullOrEmpty(Environment?.Season))
+            // #3995: the wet/dry season is part of the year — named once, as the season where it is the season.
+            string shown = SeasonLook.DisplaySeason(Environment);
+            if (shown != PlanetSeasons.Wet && shown != PlanetSeasons.Dry)
             {
-                sb.Append("  •  ").Append(Localizer?.Get("ui.season." + Environment.Season) ?? Environment.Season); // #3042
+                sb.Append("  •  ").Append(Localizer?.Get(
+                    m.SeasonWetness >= 0.5f ? "weather.forecast.season_wet" : "weather.forecast.season_dry") ?? string.Empty);
+            }
+
+            if (shown.Length > 0)
+            {
+                string season = Localizer?.Get("ui.season." + shown) ?? shown; // #3042
+                string place = SeasonLook.PlaceKey(Environment); // #3996: the hemisphere or the tropics
+                sb.Append("  •  ").Append(place.Length == 0 || Localizer == null
+                    ? season
+                    : string.Format(Localizer.Get("ui.season.at_place"), season, Localizer.Get(place)));
             }
 
             LastMessage = sb.ToString();

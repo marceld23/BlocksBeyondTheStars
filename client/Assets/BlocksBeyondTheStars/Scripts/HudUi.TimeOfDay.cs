@@ -80,14 +80,14 @@ namespace BlocksBeyondTheStars.Client
                 _todText.transform.parent.gameObject.SetActive(true);
                 _todMarker.gameObject.SetActive(false);
                 _todText.text = ColoredTemp(env.Temperature);
-                RefreshSeasonLabel(loc, string.Empty); // no season in the void
+                RefreshSeasonLabel(loc, null); // no season in the void
                 SetClockChips(string.Empty);
                 return;
             }
 
             _todText.transform.parent.gameObject.SetActive(true);
             _todMarker.gameObject.SetActive(true);
-            RefreshSeasonLabel(loc, env.Season); // #3042
+            RefreshSeasonLabel(loc, env); // #3042, #3996: with the hemisphere
             float t = Game.LocalTimeOfDay; // the player's local time (longitude-shifted), already 0..1
             bool day = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f) > 0f;
             float nextEdge = day ? 0.75f : (t < 0.25f ? 0.25f : 1.25f);
@@ -166,22 +166,29 @@ namespace BlocksBeyondTheStars.Client
             return "  " + (colour is null ? label : $"<color={colour}>{label}</color>");
         }
 
-        /// <summary>The festival chip (#3003): the primary festival's glyph and name in a warm gold next to the weather chip,
-        /// from the server's list (<c>ServerRules.ActiveFestivals</c>) — a forced <c>/festival</c> shows it on any date. Nothing
-        /// while no festival is on, or while the player switched the festival mood off.</summary>
         /// <summary>#3042 (Justus: "every planet should have spring, summer, autumn and winter"): the planet's season beside the
-        /// day bar, in its own colour — empty on a world without seasons.</summary>
-        private void RefreshSeasonLabel(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string season)
+        /// day bar, in its own colour — empty on a world without seasons. #3996: the wet or dry season in the tropics of a planet
+        /// with hemispheres, else the season with a short hemisphere mark ("Winter · S").</summary>
+        private void RefreshSeasonLabel(BlocksBeyondTheStars.Shared.Localization.Localizer loc,
+            BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env)
         {
-            season ??= string.Empty;
-            if (season == _todSeasonShown && ReferenceEquals(loc, _todSeasonLoc))
+            var (seasonKey, hemisphereKey) = SeasonLook.HudKeys(env);
+            string shown = seasonKey + "|" + hemisphereKey;
+            if (shown == _todSeasonShown && ReferenceEquals(loc, _todSeasonLoc))
             {
                 return;
             }
 
-            _todSeasonShown = season;
+            _todSeasonShown = shown;
             _todSeasonLoc = loc;
-            _todSeason.text = season.Length == 0 ? string.Empty : $"<color={SeasonColour(season)}>{loc.Get("ui.season." + season)}</color>";
+            if (seasonKey.Length == 0)
+            {
+                _todSeason.text = string.Empty;
+                return;
+            }
+
+            string label = loc.Get(seasonKey) + (hemisphereKey.Length > 0 ? " · " + loc.Get(hemisphereKey) : string.Empty);
+            _todSeason.text = $"<color={SeasonColour(SeasonLook.DisplaySeason(env))}>{label}</color>";
         }
 
         private static string SeasonColour(string season) => season switch
@@ -189,9 +196,14 @@ namespace BlocksBeyondTheStars.Client
             BlocksBeyondTheStars.Shared.World.PlanetSeasons.Spring => "#9be58a",
             BlocksBeyondTheStars.Shared.World.PlanetSeasons.Summer => "#ffd24a",
             BlocksBeyondTheStars.Shared.World.PlanetSeasons.Autumn => "#ff9a3c",
+            BlocksBeyondTheStars.Shared.World.PlanetSeasons.Wet => "#6fd3c8", // #3995
+            BlocksBeyondTheStars.Shared.World.PlanetSeasons.Dry => "#e0c070",
             _ => "#bfe6ff",
         };
 
+        /// <summary>The festival chip (#3003): the primary festival's glyph and name in a warm gold next to the weather chip,
+        /// from the server's list (<c>ServerRules.ActiveFestivals</c>) — a forced <c>/festival</c> shows it on any date. Nothing
+        /// while no festival is on, or while the player switched the festival mood off.</summary>
         private string FestivalChip(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             if (!FestivalMood.Enabled || Game.Rules == null || Game.Rules.ActiveFestivals == null || Game.Rules.ActiveFestivals.Length == 0)

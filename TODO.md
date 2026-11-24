@@ -26,6 +26,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌗 Seasons per planet: four, summer/winter, wet/dry, one or none; northern and southern hemispheres with tropics — #3993, #3994, #3995, #3996 — ✅ done 2026-11-24 (⚠ playtest open; shared + server + client + Client.Core + data; no save-version, protocol or terrain-generation bump — three additive `WorldEnvironment` fields; 18 new texts in all 14 languages; one new HUD icon `ov_seasons`)
+
+- **The idea.** Marcel, 2026-11-24: planets should differ in their year — some with only summer and winter, some with one
+  season, and north and south with opposite seasons. His decisions: hemispheres on Earth and rolled elsewhere; tropics
+  around the equator; profiles rolled per world, the start planet always with four seasons; one season grows plants at
+  the plain rate; the wet/dry season joins the year; the hemisphere on the HUD and the kind of year on the planet card.
+- **Profiles (#3993).** `Shared/World/SeasonProfiles`: `four`, `two`, `rain`, `one`, `none`, fixed per type (`seasons`) or
+  rolled (`seasonRoll`, defaults four 45 / two 20 / rain 15 / one 10 / none 10); tropical, cold, hot and dry types lean
+  their own way in `planets.json`; the hand-made worlds keep four, gas giants and Venus none, Titan two.
+- **Hemispheres (#3994).** Earth and Mars pinned, 40 % of four/two planets rolled; the south half a year behind; the
+  strength fades from 30° to nothing at 12° (tropics) and from 75° to the torus seam. Temperature, regrowth, pad weather
+  and the snow pass (`GameServerSeasonSnow`) read the season at the latitude.
+- **Wet/dry on the year (#3995).** `TieWetnessToYear`: the weather sim's wet/dry curve has the body's year as period.
+- **Client (#3996).** `SeasonLook.LookFor`: summer/winter without autumn amber, a wet/dry look, one season's full look,
+  the hemisphere look blending into the wet/dry look toward the tropics; HUD "Winter · S" / "Dry season"; the weather
+  reading's long form; the planet card's Seasons row with the `ov_seasons` icon. Docs: PLANET_VIEW_AND_WEATHER §2a,
+  USER_MANUAL.
+- **Accepted on an older save:** the start planet keeps its four seasons; every other body may change its kind of year.
+- **Open / later:** a playtest (Earth's London winter vs. the southern summer, a wet/dry jungle, the tropics look);
+  the far terrain beyond the tropics still shows the player's own season (a per-pixel hemisphere in the plant shaders
+  would fix it); colder poles would need a world-generation change.
+
 ### ☀️ Sol: our solar system, Earth from real maps, animals, metropolises, rail and the SPS headquarters — epic #3988 (#3969–#3987), PR #3991 (`f632b27e`) — ✅ merged (⚠ playtest open; server + client + Client.Core + shared + worldgen + data + tools; **terrain generation 49, save version 19**, protocol unchanged (additive fields); all new texts in 14 languages)
 
 - **The idea.** Marcel, 2026-11-23: bring our own solar system into the game, revealed late through the growing galaxy,

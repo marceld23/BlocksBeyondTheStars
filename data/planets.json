@@ -24,6 +24,8 @@
   },
   {
     "key": "ice", "waterTint": "auto", "floraTheme": "tundra", "baseTemperature": -38, "nameKey": "planet.ice.name", "atmosphereHeight": 200, "cloudColor": 14478069, "cloudDensity": 0.5, "mist": 0.5,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "two": 35, "four": 35, "one": 20, "none": 10 },
     "terrainTags": ["glacial"],
     "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
     "terrainStyles": ["hills", "flats", "glacial"],
@@ -48,6 +50,8 @@
   },
   {
     "key": "lava", "baseTemperature": 115, "nameKey": "planet.lava.name", "atmosphereHeight": 150, "cloudColor": 5917252, "cloudDensity": 0.7, "mist": 0.6,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "none": 50, "one": 30, "two": 20 },
     "terrainTags": ["volcanic"],
     "weatherVolatility": 1.3, "seasonAmplitude": 0.1,
     "weatherEvents": { "ember_fall": 3.2, "heatwave": 2.0, "acid_rain": 1.4, "gale": 1.0, "fog": 0.0, "ground_fog": 0.0 },
@@ -71,6 +75,8 @@
   },
   {
     "key": "desert", "scaleHoundChance": 0.6, "floraTheme": "desert", "baseTemperature": 44, "nameKey": "planet.desert.name", "atmosphereHeight": 190, "cloudColor": 15260080, "cloudDensity": 0.3, "mist": 0.15,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["buttes", "inselbergs", "wind", "arches", "fossil"],
     "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0, "terrainStyle": "dunes",
     "terrainStyles": ["dunes", "badlands", "flats", "downs", "labyrinth", "petrified-dunes"],
@@ -95,6 +101,8 @@
   },
   {
     "key": "jungle", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "waterTint": "auto", "floraTheme": "tropical", "baseTemperature": 28, "nameKey": "planet.jungle.name", "atmosphereHeight": 240, "cloudColor": 15922422, "cloudDensity": 0.6, "mist": 0.7,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["wetland", "karst", "reef", "pillars"],
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "terrainStyles": ["hills", "karst", "downs", "stone-forest"],
@@ -140,6 +148,8 @@
   },
   {
     "key": "swamp", "waterTint": "auto", "floraTheme": "swamp", "baseTemperature": 22, "nameKey": "planet.swamp.name", "atmosphereHeight": 230, "cloudColor": 13159360, "cloudDensity": 0.75, "mist": 0.9,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["wetland"],
     "baseHeight": 58, "amplitude": 8, "terrainScale": 52.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
@@ -208,6 +218,8 @@
   },
   {
     "key": "savanna", "scaleHoundChance": 0.5, "waterTint": "auto", "floraTheme": "savanna", "baseTemperature": 32, "nameKey": "planet.savanna.name", "atmosphereHeight": 210, "cloudColor": 15261109, "cloudDensity": 0.3, "mist": 0.25,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["buttes", "inselbergs", "pillars"],
     "baseHeight": 64, "amplitude": 10, "terrainScale": 58.0,
     "terrainStyles": ["hills", "downs", "flats"],
@@ -277,6 +289,8 @@
   },
   {
     "key": "ashen", "floraTheme": "ashen", "exotic": true, "baseTemperature": 70, "nameKey": "planet.ashen.name", "atmosphereHeight": 170, "cloudColor": 7036501, "cloudDensity": 0.65, "mist": 0.55,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "none": 50, "one": 30, "two": 20 },
     "terrainTags": ["volcanic"],
     "baseHeight": 58, "amplitude": 18, "terrainScale": 44.0, "terrainStyle": "mountains",
     "terrainStyles": ["mountains", "shattered", "badlands"],
@@ -301,6 +315,8 @@
   },
   {
     "key": "tundra", "waterTint": "auto", "floraTheme": "tundra", "baseTemperature": -22, "nameKey": "planet.tundra.name", "atmosphereHeight": 220, "cloudColor": 14606326, "cloudDensity": 0.5, "mist": 0.5,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "two": 35, "four": 35, "one": 20, "none": 10 },
     "terrainTags": ["glacial"],
     "baseHeight": 62, "amplitude": 14, "terrainScale": 52.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs", "drumlins"],
@@ -375,6 +391,8 @@
   },
   {
     "key": "salt_flats", "scaleHoundChance": 0.5, "floraTheme": "desert", "exotic": true, "baseTemperature": 40, "nameKey": "planet.salt_flats.name", "atmosphereHeight": 200, "cloudColor": 15263962, "cloudDensity": 0.2, "mist": 0.1,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["salt", "wind"],
     "baseHeight": 60, "amplitude": 4, "terrainScale": 70.0, "terrainStyle": "flats",
     "surfaceBlock": "salt", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4, "beachBlock": "salt",
@@ -437,6 +455,8 @@
   },
   {
     "key": "badlands", "scaleHoundChance": 0.7, "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.badlands.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.2, "mist": 0.15,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["buttes", "hoodoos", "wind", "arches", "fossil"],
     "baseHeight": 60, "amplitude": 16, "terrainScale": 40.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "canyons", "terraces", "labyrinth"],
@@ -460,6 +480,8 @@
   },
   {
     "key": "karst", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "waterTint": "auto", "floraTheme": "tropical", "exotic": true, "baseTemperature": 27, "nameKey": "planet.karst.name", "atmosphereHeight": 210, "cloudColor": 14210014, "cloudDensity": 0.5, "mist": 0.7,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["wetland", "karst", "pillars"],
     "baseHeight": 60, "amplitude": 18, "terrainScale": 46.0, "terrainStyle": "karst",
     "terrainStyles": ["karst", "hills", "downs", "stone-forest"],
@@ -482,6 +504,8 @@
   },
   {
     "key": "red_desert", "scaleHoundChance": 0.6, "minTerrainGeneration": 1, "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.red_desert.name", "atmosphereHeight": 190, "cloudColor": 14915916, "cloudDensity": 0.25, "mist": 0.15,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["buttes", "hoodoos", "wind", "inselbergs", "arches", "fossil"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "dunes", "terraces", "labyrinth", "petrified-dunes"],
@@ -505,6 +529,8 @@
   },
   {
     "key": "boreal", "waterTint": "auto", "minTerrainGeneration": 1, "authoredCreatures": ["leni"], "floraTheme": "tundra", "baseTemperature": -4, "nameKey": "planet.boreal.name", "atmosphereHeight": 230, "cloudColor": 14606326, "cloudDensity": 0.55, "mist": 0.65,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "two": 35, "four": 35, "one": 20, "none": 10 },
     "terrainTags": ["glacial", "karst"],
     "baseHeight": 63, "amplitude": 14, "terrainScale": 50.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs", "drumlins"],
@@ -529,6 +555,8 @@
   },
   {
     "key": "archipelago", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "waterTint": "auto", "minTerrainGeneration": 1, "floraTheme": "tropical", "baseTemperature": 26, "nameKey": "planet.archipelago.name", "atmosphereHeight": 220, "cloudColor": 15922422, "cloudDensity": 0.55, "mist": 0.6,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["wetland", "reef"],
     "baseHeight": 60, "amplitude": 18, "terrainScale": 56.0, "terrainStyle": "archipelago",
     "terrainStyles": ["archipelago", "flats"],
@@ -551,6 +579,8 @@
   },
   {
     "key": "glacier", "waterTint": "auto", "minTerrainGeneration": 1, "authoredCreatures": ["leni"], "floraTheme": "alpine", "exotic": true, "baseTemperature": -45, "nameKey": "planet.glacier.name", "atmosphereHeight": 240, "cloudColor": 14606326, "cloudDensity": 0.4, "mist": 0.45,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "two": 35, "four": 35, "one": 20, "none": 10 },
     "terrainTags": ["glacial"],
     "baseHeight": 64, "amplitude": 20, "terrainScale": 52.0, "terrainStyle": "glacial",
     "terrainStyles": ["glacial", "hills"],
@@ -597,6 +627,8 @@
   },
   {
     "key": "ashen_ocean", "minTerrainGeneration": 1, "floraTheme": "ashen", "exotic": true, "baseTemperature": 60, "nameKey": "planet.ashen_ocean.name", "atmosphereHeight": 200, "cloudColor": 9337256, "cloudDensity": 0.6, "mist": 0.6,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "none": 50, "one": 30, "two": 20 },
     "terrainTags": ["volcanic"],
     "baseHeight": 58, "amplitude": 18, "terrainScale": 44.0, "terrainStyle": "mountains",
     "terrainStyles": ["mountains", "shattered"],
@@ -616,6 +648,8 @@
   },
   {
     "key": "dust_bowl", "scaleHoundChance": 0.6, "minTerrainGeneration": 1, "floraTheme": "desert", "baseTemperature": 30, "nameKey": "planet.dust_bowl.name", "atmosphereHeight": 200, "cloudColor": 13740673, "cloudDensity": 0.35, "mist": 0.2,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["wind", "buttes", "arches", "fossil"],
     "baseHeight": 62, "amplitude": 8, "terrainScale": 64.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
@@ -638,6 +672,8 @@
   },
   {
     "key": "frozen_ocean", "waterTint": "auto", "minTerrainGeneration": 1, "authoredCreatures": ["leni"], "floraTheme": "tundra", "baseTemperature": -40, "nameKey": "planet.frozen_ocean.name", "atmosphereHeight": 220, "cloudColor": 14606326, "cloudDensity": 0.45, "mist": 0.55,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "two": 35, "four": 35, "one": 20, "none": 10 },
     "terrainTags": ["glacial"],
     "baseHeight": 60, "amplitude": 16, "terrainScale": 60.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "archipelago"],
@@ -661,6 +697,8 @@
   },
   {
     "key": "coral_sea", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "waterTint": "auto", "minTerrainGeneration": 3, "floraTheme": "tropical", "baseTemperature": 27, "nameKey": "planet.coral_sea.name", "atmosphereHeight": 220, "cloudColor": 15922422, "cloudDensity": 0.5, "mist": 0.55,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["wetland", "reef"],
     "baseHeight": 58, "amplitude": 14, "terrainScale": 60.0, "terrainStyle": "archipelago",
     "terrainStyles": ["archipelago", "flats"],
@@ -683,6 +721,8 @@
   },
   {
     "key": "icecap", "waterTint": "auto", "minTerrainGeneration": 3, "authoredCreatures": ["leni"], "floraTheme": "tundra", "exotic": true, "baseTemperature": -30, "nameKey": "planet.icecap.name", "atmosphereHeight": 240, "cloudColor": 14606326, "cloudDensity": 0.4, "mist": 0.45,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "two": 35, "four": 35, "one": 20, "none": 10 },
     "terrainTags": ["glacial"],
     "baseHeight": 66, "amplitude": 22, "terrainScale": 52.0, "terrainStyle": "glacial",
     "terrainStyles": ["glacial", "mountains", "hills"],
@@ -729,6 +769,8 @@
   },
   {
     "key": "rainbow_sea", "waterView": 30, "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "minTerrainGeneration": 5, "floraTheme": "tropical", "exotic": true, "baseTemperature": 25, "nameKey": "planet.rainbow_sea.name", "atmosphereHeight": 220, "cloudColor": 16115455, "cloudDensity": 0.45, "mist": 0.6,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["wetland", "reef"],
     "baseHeight": 56, "amplitude": 26, "terrainScale": 64.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs"],
@@ -775,6 +817,8 @@
   },
   {
     "key": "scrapyard", "minTerrainGeneration": 5, "floraTheme": "desert", "exotic": true, "baseTemperature": 24, "nameKey": "planet.scrapyard.name", "atmosphereHeight": 200, "cloudColor": 11974326, "cloudDensity": 0.5, "mist": 0.35,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["scrap", "wind"],
     "baseHeight": 62, "amplitude": 9, "terrainScale": 60.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
@@ -799,6 +843,8 @@
   },
   {
     "key": "gamer_hills", "waterTint": "auto", "minTerrainGeneration": 5, "floraTheme": "temperate", "baseTemperature": 18, "nameKey": "planet.gamer_hills.name", "atmosphereHeight": 230, "cloudColor": 15592941, "cloudDensity": 0.4, "mist": 0.45,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": ["karst", "gaming"],
     "baseHeight": 64, "amplitude": 10, "terrainScale": 58.0, "terrainStyle": "downs",
     "terrainStyles": ["downs", "flats"],
@@ -822,6 +868,8 @@
   },
   {
     "key": "gds_desert", "minTerrainGeneration": 7, "cityWorld": "gds", "exotic": true, "floraTheme": "desert", "baseTemperature": 55, "nameKey": "planet.gds_desert.name", "atmosphereHeight": 200, "cloudColor": 13404240, "cloudDensity": 0.15, "mist": 0.1,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": ["volcanic", "buttes", "wind"],
     "baseHeight": 62, "amplitude": 9, "terrainScale": 64.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "dunes"],
@@ -847,6 +895,8 @@
   },
   {
     "key": "titas", "minTerrainGeneration": 8, "exotic": true, "floraTheme": "ashen", "baseTemperature": -100, "nameKey": "planet.titas.name", "atmosphereHeight": 230, "cloudColor": 14606326, "cloudDensity": 0.5, "mist": 0.45,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": [],
     "baseHeight": 64, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs"],
@@ -875,6 +925,8 @@
   },
   {
     "key": "valuma", "waterTint": "auto", "minTerrainGeneration": 8, "exotic": true, "floraTheme": "temperate", "baseTemperature": 17, "nameKey": "planet.valuma.name", "atmosphereHeight": 230, "cloudColor": 15592941, "cloudDensity": 0.35, "mist": 0.55,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": [],
     "baseHeight": 64, "amplitude": 6, "terrainScale": 72.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
@@ -901,6 +953,8 @@
   },
   {
     "key": "sand_sea", "scaleHoundChance": 0.4, "minTerrainGeneration": 9, "floraTheme": "desert", "baseTemperature": 36, "nameKey": "planet.sand_sea.name", "atmosphereHeight": 200, "cloudColor": 15263976, "cloudDensity": 0.2, "mist": 0.1,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["buttes", "inselbergs", "wind", "volcanic", "arches", "fossil"],
     "baseHeight": 62, "amplitude": 14, "terrainScale": 58.0, "terrainStyle": "dunes",
     "terrainStyles": ["dunes", "mountains", "canyons", "mesa", "flats", "badlands"],
@@ -927,6 +981,8 @@
   },
   {
     "key": "toxic_world", "minTerrainGeneration": 13, "exotic": true, "floraTheme": "ashen", "baseTemperature": 30, "nameKey": "planet.toxic_world.name", "atmosphereHeight": 200, "cloudColor": 11120737, "cloudDensity": 0.65, "mist": 0.7,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": ["hoodoos", "buttes", "arches"],
     "baseHeight": 62, "amplitude": 14, "terrainScale": 50.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "canyons", "flats", "shattered"],
@@ -968,6 +1024,8 @@
   // sky, contaminated green-eyed animals, no settlements but 6–10 factories that wash ore and still breathe.
   {
     "key": "toxica_maxima", "minTerrainGeneration": 15, "exotic": true, "oncePerGalaxy": true, "fixedName": "Toxica-Maxima", "floraTheme": "ashen", "baseTemperature": 18, "nameKey": "planet.toxica_maxima.name", "atmosphereHeight": 220, "cloudColor": 3033643, "cloudDensity": 0.9, "mist": 0.75, "mistColor": 13234336, "skyColor": 11067491,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": ["hoodoos"],
     "baseHeight": 64, "amplitude": 14, "terrainScale": 56.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs", "spires", "stone-forest"],
@@ -1002,6 +1060,8 @@
   // animals, rare ores — and the Ignivermis, his red-and-black sandworm (three of them) that hunts the animals on the dunes.
   {
     "key": "arena_nigra", "minTerrainGeneration": 17, "colourMood": "gloomy", "exotic": true, "oncePerGalaxy": true, "fixedName": "Arena Nigra", "floraTheme": "desert", "baseTemperature": 58, "nameKey": "planet.arena_nigra.name", "atmosphereHeight": 200, "cloudColor": 1315860, "cloudDensity": 0.55, "mist": 0.6, "skyColor": 12071454,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": ["volcanic", "hoodoos", "inselbergs", "wind"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "dunes", "terrainStyles": ["dunes", "spires", "canyons", "badlands"],
     "surfaceBlock": "black_sand", "subSurfaceBlock": "basalt", "deepBlock": "basalt", "surfaceDepth": 3, "caveThreshold": 0.8, "dataCacheRarity": 0.0012,
@@ -1036,6 +1096,8 @@
   // the ordinary type roll (spawnWeight 0).
   {
     "key": "gas_giant", "minTerrainGeneration": 18, "exotic": true, "floraTheme": "tundra", "baseTemperature": -120, "nameKey": "planet.gas_giant.name", "atmosphereHeight": 420, "cloudColor": 13145196, "cloudDensity": 0.85, "mist": 0.9, "mistFloor": 0.75, "skyColor": 6048107,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "none",
     "seaFluid": "gas", "floatingIslands": true,
     "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,
@@ -1058,6 +1120,8 @@
   // (spectacleDensity 4 = a quarter of the cell area, every cell rolled), guaranteed at least once per galaxy (#2343).
   {
     "key": "arch_lands", "scaleHoundChance": 0.6, "minTerrainGeneration": 21, "exotic": true, "guaranteedOnce": true, "spectacleDensity": 4.0, "floraTheme": "desert", "baseTemperature": 34, "nameKey": "planet.arch_lands.name", "atmosphereHeight": 200, "cloudColor": 15593458, "cloudDensity": 0.25, "mist": 0.15,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["buttes", "hoodoos", "wind", "inselbergs", "arches"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 50.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "canyons", "labyrinth", "terraces"],
@@ -1080,6 +1144,8 @@
   },
   {
     "key": "pillar_world", "minTerrainGeneration": 21, "exotic": true, "guaranteedOnce": true, "spectacleDensity": 4.0, "waterTint": "auto", "floraTheme": "tropical", "baseTemperature": 24, "nameKey": "planet.pillar_world.name", "atmosphereHeight": 240, "cloudColor": 14210014, "cloudDensity": 0.7, "mist": 0.8,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 50, "four": 25, "two": 10, "one": 10, "none": 5 },
     "terrainTags": ["karst", "wetland", "pillars"],
     "baseHeight": 60, "amplitude": 16, "terrainScale": 46.0, "terrainStyle": "stone-forest",
     "terrainStyles": ["stone-forest", "karst", "hills"],
@@ -1124,6 +1190,8 @@
   },
   {
     "key": "bone_desert", "scaleHoundChance": 0.8, "minTerrainGeneration": 21, "exotic": true, "guaranteedOnce": true, "spectacleDensity": 4.0, "floraTheme": "desert", "baseTemperature": 40, "nameKey": "planet.bone_desert.name", "atmosphereHeight": 190, "cloudColor": 15260080, "cloudDensity": 0.15, "mist": 0.1,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasonRoll": { "rain": 30, "four": 25, "two": 20, "one": 15, "none": 10 },
     "terrainTags": ["buttes", "wind", "salt", "inselbergs", "fossil"],
     "baseHeight": 60, "amplitude": 10, "terrainScale": 60.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "badlands", "petrified-dunes", "dunes"],
@@ -1267,6 +1335,8 @@
   // opposite sides, #3330), the initials of everyone in the club at the other (the leads' M V in gold).
   {
     "key": "asteroid_kuba_w", "minTerrainGeneration": 33, "exotic": true, "guaranteedOnce": true, "fixedName": "KuBa-W", "floraTheme": "temperate", "baseTemperature": 17, "nameKey": "planet.asteroid_kuba_w.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.35, "mist": 0.3, "skyColor": 11065504,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": [],
     "baseHeight": 48, "amplitude": 10, "terrainScale": 44.0, "terrainStyle": "downs", "terrainStyles": ["downs", "hills", "flats"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -1303,6 +1373,8 @@
   // the ruin city Ornasa and the Choir Tower from GameServerSounderWorld. No machines, no bandits, no settlers' towns.
   {
     "key": "sounder_world", "exotic": true, "oncePerGalaxy": true, "fixedName": "Soaniri", "floraTheme": "crystal", "baseTemperature": 18, "nameKey": "planet.sounder_world.name", "atmosphereHeight": 230, "cloudColor": 15788287, "cloudDensity": 0.35, "mist": 0.45, "mistColor": 13483506, "skyColor": 11839720,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four",
     "terrainTags": [],
     "baseHeight": 64, "amplitude": 12, "terrainScale": 64.0, "terrainStyle": "downs", "terrainStyles": ["downs", "hills"],
     "surfaceBlock": "chime_moss", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -1378,6 +1450,8 @@
   },
   {
     "key": "sol_venus", "baseTemperature": 90, "nameKey": "planet.sol_venus.name", "atmosphereHeight": 310, "cloudColor": 15255664, "cloudDensity": 0.95, "mist": 0.85, "mistFloor": 0.6, "mistColor": 14267754, "skyColor": 14267754,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "none",
     // −2,750 … 10,243 m: the default lowlands to 1,500 m (Y 155), 70 m per block above (Maxwell Montes → Y 279); the dry
     // basins 120 m per block (Y 58).
     "terrainMap": "venus", "mapHighlandMetresPerBlock": 70,
@@ -1413,6 +1487,8 @@
   },
   {
     "key": "sol_earth", "waterTint": "auto", "floraTheme": "temperate", "baseTemperature": 15, "nameKey": "planet.sol_earth.name", "atmosphereHeight": 320, "cloudColor": 15725044, "cloudDensity": 0.5, "mist": 0.45,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four", "hemispheres": true,
     // The map's highest cell (6,309 m, the Everest cell) at 37 m per block above the 1,500 m knee → Y 284, under the cap.
     "terrainMap": "earth", "mapHighlandMetresPerBlock": 37,
     "terrainTags": ["buttes", "glacial"],
@@ -1484,6 +1560,8 @@
   },
   {
     "key": "sol_mars", "floraTheme": "desert", "baseTemperature": -40, "nameKey": "planet.sol_mars.name", "atmosphereHeight": 300, "cloudColor": 14254704, "cloudDensity": 0.15, "mist": 0.3, "mistColor": 13145176, "skyColor": 13213528,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "four", "hemispheres": true,
     // −7,754 … 21,091 m: 40 m per block to 3,000 m (Y 155), 150 above (Olympus Mons → Y 275, under the cap); Hellas and the
     // northern lowlands 160 m per block, at most 50 deep (Y 32). Polar caps of ice, the Tharsis heights basalt.
     "terrainMap": "mars", "mapLowlandMetresPerBlock": 40, "mapKneeMetres": 3000, "mapHighlandMetresPerBlock": 150,
@@ -1594,6 +1672,8 @@
   },
   {
     "key": "sol_jupiter", "floraTheme": "tundra", "baseTemperature": -120, "nameKey": "planet.sol_jupiter.name", "atmosphereHeight": 420, "cloudColor": 14201994, "cloudDensity": 0.85, "mist": 0.9, "mistFloor": 0.75, "skyColor": 10254933,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "none",
     "seaFluid": "gas", "floatingIslands": true,
     "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,
@@ -1691,6 +1771,8 @@
   },
   {
     "key": "sol_saturn", "floraTheme": "tundra", "baseTemperature": -140, "nameKey": "planet.sol_saturn.name", "atmosphereHeight": 420, "cloudColor": 15127194, "cloudDensity": 0.85, "mist": 0.9, "mistFloor": 0.75, "skyColor": 12100974,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "none",
     "seaFluid": "gas", "floatingIslands": true,
     "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,
@@ -1712,6 +1794,8 @@
   // Titan's lakes are water drawn in methane brown and kept a few degrees above freezing, so they stay liquid.
   {
     "key": "sol_titan", "waterTint": "#6b4a22", "floraTheme": "ashen", "baseTemperature": 6, "nameKey": "planet.sol_titan.name", "atmosphereHeight": 230, "cloudColor": 13668414, "cloudDensity": 0.9, "mist": 0.9, "mistFloor": 0.7, "mistColor": 13403201, "skyColor": 13403201,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "two",
     "baseHeight": 60, "amplitude": 10, "terrainScale": 54.0, "terrainStyle": "downs",
     "terrainStyles": ["downs", "flats", "hills"],
     "surfaceBlock": "sand", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 4,
@@ -1735,6 +1819,8 @@
   },
   {
     "key": "sol_uranus", "floraTheme": "tundra", "baseTemperature": -190, "nameKey": "planet.sol_uranus.name", "atmosphereHeight": 420, "cloudColor": 11462376, "cloudDensity": 0.8, "mist": 0.9, "mistFloor": 0.75, "skyColor": 8374480,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "none",
     "seaFluid": "gas", "floatingIslands": true,
     "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,
@@ -1756,6 +1842,8 @@
   },
   {
     "key": "sol_neptune", "floraTheme": "tundra", "baseTemperature": -200, "nameKey": "planet.sol_neptune.name", "atmosphereHeight": 420, "cloudColor": 4153049, "cloudDensity": 0.85, "mist": 0.9, "mistFloor": 0.75, "skyColor": 2768796,
+    // #3993/#3994: the season profile (rolled per world and body unless fixed here).
+    "seasons": "none",
     "seaFluid": "gas", "floatingIslands": true,
     "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,

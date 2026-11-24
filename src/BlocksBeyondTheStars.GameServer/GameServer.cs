@@ -550,6 +550,7 @@ public sealed partial class GameServer
         _galaxy = GenerateGalaxy(systemCount); // #3640: with the civilizations' pinned guarantees
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
         _fixedBodies.Clear(); // #3969: the hand-made systems append their bodies again below
+        _seasonProfiles.Clear(); // #3993: profiles are a function of the galaxy's bodies and types
 
         // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched
         // and growth never moves one. Never in the story's finale system (it is not even in the galaxy yet).
@@ -630,6 +631,7 @@ public sealed partial class GameServer
         if (start is not null)
         {
             _meta.ActiveLocationId = start.Id;
+            _startBodyId = start.Id; // #3993: the start planet always has four seasons
             // #596: the start planet always carries rings — the sky band is the feature's shop window.
             // Deterministic from the body id, so every restart re-derives the same ring; cosmetic only.
             UniverseGenerator.EnsureStartPlanetRings(start);

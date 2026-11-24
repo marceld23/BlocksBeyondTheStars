@@ -308,7 +308,6 @@ public sealed partial class GameServer
         double cloudLine = MistProfiles.SummitLineY(_meta.Seed, body.Id, planet); // #3269: the loaded world's own line
         bool breathable = string.Equals(planet.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase);
         bool ladder = WeatherCatalog.Find(sim.State)?.IsLadder ?? true;
-        double warmth = SeasonOf(body.Id, planet, planet.DayLengthSeconds).Warmth; // #3041: the body's own season
 
         bool airlessMoon = body.Kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", StringComparison.OrdinalIgnoreCase);
@@ -332,6 +331,8 @@ public sealed partial class GameServer
                 }
 
                 var (state, _) = WeatherProjection.At(episode, offset, boost, summit);
+                // #3041, #3994: the body's own season, at the pad's latitude.
+                double warmth = SeasonOf(body.Id, planet, planet.DayLengthSeconds, p.CenterZ, circ).Warmth;
                 float temp = TemperatureAt(planet, sim, state, timeOfDay, breathable,
                     new BlocksBeyondTheStars.Shared.Geometry.Vector3f(p.CenterX, standY, p.CenterZ), warmth);
                 pads[i].Weather = state;
