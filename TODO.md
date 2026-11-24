@@ -141,6 +141,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   coat variants per animal (`coats`, `AnimalSeed`), localized names, own recorded calls (44 signed-off clips), beak,
   fluke, a whale body; Earth species as village pets and pen animals, wild dogs and cats on other worlds
   (generation 49).
+- **Rail tick test, 2026-11-24.** `EarthRailNetworkTests` failed main CI once on a single 50.9 ms tick (99th percentile
+  0.9 ms) — a pause of the shared runner. It now allows one tick over the 50 ms bound; a section stamped in one go would
+  still put each of the eight ticked sections over it.
 - **Open / later:** the story around Sol and CORE (own task); a playtest on Earth (cities on the low-end preset and in
   the browser, the rail ride, the HQ); the whale checks terrain only at its centre; the bald eagle's head is a mask band.
 
