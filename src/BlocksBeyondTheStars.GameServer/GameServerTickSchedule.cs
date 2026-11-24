@@ -130,6 +130,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickOtherSide", TickOtherSide), // #3904/#3905: who may stay over there; the Qualis and the Sounders at the gates (1 Hz)
             TickStep.Dt("TickGiants", TickGiants), // #1998: the colossus, the sandworms and the thumpers
             TickStep.Dt("TickTrains", TickTrains), // #2113: the monorail trains and their riders
+            TickStep.Dt("TickRailSections", TickRailSections), // #3985: a listed rail line's sections are stamped as players come near (4 Hz; before the chunks stream)
             TickStep.Dt("TickBaseVisits", TickBaseVisits), // #2602 friendly visitors walk up to a base (1 Hz); #2997 walking near a base finds it
             TickStep.Plain("TickBaseLife", TickBaseLife), // #1120/#2718: settlers move in — per world, one base per 10 s, one scan per tick at most
             TickStep.Dt("TickLodges", TickLodges), // #2640/#2641: lodges found by passing players, the store crates (1 Hz)

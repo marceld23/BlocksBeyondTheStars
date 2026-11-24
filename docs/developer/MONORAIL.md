@@ -186,7 +186,8 @@ walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014
 
 - **The settings are top speeds**: 8 / 16 / 24 blocks/s (`RailRules.SpeedTable`, the one table; `RailMotion.TopSpeed`).
   A new cab starts at setting 2 (`RailRules.NewCabSpeed`); the public intercity train keeps setting 2 — setting 3 on a
-  line of 1200 blocks or more (`RailRules.PublicTrainSpeedFor`, #3632).
+  line of 1200 blocks or more (`RailRules.PublicTrainSpeedFor`, #3632), the express step (setting 4, 32 blocks/s, only the
+  server gives it) on a line of 4000 blocks or more (#3985, *The rail network*).
 - **The profile** (`Shared/Definitions/RailMotion.cs`, pure). Every tick `v ← NextSpeed(v, limit, dt)`: up by
   `Acceleration` (4 blocks/s² — the lift's ease; 0 → 16 in 4 s) toward the limit, down toward a lower limit by at most
   `ServiceBrake` (8 blocks/s²), never below 0. The limit is the lowest of
@@ -529,10 +530,13 @@ abandoned stations followed a generation later as ruins — see the next section
   **Given routes** (`IntercityGivenRoute`: stops by centre column, optional heading and floor, waypoints per leg) are planned
   by `PlanGivenIntercityRoute`: termini at both ends, every stop between them a **through station** (the line enters its
   hall from behind over the end pylon and leaves over the exit pylon), a pylon every ≤ 18 blocks through the waypoints; the
-  route keeps clear of nothing on its own. Nothing feeds a given route yet (`IntercityGivenRouteTests` builds a three-stop
-  route on a flat world through a test seam). Open for the rail network: a train halting at a through station centres on its
-  stop four blocks into the hall, so its rear hangs out of the hall's back; the stamp-chain step only runs where settlements
-  are placed.
+  route keeps clear of nothing on its own. A place list's rail lines feed it (#3985, *The rail network* below;
+  `IntercityGivenRouteTests` builds a three-stop route on a flat world through a test seam). A **through station**'s stop
+  plate stands in its hall's middle (`RailStationGenerator.ThroughStopU`, #3985): the line runs on behind its end pylon, so
+  nothing held the halted train in from that end, and centred on the terminus's stop four blocks in its rear hung about 1.3
+  blocks out of the hall; centred in the middle the cab and its wagon (12.6 blocks) stand four blocks inside both ends. A
+  terminus — every rolled station — keeps its stop where it was. A station record's template says which
+  (`IntercityHallShape`): `heading=N` for every rolled station, `heading=N;platforms=low;through` for a city's hall.
 - **Stamped once** (feature `intercityrail`): the stations through `StampSettlementBlocks` (carve, foundation, skirt,
   apron; the vegetation carve kept inside the hall so it never reaches into the town's timber), the pylon columns from
   the ground (or the sea bed) up, then the corridor: first exactly the cells `LinkClear` samples, then the wagon's whole
@@ -584,6 +588,91 @@ halting at the far station). `IntercityGivenRouteTests` (#3984: a three-stop giv
 by the same builder: one rail line with all three stops, records under line 1, a public train). `RailEtaTests` (Client.Tests: every forecast from a received train list meets the real
 server train's arrival and departure at both stations within 1.5 s; a manual train has none, a standing one counts down
 here). `StructureTypeRulesTests` (`chanceFrom` by generation, a broken one dropped).
+
+## The rail network (#3985, Earth)
+
+Earth's two lines — the **Atlantic** (Berlin – Paris – London – Toronto – New York – Rio de Janeiro) and the **Orient**
+(Paris – Cairo – Tokyo – Sydney) — are data: `rail` places of the body's place list (`data/places/sol_earth.json`,
+[MAP_PLANETS.md](MAP_PLANETS.md) §7). Each is an ordered list of city keys with optional waypoints per leg and a name key:
+
+```json
+{ "key": "rail_atlantic", "kind": "rail", "nameKey": "rail.atlantic.name", "stops": [
+  { "city": "berlin" }, { "city": "paris" }, { "city": "london", "via": [[-1.5, 50.6]] } ] }
+```
+
+- **Load checks** (`PlaceRules.RailProblems`): a name key, two stops or more, every stop a city of the list (none twice in a
+  line), each waypoint a `[longitude, latitude]` in range, none before the first stop — and no city serves more lines than
+  it keeps rail-hall squares (`stations`; Paris keeps two: one hall per line, change on foot — there are no switches).
+- **Records** (`GameServerRailNetwork.cs`): the *i*-th rail place is line `100 + i` (`ListedRailLineIndexBase`, far above
+  the rolled line 0 and the given lines below it): `rail_line`/100 + i, its stations `rail_station`/(100 + i) × 64 + stop.
+  Planned once, replayed from its records on every later load; a line that cannot be planned (a city not on the body) is
+  left off that load and tried again on the next — nothing is pinned for it.
+- **Its own step.** The stamp-chain step (`StampIntercityRail(rolled)`) runs on every body now: the rolled line and the
+  given lines only where the settlements were stamped (as before), the listed lines from the **cities' records** whatever
+  the settlement options say, on every save generation (a map world's rule), even on a world without rolled settlements.
+  Earth's structure whitelist keeps the rolled line off (its line 0 is a skip).
+- **The halls** (`MetroRailHalls`, WorldGeneration, pure). A metropolis builds its districts to their edges but leaves its
+  4-block streets open (paving, nothing on them), and the wagon is 3 wide. So each stop's hall stands on one of its city's
+  rail-hall squares (`S` on the pinned district map) as a **side-platform hall** (`RailHallPlatforms.Low/High`: the full
+  hall cut along the track bed's far edge, 20 × 7) — platform, bench and posts on the square's outer four cells, the track
+  bed in the three street cells beside it — and the line runs straight along that street out of the city and 8 blocks
+  beyond its box. A terminus needs the street open from the hall to the edge on one side, a through station on both; a
+  street is closed where it runs between two districts of a landmark square. Of every open choice (four streets round each
+  free square, two directions) the cheapest wins: the street run plus the straight way from the city's edge to the
+  neighbouring stop (its first waypoint, else its city's centre; for the previous stop its chosen way out), with a heavy
+  penalty when that way runs back over the city's districts. The stops are chosen in line order; a square, footprint or
+  street run an earlier line took is out, so Paris's two lines use its two squares. The halls' floor is the city's floor.
+- **The route** (`PlanGivenIntercityRoute` under `IntercityLimits.Listed`): per leg the previous city's way out, the
+  waypoints, this city's way in; no length cap, no pylon-height cap (sea pylons stand on the sea bed — Earth's deepest about
+  50 blocks), no cut cap; a pylon every ≤ 18 blocks over land and every 32 (`AutoLinkRange`, a span a player could have
+  linked) over open water (`AddGivenLegOverSea`: the next 32 blocks and the wagon's width either side all water). The line
+  may run over the X seam (London's box spans it). The rolled planner's limits are unchanged (`IntercityLimits.Rolled`).
+  Inside a metropolis's box the corridor clears the land the city left to nature (`InAnySettlementColumns`: only claimed
+  columns are town ground); the city's own blocks are never touched. Measured (seed 4242): the Atlantic line 364 pylons over
+  8,125 blocks, the Orient 448 over 9,438 (its highest pylon top Y 270, on the Tibetan plateau; the deepest sea pylon 50
+  blocks from the bed at Y 32); no waypoints are needed yet — the straight legs keep clear of every landmark. The Atlantic
+  public train runs its whole line in 519 s with the four halts (Rio → New York 156 s).
+- **Section by section** (`GameServerRailSections.cs`). Stamped whole, the two lines' corridors would generate every chunk
+  along 17,500 blocks on the first boot. Each listed line is cut into sections of 8 spans (a boundary moved on where it
+  would split a hall); a section's stations, pylon columns and corridor are stamped the first time a joined player comes
+  within their streaming radius + the load-ahead ring + 3 chunks of its box (`TickRailSections`, 4 Hz, one section per tick,
+  right after the trains and before the chunks stream) — a rider is a player, so a ride stamps the line ahead of the train.
+  Each section is a stamped feature of its own (`intercityrail:<line>:<section>`, marked after its transaction), so the save
+  says which stand; chunks a player already holds in a freshly stamped section are streamed to them again. The rest never
+  waits for the voxels: the plan, the records, the graph, the rail line and the public train exist for the whole line from
+  the first load, and a train runs on its spline — so the public train shuttles end to end over sections nobody has seen.
+  Measured (development machine, `EarthRailNetworkTests`, seed 4242): planning both lines adds 1.3–1.6 s to Earth's first
+  boot (≈ 40 s with the cities); **stamping all 102 sections would add about 35 s** — hence the sections. One section of 8
+  spans takes 20–1,200 ms, the median 320 ms (its chunks generated on the tick thread — the deep sea and the city halls the
+  dearest); a rider at 32 blocks/s reaches a new section every 5–8 s. Open: generate a section's chunks on the background
+  chunk pool before the stamp, so the tick only writes the cells.
+- **The public trains**: one per line, the cab and a seat wagon shuttling end to end and halting at every stop for 30 s,
+  at the **express step** (`RailRules.PublicTrainExpressSpeed`, setting 4, top speed 32 blocks/s — `PublicTrainSpeedFor`: a
+  line of 4,000 blocks or more; no cab offers it, a player's speed intent stays 1..3). The bend limits are capped at the
+  express speed now (`RailMotion.MaxSpeed`), every train at its own top speed, so a train of the three settings runs as
+  before. The profile reaches 32 only on a leg of 192 blocks or more and where the line bends gently (radius ≥ 256): the
+  long legs between the cities; it eases out of every city street at the bend limits. Why 32 and not more — the streaming:
+  at the default view (4 chunks + the load-ahead ring) a rider crosses a chunk border every 0.5 s and needs one new row of
+  11 chunk columns (≈ 3 chunks each over the surface band) per border, ≈ 66 chunks a second on a diagonal leg, against the
+  240 a second (16 per tick at 15 Hz) the server streams to a player; at the slider's 8 chunks about 57 %. 48 blocks/s would
+  ask 85 % at 8 chunks and leave nothing for the sections stamped ahead.
+- **Departure boards** show the line's name ("Atlantic Line · Departures", `NetRailLine.NameKey` — additive, contractless,
+  empty for every other line) and the stations the next train calls at after this one, in order ("→ London · Toronto ·
+  New York · Rio de Janeiro"): `RailEta.Read` now also says which way the train leaves the stop after that halt
+  (`RailEtaReading.Direction`, a terminus turns it round), `RailEta.StopsAfter` lists the stops beyond it that way. The
+  forecast's horizon grows with the line (a round trip at 8 blocks/s with every halt, at least 1200 s). A station on the
+  map names its metropolis in the player's language ("Bahnhof Kairo").
+
+Tests: `EarthRailNetworkTests` (a real Earth: both lines with their stops in order, every hall on a rail-hall square with
+its track in the street, Paris's two halls on two squares, the through stations, the Atlantic line over the X seam, no
+span over a landmark, a train halted at any stop inside its hall, the public trains at the express step; the Atlantic
+train riding its whole line on unstamped sections and halting inside every hall; sections stamped near Paris and London
+and over the open Atlantic — a sea pylon from the bed up — and then every section, timed; the lines, the built sections
+and the trains back after a restart without a new stamp), `RailNetworkTests` (the load checks, Earth's data, a hall's
+street on a synthetic district map — open, closed between a landmark's districts, toward the neighbour, a through
+station's both ways, one hall per square —, the side-platform and through halls, the station template),
+`IntercityGivenRouteTests` (the train halted at the through station stands inside its hall), `RailEtaTests` (the next
+stops the way the train leaves).
 
 ## Abandoned stations (#2166, terrain generation 20)
 

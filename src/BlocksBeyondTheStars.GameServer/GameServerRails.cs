@@ -606,6 +606,7 @@ public sealed partial class GameServer
             Closed = l.Closed,
             Points = l.Pylons.SelectMany(p => { var t = PylonTop(p); return new[] { t.X, t.Y, t.Z }; }).ToArray(),
             StopArcs = l.Stops.Select(s => s.Arc).ToArray(),
+            NameKey = IntercityNameKeyOf(l), // #3985: a listed line's name for its departure boards
         }).ToArray(),
     };
 

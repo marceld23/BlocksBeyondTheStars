@@ -71,6 +71,25 @@
       { "template": "earth_sps_hq_servers", "east": -180, "north": -15 },
       { "template": "earth_sps_hq_core",    "east": -30,  "north": 40 },
       { "template": "earth_sps_hq_hall",    "east": 20,   "north": -15 }
+    ] },
+
+    // The hover-rail network (#3985, docs/developer/MONORAIL.md "The rail network"): two lines, each a public train shuttling
+    // end to end and halting at every stop. Each stop's hall stands on one of its city's rail-hall squares (Paris keeps two,
+    // one per line — change on foot, there are no switches), the line runs out of the city along the street beside it, then
+    // through the waypoints ([longitude, latitude]) toward the next stop: over the sea and round the high mountains.
+    { "key": "rail_atlantic", "kind": "rail", "nameKey": "rail.atlantic.name", "stops": [
+      { "city": "berlin" },
+      { "city": "paris" },
+      { "city": "london" },
+      { "city": "toronto" },
+      { "city": "new_york" },
+      { "city": "rio" }
+    ] },
+    { "key": "rail_orient", "kind": "rail", "nameKey": "rail.orient.name", "stops": [
+      { "city": "paris" },
+      { "city": "cairo" },
+      { "city": "tokyo" },
+      { "city": "sydney" }
     ] }
   ]
 }

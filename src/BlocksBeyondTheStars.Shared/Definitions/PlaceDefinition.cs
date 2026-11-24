@@ -80,6 +80,10 @@ public sealed class PlaceDefinition
     /// place's column as the anchor.</summary>
     public List<PlaceMember> Members { get; set; } = new();
 
+    /// <summary>A <c>rail</c> line (#3985): its stops in line order — two or more city keys of the same list — each with the
+    /// waypoints the line runs through on its way from the stop before.</summary>
+    public List<PlaceRailStop> Stops { get; set; } = new();
+
     /// <summary>The city's theme: <see cref="Theme"/>, else the key.</summary>
     public string ThemeOrKey => Theme.Length > 0 ? Theme : Key;
 
@@ -102,6 +106,20 @@ public sealed class PlaceMember
 
     /// <summary>Blocks north (+Z) of the anchor to the footprint's low corner.</summary>
     public int North { get; set; }
+}
+
+/// <summary>
+/// One stop of a <c>rail</c> place (#3985): the city it serves (a <c>city</c> place's key in the same list) and the waypoints
+/// the line runs through on its way to it from the stop before — each <c>[longitude, latitude]</c>, to steer the line over
+/// the sea and round the mountains. The first stop has none.
+/// </summary>
+public sealed class PlaceRailStop
+{
+    /// <summary>The city's place key.</summary>
+    public string City { get; set; } = string.Empty;
+
+    /// <summary>The waypoints from the stop before, each <c>[longitude, latitude]</c> in degrees.</summary>
+    public List<List<double>> Via { get; set; } = new();
 }
 
 /// <summary>
@@ -154,7 +172,11 @@ public static class PlaceListKinds
     /// <summary>A landing pad: a body with pad places takes exactly these pads, in list order (the first is the home touchdown).</summary>
     public const string Pad = "pad";
 
-    public static readonly string[] All = { Landmark, Complex, City, Pad };
+    /// <summary>A rail line (#3985) through cities of the list (<see cref="PlaceDefinition.Stops"/>): a station on a rail-hall
+    /// square of each, a public train shuttling end to end. Its longitude and latitude mean nothing.</summary>
+    public const string Rail = "rail";
+
+    public static readonly string[] All = { Landmark, Complex, City, Pad, Rail };
 }
 
 /// <summary>The place-list rules (#3981): the block column of a longitude and latitude, and the checks of a list.</summary>
@@ -241,7 +263,82 @@ public static class PlaceRules
             problems.AddRange(KindProblems(place, landmark, blockKnown).Select(p => $"{at} {p}"));
         }
 
+        problems.AddRange(RailProblems(list));
         return problems;
+    }
+
+    /// <summary>The checks of a list's rail lines (#3985): each has a name key and two or more stops, every stop a city of
+    /// the list (none twice in one line) with well-formed waypoints, the first stop none; and no city serves more lines than it
+    /// keeps rail-hall squares (<see cref="PlaceDefinition.Stations"/>) — each line's hall stands on a square of its own.</summary>
+    public static IEnumerable<string> RailProblems(PlaceListDefinition list)
+    {
+        var cities = list.OfKind(PlaceListKinds.City).GroupBy(c => c.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var lines = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var place in list.Places)
+        {
+            string at = $"place '{place.Key}'";
+            if (place.Kind != PlaceListKinds.Rail)
+            {
+                if (place.Stops.Count > 0)
+                {
+                    yield return $"{at} names stops, which only a rail line has";
+                }
+
+                continue;
+            }
+
+            if (place.NameKey.Length == 0)
+            {
+                yield return $"{at} is a rail line without a name key";
+            }
+
+            if (place.Stops.Count < 2)
+            {
+                yield return $"{at} is a rail line with fewer than two stops";
+            }
+
+            foreach (string problem in RailStopProblems(place, cities, lines))
+            {
+                yield return $"{at} {problem}";
+            }
+        }
+
+        foreach (var kv in lines.Where(kv => kv.Value > cities[kv.Key].Stations))
+        {
+            yield return $"place '{kv.Key}' keeps {cities[kv.Key].Stations} rail-hall square(s) for {kv.Value} rail lines";
+        }
+    }
+
+    /// <summary>The checks of one rail line's stops; counts each city's lines into <paramref name="lines"/>.</summary>
+    private static IEnumerable<string> RailStopProblems(PlaceDefinition place, Dictionary<string, PlaceDefinition> cities, Dictionary<string, int> lines)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < place.Stops.Count; i++)
+        {
+            var stop = place.Stops[i];
+            if (!cities.ContainsKey(stop.City))
+            {
+                yield return $"stops at '{stop.City}', which is no city of the list";
+            }
+            else if (!seen.Add(stop.City))
+            {
+                yield return $"stops at '{stop.City}' twice";
+            }
+            else
+            {
+                lines[stop.City] = lines.TryGetValue(stop.City, out int n) ? n + 1 : 1;
+            }
+
+            if (i == 0 && stop.Via.Count > 0)
+            {
+                yield return "has waypoints before its first stop";
+            }
+
+            if (stop.Via.Any(p => p is null || p.Count != 2 || !(p[1] > -90.0 && p[1] < 90.0) || !(p[0] >= -180.0 && p[0] < 360.0)))
+            {
+                yield return $"has a waypoint before '{stop.City}' that is no [longitude, latitude] in range";
+            }
+        }
     }
 
     /// <summary>The checks of the fields a kind owns.</summary>
@@ -279,6 +376,13 @@ public static class PlaceRules
                 if (place.Template.Length > 0)
                 {
                     yield return "is a pad and names a template";
+                }
+
+                break;
+            case PlaceListKinds.Rail:
+                if (place.Template.Length > 0 || place.Landmarks.Count > 0)
+                {
+                    yield return "is a rail line and names a template or landmarks"; // its stops are checked with the list (RailProblems)
                 }
 
                 break;

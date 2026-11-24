@@ -98,6 +98,29 @@ public sealed class IntercityGivenRouteTests : IDisposable
         var train = Assert.Single(server.TrainsForTest());
         Assert.True(RailRules.IsPublic(train.OwnerId));
         Assert.Equal(line.Id, train.LineId);
+
+        // #3985: the through station's stop stands in its hall's middle, so the train halted there stands inside the hall —
+        // centred on the old stop four blocks in, its rear hung about 1.3 blocks out of the hall's back.
+        var middle = built.Stations[1];
+        Assert.True(middle.Through);
+        Assert.False(built.Stations[0].Through || built.Stations[2].Through);
+        for (double t = 0; t < 120 && server.TrainHaltForTest(train.Id) is var h && !(h.Halted && h.Stop == middle.Stop); t += 0.25)
+        {
+            server.TickForTest(0.25);
+        }
+
+        Assert.Equal(middle.Stop, server.TrainHaltForTest(train.Id).Stop);
+        for (int w = 0; w < train.Wagons.Count; w++)
+        {
+            var (pos, yaw) = server.WagonPoseForTest(train.Id, w)!.Value;
+            foreach (float end in new[] { -0.5f * RailRules.WagonLength, 0.5f * RailRules.WagonLength })
+            {
+                float x = pos.X + (end * (float)Math.Cos(yaw)), z = pos.Z + (end * (float)Math.Sin(yaw));
+                Assert.InRange(x, middle.Origin.X, middle.Origin.X + middle.W);
+                Assert.InRange(z, middle.Origin.Z, middle.Origin.Z + middle.L);
+            }
+        }
+
         server.Stop();
     }
 }

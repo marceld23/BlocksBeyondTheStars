@@ -103,11 +103,72 @@ public sealed partial class GameServer
 
     /// <summary>The limits a planner keeps: the longest free route, the tallest pylon and the most terrain cut (#3984). The
     /// rolled planner keeps the shipped ones; a given route may lift them.</summary>
-    internal readonly record struct IntercityLimits(int MaxRoute, int MaxPylon, int MaxCutCells)
+    internal readonly record struct IntercityLimits(int MaxRoute, int MaxPylon, int MaxCutCells, int SeaPylonSpacing = IntercityPylonSpacing)
     {
         /// <summary>The rolled line's limits on a terrain generation (#3629: 2000 blocks of route from generation 42).</summary>
         public static IntercityLimits Rolled(int terrainGeneration)
             => new(IntercityMaxRouteFor(terrainGeneration), IntercityMaxPylon, IntercityMaxCutCells);
+
+        /// <summary>A listed line's limits (#3985): a route of any length across the oceans, pylons standing on the sea bed
+        /// however deep, the cut whatever the mountains ask, and a pylon every <see cref="IntercitySeaPylonSpacing"/> blocks
+        /// over open water.</summary>
+        public static IntercityLimits Listed => new(int.MaxValue, int.MaxValue, int.MaxValue, IntercitySeaPylonSpacing);
+    }
+
+    /// <summary>A station hall's shape (#3985): its platforms and whether it is a through station. The default is the rolled
+    /// station's: both platforms, a terminus. Pinned in the station record's template after the heading —
+    /// <c>heading=N</c> for the default (every rolled record), <c>heading=N;platforms=low;through</c> otherwise.</summary>
+    internal readonly record struct IntercityHallShape(RailHallPlatforms Platforms, bool Through)
+    {
+        private const string HeadingPin = "heading=";
+        private const string PlatformsPin = "platforms=";
+        private const string ThroughPin = "through";
+
+        /// <summary>The station record's template for a heading and this shape.</summary>
+        public string Template(int heading)
+        {
+            string t = HeadingPin + heading.ToString(CultureInfo.InvariantCulture);
+            if (Platforms != RailHallPlatforms.Both)
+            {
+                t += ";" + PlatformsPin + (Platforms == RailHallPlatforms.Low ? "low" : "high");
+            }
+
+            return Through ? t + ";" + ThroughPin : t;
+        }
+
+        /// <summary>Reads a station record's template: false when it names no heading 0..3 or an unknown part.</summary>
+        public static bool TryParse(string template, out int heading, out IntercityHallShape shape)
+        {
+            heading = -1;
+            shape = default;
+            var platforms = RailHallPlatforms.Both;
+            bool through = false;
+            foreach (string part in template.Split(';'))
+            {
+                if (part.StartsWith(HeadingPin, StringComparison.Ordinal))
+                {
+                    if (!int.TryParse(part.Substring(HeadingPin.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out heading))
+                    {
+                        return false;
+                    }
+                }
+                else if (part == PlatformsPin + "low" || part == PlatformsPin + "high")
+                {
+                    platforms = part.EndsWith("low", StringComparison.Ordinal) ? RailHallPlatforms.Low : RailHallPlatforms.High;
+                }
+                else if (part == ThroughPin)
+                {
+                    through = true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            shape = new IntercityHallShape(platforms, through);
+            return heading is >= 0 and <= 3;
+        }
     }
 
     /// <summary>One station of a line, in world space.</summary>
@@ -117,10 +178,19 @@ public sealed partial class GameServer
         public int Heading;
         public Vector3i Origin;             // structure-local (0,0,0) in world space; Y = the floor row (the town's foundation row)
         public string Seat = "slope";
+
+        /// <summary>The hall's platforms (#3985: a city's hall beside its street keeps one) — both for every rolled station.</summary>
+        public RailHallPlatforms Platforms = RailHallPlatforms.Both;
+
+        /// <summary>A stop in the middle of its line (#3985): its stop plate stands in the hall's middle.</summary>
+        public bool Through;
+
         public SettlementStructure Structure = null!;
         public Vector3i EndPylon;           // canonical cells
         public Vector3i ExitPylon;
         public Vector3i Stop;
+
+        public IntercityHallShape Shape => new(Platforms, Through);
 
         public int W => Structure.Width;
         public int L => Structure.Length;
@@ -141,6 +211,13 @@ public sealed partial class GameServer
 
         /// <summary>The pylon tops in line order (the first stop's end pylon … the last stop's end pylon), canonical cells.</summary>
         public List<Vector3i> Pylons { get; } = new();
+
+        /// <summary>The plan the line was built from (the section stamp reads it).</summary>
+        public IntercityPlan Plan = null!;
+
+        /// <summary>A listed line's sections (#3985), each stamped the first time a player comes near; empty for a line
+        /// stamped whole.</summary>
+        public List<IntercitySection> Sections { get; } = new();
     }
 
     /// <summary>The lines of the active world (lives on <see cref="LoadedWorld"/>): empty on every world without one.</summary>
@@ -182,6 +259,13 @@ public sealed partial class GameServer
         public int CutCells;
         public float RouteLength;
 
+        /// <summary>A line of the body's place list (#3985): stamped section by section, its corridor clears the land a city
+        /// left to nature inside its box.</summary>
+        public bool Listed;
+
+        /// <summary>A listed line's name key (its place's <c>nameKey</c>); empty for every other line.</summary>
+        public string NameKey = string.Empty;
+
         /// <summary>Whether pylon <paramref name="j"/> stands inside a stop's hall (its height is the station's floor).</summary>
         public bool IsStationPylon(int j) => Stops.Exists(s => s.OwnsPylon(Pylons[j]));
 
@@ -201,8 +285,11 @@ public sealed partial class GameServer
     // =====================================================================================================
 
     /// <summary>Decides (once, pinned) and builds (once) this world's lines, and re-derives their runtime state on every
-    /// load: line 0 is the rolled line, every further pinned line is replayed. Runs right after the settlements.</summary>
-    private void StampIntercityRail()
+    /// load: line 0 is the rolled line, every further pinned line is replayed, then the lines of the body's place list
+    /// (#3985). Runs right after the settlements; <paramref name="rolled"/> is whether the settlements were stamped — the
+    /// rolled line and the given ones belong to them, the listed lines stand on the cities' records whatever the
+    /// settlement options say.</summary>
+    private void StampIntercityRail(bool rolled)
     {
         Intercity.Clear();
         var planet = _world.Planet;
@@ -213,12 +300,17 @@ public sealed partial class GameServer
 
         var sw = Stopwatch.StartNew();
         var lines = new List<IntercityPlan>();
-        if (RolledIntercityLine(planet) is { } rolled)
+        if (rolled && RolledIntercityLine(planet) is { } line0)
         {
-            lines.Add(rolled);
+            lines.Add(line0);
         }
 
-        lines.AddRange(ReplayFurtherIntercityLines());
+        if (rolled)
+        {
+            lines.AddRange(ReplayFurtherIntercityLines());
+        }
+
+        lines.AddRange(ListedRailLines(planet));
         if (lines.Count > 0)
         {
             BuildIntercityLines(lines, planet, sw);

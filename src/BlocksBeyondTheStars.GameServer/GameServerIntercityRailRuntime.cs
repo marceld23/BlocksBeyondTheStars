@@ -74,16 +74,18 @@ public sealed partial class GameServer
     private bool OverlapsIntercityRail(int x, int z, int halfExtent)
         => Intercity.Active && OverlapsFootprint(x, z, halfExtent, halfExtent, Intercity.Reservations, SettlementCollisionMargin);
 
-    /// <summary>The stations on the world map (#2125): "Karth Town Station" / "Bahnhof Karth Town".</summary>
+    /// <summary>The stations on the world map (#2125): "Karth Town Station" / "Bahnhof Karth Town" — a metropolis named in the
+    /// player's language (#3985: "Bahnhof Kairo").</summary>
     private void AppendIntercityPois(PlayerSession session, List<NetPoi> pois)
     {
         foreach (var st in Intercity.Stations)
         {
             var c = st.Centre;
+            string town = _settlements.FirstOrDefault(s => s.Name == st.SettlementName) is { } s ? SettlementNameFor(s, session.Locale) : st.SettlementName;
             pois.Add(new NetPoi
             {
                 Type = "rail_station",
-                Name = string.Format(CultureInfo.InvariantCulture, Localize(session.Locale, "poi.rail_station"), st.SettlementName),
+                Name = string.Format(CultureInfo.InvariantCulture, Localize(session.Locale, "poi.rail_station"), town),
                 X = (float)WorldConstants.WrapX((double)c.X, _world.Circumference),
                 Z = c.Z,
             });
