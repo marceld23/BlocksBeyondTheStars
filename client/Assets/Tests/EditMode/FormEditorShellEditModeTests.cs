@@ -128,9 +128,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         /// <summary>The primary buttons that are actions — a segmented switch's selected segment is a tab, not an action.</summary>
         private static List<Button> PrimaryActions(EditorShell shell, LayerCanvasEditor editor)
         {
+            // The tool switch and the colour-slot palette (#3941) show their CHOICE in the primary look — not actions.
             var toolSwitch = (UiKit.Segmented)BaseField(editor, "_toolSwitch");
+            var slots = (Button[])typeof(LayerCanvasEditor).GetProperty("SlotButtons", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?.GetValue(editor) ?? Array.Empty<Button>();
             return shell.Canvas.GetComponentsInChildren<Button>(true)
-                .Where(b => b.targetGraphic is Image i && i.sprite == UiKit.PrimarySprite && !toolSwitch.Buttons.Contains(b))
+                .Where(b => b.targetGraphic is Image i && i.sprite == UiKit.PrimarySprite && !toolSwitch.Buttons.Contains(b)
+                    && !slots.Contains(b))
                 .ToList();
         }
 

@@ -229,6 +229,18 @@ namespace BlocksBeyondTheStars.Client
             return _toolSwitch;
         }
 
+        /// <summary>The colour-slot palette's buttons (null for an editor without one).</summary>
+        protected Button[] SlotButtons { get; private set; }
+
+        /// <summary>The colour-slot palette (#3941, <see cref="ShapeSlotPalette"/>): picking a slot paints with it and switches to
+        /// Place. Its chosen slot wears the primary look like the tool switch's chosen tool — a choice, not an action.</summary>
+        protected void BuildSlotButtons(Transform card, float x, float y, float w, System.Action<int> onPick)
+            => SlotButtons = ShapeSlotPalette.Build(card, x, y, w, RowH, L, slot =>
+            {
+                onPick(slot);
+                SetRemoving(false);
+            });
+
         /// <summary>Chooses the Place or the Remove tool (the switch, the E key).</summary>
         protected void SetRemoving(bool removing)
         {

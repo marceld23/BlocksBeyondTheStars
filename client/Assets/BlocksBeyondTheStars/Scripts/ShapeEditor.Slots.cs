@@ -13,11 +13,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _model.CountSlotBoxes = true;
             Kicker(card, x, y, w, "ui.shape.slot.title");
-            ShapeSlotPalette.Build(card, x, y + 30f, w, RowH, L, slot =>
-            {
-                _model.PaintValue = slot;
-                SetRemoving(false);
-            });
+            BuildSlotButtons(card, x, y + 30f, w, slot => _model.PaintValue = slot);
         }
     }
 }

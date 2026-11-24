@@ -13,11 +13,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildSlotPalette(Transform card, float x, float y, float w)
         {
             _model.CountSlotBoxes = true;
-            ShapeSlotPalette.Build(card, x, y, w, RowH, L, slot =>
-            {
-                _model.PaintValue = slot;
-                SetRemoving(false);
-            });
+            BuildSlotButtons(card, x, y, w, slot => _model.PaintValue = slot);
         }
     }
 }

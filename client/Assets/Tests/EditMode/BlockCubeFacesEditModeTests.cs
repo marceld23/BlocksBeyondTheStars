@@ -122,9 +122,16 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 Assert.That(blocks.Count, Is.GreaterThan(10), "Control: content has machines with casings, crates, logs …");
                 var uvs = new Rect[BlockCubeFaces.FaceCount];
                 var turns = new int[BlockCubeFaces.FaceCount];
+                int formed = 0;
                 foreach (var id in blocks)
                 {
                     string key = content.BlockById(id)?.Key;
+                    if (DeviceForms.TryGet(key, out _))
+                    {
+                        formed++;
+                        continue; // #3936: a device with a form is drawn from its boxes, not as a cube (ChunkMesher.DeviceForms.cs)
+                    }
+
                     bool facing = BlockCubeFaces.FrontFor(content, id, BlockCubeFaces.FacePlusZ) >= 0;
                     var chunk = new ChunkData(new ChunkCoord(0, 0, 0));
                     chunk.Set(C, C, C, id);
@@ -180,6 +187,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                         data.Release();
                     }
                 }
+
+                Assert.That(blocks.Count - formed, Is.GreaterThan(10), "Control: most faced blocks are still drawn as cubes.");
             });
         }
 

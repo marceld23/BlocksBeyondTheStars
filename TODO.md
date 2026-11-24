@@ -26,6 +26,19 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 Unity EditMode suite green again after the new look — #4004 — ✅ done 2026-11-24 (PR pending; EditMode tests + one client refactor; no gameplay, protocol or save change, no new texts)
+
+- **What.** The EditMode suite runs in no CI job, so 13 tests had been red since the new look (epic #3948, PR #3949) unseen. None was a
+  game bug — each test still described the look before it:
+  - **Avatar paint (9):** a painted part is a rounded box now (#3934); the structural checks (a side is one quad, a cap four
+    triangles) read the flat mesh Potato and the far stage draw, so the class runs on plain figures; the new
+    `TheRoundedSegments_ShowTheFlatPainting_OnTheMiddleOfEverySide` pins that the rounded sides show the flat painting.
+  - **Workbench faces (1):** a device with a form (#3936) is drawn from its boxes, not as a cube — skipped in the cube check.
+  - **Form/shape editor header (2):** the colour-slot palette (#3941) shows its chosen slot in the primary look like the
+    tool switch; both editors build it through `LayerCanvasEditor.BuildSlotButtons`, and the test leaves it out like the
+    switch.
+  - **Main-menu golden (1):** the name chip's mark and running light (#3945) — golden updated.
+
 ### 🗺️ The hidden star map: the whole galaxy at creation, charted per player — epic #3997 (#3998, #3999), branch `feat/hidden-star-map` — 🚧 PR open (server + shared + worldgen + client + Client.Core + data + docs; no new terrain generation, no save version, protocol unchanged; all new texts in 14 languages)
 - **The idea.** Marcel, 2026-11-24: choose how big the universe can become, and uncover the map by flying instead of the
   "Growing" step. Done as a whole galaxy behind a per-player map, because every special feature (wormholes, debris
@@ -45,7 +58,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - Open, not in this PR: scale the map area with the size, stop sending worlds of never-entered systems, a "still N
   hidden" line on the chart, an admin "whole map" command.
 
-### 🌸 Lyxette's reports of 2026-11-24: natural rock and ore tiles, flower seeds, bush cuttings and bush saplings — #4000, #4001, #4003 — ✅ done 2026-11-24 (PR pending; client tiles + server + shared + worldgen + data; **save version 20** (one new block, ids shift), protocol unchanged; 8 new texts in all 14 languages, 2 new item icons, 40 tiles)
+### 🌸 Lyxette's reports of 2026-11-24: natural rock and ore tiles, flower seeds, bush cuttings and bush saplings — #4000, #4001, #4003, PR #4005 (`7ca02afd`) — ✅ merged 2026-11-24 (client tiles + server + shared + worldgen + data; **save version 20** (one new block, ids shift), protocol unchanged; 8 new texts in all 14 languages, 2 new item icons, 40 tiles)
 
 - **#4000 Rock and ore tiles.** Lyxette (v2026.11.28): the new look made leaves and grass better but rock flat — granite
   lost its pink/white/grey mix, ores read as paint. Cause: the calm set built rock as one generated form with one or two
@@ -71,7 +84,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - Unity EditMode: the two goldens that move with the block ids are re-pinned (`ChunkMesherGoldenEditModeTests`,
   `BlockAtlasLooksGoldenEditModeTests` "all blocks"; geometry unchanged) — they had not been re-pinned for the four SPS
   blocks of #3986 either.
-- **Found on the way — open:** #4004, 13 Unity EditMode tests red since the new look (avatar paint orientation, the
+- **Found on the way:** #4004 (fixed in its own PR), 13 Unity EditMode tests red since the new look (avatar paint orientation, the
   workbench's faces, the form editor header, the main-menu golden); the suite runs in no CI job.
 - **Open:** playtest the look of the new rock and ore tiles in a world (Marcel's visual check), and a bed of flower seeds.
 
