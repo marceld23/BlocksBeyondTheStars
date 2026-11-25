@@ -26,6 +26,11 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 School club reports of 2026-11-25 (v2026.11.30) — a second Ben in the credits — branch fix/reports-2026-11-25 — ⏳ open (analysis done, decisions on the reports pending)
+
+- **Credits.** The club has two children called Ben; the README and the in-game credits (`ui.credits.body`, all 14
+  languages) named one. Both now read "Ben, Ben, Daimien, …" — the doubled name is deliberate, not a typo.
+
 ### ⚙️ CI: test-shard weights refreshed — the slowest shard no longer runs twice as long as the fastest — ✅ done 2026-11-24 (CI weights + comments + DEVELOPER.md; no code, no test change)
 
 - **Why.** Since the last refresh (2026-11-14) the fast tier grew from ~21 300 to ~27 900 test-seconds and 111 test
