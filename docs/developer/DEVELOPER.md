@@ -80,6 +80,13 @@ numbers while every fast test is overwritten by the PR measurement:
 assignment and per-shard load. Re-measure shard 1's extra load at the same time (`SHARD1_FIXED_COST`:
 the `clientcore.trx` wall clock plus its extra build, × ~3.7) — it stayed at a 16 s guess while the
 client suite grew to ~2 min, and shard 1 became the tail.
+The drift guard has a blind spot: it prices every unweighted class at the 10 s guess, so it cannot see
+that a new class is heavy. On 2026-11-24, 111 unweighted classes came to only 4.4 % of the predicted
+load — under the budget — while one new `Slow` class among them (`EarthRailClearanceTests`) really
+cost 245 s; the slowest shard ran 18 min on the PR gate and 19 on main, the fastest 10–11. So refresh
+after every feature batch that adds heavy or `Slow` test classes, not only when the guard trips. The
+`slow.txt` list needs no build: every test that appears in the full-tier trx files but in none of the
+PR run's is a `Slow` one (the PR gate filters `Category!=Slow`).
 
 Balance buys back the *tail*, not the suite: at ~4100 fast-tier CPU-seconds even a perfect partition
 still needed ~6 min over four runners, which is why #1254 widened the matrix to **six** — the repo is

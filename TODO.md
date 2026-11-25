@@ -26,6 +26,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ⚙️ CI: test-shard weights refreshed — the slowest shard no longer runs twice as long as the fastest — ✅ done 2026-11-24 (CI weights + comments + DEVELOPER.md; no code, no test change)
+
+- **Why.** Since the last refresh (2026-11-14) the fast tier grew from ~21 300 to ~27 900 test-seconds and 111 test
+  classes had no weight, each guessed at 10 s — 4.4 % of the predicted load, just under the drift guard's 5 %. The new
+  `Slow` classes of #4019 were among them (`EarthRailClearanceTests` really 245 s, `EarthFaunaSpawnTests` 67 s), so
+  main shards 3 and 7 ran 19 min against 9–12, and the PR gate's shard 4 ran 17–18 min against 9–11.
+- **What.** `scripts/test-shard-weights*.json` rebuilt with `partition-tests.py weights` from main CI 45496336694
+  (full tier, `58488b89`) and PR CI 45493245651 (fast tier); the `Slow` list taken as the tests of the full run that
+  the PR run does not have (81 tests, 35 classes — matches the 35 files with the trait). Scored with the measured
+  seconds, the fast tier goes from 1 769–2 870 test-s per shard (1.62×) to 2 369–2 380 (1.00×) and the full tier from
+  2 315–3 236 (1.40×) to 2 677–2 707 (1.01×). `SHARD1_FIXED_COST` re-checked (Client.Tests ~2.1 min wall) — stays 600.
+- **Open.** The drift guard prices unweighted classes at the 10 s guess and cannot see a heavy new class (noted in
+  DEVELOPER.md); whether to count classes instead of guessed seconds is undecided.
+
 ### 🚝 Sol follow-ups: Earth's rail keeps clear of buildings, the Earth animals where they belong, a red Mars without ruins — #4014–#4018, PR #4019 (`81c3a4c8`) — ✅ released in v2026.11.30 (server + shared + worldgen + client + data + tools; **save version 21** (two new blocks shift the ids), terrain generation unchanged (49), protocol unchanged; 9 new texts in all 14 languages; ⚠ playtest open)
 
 - **Follow-up (main CI), PR #4020 (`58488b89`).** `EarthRailNetworkTests` cuts a section short by a restart, but on a fast runner the 4 ms tick

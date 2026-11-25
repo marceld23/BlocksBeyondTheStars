@@ -97,7 +97,11 @@ jobs:
         # chosen on 2026-10-09, 2 549 in August), against ~2–3 min of fixed checkout/restore/build per
         # shard. Ten shards on stale weights ran 9–17.5 min (one 1 636 test-s, another 2 670); re-packed,
         # twelve carry ~1 800 each (≈ 8 min of tests). Each extra shard buys less: past ~14 the fixed
-        # build dominates.
+        # build dominates. Re-packed on 2026-11-24: the fast tier had grown to ~27 900 test-s and 111
+        # test classes had no weight (4.4 % of the predicted load at the 10 s guess — under the drift
+        # budget, while the new Slow EarthRailClearanceTests alone costs 245 s); the slowest shard ran
+        # 18 min on the PR gate and 19 on main, the fastest 10–11. Twelve now carry ~2 380 each on the
+        # fast tier and ~2 700 on the full tier.
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - uses: actions/checkout@v5
