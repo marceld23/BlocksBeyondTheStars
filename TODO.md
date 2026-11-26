@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 School club reports of 2026-11-25: nobody turns to you over there, Soundis that travel, flat rugs in the wrecks, a third-person setting, flight from the water, the wheel over gaps, where flower seeds come from, bricks, a blue spacesuit, both Bens, the whole /tp list — #4024–#4034, branch fix/reports-2026-11-25 — ✅ done 2026-11-26, PR pending (server + shared + client + Client.Core + data + tools; **save version 22** (one new block, ids shift), protocol unchanged (one additive field `NetCompanion.TravellingPet`), terrain generation unchanged; 17 new texts and 1 changed in all 14 languages)
+### 📬 School club reports of 2026-11-25: nobody turns to you over there, Soundis that travel, flat rugs in the wrecks, a third-person setting, flight from the water, the wheel over gaps, where flower seeds come from, bricks, a blue spacesuit, both Bens, the whole /tp list, a chat filter that fails closed — #4024–#4034, #4036, branch fix/reports-2026-11-25 — ✅ done 2026-11-26, PR pending (server + shared + client + Client.Core + data + tools; **save version 22** (one new block, ids shift), protocol unchanged (one additive field `NetCompanion.TravellingPet`), terrain generation unchanged; 17 new texts and 1 changed in all 14 languages)
 
 Seven F1 reports of the school club and one question from Lyxette (v2026.11.30), plus six older club reports that had
 waited in the club PCs' local send queue since 11-04/11-11/11-18 (`FeedbackSpool`, one retry per world start) and arrived
@@ -73,6 +73,10 @@ together on 11-25. Decisions by Marcel 2026-11-25.
 - **#4033 Both Bens in the credits** — README and `ui.credits.body` (14 languages) read "Ben, Ben, Daimien, …" on purpose.
 - **#4034 The whole `/tp` list** — `/tp`, `/giantwreck`, `/landmark`, `/ressaw` and `/spstower` print every entry (the
   24-line cap and `srv.tp.list_more` are gone); the chat history keeps 500 lines (was 200). `AdminTeleportListTests`.
+- **#4036 The personal-data chat filter fails closed** (found in this PR's CI): its patterns have a 50 ms budget, and
+  a pattern that ran out of time on a busy machine let a phone number through unmasked. Now a timed-out personal-data
+  pattern counts the whole line as that data (masked in Filtered, blocked in Safe), and the compiled patterns are
+  warmed once at start. `ChatScreen.CollectPersonalData`, tests in `ChatScreenTests`.
 - **Open:** playtest — cross over near animals/villagers; win a Soundi and fly to another world; rugs in the battleship
   wreck; the three camera views (corridors, low ceilings, looking down); flying off the sea; the wheel over the inventory
   gaps; the brick tile on slabs/stairs and dyed.
