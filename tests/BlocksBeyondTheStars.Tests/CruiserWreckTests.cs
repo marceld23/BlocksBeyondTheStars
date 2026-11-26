@@ -222,13 +222,14 @@ public sealed class CruiserWreckTests : IDisposable
 
     /// <summary>The ship-mode decay of shipped ships, pinned (block keys, dyes, shapes, doors, arrival, bay) — the hashes the
     /// build BEFORE the fresh option and the bridge markers produced (#3902 measured all six shipped ships with three seeds
-    /// each against it): neither may ever move a wreck that has no bridge and is not fresh.</summary>
+    /// each against it): neither may ever move a wreck that has no bridge and is not fresh. The battleship and carrier pins
+    /// moved once on purpose with #4026 (their rugs, flower pots and stretcher took their place form).</summary>
     [Theory]
     [InlineData("sample_hulk", 1L, "35e530f0cc6d5545")]
     [InlineData("sample_hulk", 7L, "a4d10c239d058b69")]
     [InlineData("sample_hulk", 20261114L, "171370d6dbd80053")]
-    [InlineData("battleship", 1L, "55067bf487f27cf1")]
-    [InlineData("carrier", 7L, "d07730324d37d469")]
+    [InlineData("battleship", 1L, "4d7a594b59a541d0")]
+    [InlineData("carrier", 7L, "de67bb8eda3612ad")]
     public void WithoutTheFreshOption_AWreckComesOutAsItAlwaysDid(string key, long seed, string golden)
     {
         var t = _content.GetGiantShip(key)!;
