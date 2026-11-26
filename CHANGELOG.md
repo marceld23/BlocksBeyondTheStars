@@ -11,6 +11,87 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.31] — 2026-11-26
+
+The school-club release. The children of our school club played on Wednesday and sent us their reports — and nearly
+all of it is in: **on the other side nobody turns to look at you any more**, a **Soundi you win in a duel travels with
+you to every world**, the **rugs in the giant wrecks lie flat**, a **setting for the third-person view** (the new
+**High** view keeps your figure in the lower third of the screen), **flying off the water's surface** works again, and
+the **mouse wheel keeps scrolling** over the gaps of a list. Ben wished for **bricks** — here they are — and the avatar
+Jafar painted became the **Blue spacesuit**. And **Lyxette** asked where flower seeds come from: now their description
+says so.
+
+ℹ️ **Compatibility:** the new bricks shift the block list — the **save version rises from 21 to 22**: a world is
+converted the first time you open it (the game makes a backup first), and the previous version of the game can no
+longer open it afterwards. Everything in this release comes to **every world, old and new** — Soundis you won before
+come along too. The **terrain generation stays at 49** and the **network protocol at version 12**, but because the list
+of blocks changed, game and server must both be on 2026.11.31: an older game is asked to update when it joins.
+
+### 🌫️ The other side (#4024)
+
+- Over there nobody from our side notices you — and now you see that too: animals no longer turn their gaze to you,
+  villagers and Sounders no longer turn their heads, and a monster beside you no longer lunges and snaps (it never
+  could hurt you over there). The echoes and the Qualis that live on the other side still look at you.
+
+### 🎵 Soundis that travel with you (#4025)
+
+- A **Soundi you win in a duel travels with you to every world**: land somewhere else and it steps out beside you.
+  **Leave at home** in the Companions tab makes it stay on its home world again.
+- A travelling Soundi takes a companion place on every world — still six per world. If one of your worlds is already
+  full, a newly won Soundi stays where you won it and tells you so; release a pet and it comes along.
+- Soundis you won before this update come along too.
+
+### 🛸 Flat rugs in the giant wrecks (#4026)
+
+- The rugs in the battleship and the ark **lie flat on the floor** instead of standing there as blocks, the flower pots
+  are pots, and the carrier's stretcher has its proper form.
+- A giant wreck in space where you had already built or dug something may stay away for now; a wreck that already
+  stands on a planet keeps its old rugs.
+
+### 🎥 Your third-person view (#4027)
+
+- A new setting in **Settings → Accessibility → Movement & view**: **High** (the new standard — the camera looks down
+  at you from above and behind, so your figure stays in the lower third and you see what lies ahead), **Behind** (the
+  old view, close behind your head) and **Over the shoulder**.
+- In third person you now reach **as far in front of your figure as in first person** (8 blocks) — before, the
+  distance was counted from the camera behind you.
+
+### 🪽 Flying off the water (#4028)
+
+- **Double-tap Space while you swim at the surface** and you lift off — that had not worked since the new swimming.
+  Under water you still cannot start flying.
+- The hint line shows "Space×2 fly" at the surface, and above the atmosphere it shows how to go up and down.
+
+### 🖱️ Scrolling over the gaps (#4029)
+
+- In the inventory, crafting, tech, ship and map tabs, the suit list, trade and the arcade, the **mouse wheel keeps
+  scrolling** when the pointer is over a gap between entries.
+
+### 🧱 Bricks and a blue spacesuit (#4031, #4032)
+
+- Ben from our school club wished for stone that looks like bricks: **Bricks** are new — at the **workbench**, 4 stone
+  and 1 dirt make 4. You can cut them into every shape and dye them.
+- The avatar Jafar painted in the avatar editor and sent us is now the free skin template **Blue spacesuit**.
+
+### 🌼 Where flower seeds come from (#4030)
+
+- Lyxette asked, and now the **flower seed** description tells you: the **gatherers in the wilderness huts** trade them
+  for berries (4 for 4), and sometimes the travelling merchant has some.
+
+### 🔧 Under the hood
+
+- **For admins:** `/tp` on its own lists **every** target of the world, however long the list — no more "… N more";
+  the same for `/giantwreck`, `/landmark`, `/ressaw` and `/spstower`. The chat keeps the last 500 lines (was 200) (#4034).
+- **Chat safety:** the filter for personal data in the chat no longer lets a phone number or address slip through
+  when the server is busy — if its check cannot finish in time, the whole line is masked (or, in the safe chat
+  mode, not sent) (#4036).
+- A bug report now says whether you were on the other side (#4024).
+- The giant-ship scripts write the survey fleet's tag themselves, so regenerating a ship no longer loses it (#4026).
+- Both Bens of the school club are in the credits now (#4033).
+
+Thank you to the children of our **school club** for their reports and wishes, and to **Lyxette** for the question
+about the seeds — and thank you to everyone who sends us ideas and reports!
+
 ## [2026.11.30] — 2026-11-24
 
 The red-planet release. **Mars is red now**: its ground is **Red Sand** over **Red Rock**, and **nobody ever built
@@ -12033,7 +12114,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.30...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.31...HEAD
+[2026.11.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.30...v2026.11.31
 [2026.11.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.29...v2026.11.30
 [2026.11.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.28...v2026.11.29
 [2026.11.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.27...v2026.11.28
