@@ -58,6 +58,13 @@ public sealed partial class EditorTextFitTests
         // the planet map's legend slot (WorldMap.cs, 140 px slot − 36 for the icon, at 15).
         // #3902: an escort cruiser's wreck shows its ship text in the same box (GiantWreckText.DerelictDetail).
         Wrap("Travel screen: giant wreck detail (600 × 150 at 18)", 600f, 7, 18, "ui.map.giantwreck_detail", "giantship.escort_cruiser.desc"),
+        // #4039: the New-world form's mode box narrowed to the first three cards (MyWorldsLayout.ModeBoxW = 707, hints 150 high
+        // at 15: eight lines; the Sandbox hint shares them with the flight line) and "World options…" under the fourth card.
+        Wrap("New world: Hard Survival hint (707 × 150 at 15)", 707f, 8, 15, "ui.save.hard_hint"),
+        Wrap("New world: Sandbox hint (707 at 15, six lines + the flight line)", 707f, 6, 15, "ui.save.sandbox_hint"),
+        Wrap("New world: flight line under the Sandbox hint (707 at 15)", 707f, 2, 15, "ui.save.creative_flight") with { Sample = "Leertaste" },
+        FitLine("New world: flight line in the Creative box (683 px, 14 → 13)", 683f, 13, 14, "ui.save.creative_flight") with { Sample = "Leertaste" },
+        IconButton("New world: World options (229 × 46)", 229f, 46f, "ui.worldopt.open"),
         Label("Planet map legend: giant wreck (104 px at 15)", 104f, 15, "ui.map.kind_giant_wreck"),
         Label("Planet map legend: lost civilization (104 px at 15, #3642)", 104f, 15, "ui.map.kind_civilization"),
         Label("Planet map legend: guardian giant (104 px at 15, #3676)", 104f, 15, "ui.map.kind_guardian_giant"),

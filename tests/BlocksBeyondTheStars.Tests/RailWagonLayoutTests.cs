@@ -245,4 +245,51 @@ public sealed class RailWagonLayoutTests
             Assert.False(cab.ContainsKey((x, 2, RailWagonLayout.DoorZ1)), "the cab's door is blocked");
         }
     }
+
+    /// <summary>#4040 ("where the benches are there is no outer wall"): outside the door, no side-wall cell under the roof is
+    /// open — it is a cube, a window pane, or a shaped furnishing with a wall-skin pane on its outer face.</summary>
+    [Theory]
+    [InlineData("wagon_seats", false)]
+    [InlineData("wagon_sleeper", false)]
+    [InlineData("wagon_bar", false)]
+    [InlineData(RailRules.CabItemKey, true)]
+    public void TheSideWall_IsClosed_BehindEveryFurnishing(string item, bool cab)
+    {
+        var cells = RailWagonLayout.Cells(item, cab).ToDictionary(c => (c.X, c.Y, c.Z));
+        var skin = RailWagonLayout.WallSkin(item, cab).ToDictionary(c => (c.X, c.Y, c.Z));
+        foreach (int x in new[] { 0, RailWagonLayout.Width - 1 })
+        {
+            for (int z = 0; z < RailWagonLayout.Length; z++)
+            {
+                if (z == RailWagonLayout.DoorZ0 || z == RailWagonLayout.DoorZ1)
+                {
+                    continue;
+                }
+
+                for (int y = 1; y < RailWagonLayout.Height - 1; y++)
+                {
+                    Assert.True(cells.TryGetValue((x, y, z), out var cell), $"{item}: nothing in the wall at ({x}, {y}, {z})");
+                    bool closed = cell.Shape == 0 || cell.Block == RailWagonLayout.WindowBlock || skin.ContainsKey((x, y, z));
+                    Assert.True(closed, $"{item}: the wall at ({x}, {y}, {z}) is open behind {cell.Block}");
+                }
+            }
+        }
+
+        foreach (var pane in skin.Values)
+        {
+            Assert.Equal(RailWagonLayout.WallSkinBlock, pane.Block);
+            Assert.Equal(RailWagonLayout.SideWindow(pane.X), pane.Shape); // the panel form on the column's outer face
+            Assert.NotEqual(0, cells[(pane.X, pane.Y, pane.Z)].Shape);   // only behind a shaped furnishing
+        }
+    }
+
+    [Theory]
+    [InlineData("wagon_seats", 8)]                     // a pane behind each of the eight bench cells
+    [InlineData(RailWagonLayout.SleeperItemKey, 8)]    // behind each berth's two cells
+    [InlineData("wagon_bar", 4)]                       // behind the four bench cells; the counters are cubes
+    public void TheWallSkin_CoversEveryShapedFurnishingCell(string item, int panes)
+        => Assert.Equal(panes, RailWagonLayout.WallSkin(item, cab: false).Count);
+
+    [Fact]
+    public void TheCab_NeedsNoWallSkin() => Assert.Empty(RailWagonLayout.WallSkin(RailRules.CabItemKey, cab: true));
 }

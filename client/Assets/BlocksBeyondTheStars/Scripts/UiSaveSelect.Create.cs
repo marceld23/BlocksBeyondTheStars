@@ -24,8 +24,8 @@ namespace BlocksBeyondTheStars.Client
             private readonly Button[] _modeCards = new Button[4];
             private GameObject _creativePanel, _sandboxHint, _hardHint;
 
-            // Four cards share the row the three used to fill (#3765).
-            private const float ModeCardW = 229f, ModeCardH = 124f, ModeCardStep = 239f;
+            // Four cards share the row the three used to fill (#3765); the rows under them are MyWorldsLayout (#4039).
+            private const float ModeCardW = MyWorldsLayout.ModeCardW, ModeCardH = MyWorldsLayout.ModeCardH, ModeCardStep = MyWorldsLayout.ModeCardStep;
             private readonly WorldCreationOptions _worldOptions = new WorldCreationOptions();
             private GameObject _optionsOverlay;
             private Text _lanHint;
@@ -64,15 +64,18 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < _modeCards.Length; i++)
                 {
                     int mode = i;
-                    _modeCards[i] = AddModeCard(c, 32f + i * ModeCardStep, 176f, _shell.L(titles[i]), _shell.L(lines[i]), icons[i], () =>
-                    {
-                        _mode = mode;
-                        RefreshMode();
-                    });
+                    _modeCards[i] = AddModeCard(c, MyWorldsLayout.Margin + i * ModeCardStep, MyWorldsLayout.ModeCardsY, _shell.L(titles[i]),
+                        _shell.L(lines[i]), icons[i], () =>
+                        {
+                            _mode = mode;
+                            RefreshMode();
+                        });
                 }
 
                 BuildCreativeOptions(c);
-                UiKit.AddTierButton(c, 32f, 470f, 440f, 46f, _shell.L("ui.worldopt.open"), () =>
+                // #4039: beside the mode box under the fourth card — in a row of its own the hosting row's divider ran through it.
+                UiKit.AddTierButton(c, MyWorldsLayout.OptionsX, MyWorldsLayout.OptionsY, MyWorldsLayout.OptionsW, MyWorldsLayout.OptionsH,
+                    _shell.L("ui.worldopt.open"), () =>
                 {
                     _optionsOverlay ??= UiWorldOptions.Build(_shell, _root, _worldOptions);
                     _optionsOverlay.SetActive(true);
@@ -154,10 +157,12 @@ namespace BlocksBeyondTheStars.Client
                 _hardHint.SetActive(_mode == 3);
             }
 
-            // Creative sub-options (a checklist; shown only when Creative is selected) and the Sandbox hint.
+            // Creative sub-options (a checklist; shown only when Creative is selected) and the Sandbox hint — under the first
+            // three cards, "World options…" beside them (#4039).
             private void BuildCreativeOptions(Transform c)
             {
-                var cp = UiKit.AddPanel(c, 32f, 300f, 946f, 160f, new Color(0.05f, 0.10f, 0.16f, 0.55f));
+                const float x = MyWorldsLayout.Margin, y = MyWorldsLayout.ModeBoxY, w = MyWorldsLayout.ModeBoxW;
+                var cp = UiKit.AddPanel(c, x, y, w, MyWorldsLayout.ModeBoxH, new Color(0.05f, 0.10f, 0.16f, 0.55f));
                 _creativePanel = cp.gameObject;
                 AddToggle(cp.transform, 8f, _shell.L("ui.save.opt_blueprints"), _optBlueprints);
                 AddToggle(cp.transform, 50f, _shell.L("ui.save.opt_ships"), _optShips);
@@ -166,16 +171,18 @@ namespace BlocksBeyondTheStars.Client
                 // Flight is not a checkbox — it comes with both non-Explorer modes — but it has to be SAID, or it stays as
                 // invisible as the /fly command it replaces. #2502: "double-tap {key:Jump}" — the device in hand's jump key.
                 string flightHint = HudUi.ExpandKeyTokens(_shell.Localizer, _shell.L("ui.save.creative_flight"));
-                UiKit.AddText(cp.transform, 12f, 134f, 920f, 22f, flightHint, 14, UiKit.Cyan, TextAnchor.MiddleLeft);
+                var flight = UiKit.AddText(cp.transform, 12f, 134f, w - 24f, 22f, flightHint, 14, UiKit.Cyan, TextAnchor.MiddleLeft);
+                UiKit.FitLabelSingleLine(flight, w - 24f, 13, 14); // the narrower box (#4039): a long translation shrinks, not clips
 
                 // Sandbox: no checklist — everything is on by design; a short hint says what the mode does.
-                var sh = UiKit.AddText(c, 32f, 304f, 946f, 150f, _shell.L("ui.save.sandbox_hint") + "\n" + flightHint, 15,
+                const float hintY = y + MyWorldsLayout.HintInset;
+                var sh = UiKit.AddText(c, x, hintY, w, MyWorldsLayout.HintH, _shell.L("ui.save.sandbox_hint") + "\n" + flightHint, 15,
                     UiKit.CyanDim, TextAnchor.UpperLeft);
                 sh.horizontalOverflow = HorizontalWrapMode.Wrap;
                 _sandboxHint = sh.gameObject;
 
                 // Hard Survival (#3765): no checklist either — a few lines say what the mode sets and how a death works.
-                var hh = UiKit.AddText(c, 32f, 304f, 946f, 150f, _shell.L("ui.save.hard_hint"), 15,
+                var hh = UiKit.AddText(c, x, hintY, w, MyWorldsLayout.HintH, _shell.L("ui.save.hard_hint"), 15,
                     UiKit.CyanDim, TextAnchor.UpperLeft);
                 hh.horizontalOverflow = HorizontalWrapMode.Wrap;
                 _hardHint = hh.gameObject;

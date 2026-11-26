@@ -28,7 +28,9 @@ inside a block's cell (rule 1).
    shows no whole object and no seam per block; a tile used on a formed device keeps its pattern on the micro-cube raster
    (one eighth of a block = 8 texels) or has no motif — a picture of a whole object belongs only on a whole face.
 3. **Glass is milky/frosted, never clear** — base `(0.82, 0.91, 0.95)`, you can tell it's glass
-   (`BlockTextureAtlas.BaseColor`, project rule). The one deliberate exception is the rarer, blueprint-gated
+   (`BlockTextureAtlas.BaseColor`, project rule). Frosted, not opaque: the transparent shader draws a plain pane at alpha
+   0.58 with a light white frost (+0.10 × light), so shapes behind it show through (#4041; it was 0.72 / 0.16, which read
+   as nearly solid). The one deliberate exception is the rarer, blueprint-gated
    **`glass_clear`** (#1274) for cockpit canopies and observation domes: a faint look-through pane the
    transparent shader picks out by a `-1` in `TEXCOORD2.x`. Plain `glass` stays frosted.
 4. **Everything is code-built.** No scene authoring, no prefabs, no Shader Graph; hand-written

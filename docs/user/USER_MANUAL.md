@@ -35,7 +35,7 @@ Last updated: 2026-11-22.
   a world has one, a planet stands in) — then **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
   type a name, pick the mode (**Explorer**, **Creative**, **Sandbox** or **Hard Survival** — each card says what it
   means; for Hard Survival see *Death & respawn*), optionally open
-  **World options…**, then **Create & play** — or press the dice button **Random** for a surprise world, under the name
+  **World options…** (under the fourth mode card), then **Create & play** — or press the dice button **Random** for a surprise world, under the name
   you typed, or as `world_<number>` when the name box is empty, still says `new_world` or holds the name of a world you
   already have. The screen opens at once even with hundreds of saves; while the list is still being read, the left side
   shows a spinner and **Loading worlds…**, and *Create & play* and *Random* wait until it is there (they check your name

@@ -145,6 +145,34 @@ public static class RailWagonLayout
     /// <summary>#3657: the cab's windscreen — the panel form against the front row's outer (+Z) face (up-face −Z).</summary>
     public static readonly int Windscreen = ShapeCode.Pack(BlockShape.Panel, 0, 5);
 
+    /// <summary>#4040: the block of the wall skin (<see cref="WallSkin"/>) — the wall's own plate.</summary>
+    public const string WallSkinBlock = "metal_panel";
+
+    /// <summary>
+    /// #4040: the thin outer wall behind the furnishing. A wagon is one grid with one block per cell, and the furnishing stands
+    /// IN the side walls' cells (<see cref="Cells"/>). While the benches were full cubes that closed the wall; since they and
+    /// the berths are shaped forms (#3471) the outer face of every such cell was open — the seat wagon had no lower wall at
+    /// all, only benches and the door ("where the benches are there is no outer wall"). The skin is a second grid the client
+    /// meshes on its own on the same pose: a wall pane — the panel form against the column's outer face, like the side
+    /// windows (<see cref="SideWindow"/>) — for every wall cell outside the door that holds a shaped block other than a
+    /// window. Client looks only; the seats and the server are unchanged.
+    /// </summary>
+    public static IReadOnlyList<Cell> WallSkin(string? wagonItem, bool cab)
+    {
+        var skin = new List<Cell>();
+        foreach (var c in Cells(wagonItem, cab))
+        {
+            bool wallColumn = c.X == 0 || c.X == Width - 1;
+            bool underTheRoof = c.Y > 0 && c.Y < Height - 1;
+            if (wallColumn && underTheRoof && c.Shape != 0 && c.Block != WindowBlock)
+            {
+                skin.Add(new Cell(c.X, c.Y, c.Z, WallSkinBlock, SideWindow(c.X)));
+            }
+        }
+
+        return skin;
+    }
+
     /// <summary>The wagon's cells: floor, roof, side walls with the door opening and thin window panes (#3657), the cab's
     /// closed front, then the kind's furnishing (#3464) — which replaces the wall cells it stands in.</summary>
     public static IReadOnlyList<Cell> Cells(string? wagonItem, bool cab)

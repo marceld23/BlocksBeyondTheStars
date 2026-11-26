@@ -25,9 +25,10 @@ namespace BlocksBeyondTheStars.Client
         private const float RowPitch = 84f;
         private const float RowH = 76f;
 
-        // The right pane: the selected world or the creation form above, the hosting row and the footer below.
-        private const float PaneX = 820f, PaneW = 1010f;
-        private const float LanY = 520f, FooterY = 664f;
+        // The right pane: the selected world or the creation form above, the hosting row and the footer below — its rows are
+        // MyWorldsLayout (Client.Core), which the headless suite holds apart (#4039).
+        private const float PaneX = 820f, PaneW = MyWorldsLayout.PaneW;
+        private const float LanY = MyWorldsLayout.LanY, FooterY = MyWorldsLayout.FooterY;
 
         // The selected world: its "last played" picture on top (16:9, WorldPreviewFrame — a placeholder until it has one), the
         // facts beside it, the name, mode line and Play under it; Play ends 30 px above the hosting row's divider (LanY - 14).
