@@ -37,6 +37,7 @@ namespace BlocksBeyondTheStars.Client
             b.BuildNotice();
 #if UNITY_WEBGL && !UNITY_EDITOR
             b.BuildBrowserMenu();
+            b.BuildDesktopHint(); // #4043: the browser only — the desktop menu is unchanged
 #else
             b.BuildProfileChip();
             b.BuildNativeMenu();
@@ -156,6 +157,24 @@ namespace BlocksBeyondTheStars.Client
                 UiJoinInMark.Attach(contribute, SideW);
                 UiKit.AddTierButton(_root, ColX + 2f * (SideW + SideGap), y, SideW, h, _shell.L("ui.menu.website"), OpenWebsite, ButtonTier.Quiet, "btn_singleplayer");
                 UiKit.AddText(_root, CardX, y, CardW, h, "VER. " + AppShell.Version, 15, UiKit.CyanDim, TextAnchor.MiddleRight);
+            }
+
+            // --- #4043: the browser's hint that the desktop version looks even better. The browser offers only Potato and Low
+            // (#3946); Medium, High and High's details are desktop-only. A quiet card under the browser column's last button
+            // (Credits ends at y 736 in all three browser variants, the community row starts at 968), its right edge flush with
+            // the "New world" button; the link opens the website, where the downloads are. Compiled on every platform — the
+            // Windows player build checks it — but only the browser menu calls it. ---
+            private const float DesktopHintY = 764f, DesktopHintW = bw + 16f + 220f, DesktopHintH = 152f;
+
+            public void BuildDesktopHint()
+            {
+                const float w = DesktopHintW;
+                var card = UiKit.AddCard(_root, bx, DesktopHintY, w, DesktopHintH);
+                UiKit.AddIcon(card, 22f, 14f, 28f, "set_graphics"); // the graphics settings' monitor with a landscape
+                UiKit.AddKicker(card, 60f, 16f, w - 84f, _shell.L("ui.menu.desktop_hint_title"));
+                var body = UiKit.AddText(card, 24f, 48f, w - 48f, 60f, _shell.L("ui.menu.desktop_hint_body"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+                body.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddLinkButton(card, 24f, 108f, 400f, 36f, _shell.L("ui.menu.desktop_hint_link"), OpenWebsite);
             }
 
             // The game website follows the UI language (the German site is the root, English lives under /en).

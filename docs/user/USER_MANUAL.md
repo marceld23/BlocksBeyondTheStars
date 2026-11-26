@@ -671,7 +671,9 @@ separate unlock; admins can still disable it through server world rules.
 
 - **Potato · Low · Medium · High** — how much the graphics may cost. On the desktop client you can pick any of them at
   any time. **In the browser only Potato and Low are offered** (the row toggles between the two): a browser tab shares
-  a weak graphics chip with the page, and a higher preset saved earlier is lowered to Low when the game loads.
+  a weak graphics chip with the page, and a higher preset saved earlier is lowered to Low when the game loads. The
+  browser's main menu says so in a small card under its buttons (**Even prettier on desktop**), whose link opens the
+  game website with the desktop downloads.
 - **Automatic on a new install:** the game picks the preset itself until you choose one by hand. The desktop client
   starts on **Medium**, the browser and tablets on **Low**. Each start it watches how smoothly the menu runs and moves
   one step at most: down when even the menu struggles, up to **Medium** when there is room (in the browser never

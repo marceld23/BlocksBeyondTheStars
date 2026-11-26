@@ -65,6 +65,11 @@ public sealed partial class EditorTextFitTests
         Wrap("New world: flight line under the Sandbox hint (707 at 15)", 707f, 2, 15, "ui.save.creative_flight") with { Sample = "Leertaste" },
         FitLine("New world: flight line in the Creative box (683 px, 14 → 13)", 683f, 13, 14, "ui.save.creative_flight") with { Sample = "Leertaste" },
         IconButton("New world: World options (229 × 46)", 229f, 46f, "ui.worldopt.open"),
+        // #4043: the browser menu's desktop hint (UiMainMenu.BuildDesktopHint, a 676-wide card): the kicker (upper case) in
+        // 592 px, the line in 628 × 60 at 15 (three lines), the link in 400 px at 18.
+        FitLine("Browser menu: desktop hint kicker (upper case, 592 px)", 592f * FaceKickerShare, 13, 16, "ui.menu.desktop_hint_title"),
+        Wrap("Browser menu: desktop hint line (628 × 60 at 15)", 628f, 3, 15, "ui.menu.desktop_hint_body"),
+        FitLine("Browser menu: desktop hint link (400 px, 18 → 13)", 400f, 13, 18, "ui.menu.desktop_hint_link"),
         Label("Planet map legend: giant wreck (104 px at 15)", 104f, 15, "ui.map.kind_giant_wreck"),
         Label("Planet map legend: lost civilization (104 px at 15, #3642)", 104f, 15, "ui.map.kind_civilization"),
         Label("Planet map legend: guardian giant (104 px at 15, #3676)", 104f, 15, "ui.map.kind_guardian_giant"),
