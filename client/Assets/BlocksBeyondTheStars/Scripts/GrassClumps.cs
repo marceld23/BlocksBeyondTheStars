@@ -96,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // A preset without clumps (Low, Potato, the browser): the carpet tops are the High carpet's, kept nowhere here.
                 _origin = origin;
-                enabled = false;
+                HasData = false;
                 return;
             }
 
@@ -123,8 +123,16 @@ namespace BlocksBeyondTheStars.Client
 
             _origin = origin;
             _dirty = true;
-            enabled = GameLook.GrassClumps && (_tops.Count > 0 || _scrub.Count > 0);
+            HasData = GameLook.GrassClumps && (_tops.Count > 0 || _scrub.Count > 0);
         }
+
+        /// <summary>True while the chunk holds something for this drawer; the detail pass (GameBootstrap.Detail.cs) skips
+        /// the chunk otherwise.</summary>
+        public bool HasData { get; private set; }
+
+        /// <summary>The once-a-frame step (camera, range) and how far the clumps reach this frame — 0 without a camera,
+        /// without an atlas or on a preset without them.</summary>
+        public static float FrameReach() => TickFrame() && _atlas != null ? _range : 0f;
 
         private void Awake()
         {
@@ -135,7 +143,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void Update()
+        /// <summary>Submits this chunk's clumps for the current frame. Called by the detail pass for chunks inside the
+        /// reach (#4046) — no <c>Update()</c> of its own.</summary>
+        public void Draw()
         {
             // A chunk the visibility walk or the distance cull hides (or one drawn for its shadow only) shows no grass.
             if (!TickFrame() || _range <= 0f || _atlas == null || _chunkRenderer == null || !_chunkRenderer.enabled

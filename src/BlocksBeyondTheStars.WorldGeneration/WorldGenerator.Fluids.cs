@@ -261,6 +261,13 @@ public sealed partial class WorldGenerator
             return fast.Value;
         }
 
+        return RiverFieldForMiss(planet, key);
+    }
+
+    /// <summary>#4052: the miss path of <see cref="RiverFieldFor"/>, a method of its own so the object that holds the
+    /// lambdas' captured <c>planet</c> is built on a miss only (see <see cref="CalibForMiss"/>) — this is asked per column.</summary>
+    private RiverField RiverFieldForMiss(PlanetType planet, (long, string, int, bool, long, bool, bool, int) key)
+    {
         var field = _riverFields.TryGet(key, out var hit) ? hit : _riverFields.GetOrBuild(key, () => NaturalOnly(() => BuildRiverField(planet))); // #3556: routed over the natural stage
         _riverSlot = new WorldSlot<RiverField>(key, field);
         return field;

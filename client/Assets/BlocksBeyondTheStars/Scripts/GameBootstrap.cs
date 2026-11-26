@@ -559,6 +559,7 @@ namespace BlocksBeyondTheStars.Client
             TickConnect();
 
             TickChunkStreaming();
+            DrawChunkDetail(); // #4046: tufts, meadow, clumps, plant bodies and crown clusters of the chunks in reach
         }
 
         /// <summary>Update's connect step until the join is sent: send the join once the transport is connected,
@@ -737,6 +738,7 @@ namespace BlocksBeyondTheStars.Client
             _colliderAppliedGen.Clear();
             _meshGen.Clear();
             _meshFailCounts.Clear();
+            _arrivedAt.Clear(); // #4044
             foreach (var parked in _syncCooks.Values) // #1819: browser cooks of the old world
             {
                 if (parked.Collider != null)

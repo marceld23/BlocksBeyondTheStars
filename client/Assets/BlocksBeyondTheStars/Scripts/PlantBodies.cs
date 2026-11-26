@@ -149,15 +149,25 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _dirty = true;
-            enabled = GameLook.PlantBodies && _cells.Count > 0;
+            HasData = GameLook.PlantBodies && _cells.Count > 0;
         }
+
+        /// <summary>True while the chunk holds something for this drawer; the detail pass (GameBootstrap.Detail.cs) skips
+        /// the chunk otherwise.</summary>
+        public bool HasData { get; private set; }
+
+        /// <summary>The once-a-frame step (camera, the range the last frame's count steers) and how far the bodies reach
+        /// this frame — 0 without a camera, before the world and the atlas are there, or on a preset without them.</summary>
+        public static float FrameReach() => TickFrame() ? _range : 0f;
 
         private void Awake()
         {
             _chunkRenderer = GetComponent<MeshRenderer>();
         }
 
-        private void Update()
+        /// <summary>Submits this chunk's bodies for the current frame. Called by the detail pass for chunks inside the
+        /// reach (#4046) — no <c>Update()</c> of its own.</summary>
+        public void Draw()
         {
             if (!TickFrame() || _range <= 0f || _atlas == null || _content == null || _chunkRenderer == null || !_chunkRenderer.enabled)
             {

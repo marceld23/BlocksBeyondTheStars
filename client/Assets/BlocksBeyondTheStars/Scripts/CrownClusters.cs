@@ -88,8 +88,16 @@ namespace BlocksBeyondTheStars.Client
 
             _origin = origin;
             _dirty = true;
-            enabled = GameLook.StagedCrowns && _cells.Count > 0;
+            HasData = GameLook.StagedCrowns && _cells.Count > 0;
         }
+
+        /// <summary>True while the chunk holds something for this drawer; the detail pass (GameBootstrap.Detail.cs) skips
+        /// the chunk otherwise.</summary>
+        public bool HasData { get; private set; }
+
+        /// <summary>The once-a-frame step (camera, the range the last frame's count steers) and how far the near crowns
+        /// reach this frame — 0 without a camera or on a preset without them.</summary>
+        public static float FrameReach() => TickFrame() ? _range : 0f;
 
         /// <summary>The off-screen preview (edit mode: no Awake, no Update): submits this chunk's clusters once, as a
         /// frame of the game would.</summary>
@@ -100,7 +108,7 @@ namespace BlocksBeyondTheStars.Client
                 Awake();
             }
 
-            Update();
+            Draw();
         }
 
         private void Awake()
@@ -112,7 +120,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void Update()
+        /// <summary>Submits this chunk's clusters for the current frame. Called by the detail pass for chunks inside the
+        /// reach (#4046) — no <c>Update()</c> of its own, which ran on every loaded chunk every frame.</summary>
+        public void Draw()
         {
             if (!TickFrame() || _range <= 0f || _chunkRenderer == null || !_chunkRenderer.enabled)
             {

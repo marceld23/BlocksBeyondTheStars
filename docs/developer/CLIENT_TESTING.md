@@ -148,6 +148,47 @@ before that fix every probe run measured the prologue's camera flight), idles, w
 code 0 — 1 when the world does not start. A change to the rig wiring is checked with a PerfProbe run before and after:
 both exit 0, `Player.log` shows no exception, and the numbers stay comparable.
 
+What a run reports (#4044), besides the frame times, the GPU time and the main and render thread per phase:
+
+- **Fill** — the time from entering the world until the streamed view has settled (the world is ready, no chunk waits
+  for a build, none is in flight, none arrived for 1.5 s), the largest mesh backlog on the way, and the time until the
+  far view has every patch.
+- **Chunk work per phase** — the mesher's build time per chunk on its thread (median, p90, the longest, and how many
+  cores that kept busy), the main thread's chunk pass per frame with its two parts (the copy a dispatch makes, the
+  uploads), the detail pass (tufts, meadow, clumps, plant bodies, crown clusters), the receive path (a chunk payload's
+  decode and its handler) and the largest backlog. The pipeline feeds these counters on every platform
+  (`Client.Core/ChunkWorkStats.cs`); they cost a stopwatch read per chunk.
+- **The screen** — resolution, refresh rate, render scale, MSAA and the rendering threading mode, without which a GPU
+  time says little. The reference laptop renders 3840 × 2400; a 1080p display has less than a quarter of those pixels.
+
+The idle phase stands where the player spawns — aboard the starter ship, so it measures a cabin — and the walk phase
+hovers 30 m up while fresh chunks stream in, so its GPU time swings from run to run. `-perfOutdoor <seconds>` adds a
+third phase that stands the player on open ground near the spawn (`PerfProbe.Outdoor.cs` looks for the nearest column of
+land with free air around it): the still outdoor picture to compare. Its log line names the spot — check it before a
+series depends on it.
+
+`-perfFeature "a=off,b=…"` switches single cost-bearing parts off for one run, so a sweep at a fixed preset and view
+distance itemises a preset's cost; the tokens are listed in `PerfProbe.Features.cs`. Two of them compare a rule of the
+chunk pipeline with the one before it in the same build (`meshbudget=frame`, `loadbudget=off`). Graphics Jobs are a
+setting of the built player, not a switch: `BBS_GRAPHICS_JOBS=1` before `scripts/build-client.ps1` builds a player with
+them for such a comparison (never set by the release scripts; the player's log names the mode it runs in).
+
+For the split of a thread's time, build a Development player (`BBS_DEV_BUILD=1` before `scripts/build-client.ps1`; never
+set by the release scripts) and add `-perfProfile <file>`: the probe writes a Unity Profiler capture of its idle and
+walk phases. Two editor tools read it headless — `ProfilerTimeReport.Run` (#4044: every profiler sample by name, self
+and total time in ms per frame, for the main and the render thread, per phase) and `ProfilerCaptureReport.Run` (#1537:
+managed allocations by scope and call stack):
+
+```powershell
+$env:BBS_PROFILE_RAW = "<file>.raw"; $env:BBS_PROFILE_OUT = "<report>.txt"; $env:BBS_PROFILE_PHASES = "idle:10,gap:2.5,walk:15"
+Unity.exe -batchmode -nographics -projectPath client -executeMethod BlocksBeyondTheStars.Client.EditorTools.ProfilerTimeReport.Run -quit
+```
+
+The Editor keeps only the last 2000 frames of a capture, so keep the phases short (`-perfIdle 10 -perfWalk 15`); the
+phases are laid out from the capture's end backwards for the same reason. A Development player is slower than a release
+player — use it for the split, and a release player for the numbers. Measure on a quiet machine: a Unity build or a
+test run next to the probe distorts every number, and the probe gives up when the bundled server starts too slowly.
+
 ## Running the tests
 
 Use the selectable runner `scripts/run-tests.ps1`. The default runs **only the fast .NET suites**; the Unity

@@ -107,12 +107,13 @@ public sealed class MeadowWiringTests
     [Fact]
     public void ChunkUploads_BuildTheGroundDetail_AndTheWorldSetsTheFlowerColours()
     {
-        Assert.Contains("ApplyGroundDetail(view.Go, coord, data);", Script("GameBootstrap.ChunkStreaming.cs"));
+        Assert.Contains("ApplyGroundDetail(view, coord, data);", Script("GameBootstrap.ChunkStreaming.cs"));
         string meadow = Script("GameBootstrap.Meadow.cs");
-        Assert.Contains("shells.Setup(data.GrassTops,", meadow);
+        Assert.Contains("view.Shells.Setup(data.GrassTops,", meadow);
         Assert.Contains("HighDetails.DesktopClass", meadow); // the browser never gets a meadow component
         Assert.Contains("FloraTints.For(_worldSeed, LocationName, keys[i], _floraPlanet, _floraHarmony)", meadow); // #3423: the type's palette
         Assert.Contains("ApplyMeadowPalette();", Script("GameBootstrap.Environment.cs"));
-        Assert.Contains("HighDetails.Changed += OnHighDetailsChanged;", Script("GrassShells.cs"));
+        // #4046: the meadow reads the player's switches every frame (FrameReach), so a preset flip needs no event.
+        Assert.Contains("=> Wanted && TickFrame() ?", Script("GrassShells.cs"));
     }
 }

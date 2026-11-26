@@ -79,13 +79,20 @@ namespace BlocksBeyondTheStars.Client
         private Color _floraWash;
         private float _floraWeight;
 
-        // Background sampling (desktop): one builder at a time goes to the worker, finished ones come back.
-        private Thread _worker;
+        // Background sampling (desktop, #4048): every worker thread owns a source (a generator is not thread-safe) and
+        // samples one builder at a time; a finished builder comes back through the worker's slot. One worker on a small
+        // machine, up to three on a large one (FarPatchWorkers) — a 2048-block view is close to 300 patches.
+        private Thread[] _workers = System.Array.Empty<Thread>();
+        private FarTerrainSource[] _workerSources = System.Array.Empty<FarTerrainSource>();
+        private FarPatchBuilder[] _workerJob = System.Array.Empty<FarPatchBuilder>();
+        private FarPatchBuilder[] _workerDone = System.Array.Empty<FarPatchBuilder>();
+        private readonly HashSet<FarPatchKey> _inFlight = new HashSet<FarPatchKey>(); // patches a worker holds (main thread)
         private readonly object _lock = new object();
-        private FarPatchBuilder _workerJob;
-        private FarPatchBuilder _workerDone;
         private bool _stopping;
         private FarPatchBuilder _inlineJob; // browser: sampled here, a row at a time
+
+        /// <summary>#4048: the threads that sample far patches (0 in the browser, which samples inline).</summary>
+        public int WorkerCount => _workers.Length;
 
         private readonly System.Diagnostics.Stopwatch _budget = new System.Diagnostics.Stopwatch();
 
@@ -94,6 +101,26 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Patches currently built (diagnostics).</summary>
         public int PatchCount => _patches.Count;
+
+        /// <summary>#4044: wanted patches that are still missing or wait for a rebuild (diagnostics; 0 with the far view off).</summary>
+        public int PendingPatchCount()
+        {
+            if (ActiveRange == 0 || _desired == null)
+            {
+                return 0;
+            }
+
+            int pending = 0;
+            foreach (var key in _desired)
+            {
+                if (!_patches.TryGetValue(key, out var patch) || patch.Dirty)
+                {
+                    pending++;
+                }
+            }
+
+            return pending;
+        }
 
         /// <summary>#3277: this world's generator for MAIN-THREAD queries (the one the column mask uses; never the worker's) —
         /// the volcano crater smoke asks it where the craters are. Null before the world's info arrived and on a void world.
@@ -126,8 +153,17 @@ namespace BlocksBeyondTheStars.Client
 
             if (!Inline)
             {
-                _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "far-terrain", Priority = System.Threading.ThreadPriority.BelowNormal };
-                _worker.Start();
+                int count = FarPatchWorkers.For(System.Environment.ProcessorCount, SystemInfo.systemMemorySize);
+                _workerSources = new FarTerrainSource[count];
+                _workerJob = new FarPatchBuilder[count];
+                _workerDone = new FarPatchBuilder[count];
+                _workers = new Thread[count];
+                for (int i = 0; i < count; i++)
+                {
+                    int slot = i;
+                    _workers[i] = new Thread(() => WorkerLoop(slot)) { IsBackground = true, Name = "far-terrain-" + i, Priority = System.Threading.ThreadPriority.BelowNormal };
+                    _workers[i].Start();
+                }
             }
 
             // #3059: switching the preset into or out of High turns "Maximum" (2048) on or back to 1024 at once.
@@ -146,10 +182,12 @@ namespace BlocksBeyondTheStars.Client
             _inlineJob = null;
             lock (_lock)
             {
-                _workerJob = null;
-                _workerDone = null;
+                System.Array.Clear(_workerJob, 0, _workerJob.Length);
+                System.Array.Clear(_workerDone, 0, _workerDone.Length);
             }
 
+            _inFlight.Clear();
+            System.Array.Clear(_workerSources, 0, _workerSources.Length);
             ClearPatches();
             _overlay.Reset(WorldConstants.Circumference);
             _plannedRange = -1;
@@ -203,6 +241,11 @@ namespace BlocksBeyondTheStars.Client
 
                 _source = FarTerrainSource.Create(Game.Content, Game.WorldSeed, _info);
                 _maskSource = FarTerrainSource.Create(Game.Content, Game.WorldSeed, _info);
+                for (int i = 0; i < _workerSources.Length; i++)
+                {
+                    // #4048: the first worker samples _source, every further one a source of its own.
+                    _workerSources[i] = i == 0 || _source == null ? _source : FarTerrainSource.Create(Game.Content, Game.WorldSeed, _info);
+                }
                 _blockColors.Clear();
                 PrepareFloraWash();
             }
@@ -410,8 +453,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 // The column counts as covered when this chunk holds its visible surface (terrain or sea top)…
-                var s = src.Sample(Mathf.FloorToInt(sceneX) + 8, Mathf.FloorToInt(sceneZ) + 8, detail: false);
-                int surface = s.Top - 1;
+                int surface = ColumnSurface(src, Mathf.FloorToInt(sceneX) + 8, Mathf.FloorToInt(sceneZ) + 8);
                 bool holdsSurface = surface >= y && surface < y + WorldConstants.ChunkSize;
 
                 // …or when it is one of the columns right around the player (#1991). That surface comes from the
@@ -436,32 +478,43 @@ namespace BlocksBeyondTheStars.Client
         private int _maskOriginCx = int.MinValue;
         private int _maskOriginCz = int.MinValue;
 
+        // #4052: the mask is rebuilt four times a second from every drawn chunk, and each asked the generator for its
+        // column's surface again — about 1200 samples per rebuild at view distance 8, on the main thread (the browser's
+        // only one). The surface of a column never changes within a world, so it is asked once and remembered.
+        private const int MaxColumnSurfaces = 16384;
+        private readonly Dictionary<long, int> _columnSurface = new Dictionary<long, int>();
+        private FarTerrainSource _columnSurfaceSource;
+
+        /// <summary>The Y of the surface block of the column at a scene position (the terrain's or the sea's top), as
+        /// <paramref name="src"/> samples it; remembered per column until the world's source changes.</summary>
+        private int ColumnSurface(FarTerrainSource src, int x, int z)
+        {
+            if (!ReferenceEquals(src, _columnSurfaceSource) || _columnSurface.Count >= MaxColumnSurfaces)
+            {
+                _columnSurface.Clear();
+                _columnSurfaceSource = src;
+            }
+
+            long key = ((long)x << 32) | (uint)z;
+            if (!_columnSurface.TryGetValue(key, out int surface))
+            {
+                surface = src.Sample(x, z, detail: false).Top - 1;
+                _columnSurface[key] = surface;
+            }
+
+            return surface;
+        }
+
         private void Build(Vector3 p)
         {
-            // Collect a finished background build.
-            FarPatchBuilder done = null;
-            lock (_lock)
-            {
-                if (_workerDone != null)
-                {
-                    done = _workerDone;
-                    _workerDone = null;
-                }
-            }
-
-            if (done != null)
-            {
-                Finish(done);
-            }
-
+            _budget.Restart();
             if (Inline)
             {
-                _budget.Restart();
                 while (_budget.Elapsed.TotalMilliseconds < BudgetMs)
                 {
                     if (_inlineJob == null)
                     {
-                        _inlineJob = NextBuilder();
+                        _inlineJob = NextBuilder(_source);
                         if (_inlineJob == null)
                         {
                             break;
@@ -480,51 +533,95 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            lock (_lock)
+            CollectWorkerBuilds();
+            for (int slot = 0; slot < _workerJob.Length; slot++)
             {
-                if (_workerJob == null && _workerDone == null)
+                lock (_lock)
                 {
-                    _workerJob = NextBuilder();
-                    if (_workerJob != null)
+                    if (_workerJob[slot] != null || _workerDone[slot] != null)
                     {
-                        Monitor.Pulse(_lock);
+                        continue; // sampling, or its result waits for a frame with budget left
                     }
+                }
+
+                var next = NextBuilder(_workerSources[slot]);
+                if (next == null)
+                {
+                    break; // nothing left to build
+                }
+
+                _inFlight.Add(next.Key);
+                lock (_lock)
+                {
+                    _workerJob[slot] = next;
+                    Monitor.PulseAll(_lock);
                 }
             }
         }
 
-        /// <summary>The nearest desired patch that is missing or dirty.</summary>
-        private FarPatchBuilder NextBuilder()
+        /// <summary>Takes the workers' finished builders and turns them into meshes — the first always, further ones while
+        /// the frame budget lasts; the rest wait in their slots for the next frame.</summary>
+        private void CollectWorkerBuilds()
         {
-            if (_source == null)
+            bool first = true;
+            for (int slot = 0; slot < _workerDone.Length; slot++)
+            {
+                FarPatchBuilder done;
+                lock (_lock)
+                {
+                    done = _workerDone[slot];
+                    if (done == null || (!first && _budget.Elapsed.TotalMilliseconds >= BudgetMs))
+                    {
+                        continue;
+                    }
+
+                    _workerDone[slot] = null;
+                }
+
+                first = false;
+                _inFlight.Remove(done.Key);
+                Finish(done);
+            }
+        }
+
+        /// <summary>The nearest desired patch that is missing or dirty and that no worker holds, to be sampled from
+        /// <paramref name="source"/>.</summary>
+        private FarPatchBuilder NextBuilder(FarTerrainSource source)
+        {
+            if (source == null)
             {
                 return null;
             }
 
             foreach (var key in _desired)
             {
+                if (_inFlight.Contains(key))
+                {
+                    continue;
+                }
+
                 if (!_patches.TryGetValue(key, out var patch) || patch.Dirty)
                 {
-                    if (patch == null && _patches.Count >= MaxPatches)
+                    if (patch == null && _patches.Count + _inFlight.Count >= MaxPatches)
                     {
                         return null;
                     }
 
-                    return new FarPatchBuilder(key, ActiveRange, _source, _epoch);
+                    return new FarPatchBuilder(key, ActiveRange, source, _epoch);
                 }
             }
 
             return null;
         }
 
-        private void WorkerLoop()
+        private void WorkerLoop(int slot)
         {
             while (true)
             {
                 FarPatchBuilder job;
                 lock (_lock)
                 {
-                    while (!_stopping && _workerJob == null)
+                    while (!_stopping && _workerJob[slot] == null)
                     {
                         Monitor.Wait(_lock);
                     }
@@ -534,7 +631,7 @@ namespace BlocksBeyondTheStars.Client
                         return;
                     }
 
-                    job = _workerJob;
+                    job = _workerJob[slot];
                 }
 
                 try
@@ -551,10 +648,10 @@ namespace BlocksBeyondTheStars.Client
 
                 lock (_lock)
                 {
-                    if (_workerJob == job)
+                    if (_workerJob[slot] == job)
                     {
-                        _workerJob = null;
-                        _workerDone = job;
+                        _workerJob[slot] = null;
+                        _workerDone[slot] = job;
                     }
                 }
             }

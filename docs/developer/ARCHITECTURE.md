@@ -196,7 +196,7 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   messages, menus, plus the chunk pipeline). `Start` subscribes through the `Wire*()` methods
   (`WireSession` and `WireContent` in the core file, `WireChunkStreaming`, `WirePlayerState`, … in
   the concern files) in a fixed order before it connects; `Update` polls the network, advances the
-  clocks and ends with `TickSkyScan`, `TickConnect` and `TickChunkStreaming`, in that order. It also
+  clocks and ends with `TickSkyScan`, `TickConnect`, `TickChunkStreaming` and `DrawChunkDetail`, in that order. It also
   holds the rig's two registries, `Context` (`ClientContext`, the modal panels) and `Views`
   (`RigViews`, the other views). The story state is the Unity-free `StoryClientState` in Client.Core
   (#2933: the story progress, the Story Log, the Journal's stories, objectives and badge, the VEGA
@@ -224,6 +224,43 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   `BlockTextureAtlas.CodeTiles.cs`; how the slots are shared out between block ids, extra tiles,
   animation strips and derived tiles is `AtlasBands` in `Client.Core`); `ClientWorld` (`Client.Core`)
   caches received chunks read-only.
+- **Threads** — the desktop client keeps the heavy chunk work off the main thread; the browser build has
+  no C# threads, so every item below has an inline path with a millisecond budget per frame there
+  (`GameBootstrap.ChunkPipeline.cs`, #1819), chosen at run time, not by `#if`.
+  - *Chunk geometry*: the mesher builds on the thread pool. How many builds are **in flight** follows the
+    machine's logical processors (`ChunkBuildBudget` in Client.Core, #4045: four to eight) — not a count per
+    frame, which tied the throughput to the frame rate. The main thread only copies the chunk and its
+    neighbourhood for a dispatch and uploads the finished mesh, both within a time budget per frame; the
+    upload budget grows with the frame time (3 ms at 60 fps, 5 ms at 30 fps, at most 8 ms). Behind the
+    loading veil (`WorldReady` false) nobody sees a frame, so more builds are in flight (up to twelve) and
+    the budgets are wide (10 ms of uploads) — the veil lifts when the view around the player is meshed.
+  - *Collider cooks* (`Physics.BakeMesh`) run on the thread pool, and only for chunks within collider range.
+  - *Far terrain*: one to three sampling threads by the machine (`FarPatchWorkers`, #4048), each with a
+    generator of its own; the mesh of a sampled patch is built on the main thread within a frame budget.
+  - *Planet map bakes* and the hull silhouettes of other ships run as tasks.
+  - *The detail pass* (`GameBootstrap.Detail.cs`, #4046) is main-thread work by nature — it hands instanced
+    draws to the engine — so it is kept small instead: one walk per frame over the chunks that carry tufts,
+    meadow, grass clumps, plant bodies or crown clusters, and only chunks inside a drawer's reach call it.
+    None of the five drawers has an `Update()` of its own. What is left is the hand-over itself (about
+    2.6 ms per frame on High with 130 chunks in reach): every instanced call copies its matrices and
+    per-instance values to the engine. Skipping chunks outside the camera's view was measured and dropped —
+    4 % — because crowns and plants beside the player still cast into the view.
+  - *The far view's column mask* is rebuilt four times a second on the main thread (the browser's only one);
+    it remembers each column's sampled surface instead of asking the generator again (#4052).
+  - The singleplayer server is a process of its own with two to four chunk-generation threads
+    (`BundledServerWorkers`, #3581).
+
+  Where the time goes is measured, not assumed: PerfProbe reports the build time per chunk, the main
+  thread's chunk and detail pass, the receive path and the fill time ([CLIENT_TESTING.md](CLIENT_TESTING.md)).
+  One thing was measured and left alone (#4047): decoding and storing a chunk payload costs the main
+  thread about 0.2 ms per frame while a view streams in, of which the envelope's decode is a tenth — not
+  worth a second thread on the receive path and its ordering rule (a block edit must not overtake the
+  chunk it patches). And one rule for code that runs per column or per chunk: a lookup with a cached hit
+  path must not capture its parameters in a lambda in the same method — the compiler builds the object
+  that holds a captured parameter at the method's start, so the hit path allocates too. The world
+  generator's calibration lookup did (28 000 allocations a second on the client's main thread, #4052);
+  its miss path is a method of its own now, and `FarTerrainAllocationTests` pins "a warm sample allocates
+  nothing".
 - **UI** — **uGUI / Canvas-based** (a procedural sci-fi toolkit in `UiKit.cs`, not raw IMGUI):
   `HudUi`, `UiMainMenu`, `UiSettings`, `UiSaveSelect`, `UiLoading`, the in-game editors,
   `CraftingTechShipUI`, `ChatUi`, `ScreenLabelLayer` (nameplates). The big screens are partial

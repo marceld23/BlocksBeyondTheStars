@@ -210,7 +210,7 @@ namespace BlocksBeyondTheStars.Client
         /// a far look).</summary>
         private bool DriveFocusBlur()
         {
-            if (!GameLook.FocusBlur || ReducedEffects)
+            if (!GameLook.FocusBlur || ReducedEffects || LookProbe.FocusBlurOff)
             {
                 return false;
             }

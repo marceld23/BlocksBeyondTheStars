@@ -30,9 +30,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#1819: upper bound on chunk builds dispatched in one frame when a time budget decides (browser).</summary>
         private const int InlineBuildCap = 12;
 
-        /// <summary>#1819: desktop uploads at most this many finished builds per frame (the rest wait a frame).</summary>
-        public int MaxChunkUploadsPerFrame = 8;
-
         private readonly System.Diagnostics.Stopwatch _frameWork = new System.Diagnostics.Stopwatch();
 
         /// <summary>#1819: browser cooks waiting for their frame budget, by chunk (value = the bake generation).</summary>
@@ -95,12 +92,41 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>#1819: whether dispatching another build this frame fits the budget.</summary>
-        private bool BuildBudgetLeft(int built, int countBudget)
+        /// <summary>#4045: PerfProbe's switch back to the rule before it (four dispatches and eight uploads a frame, whatever
+        /// the machine), so the two rules can be compared in one build (<c>-perfFeature meshbudget=frame</c>).</summary>
+        public static bool LegacyMeshBudget;
+
+        /// <summary>#4045: PerfProbe's switch (<c>-perfFeature loadbudget=off</c>): the loading veil gets the budgets of play.</summary>
+        public static bool LoadingBudgetOff;
+
+        /// <summary>#4045: true while the loading veil hides the world (<see cref="WorldReady"/> is false): nobody sees a
+        /// frame then, so the chunk pipeline takes the wide budgets and the veil lifts sooner.</summary>
+        private bool ChunkLoadingBudget => !WorldReady && !LoadingBudgetOff;
+
+        /// <summary>#4045: whether uploading another finished build this frame fits the frame's upload budget.</summary>
+        private bool UploadBudgetLeft(int uploads, double budgetMs)
+        {
+            if (InlineChunkWork)
+            {
+                return true; // the browser built these inline, within its own budget (#1819)
+            }
+
+            return LegacyMeshBudget
+                ? uploads < ChunkBuildBudget.LegacyUploadsPerFrame
+                : ChunkBuildBudget.MayUpload(uploads, _frameWork.Elapsed.TotalMilliseconds, budgetMs);
+        }
+
+        /// <summary>#1819/#4045: whether dispatching another build this frame fits the budget.</summary>
+        private bool BuildBudgetLeft(int built)
         {
             if (!InlineChunkWork)
             {
-                return built < countBudget;
+                // Worker threads: the builds in flight are capped by the machine's cores, the main thread's copies by time.
+                bool loading = ChunkLoadingBudget;
+                return LegacyMeshBudget
+                    ? built < ChunkBuildBudget.LegacyDispatchesPerFrame
+                    : ChunkBuildBudget.MayDispatch(BuildsInFlight, loading ? BuildsInFlightLoadingLimit : BuildsInFlightLimit, built,
+                        _frameWork.Elapsed.TotalMilliseconds, ChunkBuildBudget.DispatchBudgetMs(loading));
             }
 
             return built == 0 || (built < InlineBuildCap && _frameWork.Elapsed.TotalMilliseconds < InlineBuildBudgetMs);

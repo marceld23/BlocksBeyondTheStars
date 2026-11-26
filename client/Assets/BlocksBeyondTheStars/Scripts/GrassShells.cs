@@ -31,7 +31,6 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int ShellTileId = Shader.PropertyToID("_ShellTile");
         private static readonly int ShellInfoId = Shader.PropertyToID("_ShellInfo");
         private static readonly int ShellLightId = Shader.PropertyToID("_ShellLight");
-        private static bool _subscribed;
         private static BlockTextureAtlas _atlas;
         private static int _atlasVersion;
         private static Camera _cam;
@@ -90,40 +89,34 @@ namespace BlocksBeyondTheStars.Client
             _origin = origin;
             _carpetDirty = true;
             _flowersDirty = true;
-            enabled = Wanted && _tops.Count > 0;
+            HasData = _tops.Count > 0;
         }
+
+        /// <summary>True while the chunk holds something for this drawer; the detail pass (GameBootstrap.Detail.cs) skips
+        /// the chunk otherwise.</summary>
+        public bool HasData { get; private set; }
+
+        /// <summary>The once-a-frame step (camera, the season's flower density) and how far the meadow reaches this frame:
+        /// the carpet's or the flowers' range, whichever the player's switches leave on — 0 when neither is, or without a
+        /// camera. The switches are read every frame, so flipping the preset starts or stops every chunk's meadow at once
+        /// (no remesh).</summary>
+        public static float FrameReach()
+            => Wanted && TickFrame() ? Mathf.Max(HighDetails.Grass ? CarpetRange : 0f, HighDetails.Flowers ? FlowerRange : 0f) : 0f;
 
         private void Awake()
         {
             _chunkRenderer = GetComponent<MeshRenderer>();
             Live.Add(this);
-            if (!_subscribed)
-            {
-                _subscribed = true;
-                HighDetails.Changed += OnHighDetailsChanged;
-            }
         }
 
         private void OnDestroy() => Live.Remove(this);
 
-        /// <summary>The player flipped the preset or a switch: every chunk's meadow starts or stops at once (no remesh).</summary>
-        private static void OnHighDetailsChanged()
-        {
-            bool wanted = Wanted;
-            foreach (var shells in Live)
-            {
-                if (shells != null)
-                {
-                    shells.enabled = wanted && shells._tops.Count > 0;
-                }
-            }
-        }
-
-        private void Update()
+        /// <summary>Submits this chunk's carpet and flowers for the current frame. Called by the detail pass for chunks
+        /// inside the reach (#4046) — no <c>Update()</c> of its own.</summary>
+        public void Draw()
         {
             if (!Wanted)
             {
-                enabled = false;
                 return;
             }
 

@@ -59,6 +59,42 @@ public sealed partial class WorldGenerator
     /// </summary>
     internal List<BiomeResolved> ResolveBiomes(PlanetType planet)
     {
+        // #4052: remembered per world. The per-column queries (BiomeIndexAt, BiomeSurfaceKeyAt, IsEarthySurface) call
+        // this, and it built the list — and the shuffle's scratch — afresh on every one of them. The result is a pure
+        // function of the world key and the planet's biome pool; callers only read it.
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
+        if (_biomeSlot is { } fast && ReferenceEquals(fast.Planet, planet) && fast.PoolSize == planet.Biomes.Count && fast.Key == key)
+        {
+            return fast.Biomes;
+        }
+
+        var resolved = ResolveBiomesUncached(planet);
+        _biomeSlot = new BiomeSlot(key, planet, planet.Biomes.Count, resolved);
+        return resolved;
+    }
+
+    private BiomeSlot? _biomeSlot;
+
+    /// <summary>#4052: an instance's last world key, planet and resolved biome list in one immutable object (like
+    /// <see cref="WorldSlot{TValue}"/>), so a reader sees a matching set or nothing.</summary>
+    private sealed class BiomeSlot
+    {
+        public readonly (long, string, int, bool, long, bool, bool, int) Key;
+        public readonly PlanetType Planet;
+        public readonly int PoolSize;
+        public readonly List<BiomeResolved> Biomes;
+
+        public BiomeSlot((long, string, int, bool, long, bool, bool, int) key, PlanetType planet, int poolSize, List<BiomeResolved> biomes)
+        {
+            Key = key;
+            Planet = planet;
+            PoolSize = poolSize;
+            Biomes = biomes;
+        }
+    }
+
+    private List<BiomeResolved> ResolveBiomesUncached(PlanetType planet)
+    {
         var planetTheme = FloraThemes.Resolve(planet.FloraTheme);
         var list = new List<BiomeResolved>();
         if (planet.Biomes.Count <= 0)

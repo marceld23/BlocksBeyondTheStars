@@ -10,8 +10,9 @@ namespace BlocksBeyondTheStars.Client.Core;
 /// runs with. The server's own default (2) fits every host it cannot see — Docker, the hosted fleet's 2-CPU containers, a
 /// Raspberry Pi — so the scaling lives here, where the machine is known.
 /// <para>A stream batch is workers + 1 chunks generated in parallel and the next pass's prefetch is workers × 6, so from 3
-/// workers on the prefetch covers a whole 16-chunk pass. The per-player ceiling stays 16 chunks per tick at 15 Hz and the
-/// client meshes 4 chunks per frame: more workers mean fewer tick stalls while exploring, not a faster fill — hence the cap.
+/// workers on the prefetch covers a whole 16-chunk pass. The per-player ceiling stays 16 chunks per tick at 15 Hz, whatever
+/// the client can mesh (its own rule follows its cores, <c>ChunkBuildBudget</c>): more workers mean fewer tick stalls while
+/// exploring, not a faster fill — hence the cap.
 /// Half the logical processors approximates the physical (or performance) cores, and two of them stay with the Unity
 /// client's main and render threads. Each worker owns a world generator with its column memos, so a machine with little
 /// memory keeps the server default.</para>
