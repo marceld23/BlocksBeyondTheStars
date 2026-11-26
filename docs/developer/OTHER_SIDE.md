@@ -629,6 +629,23 @@ held beam, no loot, deposit, feed or lifted block, no item use. The use key's pi
 HUD's prompts (station, device, base, scan, door label) are cleared. The server still refuses everything else with its
 one line — the guard is against flicker, not a rule.
 
+### Nobody of our side turns to the player (#4024)
+
+The server already treats a player over there as not there (no damage, no hunt, no greeting), but the views react to
+the player's position by themselves every frame. They ask `OtherSideView.MayReactToPlayer(livesOverThere)` — true on
+our side, and over there only for those who live there — so our side looks through the player too:
+
+| Reaction | Where | Who still reacts over there |
+|---|---|---|
+| An animal's gaze within 12 m | `CreatureView.cs` (`MayCreatureReact(c.SpeciesId)`) | the Qualis of the other side (`SoundersIds.OverThereQuali`, `au_quali_over`) |
+| A hostile's lunge, attack call, bite snap and attack effect in bite reach | `CreatureView.cs` (same check, beside `!Game.Aboard`) | — (nothing over there bites) |
+| A person's head turn within 6 m | `NpcView.cs` `UpdateLook` (`Npc.LivesOverThere`) | the Echoes (`OtherSideView.NpcLivesOverThere`: look `sounder_echo`) |
+| A Sounder's gaze within 7 m | `NpcView.Sounders.cs` `TickSounder` | the Echoes; a living Sounder is of our side |
+
+The `/bump` snapshot's player block carries `otherSide` (`GameServerBumpOtherSide.cs`): `over`, `clientShowsOtherSide`,
+`lastChange` (the reason of the last side change the client was told, `PlayerSession.OtherSideLastChange`), the entry
+gate's world and centre, the spot the player crossed from, and the sound-block count and cap.
+
 ### Shaping
 
 With the Resonance Blaster in hand over there, `SoundShaper` reads the two hand keys: the use key (the one that fires
@@ -664,8 +681,8 @@ still draws its glow colour as emission.
 
 ### Tests
 
-`tests/BlocksBeyondTheStars.Client.Tests`: `OtherSideViewTests` (the model, the gate book, the filter, the look's
-numbers), `OtherSideShapingTests` (the trigger, the aim, the palette, the step tones, the gate finder, glow-not-light)
+`tests/BlocksBeyondTheStars.Client.Tests`: `OtherSideViewTests` (the model, the gate book, the filter, who reacts to
+the player, the look's numbers), `OtherSideWiringTests` (the Unity joints, read as text), `OtherSideShapingTests` (the trigger, the aim, the palette, the step tones, the gate finder, glow-not-light)
 and `OtherSideClientServerTests` — the real client against the real server: cross with `/otherside`, receive the state
 and the gate list, shape in the palette's tone, see the `sound_block` in the client's world, dissolve it, come back and
 see it gone.

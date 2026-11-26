@@ -403,6 +403,7 @@
   { "key": "burger_bun", "nameKey": "item.burger_bun.name", "category": "block", "maxStack": 64, "placesBlock": "burger_bun", "descriptionKey": "item.burger_bun.desc" },
   { "key": "burger_patty", "nameKey": "item.burger_patty.name", "category": "block", "maxStack": 64, "placesBlock": "burger_patty", "descriptionKey": "item.burger_patty.desc" },
   { "key": "burger_cheese", "nameKey": "item.burger_cheese.name", "category": "block", "maxStack": 64, "placesBlock": "burger_cheese", "descriptionKey": "item.burger_cheese.desc" },
+  { "key": "bricks", "nameKey": "item.bricks.name", "category": "block", "maxStack": 1024, "placesBlock": "bricks", "descriptionKey": "item.bricks.desc" },
   { "key": "travertine", "nameKey": "item.travertine.name", "category": "block", "maxStack": 1024, "placesBlock": "travertine", "descriptionKey": "item.travertine.desc" },
   { "key": "blackened_sandstone", "nameKey": "item.blackened_sandstone.name", "category": "block", "maxStack": 1024, "placesBlock": "blackened_sandstone", "descriptionKey": "item.blackened_sandstone.desc" },
   { "key": "verdigris_copper", "nameKey": "item.verdigris_copper.name", "category": "block", "maxStack": 1024, "placesBlock": "verdigris_copper", "descriptionKey": "item.verdigris_copper.desc" },

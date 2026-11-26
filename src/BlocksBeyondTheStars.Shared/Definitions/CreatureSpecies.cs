@@ -363,6 +363,10 @@ public sealed class CreatureSpecies
     /// then they calm down. See <see cref="CreatureBehaviour.DefendsKin"/>.</summary>
     public bool PackDefender { get; set; }
 
+    /// <summary>#4025: a tamed animal of this species travels with its tamer to every world (the wild Soundi, data flag
+    /// <c>travels</c>) — see <c>TamedCreature.Travels</c>. False on every other species.</summary>
+    public bool Travels { get; set; }
+
     /// <summary>#3972: the fixed coats of the species (from an authored record's <c>coats</c>); each animal wears the one its
     /// <c>AnimalSeed</c> picks (<see cref="CoatVariants.Pick"/>), sent as its colours, hide and explicit pattern. Empty on
     /// every rolled species and every record so far — those keep the classic look.</summary>

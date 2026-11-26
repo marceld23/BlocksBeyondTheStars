@@ -697,6 +697,7 @@ public sealed partial class GameContent
         // pictures and keep their cube.
         "glyph_stone", "glyph_stone_band", "dark_sandstone", "maze_stone", "maze_stone_carved",
         "red_sand", "red_rock", // #4018: Mars's ground
+        "bricks", // #4031: the school club's craftable brick wall
     };
 
     /// <summary>

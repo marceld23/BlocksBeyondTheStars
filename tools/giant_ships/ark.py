@@ -246,7 +246,7 @@ def _vault(d: ShipDesign, air: list) -> None:
                 elif (y - y0) % 2 == 1:
                     d.put(x, y, z, BOARD.shaped(sc.pack(sc.SLAB)))
             if not post and solids.hash01(x, y0, z, 5) < 0.3:
-                d.put(x, y0, z, Mat("flower_pot"))
+                d.put(x, y0, z, Mat("flower_pot", shape=sc.pack(sc.POT)))
         for z in (VAULT_Z[0] + 1, VAULT_Z[1] - 1):
             if (x, y0, z) in cells:
                 d.put(x, y0, z, Mat("wood_crate" if x % 8 else "crate"))
@@ -298,7 +298,7 @@ def _furnish(d: ShipDesign, rooms: dict) -> None:
             if (far, r.y0, z) in r.cells:
                 d.put(far, r.y0, z, Mat("bed"))
         cx, _, cz = r.centre
-        d.put(cx, r.y0, cz, Mat("rug", tint=0x6FAF78))
+        d.put(cx, r.y0, cz, Mat("rug", tint=0x6FAF78, shape=sc.pack(sc.SHEET)))
     for r in rooms["mess"]:
         for x in range(r.x0 + 2, r.x1 - 1, 4):
             for z in range(r.z0 + 2, r.z1 - 1):
@@ -310,12 +310,12 @@ def _furnish(d: ShipDesign, rooms: dict) -> None:
         cx, _, cz = r.centre
         d.put(cx, r.y0, cz, wood.shaped(sc.pack(sc.TABLE)))
         d.put(cx, r.y0, cz + 1, wood.shaped(sc.pack(sc.CHAIR)))
-        d.put(cx + 1, r.y0, cz, Mat("flower_pot"))
+        d.put(cx + 1, r.y0, cz, Mat("flower_pot", shape=sc.pack(sc.POT)))
     for r in rooms["sheds"] + rooms["stores3"] + rooms["store"]:
         far = r.x0 if r.side == "left" else r.x1
         for z in range(r.z0 + 1, r.z1, 2):
             if (far, r.y0, z) in r.cells:
-                d.put(far, r.y0, z, Mat("wood_crate" if z % 4 else "flower_pot"))
+                d.put(far, r.y0, z, Mat("wood_crate") if z % 4 else Mat("flower_pot", shape=sc.pack(sc.POT)))
 
 
 # --- the greenhouses --------------------------------------------------------------------------------------------------
@@ -581,7 +581,7 @@ def _chests(d: ShipDesign, rooms: dict, halls: dict) -> None:
 
 
 def build() -> ShipDesign:
-    d = ShipDesign("ark", "Terraforming Ark", weight=1, groundRow=5)
+    d = ShipDesign("ark", "Terraforming Ark", weight=1, groundRow=5, civilization="sps")
     h = _hull(d)
     _decks(d, h)
     rooms = _rooms(d, h)

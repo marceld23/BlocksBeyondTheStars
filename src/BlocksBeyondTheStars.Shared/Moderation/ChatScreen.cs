@@ -133,6 +133,23 @@ public sealed class ChatScreen
     private static readonly Regex HandlePattern = new(@"(?<!\w)@(?!\.)[A-Za-z0-9_.]{2,31}[A-Za-z0-9_](?![A-Za-z0-9_])",
         RegexOptions.Compiled | RegexOptions.CultureInvariant, RegexTimeout);
 
+    // The personal-data step's patterns in the order they are tried (declared after the patterns: static fields
+    // initialise in text order).
+    private static readonly (Regex Pattern, string Kind)[] PersonalDataPatterns =
+    {
+        (PhonePattern, "phone"), (EmailPattern, "email"), (LinkPattern, "link"), (HandlePattern, "handle"),
+    };
+
+    /// <summary>Runs each compiled personal-data pattern once, so the first real chat line does not pay the JIT of the
+    /// emitted matcher inside its 50 ms budget (#4036). A warm-up that itself runs out of time is harmless.</summary>
+    static ChatScreen()
+    {
+        foreach (var (pattern, _) in PersonalDataPatterns)
+        {
+            MatchSpans(pattern, "warm up 0151 2345678 a@b.de www.example.de @handle", out _);
+        }
+    }
+
     private readonly HashSet<string> _blocked = new(StringComparer.Ordinal);
     private readonly List<string> _blockedLong = new();
     private readonly HashSet<string> _masked = new(StringComparer.Ordinal);
@@ -281,21 +298,7 @@ public sealed class ChatScreen
         }
 
         // 4) Personal data: masked in Filtered, a hard stop in Safe.
-        bool pii = false;
-        string piiKind = string.Empty;
-        foreach (var (pattern, kind) in new[] { (PhonePattern, "phone"), (EmailPattern, "email"), (LinkPattern, "link"), (HandlePattern, "handle") })
-        {
-            foreach (var span in MatchSpans(pattern, line))
-            {
-                pii = true;
-                if (piiKind.Length == 0)
-                {
-                    piiKind = kind;
-                }
-
-                maskSpans.Add(span);
-            }
-        }
+        var (pii, piiKind) = CollectPersonalData(PersonalDataPatterns, line, maskSpans);
 
         if (pii && mode == Configuration.ChatMode.Safe)
         {
@@ -317,8 +320,13 @@ public sealed class ChatScreen
     /// lazy and runs the engine only while its collection is enumerated, so a try around the call alone never
     /// catches the timeout (#1970: it escaped into the caller and failed a test on a busy build machine).
     /// </summary>
-    public static List<(int Start, int End)> MatchSpans(Regex pattern, string line)
+    public static List<(int Start, int End)> MatchSpans(Regex pattern, string line) => MatchSpans(pattern, line, out _);
+
+    /// <summary><see cref="MatchSpans(Regex, string)"/> that also says whether the pattern ran out of time, so a caller
+    /// that must not fail open can tell "no match" from "could not finish" (#4036).</summary>
+    public static List<(int Start, int End)> MatchSpans(Regex pattern, string line, out bool timedOut)
     {
+        timedOut = false;
         var spans = new List<(int Start, int End)>();
         try
         {
@@ -332,10 +340,44 @@ public sealed class ChatScreen
         }
         catch (RegexMatchTimeoutException)
         {
-            // keep the spans found so far
+            timedOut = true; // keep the spans found so far
         }
 
         return spans;
+    }
+
+    /// <summary>
+    /// The personal data in <paramref name="line"/>: every match of <paramref name="patterns"/> goes into
+    /// <paramref name="maskSpans"/>, and the kind of the first one is returned. A pattern that runs out of time fails
+    /// CLOSED (#4036): it cannot vouch for the line, so the whole line counts as that kind — masked in Filtered, blocked
+    /// in Safe — instead of slipping through unmasked exactly when the server is busy.
+    /// </summary>
+    public static (bool Found, string Kind) CollectPersonalData(
+        IReadOnlyList<(Regex Pattern, string Kind)> patterns, string line, List<(int Start, int End)> maskSpans)
+    {
+        bool found = false;
+        string kind = string.Empty;
+        foreach (var (pattern, patternKind) in patterns)
+        {
+            var spans = MatchSpans(pattern, line, out bool timedOut);
+            if (timedOut)
+            {
+                spans.Add((0, line.Length));
+            }
+
+            foreach (var span in spans)
+            {
+                found = true;
+                if (kind.Length == 0)
+                {
+                    kind = patternKind;
+                }
+
+                maskSpans.Add(span);
+            }
+        }
+
+        return (found, kind);
     }
 
     private bool IsAllowed(IReadOnlyList<string> forms)

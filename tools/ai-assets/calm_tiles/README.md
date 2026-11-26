@@ -70,5 +70,13 @@ already exists in `out/`, and has `--dry-run`.
     natural `stone` tile, each recoloured pixel by pixel to its block's data colour (brightness relative to the tile's
     mean, a contrast factor per tile), read from a fixed git revision so a rerun gives the same tiles. No model.
 
+13. `make_bricks_tile.py --bundle` — **paid** (one call, #4031): the school club's `bricks`. A flat layout guide of a
+    running bond on the micro-cube raster (courses 16 px, bricks 32 px, every second course shifted by 16 px, the mortar
+    centred on the brick edges) is the image-edit reference; the model paints it as calm fired bricks into
+    `out/calm_tiles/redraws/bricks.png`. The script reduces it to 64 px and snaps it to the raster: each brick and the
+    mortar take their median colour, the painted detail is made to wrap and kept at 0.8, so every shaped form shows whole
+    bricks. It prints the mean colour (the block's data colour), the contrast, the seam ratio and how many brick pixels
+    the model painted as mortar (0.0 % for the shipped tile).
+
 `tilelib.py` holds the paths and the sheet helper. After a change of the set: update `texture_provenance.json` and
 `NOTICES.md`, and run the tile tests (`BlockTileAlphaTests`, `CreatureCoatTilesTests`, `CalmTileRuleTests`, …).

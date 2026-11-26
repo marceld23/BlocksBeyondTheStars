@@ -270,6 +270,11 @@ public sealed class PlayerSession
     /// reads it (what a player may do over there, who sees whom, which chunk variant they get).</summary>
     public bool OtherSide { get; set; }
 
+    /// <summary>#4024: the reason of the last other-side state this player's client was told that was more than a count
+    /// (<c>OtherSideReasons</c>: crossed, returned, forced, moved, rejoined, admin); empty until one. Diagnostics only — the
+    /// <c>/bump</c> snapshot shows how the player got to the side they are on.</summary>
+    public string OtherSideLastChange { get; set; } = string.Empty;
+
     /// <summary>Tutorial step counters and the moments its courses are offered at (#2469, #2480, #2482).</summary>
     public PlayerSessionTutorial Tutorial { get; } = new();
 

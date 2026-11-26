@@ -149,6 +149,11 @@ public sealed class NetCompanion
     /// not follow it waits on board instead of staying home. The client no longer guesses this from the body plan.</summary>
     public bool Roams { get; set; }
 
+    /// <summary>#4025: a pet that travels along (the duel-won Soundi): while it follows it comes to every world; when it does
+    /// not follow it stays home on <see cref="HomeBodyId"/>, like any planet pet. It takes a pet slot. Additive — an older
+    /// server leaves it false.</summary>
+    public bool TravellingPet { get; set; }
+
     /// <summary>#3344: the companion's kind (<c>TamedCreature.Kind</c>): empty for a tamed animal, "robot", "reindeer",
     /// "soundi" — picks the wording of the tab's buttons (switch off, send home, on board).</summary>
     public string Kind { get; set; } = string.Empty;

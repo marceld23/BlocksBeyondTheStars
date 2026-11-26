@@ -51,8 +51,9 @@ public sealed partial class EditorTextFitTests
         Wrap("Settings: description card body (388 wide at 19)", 388f, 12, 19, "ui.settings.dark_visibility_hint", "ui.settings.cosiness_hint",
             "ui.settings.festivals_hint", "ui.settings.fov_hint", "ui.settings.pad_triggers_hint", "ui.settings.pad_vibration_hint",
             "ui.settings.reduce_flashes_hint", "ui.settings.reduced_effects_hint", "ui.settings.story_text_wait_hint",
-            "ui.settings.show_all_objectives_hint"),
+            "ui.settings.show_all_objectives_hint", "ui.settings.third_person_view_hint"),
         Label("Settings: soft distance label (390 px at 20, #3462)", 390f, 20, "ui.settings.distance_softness"),
+        Label("Settings: third-person view label (390 px at 20, #4027)", 390f, 20, "ui.settings.third_person_view"),
         // #3615: the giant wrecks — the travel screen's paragraph (CraftingTechShipUI.Map.cs, 600 × 150 at 18: seven lines) and
         // the planet map's legend slot (WorldMap.cs, 140 px slot − 36 for the icon, at 15).
         // #3902: an escort cruiser's wreck shows its ship text in the same box (GiantWreckText.DerelictDetail).

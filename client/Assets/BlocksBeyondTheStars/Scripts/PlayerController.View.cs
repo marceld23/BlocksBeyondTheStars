@@ -55,7 +55,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (Camera != null)
             {
-                Camera.transform.localPosition = ThirdPerson ? ThirdPersonEye : FirstPersonEye;
+                Camera.transform.localPosition = ThirdPerson ? ThirdPersonEyeLocal() : FirstPersonEye;
                 _cameraBoomLength = -1f; // the spring arm re-measures from the full offset (#1460)
             }
 
@@ -151,13 +151,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private const float CameraBoomRadius = 0.2f;   // sphere-cast radius: keeps the near plane (0.1) clear of the wall
-        private const float CameraBoomMinimum = 0.35f; // never closer than this to the pivot — you still see yourself
         private float _cameraBoomLength = -1f;         // current boom length; pulls in instantly, extends smoothly
 
         /// <summary>Where a boom camera may sit: <paramref name="desired"/> unless world geometry sits between
         /// the pivot and it, in which case the camera is pulled in front of that geometry. Pull-in is instant
-        /// (a wall must never be seen from inside), the return eases out. The player's own capsule overlaps the
-        /// cast's start and is therefore ignored by Unity; creature meshes carry no colliders by design.</summary>
+        /// (a wall must never be seen from inside), the return eases out (<see cref="ThirdPersonRig.EaseBoom"/>). The player's
+        /// own capsule overlaps the cast's start and is therefore ignored by Unity; creature meshes carry no colliders by design.</summary>
         internal Vector3 ResolveCameraBoom(Vector3 pivot, Vector3 desired, float dt)
         {
             Vector3 to = desired - pivot;
@@ -168,17 +167,33 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 dir = to / full;
-            float allowed = full;
+            float? hitAt = null;
             if (Physics.SphereCast(pivot, CameraBoomRadius, dir, out var hit, full, Physics.DefaultRaycastLayers & WorldRayMask, QueryTriggerInteraction.Ignore)
                 && hit.collider != _controller)
             {
-                allowed = Mathf.Max(CameraBoomMinimum, hit.distance - 0.05f);
+                hitAt = hit.distance;
             }
 
-            _cameraBoomLength = _cameraBoomLength < 0f || allowed < _cameraBoomLength
-                ? allowed
-                : Mathf.MoveTowards(_cameraBoomLength, allowed, dt * 6f);
+            _cameraBoomLength = ThirdPersonRig.EaseBoom(_cameraBoomLength, ThirdPersonRig.AllowedBoom(full, hitAt), dt);
             return pivot + dir * _cameraBoomLength;
+        }
+
+        /// <summary>#4027: where the third-person camera wants to sit over the feet for the chosen view and this frame's look
+        /// pitch (the High view orbits with it), before the spring arm.</summary>
+        private Vector3 ThirdPersonEyeLocal() => RigPoint(ThirdPersonRig.Eye(ThirdPersonView, _pitch));
+
+        private static Vector3 RigPoint(System.Numerics.Vector3 v) => new Vector3(v.X, v.Y, v.Z);
+
+        /// <summary>#4027: under a low ceiling the arm pulls in so short that the figure would fill the screen — it is hidden
+        /// then, and shown again once the arm grows back. Checked every third-person frame, so whatever showed or hid the
+        /// figure before (a vehicle, a bed, a cutscene) is put right the first frame the on-foot view is back.</summary>
+        private void ShowOwnFigureByBoom()
+        {
+            bool show = !ThirdPersonRig.HidesAvatar(_cameraBoomLength);
+            if (Avatar != null && Avatar.IsVisible != show)
+            {
+                Avatar.SetVisible(show);
+            }
         }
 
         /// <summary>First-person camera feel: a subtle walking head-bob, a small forward FOV kick while
@@ -214,9 +229,11 @@ namespace BlocksBeyondTheStars.Client
                 // Spring arm: the boom used to be a fixed offset, so with your back to any wall within 3.5 m the
                 // camera sat inside the block and the world showed through the culled back faces (#1460).
                 // The whole arm follows the body's height softly (a jump, a landing, a step) instead of rigidly.
+                // #4027: the arm is cast from the pivot (the first-person eye) to the chosen view's place.
                 var lag = new Vector3(0f, ThirdPersonLag(dt), 0f);
                 Camera.transform.position = ResolveCameraBoom(
-                    transform.TransformPoint(FirstPersonEye) + lag, transform.TransformPoint(ThirdPersonEye) + lag, dt);
+                    transform.TransformPoint(RigPoint(ThirdPersonRig.Pivot)) + lag, transform.TransformPoint(ThirdPersonEyeLocal()) + lag, dt);
+                ShowOwnFigureByBoom();
                 ApplyRestRise(dt); // #2823
                 return;
             }

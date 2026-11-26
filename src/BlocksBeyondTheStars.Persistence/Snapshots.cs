@@ -433,6 +433,7 @@ public static class StateMapper
         NameTag = t.NameTag, // #3035
         Kind = t.Kind ?? string.Empty, // #3314: the robot (and Rudolpho) must stay what they are across save + load
         Roams = t.Roams,
+        Travels = t.Travels, // #4025: the duel-won Soundi comes along to every world
         KnockedOut = t.KnockedOut,
         Following = t.Following, // #3344: who follows, who stays home or waits on board
         HasHomeSpot = t.HasHomeSpot,

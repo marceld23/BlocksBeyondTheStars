@@ -165,6 +165,7 @@ namespace BlocksBeyondTheStars.Client
             pc.InvertY = shell.Settings.InvertY;
             pc.CameraMotion = shell.Settings.CameraMotion;
             pc.ThirdPerson = shell.Settings.ThirdPerson;
+            pc.ThirdPersonView = ThirdPersonRig.Normalize((int)shell.Settings.ThirdPersonView); // #4027
 
             // Localized vitals HUD + hotbar.
             var hud = root.AddComponent<HudUi>(); // modern uGUI HUD

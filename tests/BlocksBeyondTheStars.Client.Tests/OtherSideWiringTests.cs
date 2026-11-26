@@ -170,4 +170,21 @@ public sealed class OtherSideWiringTests
         Assert.Contains("if (overThere && Game.BareHandSoundAimed)", hint);
         Assert.Contains("loc.Get(\"ui.otherside.bare_hint\")", Script("HudUi.OtherSide.cs"));
     }
+
+    /// <summary>#4024: over there our side's beings look through the player — the animals' gaze and a hostile's bite cue,
+    /// the people's head turn and a Sounder's gaze all ask <see cref="OtherSideView.MayReactToPlayer"/>, so only the Qualis
+    /// of the other side and the Echoes still turn to them.</summary>
+    [Fact]
+    public void OverThere_OurBeings_DoNotTurnToThePlayer_NorBite()
+    {
+        string creatures = Script("CreatureView.cs");
+        Assert.Contains("toPlayer.sqrMagnitude < 144f && Game.OtherSide.MayCreatureReact(c.SpeciesId)", creatures);
+        Assert.Contains("&& attackNow && Game.OtherSide.MayCreatureReact(c.SpeciesId))", creatures);
+
+        string npcs = Script("NpcView.cs");
+        Assert.Contains("if (Game != null && n.Pose != 2 && Game.OtherSide.MayReactToPlayer(n.LivesOverThere))", npcs);
+        string sounders = Script("NpcView.Sounders.cs");
+        Assert.Contains("n.LivesOverThere = OtherSideView.NpcLivesOverThere(nd.Look);", sounders);
+        Assert.Contains("&& Game.OtherSide.MayReactToPlayer(n.LivesOverThere)", sounders);
+    }
 }

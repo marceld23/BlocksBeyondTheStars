@@ -208,7 +208,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 o = Camera.transform.position, d = Camera.transform.forward, p = transform.position;
-            var npc = NpcAim.Aimed(Game.Npcs, o.x, o.y, o.z, d.x, d.y, d.z, Reach, p.x, p.y, p.z, Game.Circumference, out float npcDistance);
+            // #4027: the ray runs past the figure in third person; the talk reach is measured from the body anyway.
+            var npc = NpcAim.Aimed(Game.Npcs, o.x, o.y, o.z, d.x, d.y, d.z, AimRayLength, p.x, p.y, p.z, Game.Circumference, out float npcDistance);
             if (npc == null)
             {
                 return;
@@ -237,7 +238,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 o = Camera.transform.position, d = Camera.transform.forward, p = transform.position;
-            var robot = CompanionAim.AimedOwnRobot(Game.Creatures, Game.LocalPlayerId, o.x, o.y, o.z, d.x, d.y, d.z, Reach,
+            var robot = CompanionAim.AimedOwnRobot(Game.Creatures, Game.LocalPlayerId, o.x, o.y, o.z, d.x, d.y, d.z, AimRayLength,
                 p.x, p.y, p.z, Game.Circumference, out float robotDistance);
             if (robot == null)
             {

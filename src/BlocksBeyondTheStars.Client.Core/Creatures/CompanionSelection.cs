@@ -47,6 +47,24 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A travelling companion: it follows to every world, and waits on board when it does not follow.</summary>
         public static bool Travels(NetCompanion c) => c.Roams || IsRobot(c) || IsReindeer(c);
 
+        /// <summary>#4025: a pet that travels along (the duel-won Soundi): it follows to every world, but when it does not
+        /// follow it stays home on its home world like any planet pet (so it is no <see cref="Travels"/> companion).</summary>
+        public static bool TravellingPet(NetCompanion c) => c.TravellingPet && !Travels(c);
+
+        /// <summary>The locale key of the row's "where" part: "follows you everywhere" for a travelling companion, "travels
+        /// with you" for a travelling pet (its home world follows in the row), else none (the home world alone).</summary>
+        public static string? WhereKey(NetCompanion c)
+            => Travels(c) ? "ui.companions.robot_follows"
+                : TravellingPet(c) ? "ui.companions.travels_along"
+                : null;
+
+        /// <summary>The locale key of the row's presence part: nearby, or — not here — "comes along when you land" for a
+        /// companion that follows to every world, else "on its world".</summary>
+        public static string PresenceKey(NetCompanion c)
+            => c.Present ? "ui.companions.present"
+                : c.Following && (Travels(c) || TravellingPet(c)) ? "ui.companions.away_travels"
+                : "ui.companions.away";
+
         /// <summary>Where the companion is.</summary>
         public static CompanionFollowState StateOf(NetCompanion c)
             => c.Following ? CompanionFollowState.Follows

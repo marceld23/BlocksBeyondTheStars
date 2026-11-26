@@ -68,7 +68,7 @@ public sealed partial class GameServer
         {
             Text = Localize(session.Locale, "srv.giantwreck.list_header").Replace("{count}", ships.Count.ToString(CultureInfo.InvariantCulture)),
         });
-        foreach (var t in ships.Take(TeleportListMaxLines))
+        foreach (var t in ships) // every template, however many (#4034)
         {
             Send(session, new ServerMessage
             {

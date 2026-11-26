@@ -79,7 +79,7 @@ public sealed partial class GameServer
             Text = Localize(session.Locale, "srv.landmark.list_header")
                 .Replace("{count}", _content.Landmarks.Count.ToString(CultureInfo.InvariantCulture)),
         });
-        foreach (var t in _content.Landmarks.Take(TeleportListMaxLines))
+        foreach (var t in _content.Landmarks) // every template, however many (#4034)
         {
             Send(session, new ServerMessage
             {

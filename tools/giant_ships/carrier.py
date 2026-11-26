@@ -81,7 +81,7 @@ TABLE_CACHE = "giant_cache"
 
 
 def build() -> ShipDesign:
-    d = ShipDesign("carrier", "Carrier", weight=3, groundRow=GROUND)
+    d = ShipDesign("carrier", "Carrier", weight=3, groundRow=GROUND, civilization="sps")
     hull = _hull(d)
     _sponson(d, hull)
     _decks(d, hull)
@@ -564,7 +564,7 @@ def _medbay(d: ShipDesign, room) -> None:
         if not _free_floor(d, room, x, z):
             continue
         if i % 4 == 1:
-            d.put(x, room.y0, z, Mat("stretcher"))
+            d.put(x, room.y0, z, Mat("stretcher", shape=sc.pack(sc.TABLE)))
         elif i % 4 == 3:
             d.put(x, room.y0, z, Mat("medbay_panel"))
             d.put(x, room.y0 + 1, z, Mat("medbay_panel"))
@@ -595,7 +595,7 @@ def _rec(d: ShipDesign, room) -> None:
                                                                                             else -1, 0))))
     for x, z in (wall[0], wall[-1]):
         if _free_floor(d, room, x, z):
-            d.put(x, room.y0, z, Mat("flower_pot"))
+            d.put(x, room.y0, z, Mat("flower_pot", shape=sc.pack(sc.POT)))
 
 
 def _store(d: ShipDesign, room) -> None:

@@ -107,6 +107,15 @@ warning (`StructureCatalog.GiantShips.cs`).
   `tools/landmarks/lightmount.py`, [LANDMARKS.md](LANDMARKS.md) §7) — for a giant ship too, where nothing outside the hull
   counts as rock. The shipped ships carry no torch or lantern (their lamps are light blocks), so the pass changes nothing
   for them; `GiantShipGenerator` does not run the ruin pass's `LandmarkLights.DropUnheld`.
+- **Props carry their form** (#4026). The stamp writes a cell's shape exactly as the template gives it — it never applies
+  `PropShapes.DefaultPlaceShape` the way a player's placement does — so a script writes a prop with its place form:
+  `Mat("rug", shape=sc.pack(sc.SHEET))`, `Mat("flower_pot", shape=sc.pack(sc.POT))`, `Mat("stretcher",
+  shape=sc.pack(sc.TABLE))`. A plain `Mat("rug")` is a carpet cube (the battleship's and the ark's cabins until #4026).
+  Exempt: `bed` (the abandoned-bed pass, §4, lays it out), `ladder` (drawn by its key on the nearest wall) and the
+  carrier's rec-room rug, which lies *in* the floor row as an inlaid carpet. `TemplatePropShapeTests` guards every
+  shipped giant ship and landmark. Changing a shipped ship's cells changes its fingerprint (§4): a space wreck with
+  stored player changes stays away until its base comes out as stored again (§6), and a planet wreck already stamped
+  keeps the blocks it was written with — accepted for this fix.
 
 ## 4. Ruin revision 3 — `crash` and `hull` (#3609)
 
@@ -481,7 +490,8 @@ scorch; revisions 1 and 2 unchanged), `GiantShipGeneratorTests` (planet and spac
 none, keep-clear, a changed ship, the one-in-twenty roll), `GiantWreckWorldTests` (list, map, VEGA, scan, the admin stamp),
 `GiantWreckPlacerTests`, `GiantDerelictTests` (start system, boarding, no air, spacewalk, chests, a mined hull cell as one
 cell and a delta, a changed ship, the guardian bay, VEGA, the flight spot), `HullShellTests`, `DerivedStationTests`,
-`AbandonedBedTests` (generation 45: only abandoned two-cell beds aboard, the markers unmoved), `CruiserWreckTests` (§14);
+`AbandonedBedTests` (generation 45: only abandoned two-cell beds aboard, the markers unmoved), `CruiserWreckTests` (§14),
+`TemplatePropShapeTests` (no shipped ship or landmark places a rug, pot or stretcher as a cube, §3);
 Client.Tests `SpaceDesignAssemblerTests`, `FlightStructureMeshTests`, `GiantShipEditorTests`, `WorldOptionsLayoutTests`.
 
 ## 14. The escort cruiser's wreck (#3902)

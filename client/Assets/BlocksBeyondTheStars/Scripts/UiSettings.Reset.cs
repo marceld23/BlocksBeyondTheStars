@@ -205,6 +205,7 @@ namespace BlocksBeyondTheStars.Client
             S.CameraMotion = d.CameraMotion;
             S.ScreenShake = d.ScreenShake;
             S.FieldOfView = d.FieldOfView;
+            S.ThirdPersonView = d.ThirdPersonView; // #4027
             S.ReduceFlashes = d.ReduceFlashes;
             S.ReducedEffects = d.ReducedEffects;
             S.StoryTextWaitForMe = d.StoryTextWaitForMe;

@@ -520,8 +520,10 @@ namespace BlocksBeyondTheStars.Client
 
                     // Where to look. Only bother while the player is close enough for a head turn to read;
                     // beyond that the gaze is released and the head goes back to its own idle business.
+                    // #4024: over there only the animals that live there see the player — ours look through them.
                     var toPlayer = entry.Root.transform.position - Game.PlayerPosition;
-                    entry.Animator.SetGazeTarget(Game.PlayerPosition, toPlayer.sqrMagnitude < 144f);
+                    entry.Animator.SetGazeTarget(Game.PlayerPosition,
+                        toPlayer.sqrMagnitude < 144f && Game.OtherSide.MayCreatureReact(c.SpeciesId));
 
                     // How much of the rig is worth posing at this distance.
                     float camDist = cam != null
@@ -579,7 +581,7 @@ namespace BlocksBeyondTheStars.Client
                         ? freshHit
                         : (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < biteReach * biteReach || freshHit;
                     if (c.Hostile && !Game.Aboard && !c.Staggered && now >= entry.NextAttack && c.GiantHeight <= 0f // a giant stomps/strikes instead; a dazed one (#2278) does not bite
-                        && attackNow)
+                        && attackNow && Game.OtherSide.MayCreatureReact(c.SpeciesId)) // #4024: no bite at a player over there
                     {
                         entry.NextAttack = now + (chunkBiter ? 0.6f : Random.Range(1.5f, 3.5f));
                         PlayCue(entry, "_attack", 1f);

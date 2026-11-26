@@ -63,9 +63,9 @@ public sealed class WorldMetadata
     /// <c>capsule_tank_open</c>, and the other side's <c>sound_block</c>). 19 = the Sol system's SPS headquarters (#3986, epic
     /// #3988: the ancient <c>server_rack</c> and its blinking <c>server_rack_lit</c>, the <c>cable_tray</c> and the dead
     /// <c>core_pillar</c>). 20 = the bush sapling (#4003: <c>flora_sapling_bush</c>). 21 = Mars's ground (#4018: <c>red_sand</c>,
-    /// <c>red_rock</c>).</para>
+    /// <c>red_rock</c>). 22 = the school club's craftable bricks (#4031: <c>bricks</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 21;
+    public const int CurrentSaveVersion = 22;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

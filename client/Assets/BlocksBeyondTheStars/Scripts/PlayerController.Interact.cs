@@ -351,13 +351,18 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var ray = new Ray(Camera.transform.position, Camera.transform.forward);
-            if (!Physics.Raycast(ray, out var hit, Reach))
+            if (!Physics.Raycast(ray, out var hit, AimRayLength)) // #4027: past the figure in third person
             {
                 return;
             }
 
             // Fill the empty cell against the hit face — the server checks it against the wreck's intact mask.
             var t = FloorVec(hit.point + hit.normal * 0.5f);
+            if (!AimCellInReach(t.x, t.y, t.z))
+            {
+                return;
+            }
+
             Game.Network.SendRepairWreck(t.x, t.y, t.z, item);
         }
 

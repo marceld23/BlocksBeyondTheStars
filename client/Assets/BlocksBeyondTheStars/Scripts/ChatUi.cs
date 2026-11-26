@@ -32,7 +32,9 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _canvas;
         private bool _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing;
         private int _appended;          // lines appended this session — the lane's "already read" mark counts against it
-        private const int MaxLog = 200; // #3264: the session's history (was 40); only the slice in view is ever laid out
+        // #3264: the session's history (was 40); only the slice in view is ever laid out. 500 since #4034, so an
+        // admin list printed in full (/tp, /landmark …) still fits with the conversation around it.
+        private const int MaxLog = 500;
 
         /// <summary>A history entry with the (unscaled) time it arrived, which is what the lane's fade reads.</summary>
         private readonly struct ChatLine

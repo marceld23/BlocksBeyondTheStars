@@ -47,6 +47,31 @@ public sealed class CompanionSelectionTests
         Assert.Equal("ui.companions.take_along", CompanionSelection.ToggleKey(onBoard));
     }
 
+    /// <summary>#4025: the duel-won Soundi travels along like a travelling companion, but left behind it stays home like a
+    /// planet pet — and its row says both: "travels with you" next to its home world.</summary>
+    [Fact]
+    public void ATravellingPet_TravelsAlong_ButStaysHomeWhenLeftBehind()
+    {
+        var soundi = new NetCompanion { TravellingPet = true, Following = true, Present = false, BodyPlan = "Soundi" };
+        Assert.True(CompanionSelection.TravellingPet(soundi));
+        Assert.False(CompanionSelection.Travels(soundi));
+        Assert.Equal("ui.companions.travels_along", CompanionSelection.WhereKey(soundi));
+        Assert.Equal("ui.companions.away_travels", CompanionSelection.PresenceKey(soundi));
+        Assert.Equal("ui.companions.leave_home", CompanionSelection.ToggleKey(soundi));
+        Assert.Equal("ui.companions.release", CompanionSelection.ReleaseKey(soundi));
+
+        var home = new NetCompanion { TravellingPet = true, Following = false, Present = true, BodyPlan = "Soundi" };
+        Assert.Equal(CompanionFollowState.StaysHome, CompanionSelection.StateOf(home));
+        Assert.True(CompanionSelection.CanSetHome(home));
+        Assert.Equal("ui.companions.present", CompanionSelection.PresenceKey(home));
+
+        Assert.Null(CompanionSelection.WhereKey(Pet()));                        // a planet pet: its home world alone
+        Assert.Equal("ui.companions.away", CompanionSelection.PresenceKey(Pet(present: false)));
+        var story = Traveller("soundi");
+        story.TravellingPet = true;
+        Assert.False(CompanionSelection.TravellingPet(story)); // a travelling companion stays one
+    }
+
     [Fact]
     public void SetHomeHere_IsOfferedForAPetAtHomeThatIsHere_Only()
     {

@@ -407,7 +407,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session.State.TamedCreatures.Count(t => t.HomeBodyId == _world.LocationId) >= MaxCompanionsPerWorld)
+        if (PetSlotsUsedOn(session.State, _world.LocationId) >= MaxCompanionsPerWorld) // #4025: the one slot count of every tame
         {
             SendVegaLine(session, "vega.sys.sreekmakra_no_room", 3);
             return;

@@ -45,6 +45,7 @@ internal static class CreatureWireMapping
         nameof(CreatureSpecies.SwallowsCreatures),
         nameof(CreatureSpecies.DuelTame),
         nameof(CreatureSpecies.PackDefender),
+        nameof(CreatureSpecies.Travels),          // #4025: the companion list says it per record (NetCompanion.TravellingPet)
         nameof(CreatureSpecies.FloraThemes),      // #3973: the spawner's climate zones, like BiomeSurfaces
         nameof(CreatureSpecies.DefendsItself),    // #3973: the provoke rule; the wire carries the hostility itself
         nameof(CreatureSpecies.MinWaterDepth),    // #3975: the spawner's and the step gate's water band

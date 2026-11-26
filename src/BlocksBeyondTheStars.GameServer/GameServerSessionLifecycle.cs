@@ -136,7 +136,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>A joining player's record — or a new player — made ready for play: inventories clamped, the equipment slots
-    /// set up, a train bond dropped. Shared by the network join and the local one; throws
+    /// set up, a train bond dropped, a travelling pet's record migrated (#4025). Shared by the network join and the local one; throws
     /// <see cref="InvalidDataException"/> for a corrupted record.</summary>
     private PlayerState LoadJoiningPlayer(string name)
     {
@@ -150,6 +150,7 @@ public sealed partial class GameServer
         ClampInventory(state.Equipment, $"player '{name}' equipment");
         ClampInventory(state.RationStore, $"player '{name}' ration store");
         ClampInventory(state.SampleCase, $"player '{name}' sample case");
+        PromoteTravellingPets(state); // #4025: a Soundi won in a duel before it could travel comes along now (if it fits)
         return state;
     }
 

@@ -420,7 +420,8 @@ the song, a restart with kind, roaming and the full bond).
   (`CombatEntity.FightTargetId`) — it hunts that player only (`ApplyFightLock`, called in `MoveCreatures` once the hunt range
   is known, forces an aggressor whatever the temperament and never tires of the chase) and bites that player only
   (`MayFight` in the bite loop). Its health never drops below the surrender line: the hit that reaches it ends the duel —
-  the animal **gives up** (it never dies) and `CompleteTame` makes it a planet pet (`creature.tame.msg.duel`; the cap, the
+  the animal **gives up** (it never dies) and `CompleteTame` makes it a pet (#4025: a travelling one when its species has
+  `travels` and it fits — see below; else a planet pet with `creature.tame.msg.duel`; the cap, the
   first-tame knowledge and the name prompt as ever). Another player's hit is no part of the duel (clamped, `srv.creature_duel.busy`);
   sentries and the hunter robot never shoot an animal in a duel or a defending pack (`SentryMayShootCreature`). The duel ends when the player
   walks 24 blocks away or leaves the world (`walked_away`) or dies (`lost`, also from `RespawnPlayer`): the animal calms down,
@@ -434,6 +435,34 @@ the song, a restart with kind, roaming and the full bond).
 Tests: `CreatureDuelTests` (the translator starts a duel, one-on-one incl. the bite in a running world, surrender → planet pet
 through the hook and through the real swing, walking away, dying, pack defence and calming, never dies outside a duel, a duel
 calms the defending pack).
+
+## Travelling pets: the duel-won Soundi comes along (#4025, 2026-11-25)
+
+`GameServerTravellingPets.cs`; the species flag `CreatureSpecies.Travels` (authored `travels` in `data/creatures.json`, set on
+the Soundi) and the record flag `TamedCreature.Travels` (persisted by `CloneTamed`). A school club report: a Soundi won on
+Soaniri stayed behind when its tamer flew home.
+
+- **What a travelling pet is:** a tamed animal (empty `Kind`, `Roams` false) with `Travels` set. While it **follows**,
+  `CompanionLivesOn` lets it appear on every world but a void one (`TravelsAlongNow`) — never in space, on a station or inside
+  the ship, like the story Soundi — and it steps out beside its owner after a landing (`SpawnCompanionsForSession`, the
+  ordinary ground search of `CompanionSpotNear`). When it does **not follow** it is a planet pet again: it stays home at its
+  home spot on `HomeBodyId` (`CompanionStaysHome`); `ApplyFollowChoice` takes it off a foreign world at once. It eats, its bond
+  grows and fades, it can be bio-sampled and released like any pet (`CompanionRoams` stays false on its entity).
+- **The cap:** a travelling pet takes a **pet slot on every world**. `PetSlotsUsedOn(player, body)` = the planet pets living
+  on `body` + all travelling pets; every tame (`CompleteTame`, the Sreekmakra's follow) is refused at six. A travelling tame
+  must also keep the fullest world within six (`MostPetSlotsUsed`, `TryMakeTraveller`); if not, the duel is still won and it
+  stays a planet pet of this world (`srv.companion.travel_full`). The robot, Rudolpho and the story Soundi still take no slot.
+- **Migration:** `PromoteTravellingPets` runs in `LoadJoiningPlayer` (both joins) and after a release: every planet pet of a
+  travelling species (snapshot flag, or the authored record behind an `au_` id for records tamed before the flag) becomes a
+  travelling pet, oldest `TamedAtUtc` first, while it fits; the rest stay home, nothing is lost, and a release that frees a
+  slot brings the next one along (`srv.companion.travels_now`).
+- **Lines and wire:** the tame line is `creature.tame.msg.duel_travels` (a duel) or `creature.tame.msg.travels` (any other
+  tame); `NetCompanion.TravellingPet` (additive) lets the Companions tab write "travels with you · Home world: …" and "Comes
+  along when you land" (`CompanionSelection.WhereKey` / `PresenceKey` in Client.Core).
+
+Tests: `TravellingPetTests` (the data flag, tame → travels, a flight to another world with a planet pet left behind and the
+stay-home choice, migration through a real save and reload, the slot on every world, the overflow that stays home and the
+release that brings it along, oldest-first migration, the story Soundi untouched); `CompanionSelectionTests` (client rows).
 
 ## Known remaining gaps / deferred (P4)
 

@@ -132,6 +132,9 @@ public sealed class AuthoredCreature
     /// <summary>#3365: the pack defends an attacked member — see <see cref="CreatureSpecies.PackDefender"/>.</summary>
     public bool PackDefender { get; set; }
 
+    /// <summary>#4025: once tamed it travels with its tamer to every world (the Soundi) — see <see cref="CreatureSpecies.Travels"/>.</summary>
+    public bool Travels { get; set; }
+
     /// <summary>#3972: the coats this species comes in (<c>coats</c>) — each animal wears one, picked by its own seed. Empty
     /// (every record so far) = the designed <see cref="ColorRgb"/>/<see cref="BellyRgb"/>/<see cref="Hide"/> on every animal.</summary>
     public List<CoatVariant> Coats { get; set; } = new();

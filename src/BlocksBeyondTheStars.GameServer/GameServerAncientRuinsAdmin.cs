@@ -284,7 +284,7 @@ public sealed partial class GameServer
         });
         string city = Localize(session.Locale, "srv.ancient.kind_city"), vent = Localize(session.Locale, "srv.ancient.kind_vent");
         string here = " · " + Localize(session.Locale, "srv.ancient.here");
-        for (int i = 0; i < candidates.Count && i < TeleportListMaxLines; i++)
+        for (int i = 0; i < candidates.Count; i++) // every candidate, however many (#4034)
         {
             var c = candidates[i];
             string where = c.Slot == UndergroundCitySlot ? city : vent;
@@ -293,15 +293,6 @@ public sealed partial class GameServer
             {
                 // netstandard2.1 (the server's second target) has no string.Create(IFormatProvider, …) — FormattableString does.
                 Text = FormattableString.Invariant($"/ressaw {i + 1} · {c.Body.Name} · {StarMapSystemName(session, c.System)} · {where}{mark}"),
-            });
-        }
-
-        if (candidates.Count > TeleportListMaxLines)
-        {
-            Send(session, new ServerMessage
-            {
-                Text = Localize(session.Locale, "srv.tp.list_more")
-                    .Replace("{count}", (candidates.Count - TeleportListMaxLines).ToString(CultureInfo.InvariantCulture)),
             });
         }
     }

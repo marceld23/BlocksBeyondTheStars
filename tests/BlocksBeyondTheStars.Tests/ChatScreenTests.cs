@@ -261,6 +261,40 @@ public sealed class ChatScreenTests
     }
 
     [Fact]
+    public void APersonalDataPatternThatRunsOutOfTime_FailsClosed_TheWholeLineCounts()
+    {
+        // #4036: on a busy server the phone pattern timed out and the number went out unmasked. A personal-data
+        // pattern that cannot finish must not vouch for the line: the whole line counts as that kind of data.
+        var bomb = new System.Text.RegularExpressions.Regex(
+            @"^(\w+\s?)+$", System.Text.RegularExpressions.RegexOptions.ExplicitCapture, System.TimeSpan.FromMilliseconds(1));
+        var calm = new System.Text.RegularExpressions.Regex(
+            @"zzz", System.Text.RegularExpressions.RegexOptions.ExplicitCapture, System.TimeSpan.FromSeconds(5));
+        string line = new string('a', 64) + "!";
+        var spans = new System.Collections.Generic.List<(int Start, int End)>();
+
+        var (found, kind) = ChatScreen.CollectPersonalData(new[] { (calm, "email"), (bomb, "phone") }, line, spans);
+
+        Assert.True(found);
+        Assert.Equal("phone", kind);
+        Assert.Equal(new[] { (0, line.Length) }, spans);
+        Assert.Empty(ChatScreen.MatchSpans(bomb, line, out bool timedOut));
+        Assert.True(timedOut);
+    }
+
+    [Fact]
+    public void ACleanLine_HasNoPersonalData_AndAPhoneNumberIsFound()
+    {
+        var phone = new System.Text.RegularExpressions.Regex(
+            @"\d{4} \d{7}", System.Text.RegularExpressions.RegexOptions.ExplicitCapture, System.TimeSpan.FromSeconds(5));
+        var spans = new System.Collections.Generic.List<(int Start, int End)>();
+
+        Assert.Equal((false, string.Empty), ChatScreen.CollectPersonalData(new[] { (phone, "phone") }, "hello there", spans));
+        Assert.Empty(spans);
+        Assert.Equal((true, "phone"), ChatScreen.CollectPersonalData(new[] { (phone, "phone") }, "call 0151 2345678", spans));
+        Assert.Equal(new[] { (5, 17) }, spans);
+    }
+
+    [Fact]
     public void MatchSpans_ReportsEveryNonEmptyMatch()
     {
         var digits = new System.Text.RegularExpressions.Regex(
