@@ -605,8 +605,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // — while emissive energy fields stay an airy, see-through curtain. Clear glass (#1274,
                     // the canopy/dome exception) arrives with TEXCOORD2.x = -1 from the mesher — the only
                     // negative value on that channel — and skips the frost for a faint, look-through pane.
-                    col = lerp(col + light * 0.16 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
-                    alpha = lerp(lerp(0.72, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
+                    // #4041: a little more see-through than it was (alpha 0.72, frost 0.16), still clearly glass and far from clear.
+                    col = lerp(col + light * 0.10 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
+                    alpha = lerp(lerp(0.58, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
                     // A field whose tile carries a CUTOUT keeps its own silhouette (#1373): fire is a flame
                     // shape, not a square curtain. The energy fields' tiles are fully opaque, so this is a
@@ -875,8 +876,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // — while emissive energy fields stay an airy, see-through curtain. Clear glass (#1274,
                     // the canopy/dome exception) arrives with TEXCOORD2.x = -1 from the mesher — the only
                     // negative value on that channel — and skips the frost for a faint, look-through pane.
-                    col = lerp(col + light * 0.16 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
-                    alpha = lerp(lerp(0.72, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
+                    // #4041: a little more see-through than it was (alpha 0.72, frost 0.16), still clearly glass and far from clear.
+                    col = lerp(col + light * 0.10 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
+                    alpha = lerp(lerp(0.58, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
                     // A field with a CUTOUT tile keeps its silhouette (#1373 — fire is flame-shaped); the energy
                     // fields' tiles are opaque, so this is a no-op for them.

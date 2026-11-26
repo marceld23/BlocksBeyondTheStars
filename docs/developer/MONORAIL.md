@@ -141,6 +141,11 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   every seat sits on its own bench or berth cell (the middle of a berth's two cells), none in the door opening, none in
   a full cube (`RailWagonLayoutTests`). Before, the seats stood inside full-cube benches and bunks: the seated eye looked
   through the bench and the floor, and standing up dropped the rider through the floor (#3472).
+  #4040: the furnishing stands in the side wall's own cells, so a shaped bench or berth left that cell's outer face open
+  (the seat wagon had no lower wall at all). `RailWagonLayout.WallSkin` lists a thin `metal_panel` pane — the side windows'
+  panel form on the outer face — for every wall cell outside the door that holds a shaped block other than a window;
+  `TrainView` meshes it as a second grid ("WallSkin") on the same pose, spread 1.01× across the wagon so its outer face
+  sits 1.5 cm out and never shares a plane with a mattress (`RailWagonLayoutTests`: no wall cell outside the door is open).
   Every frame each wagon is posed on the spline: the server's arc run on by its velocity (#3444,
   `TrainDrawArc.PredictSpeed`) and direction since the last update
   and eased toward each new one (`DrawArc`, stepped by the Unity-free `Client.Core/TrainDrawArc` through

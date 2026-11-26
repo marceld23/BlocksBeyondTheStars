@@ -26,6 +26,32 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚃 Player reports of 2026-11-26: a wall behind the train's benches, clearer plain glass; "World options…" out of the divider; the browser points to the desktop — #4039, #4040, #4041, #4043, branch fix/reports-2026-11-26 — 🔄 in PR #4042 (client + Client.Core + shared + one shader + locales; no protocol, save or world-generation change; 3 new texts in all 14 languages)
+
+Two F1 reports from the intercity train (v2026.11.31), one menu bug and one wish. Order by Marcel 2026-11-26 (Option A for
+the menu; the browser card's mock approved the same evening).
+
+- **#4039 "World options…" no longer sits under the divider.** On My worlds → New world the button had a row of its own
+  at y 470–516 and the hosting row's divider (`LanY − 14` = 506) ran through it; the cards, the Creative box and the
+  button needed all 206 px between the cards and the divider. The button now sits beside the mode box under the fourth
+  card (229 × 46); the Creative box and the Sandbox / Hard Survival hints take the width of the first three cards (707)
+  with a 12 px gap to the cards (it was 0 since #3765). The geometry is `MyWorldsLayout` (Client.Core) —
+  `MyWorldsLayoutTests` holds the rows apart; the narrowed texts have text-fit entries for all 14 languages.
+- **#4040 The train's lower wall behind the benches.** A wagon is one grid with one block per cell and the furnishing
+  stands in the wall's cells; since the benches and berths are shaped forms (#3471) their cells' outer faces were open — the
+  seat wagon had no lower wall at all, the bar wagon none behind its benches, the sleeper a slit over each berth.
+  `RailWagonLayout.WallSkin` lists a thin `metal_panel` pane (the side windows' panel form, on the outer face) for every
+  such cell; `TrainView` meshes it as a second grid on the same pose, spread 1.5 cm out so it never shares a plane with
+  a mattress. Seats and server unchanged. `RailWagonLayoutTests`: no wall cell outside the door is left open.
+- **#4041 Plain glass a little more see-through.** `BlockAtlasTransparent.shader` (both passes): alpha 0.72 → 0.58,
+  white frost 0.16 → 0.10; still frosted and clearly unlike Klarglas (0.22). ART_BIBLE rule 3 reworded. Shader only —
+  every world's glass looks a little clearer at once.
+- **#4043 The browser says the desktop version looks even better.** The browser offers only Potato and Low (#3946); its
+  main menu now shows a quiet card under the column's last button (x 90, y 764, 676 × 152, flush with "New world"): the
+  graphics icon, "Even prettier on desktop", one line naming the presets, and "Get the desktop version" → the website
+  (`UiMainMenu.BuildDesktopHint`). The card compiles on every platform (the Windows player build checks it); only the
+  browser branch calls it. `BrowserDesktopHintTests`, text-fit entries; 3 new texts in all 14 languages.
+
 ### 📬 School club reports of 2026-11-25: nobody turns to you over there, Soundis that travel, flat rugs in the wrecks, a third-person setting, flight from the water, the wheel over gaps, where flower seeds come from, bricks, a blue spacesuit, both Bens, the whole /tp list, a chat filter that fails closed — #4024–#4034, #4036, branch fix/reports-2026-11-25 — ✅ released in v2026.11.31, PR #4035 (`ad1a6b68`) (server + shared + client + Client.Core + data + tools; **save version 22** (one new block, ids shift), protocol unchanged (one additive field `NetCompanion.TravellingPet`), terrain generation unchanged; 17 new texts and 1 changed in all 14 languages)
 
 Seven F1 reports of the school club and one question from Lyxette (v2026.11.30), plus six older club reports that had

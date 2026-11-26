@@ -54,8 +54,8 @@ public sealed class HardSurvivalWiringTests
         Assert.Contains("_mode == 3 ? WorldCreationOptions.HardSurvival(_worldOptions) : _worldOptions", create);
         Assert.Contains("Launch(world, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight());", create);
         Assert.Contains("private bool Flight() => _mode == 1 || _mode == 2;", create); // no free flight in Hard Survival
-        Assert.Contains("ModeCardW = 229f", create);                                      // four cards in the row of three: 4 × 229 + 3 × 10 = 946
-        Assert.Equal(946f, (4 * 229f) + (3 * 10f));
+        Assert.Contains("ModeCardW = MyWorldsLayout.ModeCardW", create);                  // four cards in the row of three: 4 × 229 + 3 × 10 = 946
+        Assert.Equal(946f, (4 * MyWorldsLayout.ModeCardW) + (3 * (MyWorldsLayout.ModeCardStep - MyWorldsLayout.ModeCardW)));
 
         string options = Script("WorldCreationOptions.cs");
         Assert.Contains("o.PlanetEnemies = 4; // Extreme", options);

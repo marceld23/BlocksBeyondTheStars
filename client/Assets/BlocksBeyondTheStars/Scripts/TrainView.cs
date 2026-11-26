@@ -329,6 +329,10 @@ namespace BlocksBeyondTheStars.Client
 
         // The grid and the furnishing are shared data (RailWagonLayout): the seats the server hands out sit on these cells.
 
+        /// <summary>#4040: how far the wall skin's grid is spread across the wagon (x scale about the wagon's middle): 1.5 cm
+        /// out on each side, so the skin's outer face never shares a plane with a berth's mattress, which reaches the wall.</summary>
+        private const float WallSkinSpread = 1.01f;
+
         private void BuildWagonMesh(GameObject root, string item, bool cab)
         {
             if (Game.ChunkMaterial == null || Game.Atlas == null || Game.Content == null)
@@ -336,8 +340,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            var mats = Game.ChunkMaterialTransparent != null
+                ? new[] { Game.ChunkMaterial, Game.ChunkMaterialTransparent }
+                : new[] { Game.ChunkMaterial };
+            var paint = ShipMeshBuilder.HullPaint(Game.Content, cab ? new Color(0.55f, 0.72f, 0.92f) : new Color(0.82f, 0.85f, 0.9f));
+            BuildGridMesh(root, "Hull", RailWagonLayout.Cells(item, cab), mats, paint, 1f);
+            // #4040: the thin outer wall behind the benches and berths, which stand in the wall's own cells — a grid of its own
+            // (one block per cell), so a bench and the wall behind it can share a cell.
+            BuildGridMesh(root, "WallSkin", RailWagonLayout.WallSkin(item, cab), mats, paint, WallSkinSpread);
+        }
+
+        private void BuildGridMesh(GameObject root, string name, IReadOnlyList<RailWagonLayout.Cell> grid, Material[] mats,
+            System.Func<BlockId, Color> paint, float spreadX)
+        {
             var cells = new Dictionary<Vector3i, (BlockId Block, int Shape)>();
-            foreach (var c in RailWagonLayout.Cells(item, cab))
+            foreach (var c in grid)
             {
                 var id = Id(c.Block);
                 if (!id.IsAir)
@@ -346,10 +363,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            var mats = Game.ChunkMaterialTransparent != null
-                ? new[] { Game.ChunkMaterial, Game.ChunkMaterialTransparent }
-                : new[] { Game.ChunkMaterial };
-            var paint = ShipMeshBuilder.HullPaint(Game.Content, cab ? new Color(0.55f, 0.72f, 0.92f) : new Color(0.82f, 0.85f, 0.9f));
+            if (cells.Count == 0)
+            {
+                return;
+            }
+
             BlockId CellAt(int x, int y, int z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) ? b.Block : BlockId.Air;
             // #3471: the benches and berths are shaped cells — the mesher must see their forms, or the floor under a bench
             // stays culled as if a full cube stood on it (the hole the seated eye looked through).
@@ -376,11 +394,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var go = new GameObject("Hull");
+            var go = new GameObject(name);
             go.transform.SetParent(root.transform, false);
-            // Centre the grid on the wagon pose: the floor's top face is the frame's y = 0, the middle of the width its x = 0.
+            // Centre the grid on the wagon pose: the floor's top face is the frame's y = 0, the middle of the width its x = 0
+            // (a spread grid scales about that middle).
             var origin = RailWagonLayout.GridOrigin;
-            go.transform.localPosition = new Vector3(origin.X, origin.Y, origin.Z);
+            go.transform.localPosition = new Vector3(origin.X * spreadX, origin.Y, origin.Z);
+            go.transform.localScale = new Vector3(spreadX, 1f, 1f);
             if (collider != null)
             {
                 var mc = go.AddComponent<MeshCollider>();
