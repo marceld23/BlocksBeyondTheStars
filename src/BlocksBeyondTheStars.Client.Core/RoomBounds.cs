@@ -35,8 +35,23 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly (int X, int Y, int Z)[] Steps = { (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1) };
 
+        [ThreadStatic] private static HashSet<(int, int, int)>? _seen;
+        [ThreadStatic] private static Queue<(int X, int Y, int Z)>? _queue;
+
+        /// <summary>#4052: the scan's two collections, emptied — reused per thread. A scan of a ship's cabin grew a fresh
+        /// set to a few hundred cells twice a second while the room reflections were on, about 700 KB of garbage a second.</summary>
+        private static (HashSet<(int, int, int)> Seen, Queue<(int X, int Y, int Z)> Queue) Scratch()
+        {
+            var seen = _seen ??= new HashSet<(int, int, int)>();
+            var queue = _queue ??= new Queue<(int X, int Y, int Z)>();
+            seen.Clear();
+            queue.Clear();
+            return (seen, queue);
+        }
+
         /// <summary>Scans the room around the start cell. True with the room's cell box (inclusive cell indices) when the
-        /// open cells close up within the caps; false when the start is not open, a cell is unknown, or the space leaks.</summary>
+        /// open cells close up within the caps; false when the start is not open, a cell is unknown, or the space leaks.
+        /// <paramref name="cellAt"/> must not start a scan of its own (the scan's scratch is shared per thread).</summary>
         public static bool TryFind(int sx, int sy, int sz, Func<int, int, int, RoomCell> cellAt, out RoomBox box)
         {
             box = default;
@@ -45,8 +60,8 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            var seen = new HashSet<(int, int, int)> { (sx, sy, sz) };
-            var queue = new Queue<(int X, int Y, int Z)>();
+            var (seen, queue) = Scratch();
+            seen.Add((sx, sy, sz));
             queue.Enqueue((sx, sy, sz));
             int minX = sx, minY = sy, minZ = sz, maxX = sx, maxY = sy, maxZ = sz;
             while (queue.Count > 0)

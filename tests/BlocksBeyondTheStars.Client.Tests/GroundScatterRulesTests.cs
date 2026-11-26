@@ -91,7 +91,7 @@ public sealed class GroundScatterRulesTests
         Assert.DoesNotContain("BuildPebble", scatter);
         Assert.Contains("_props.SetVectorArray(ScatterLightId, lights);", scatter);
         Assert.Contains("data.ScatterLight.Add(", Script("ChunkMesher.HighDetails.cs"));
-        Assert.Contains("scatter.Setup(data.Scatter, data.ScatterLight);", Script("GameBootstrap.Meadow.cs"));
+        Assert.Contains("view.Scatter.Setup(data.Scatter, data.ScatterLight);", Script("GameBootstrap.Meadow.cs"));
 
         string shader = Shader("ScatterLit.shader");
         Assert.Contains("#include \"MeadowLight.hlsl\"", shader);

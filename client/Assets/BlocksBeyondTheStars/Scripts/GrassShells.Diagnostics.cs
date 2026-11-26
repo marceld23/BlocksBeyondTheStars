@@ -57,7 +57,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 withTops++;
-                enabledCount += shells.enabled ? 1 : 0;
+                enabledCount += Wanted && shells.HasData ? 1 : 0;
                 inRange += DistanceSqToChunk(_camPos, shells.transform.position) < CarpetRange * CarpetRange ? 1 : 0;
             }
 

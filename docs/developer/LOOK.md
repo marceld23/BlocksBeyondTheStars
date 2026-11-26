@@ -739,3 +739,113 @@ Medium. At the cap these numbers show that the frame fits, not how much room is 
 
 The block shader reads one texture more than before (the plants' far atlas), and the browser limits textures per shader;
 the browser runs above logged no shader or texture error on WebGPU or WebGL 2. #3947 was closed on 2026-11-23.
+
+### In the play view, and where the processor's time goes (2026-11-26, epic #4051)
+
+Measured again with PerfProbe after #3954 — the player's view, not the prologue — on the same laptop: 16 logical
+processors, Direct3D 12, view distance 8, VSync at 60 Hz, seed 424242, a quiet machine. The game fills the laptop's own
+panel: **3840 × 2400**, with MSAA 4× on High, 2× on Medium, and render scale 0.75 without MSAA on Potato. A 1080p
+display has less than a quarter of those pixels, so the GPU times below are this panel's, not a typical player's.
+"Idle" stands where the player spawns, aboard the starter ship, after the view has settled; one run each unless a range
+is given.
+
+| Preset | Before (main `a061a77f`) | After this package |
+|---|---|---|
+| Potato | 60 fps · GPU 4.0 ms · main 4.2 ms · render 1.7 ms | 60 fps · GPU 4.0 ms · main 4.1 ms · render 2.0 ms |
+| Medium | 40 fps · GPU 19.6 ms · main 9.9 ms · render 3.1 ms | 40 fps · GPU 18.8 ms · main 7.5 ms · render 3.1 ms |
+| High | 27–28 fps · GPU 33.6–34.0 ms · main 13.4–13.8 ms · render 5.8 ms (two runs) | 28–30 fps · GPU 30.6–32.9 ms · main 10.4–13.1 ms, median 11.2 · render 5.0–6.1 ms (five runs) |
+
+(GPU and main thread are medians; the main thread's time excludes its wait for the picture to be shown.) On Medium and
+High the graphics card is the limit on this panel, so the frame rate barely moves; the GPU time itself swings by about
+1.5 ms between runs. The main thread lost about a quarter of its work on Medium and a sixth on High. What the package
+bought shows where the processor is the limit — in how fast the world appears:
+
+| High, view distance 8 | Rule before (four builds a frame) | This package |
+|---|---|---|
+| The loading veil lifts after | 13.1 s | 11.3 s |
+| The view is fully meshed after | 17.6 s | 9.8 s |
+| Walking: a chunk waits for its first mesh — median / 90th percentile / longest | 0.9 s / 2.9–4.4 s / 9.5 s | 0.2 s / 0.8 s / 1.2 s |
+| Cores the mesher keeps busy while the view fills | 1.4 | 3.3 |
+| The far view (1024 blocks, 104 patches) is complete after | 10.0–10.4 s (one worker) | 7.3–8.4 s (three workers) |
+
+Both columns come from the same build: PerfProbe's `-perfFeature meshbudget=frame,loadbudget=off` runs the rule before
+(#4045). The view's last chunk arrives after about 8 s — that is the server's stream, the floor for any client. Medium:
+veil 11.3 s, meshed 9.9 s, a chunk waits 0.15 s (median) and 0.55 s (90th percentile) while walking. Potato: veil 9.5 s,
+meshed 8.0 s (10.1 s with the rule before), 0.05 s and 0.08 s (0.22 s and 0.55 s before).
+
+Where the main thread's time went on High, from profiler captures of a Development player (their absolute times are
+higher than a release player's):
+
+- **The near drawers.** Before, each of the five drawers ran an `Update()` on every loaded chunk that had data for it:
+  2150 calls a frame, 4.6 ms. Now one pass walks the chunks in reach (#4046): 2.2–3.1 ms with 86–130 chunks in reach,
+  and nothing on Potato and Low. What is left is handing the instanced calls to the engine.
+- **The far view's `Update()`**: 2.6 ms → 0.1 ms. Its column mask asked the world generator for every drawn chunk's
+  surface four times a second, and the generator's calibration lookup allocated on every call (#4052).
+- **Allocations on the main thread**: 38 300 a second → 6 300 (3.0 → 1.6 MB a second); the far view's share fell from
+  32 700 a second to 130.
+- **The chunk pass** (uploads and the copies a dispatch makes): about 1 ms per frame while walking, unchanged per chunk;
+  an upload takes 0.3–0.6 ms, a large one 3 ms.
+- **Receiving chunks**: 0.13–0.26 ms per frame while walking, of which the envelope's decode is 0.02 ms — measured and
+  left on the main thread (#4047).
+
+A chunk's geometry takes the mesher about 1 ms on its thread when the chunk is air or rock (the median) and 30–45 ms
+when it is full of surface detail (the 90th percentile; the longest took 130 ms).
+
+**Graphics Jobs** (#4049), the same code built with and without them, main-thread and render-thread medians, idle:
+
+| | Direct3D 12 (native jobs, split threading) | Direct3D 11 (legacy jobs) |
+|---|---|---|
+| High | main 10.8 → 7.8 ms · render 5.6 → 1.7 ms | main 12.0 → 8.1 ms · render 4.2 → 4.4 ms |
+| Medium | main 7.5 → 5.9 ms · render 3.1 → 1.4 ms | — |
+| Potato | main 4.1 → 2.9 ms · render 2.0 → 0.7 ms | main 3.9 → 3.3 ms · render 1.0 → 1.1 ms |
+| Potato held to four logical processors | main 4.3 → 4.5 ms; walking 55 → 52 fps; the world ready after 14.1 → 15.2 s | — |
+
+No extra long frames in any run. They win on a large machine on both graphics APIs — the measurement of 2026-09-04 that
+switched them off no longer holds — but the one run on four logical processors showed no gain, and Potato exists for
+such machines; Linux is unmeasured. They stay off until a real small machine has been checked (`BuildScript.cs` carries
+the numbers; `BBS_GRAPHICS_JOBS=1` builds a player with them).
+
+Not measured here: the far view's 2048-block range, the browser, Linux, and any machine but this one.
+
+### What High's GPU time is made of (2026-11-26, #4050)
+
+A sweep with PerfProbe's `-perfFeature` switches: desktop High on the same laptop and panel (3840 × 2400, MSAA 4×),
+standing still on open ground beside a wood (the probe's outdoor phase, seed 424242, at 28 / 90 / 80), one cost-bearing
+part switched off per run, 15 s each. The two runs without a switch, first and last of the series, read 27.4 and
+27.6 ms, so a difference of half a millisecond is real here.
+
+| Switched off (or changed) | GPU time, median | Saved | Frame rate |
+|---|---|---|---|
+| nothing | 27.5 ms | — | 33 fps |
+| render scale 0.5 — a quarter of the pixels | 12.2 ms | 15.3 ms (56 %) | 59 fps |
+| every shadow (`shadowdist=0`) | 19.2 ms | 8.3 ms (30 %) | 40 fps |
+| the near crown clusters (`crowns`) | 23.6 ms | 3.9 ms (14 %), and 1.2 ms of the main thread | 37 fps |
+| ambient occlusion (`ssao`) | 23.9 ms | 3.6 ms (13 %) | 36 fps |
+| volumetric light (`volumetric`) | 24.0 ms | 3.5 ms (13 %) | 36 fps |
+| MSAA 4× → none (`msaa=1`) | 24.7 ms | 2.8 ms (10 %) | 36 fps |
+| every post effect (`post`) | 25.4 ms | 2.1 ms (8 %) | 35 fps |
+| Medium's shadow tier: 70 m, two cascades (`shadowdist=70,cascades=2`) | 25.6 ms | 1.9 ms (7 %) | 35 fps |
+| crowns and plants cast no shadow of their own (`nearshadows`) | 26.4 ms | 1.1 ms | 34 fps |
+| the sun's soft shadow with 9 taps instead of 16 (`sunshadow=pipeline`) | 26.9 ms | 0.6 ms | 34 fps |
+| the visor HUD's camera and composite (`visor`) | 27.2 ms | 0.3 ms | — |
+| relief, plant bodies, grass clumps, the grass carpet | 27.3–27.6 ms | under 0.3 ms each at this spot | — |
+
+The savings overlap (the crowns' share includes their shadows), so they do not add up to the frame.
+
+What the table says:
+
+- **The pixel count is the largest single item.** From the two resolutions, about 20 ms of the 27.5 scale with the
+  pixels and about 7 ms do not (an estimate from two points: `27.5 = a + b`, `12.2 = a + b / 4`). The same picture on a
+  1080p display would then need about 12 ms, on 2560 × 1440 about 15 ms — an estimate, not a measurement. High is limited
+  by the graphics card on this laptop because its panel has 9.2 million pixels, more than four 1080p screens.
+- **Shadows are the largest effect**, 8.3 ms. Neither their reach nor their softness is the bulk of it: Medium's reach
+  and cascade count save 1.9 ms, the smaller soft-shadow kernel 0.6 ms. The rest is drawing the casters into the shadow
+  map and sampling it; the shadow map's size on its own was not swept.
+- **Ambient occlusion, volumetric light and the near crowns** cost about 3.5–4 ms each; MSAA about 3 ms; all post
+  effects together 2 ms.
+- The spot is a wood's edge: crowns in reach, little meadow. The carpet and the clumps therefore read as free here; on a
+  meadow they are not, and that picture was not measured.
+- The visor's second camera is cheap (0.3 ms). A reading of the code had suggested it runs the full ambient-occlusion
+  pass; the measurement does not support that.
+
+The options that follow, each a decision about the look and none built here, are listed on issue #4050.

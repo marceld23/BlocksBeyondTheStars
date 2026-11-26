@@ -113,7 +113,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(LookGrassId, new Vector4(
                 grassRange, Mathf.Max(1f, grassRange * 0.35f), Mathf.Clamp(GameLook.GrassHeight, 0.2f, 3f),
                 Mathf.Clamp01(GameLook.GrassCalm)));
-            Shader.SetGlobalFloat(LookGrassShadowId, 1f);
+            Shader.SetGlobalFloat(LookGrassShadowId, LookProbe.GrassShadowSingle ? 0f : 1f);
             if (HighDetails.Grass)
             {
                 GameLook.ApplyCarpetAo(MeadowAssets.ShellMaterial); // the carpet out of the SSAO (it flickered there)

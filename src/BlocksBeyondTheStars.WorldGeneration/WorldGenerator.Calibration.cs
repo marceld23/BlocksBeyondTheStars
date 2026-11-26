@@ -68,6 +68,15 @@ public sealed partial class WorldGenerator
             return fast.Value;
         }
 
+        return CalibForMiss(planet, key);
+    }
+
+    /// <summary>#4052: the miss path of <see cref="CalibFor"/>, a method of its own on purpose. Its lambda captures
+    /// <c>planet</c>, and the compiler builds the object that holds a captured parameter at the method's start — inside
+    /// <see cref="CalibFor"/> that was one allocation per lookup, hit or miss, on a path the generator takes several
+    /// times per column (28 000 a second on the client's main thread while the far view samples).</summary>
+    private WorldCalibration CalibForMiss(PlanetType planet, (long, string, int, bool, long, bool, bool, int) key)
+    {
         var calib = _calibs.TryGet(key, out var hit) ? hit : _calibs.GetOrBuild(key, () => Calibrate(planet));
         _calibSlot = new WorldSlot<WorldCalibration>(key, calib);
         return calib;

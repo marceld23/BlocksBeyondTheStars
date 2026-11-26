@@ -62,7 +62,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 _tufts = null;
                 _ready = false;
-                enabled = false;
                 return;
             }
 
@@ -73,7 +72,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 _tufts = null;
                 _ready = false;
-                enabled = false;
                 return;
             }
 
@@ -93,8 +91,17 @@ namespace BlocksBeyondTheStars.Client
                 WorldConstants.ChunkSize * 0.5f, WorldConstants.ChunkSize * 0.5f, WorldConstants.ChunkSize * 0.5f));
             _bakedPos = transform.position;
             _ready = true;
-            enabled = true;
         }
+
+        /// <summary>True while the chunk holds tufts; the detail pass (GameBootstrap.Detail.cs) skips the chunk otherwise.</summary>
+        public bool HasData => _ready;
+
+        /// <summary>How far a chunk's tufts can reach this frame, measured to the chunk: the draw range plus a chunk — 0 with
+        /// the ground details off or on a preset below Medium.</summary>
+        public static float FrameReach()
+            => Enabled && (UrpScenePost.Instance == null || UrpScenePost.Instance.Preset >= QualityPreset.Medium)
+                ? MaxDistance + WorldConstants.ChunkSize
+                : 0f;
 
         /// <summary>The world matrix and light of every tuft point (capped at one instanced draw).</summary>
         private static void Collect(List<Vector4> points, List<Vector4> light, Matrix4x4 l2w, List<Matrix4x4> tufts,
@@ -135,7 +142,9 @@ namespace BlocksBeyondTheStars.Client
             return (mixed >> 8) * (1f / 16777216f);
         }
 
-        private void Update()
+        /// <summary>Submits this chunk's tufts for the current frame. Called by the detail pass for chunks inside the
+        /// reach (#4046) — no <c>Update()</c> of its own.</summary>
+        public void Draw()
         {
             if (!_ready || !Enabled || _material == null || _tufts == null)
             {

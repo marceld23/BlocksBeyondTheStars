@@ -1433,7 +1433,8 @@ namespace BlocksBeyondTheStars.Client
 
                 var item = _inbox.Dequeue();
                 dispatched++;
-                if (IsChunkItem(item))
+                bool isChunk = IsChunkItem(item);
+                if (isChunk)
                 {
                     chunks++;
                 }
@@ -1449,7 +1450,16 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                DispatchItem(item);
+                if (isChunk)
+                {
+                    long started = System.Diagnostics.Stopwatch.GetTimestamp(); // #4044: decode + handler of one chunk
+                    DispatchItem(item);
+                    ChunkWorkStats.Receive.AddSince(started);
+                }
+                else
+                {
+                    DispatchItem(item);
+                }
             }
         }
 

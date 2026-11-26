@@ -44,6 +44,14 @@ namespace BlocksBeyondTheStars.Client
             public int PendingColliderGen;
             public bool DistanceVisible = true; // #1823: inside the renderer cull distance (RepositionChunks)
             public bool ShadowsOnly;            // #1823: hidden by the visibility walk but still casting
+
+            // #4046: the chunk's drawers (null until a build brings data for one) and its slot in the detail pass.
+            public GroundScatter Scatter;
+            public GrassShells Shells;
+            public GrassClumps Clumps;
+            public PlantBodies Plants;
+            public CrownClusters Crowns;
+            public int DetailIndex = -1;
         }
 
         private readonly Dictionary<ChunkCoord, ChunkView> _chunkObjects = new Dictionary<ChunkCoord, ChunkView>();
@@ -79,17 +87,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Chunks still queued to be (re)meshed — the client-side mesh backlog.</summary>
         public int PendingMeshCount => _dirty.Count + _deferredDirty.Count + _waterReachDirty.Count;
 
-        // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
-        // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
-        // the rest stay queued in _dirty. Tunable — raise for less pop-in, lower for smoother frame times.
-#if UNITY_WEBGL && !UNITY_EDITOR
-        // WebGL has no worker threads, so each build + collider cook runs synchronously on the main thread
-        // (see DispatchChunkBuild / ApplyChunkMesh). Cap dispatches lower so a burst of arriving chunks spreads
-        // over more frames instead of spiking a single one.
-        public int MeshChunksPerFrame = 2;
-#else
-        public int MeshChunksPerFrame = 4;
-#endif
+        // Performance (P1, #4045): how much meshing runs at once, so a burst of chunks arriving while moving fast spreads
+        // over several frames instead of stalling one. The browser has no worker threads and builds inline within a time
+        // budget per frame (#1819, GameBootstrap.ChunkPipeline.cs). Everywhere else the builds run on worker threads and
+        // the cap is the builds IN FLIGHT, by the machine's cores — not a count per frame, which tied the throughput to the
+        // frame rate (four a frame: the slower the frame, the slower the world filled). Nearest chunks build first; the
+        // rest stay queued in _dirty.
+        private static readonly int BuildsInFlightLimit = ChunkBuildBudget.InFlight(System.Environment.ProcessorCount);
+        private static readonly int BuildsInFlightLoadingLimit = ChunkBuildBudget.InFlightWhileLoading(System.Environment.ProcessorCount);
+
+        /// <summary>#4045: the builds this client keeps in flight at most (the machine's cores decide; the browser builds
+        /// inline and does not ask).</summary>
+        public static int BuildsInFlightCap => BuildsInFlightLimit;
         private readonly List<ChunkCoord> _dirtyScratch = new List<ChunkCoord>();
         private readonly List<float> _dirtyDistScratch = new List<float>(); // parallel to _dirtyScratch during dispatch (#1515)
 
@@ -304,6 +313,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds dispatched since start-up (PerfProbe reports the per-phase delta).</summary>
         public static int MeshBuildsDispatched { get; private set; }
 
+        /// <summary>#4044: builds started and not yet taken off the finished queue — on a worker or waiting for their upload.</summary>
+        public int BuildsInFlight { get; private set; }
+
+        /// <summary>#4044: when each chunk that has no mesh yet arrived (a stopwatch timestamp) — the wait until its first
+        /// mesh is what the player sees as pop-in, and what PerfProbe reports. An entry leaves with the first upload or the
+        /// unload; a world change clears the lot.</summary>
+        private readonly Dictionary<ChunkCoord, long> _arrivedAt = new Dictionary<ChunkCoord, long>();
+
         private sealed class MeshJob
         {
             public GameBootstrap Owner;
@@ -331,6 +348,7 @@ namespace BlocksBeyondTheStars.Client
 
             public void Run()
             {
+                long started = System.Diagnostics.Stopwatch.GetTimestamp(); // #4044: the build's time on its thread
                 try
                 {
                     Data = ChunkMesher.BuildGeometry(Center, Content, Hood.BlockFn, Atlas, FloraTintFn, null, Lights, Hood.ShapeFn, DesignUv, Hood.LoadedFn,
@@ -345,6 +363,7 @@ namespace BlocksBeyondTheStars.Client
                     Error = ex.ToString();
                 }
 
+                ChunkWorkStats.Build.AddSince(started);
                 Owner._builtChunks.Enqueue(this);
             }
         }
@@ -514,6 +533,7 @@ namespace BlocksBeyondTheStars.Client
             _colliderGen.Remove(coord);
             _colliderAppliedGen.Remove(coord);
             _meshGen.Remove(coord); // an in-flight build for it finds no generation and is dropped (DrainBuiltChunks)
+            _arrivedAt.Remove(coord);
             _meshFailCounts.Remove(coord);
             ForgetConnectivity(coord); // #1823
             if (_syncCooks.TryGetValue(coord, out var parkedCook)) // #1819: a browser cook still waiting
@@ -564,6 +584,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnChunk(BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage m)
         {
+            long started = System.Diagnostics.Stopwatch.GetTimestamp(); // #4044: the handler's share of the receive path
+            StoreChunk(m);
+            ChunkWorkStats.Store.AddSince(started);
+        }
+
+        private void StoreChunk(BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage m)
+        {
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
 
             // Reject a malformed/short chunk payload: ChunkData.FromRaw requires exactly BlocksPerChunk cells and
@@ -586,6 +613,11 @@ namespace BlocksBeyondTheStars.Client
 
             World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData, m.EditRuns, m.DugRuns);
             var canonical = WorldConstants.CanonicalChunk(coord, Circumference);
+            if (!_meshGen.ContainsKey(coord))
+            {
+                _arrivedAt[coord] = System.Diagnostics.Stopwatch.GetTimestamp(); // #4044: until its first mesh
+            }
+
             RetireChunkArray(canonical); // a re-sent chunk replaces its array; the old one goes back after the grace period
             _chunkArrays[canonical] = blocks;
             MarkChunkAndNeighborsDirty(coord);
@@ -737,6 +769,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            ForgetDetail(view); // #4046: out of the detail pass before its drawers go
             if (view.Filter != null && view.Filter.sharedMesh != null)
             {
                 Destroy(view.Filter.sharedMesh);
@@ -812,6 +845,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            long dispatchStarted = System.Diagnostics.Stopwatch.GetTimestamp(); // #4044: the main thread's part
             int circ = Circumference;
             var job = _jobPool.Count > 0 ? _jobPool.Pop() : new MeshJob { Owner = this };
             job.Coord = coord;
@@ -878,6 +912,8 @@ namespace BlocksBeyondTheStars.Client
             job.Data = null;
             job.Error = null;
             MeshBuildsDispatched++;
+            BuildsInFlight++;
+            ChunkWorkStats.Dispatch.AddSince(dispatchStarted);
 
             if (InlineChunkWork)
             {
@@ -928,43 +964,51 @@ namespace BlocksBeyondTheStars.Client
             return copy;
         }
 
+        /// <summary>A build that faulted on its thread (#421 M10): the coord already left _dirty at dispatch, so dropping
+        /// it would mean the chunk never re-meshes — a permanent hole with no collider. Re-dirties it so the budgeted
+        /// dispatch loop retries, unless the world changed or a newer build for this chunk is already in flight (the
+        /// teardown race the old silent drop was guarding against). Logs rate-limited: one line per interval however
+        /// many chunks fail, plus one final line for a chunk given up on — LogError (not LogException): diagnostics, not
+        /// a crash report.</summary>
+        private void RetryFailedBuild(MeshJob built)
+        {
+            if (built.Epoch != WorldEpoch || !_meshGen.TryGetValue(built.Coord, out var failedGen) || failedGen != built.Gen)
+            {
+                return;
+            }
+
+            int fails = (_meshFailCounts.TryGetValue(built.Coord, out var f) ? f : 0) + 1;
+            _meshFailCounts[built.Coord] = fails;
+            if (fails <= MaxMeshBuildRetries)
+            {
+                _dirty.Add(built.Coord);
+            }
+
+            if (fails > MaxMeshBuildRetries || Time.unscaledTime - _lastMeshFailLogTime >= MeshFailLogIntervalSeconds)
+            {
+                _lastMeshFailLogTime = Time.unscaledTime;
+                string give = fails > MaxMeshBuildRetries ? $" — giving up after {MaxMeshBuildRetries} retries (permanent hole)" : $" — retrying ({fails}/{MaxMeshBuildRetries})";
+                Debug.LogError($"[Chunk] Mesh build failed for {built.Coord}{give}: {built.Error ?? "unknown"}");
+            }
+        }
+
         /// <summary>Uploads + assigns finished off-thread chunk builds whose generation/world still match (drops
         /// superseded or world-changed builds). Mirrors <see cref="DrainBakedColliders"/>.</summary>
         private void DrainBuiltChunks()
         {
             // #1819: on desktop the workers can finish a burst between two frames; uploading all of them at once is a
-            // spike of its own. Cap the uploads per frame — the rest stay queued (in completion order) for the next.
+            // spike of its own. #4045: the uploads of a frame get a time budget, not a count — the rest stay queued (in
+            // completion order) for the next frame. The browser built these inline within its own budget already.
             int uploads = 0;
-            int uploadCap = InlineChunkWork ? int.MaxValue : Mathf.Max(1, MaxChunkUploadsPerFrame);
-            while (uploads < uploadCap && _builtChunks.TryDequeue(out var built))
+            _frameWork.Restart();
+            double uploadMs = ChunkBuildBudget.UploadMs(Time.unscaledDeltaTime * 1000d, ChunkLoadingBudget);
+            while (UploadBudgetLeft(uploads, uploadMs) && _builtChunks.TryDequeue(out var built))
             {
                 var job = built; // recycled on every exit path below (#1550)
+                BuildsInFlight--;
                 if (built.Data == null)
                 {
-                    // Failed build (#421 M10): the coord already left _dirty at dispatch, so dropping it here
-                    // means the chunk never re-meshes — a permanent hole with no collider. Re-dirty it so the
-                    // budgeted dispatch loop retries, unless the world changed / a newer build for this chunk is
-                    // already in flight (the teardown-race case the old silent drop was guarding against).
-                    if (built.Epoch == WorldEpoch
-                        && _meshGen.TryGetValue(built.Coord, out var failedGen) && failedGen == built.Gen)
-                    {
-                        int fails = (_meshFailCounts.TryGetValue(built.Coord, out var f) ? f : 0) + 1;
-                        _meshFailCounts[built.Coord] = fails;
-                        if (fails <= MaxMeshBuildRetries)
-                        {
-                            _dirty.Add(built.Coord);
-                        }
-
-                        // Rate-limited: one line per interval however many chunks fail, plus one final line for
-                        // a chunk we give up on. LogError (not LogException) — diagnostics, not a crash report.
-                        if (fails > MaxMeshBuildRetries || Time.unscaledTime - _lastMeshFailLogTime >= MeshFailLogIntervalSeconds)
-                        {
-                            _lastMeshFailLogTime = Time.unscaledTime;
-                            string give = fails > MaxMeshBuildRetries ? $" — giving up after {MaxMeshBuildRetries} retries (permanent hole)" : $" — retrying ({fails}/{MaxMeshBuildRetries})";
-                            Debug.LogError($"[Chunk] Mesh build failed for {built.Coord}{give}: {built.Error ?? "unknown"}");
-                        }
-                    }
-
+                    RetryFailedBuild(built);
                     RecycleJob(job);
                     continue;
                 }
@@ -978,7 +1022,14 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _meshFailCounts.Remove(built.Coord); // healthy again — a later transient fault gets fresh retries
+                long uploadStarted = System.Diagnostics.Stopwatch.GetTimestamp();
                 ApplyChunkMesh(built.Coord, built.Data);
+                ChunkWorkStats.Upload.AddSince(uploadStarted); // #4044
+                if (_arrivedAt.Remove(built.Coord, out long arrived))
+                {
+                    ChunkWorkStats.MeshLatency.AddSince(arrived); // #4044: how long the chunk waited for its first mesh
+                }
+
                 uploads++;
                 // The upload copied everything into the Unity meshes (+ GroundScatter's matrices), so the
                 // pooled geometry buffers can go back for the next build.
@@ -1055,7 +1106,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Ground detail (T0 tufts/pebbles, #3056 meadow): render-only and instanced, culled + quality-gated inside the
             // components; a chunk without points disables them (GameBootstrap.Meadow.cs).
-            ApplyGroundDetail(view.Go, coord, data);
+            ApplyGroundDetail(view, coord, data);
 
             // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava.
             // Baking the collision mesh is the heaviest per-chunk step, so do it off the main thread (P2): bump
@@ -1250,6 +1301,8 @@ namespace BlocksBeyondTheStars.Client
         /// chunks within the frame budget, keep chunks positioned around the player and update visibility.</summary>
         private void TickChunkStreaming()
         {
+            long passStarted = System.Diagnostics.Stopwatch.GetTimestamp(); // #4044: the whole chunk pass of this frame
+
             // Upload + assign chunk geometry whose async build finished (A2), then assign collision meshes whose
             // async bake finished (both cheap on the main thread — the heavy work ran on worker threads).
             ReturnRetiredChunkArrays(); // #1555
@@ -1258,9 +1311,9 @@ namespace BlocksBeyondTheStars.Client
             DrainSyncCooks(); // #1819: browser collider cooks within their own frame budget
             SampleMotion();   // #1818: the build order looks ahead along the player's velocity
 
-            // Kick off off-thread (re)builds for chunks that changed, but cap how many we DISPATCH per frame (P1)
-            // so a burst of chunks arriving while moving fast spreads over several frames instead of stalling one.
-            // Nearest chunks build first; chunks past the budget stay queued for the next frames.
+            // Kick off off-thread (re)builds for chunks that changed, as many as the budget allows (P1, #4045: the builds
+            // in flight by the machine's cores, the copies by time), so a burst of chunks arriving while moving fast
+            // spreads over several frames instead of stalling one. Nearest chunks build first; the rest stay queued.
             PromoteDeferredDirty(); // #1529
             PromoteWaterReachDirty(); // #1903
             RemeshOnLookTierChange(); // #3946: a preset change altered what the mesher emits (GameBootstrap.LookTier.cs)
@@ -1271,19 +1324,18 @@ namespace BlocksBeyondTheStars.Client
                 var pp = PlayerPosition;
 
                 // #1515: nearest-first WITHOUT sorting the whole set — the distances are computed once and the
-                // `budget` nearest entries are picked by partial selection (O(n·k), k ≤ MeshChunksPerFrame),
+                // nearest entries are picked by partial selection (O(n·k), k = the builds started this frame),
                 // instead of an O(n log n) sort with a closure and two seam-aware distances per comparison to
-                // take four. Same order as the sort produced.
+                // take a handful. Same order as the sort produced.
                 _dirtyDistScratch.Clear();
                 for (int i = 0; i < _dirtyScratch.Count; i++)
                 {
                     _dirtyDistScratch.Add(BuildOrderKey(_dirtyScratch[i], pp)); // #1818: nearest first, then ahead
                 }
 
-                int budget = Mathf.Max(1, MeshChunksPerFrame);
                 int built = 0;
-                _frameWork.Restart(); // #1819: the browser builds inline — a time budget, not a count, decides
-                while (BuildBudgetLeft(built, budget) && _dirtyScratch.Count > 0)
+                _frameWork.Restart(); // a time budget decides: the browser's inline builds (#1819), elsewhere the copies (#4045)
+                while (BuildBudgetLeft(built) && _dirtyScratch.Count > 0)
                 {
                     int best = 0;
                     float bestDist = _dirtyDistScratch[0];
@@ -1337,6 +1389,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UpdateVisibility(); // #1823: re-walks when the camera changes chunk or chunk connectivity changed
+            ChunkWorkStats.FramePass.AddSince(passStarted);
         }
     }
 }

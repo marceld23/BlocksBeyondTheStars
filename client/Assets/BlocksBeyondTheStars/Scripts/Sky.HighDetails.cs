@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _sunData ??= _sun.GetUniversalAdditionalLightData();
-            var want = HighDetails.Active ? SoftShadowQuality.High : SoftShadowQuality.UsePipelineSettings;
+            var want = HighDetails.Active && !LookProbe.SunShadowPipelineQuality ? SoftShadowQuality.High : SoftShadowQuality.UsePipelineSettings;
             if (_sunData.softShadowQuality != want)
             {
                 _sunData.softShadowQuality = want;

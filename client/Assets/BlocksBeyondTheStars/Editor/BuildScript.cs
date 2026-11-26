@@ -165,9 +165,22 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             bool desktop = target != BuildTarget.WebGL;
             if (desktop)
             {
-                // Graphics Jobs stay OFF: measured 2026-09-04 (RTX 2000 Ada, High/VD 8, CPU-bound at ~180 fps) they cost
-                // 1.5–2 ms per frame (idle 5.2→7.0 ms, walk 5.3→6.7 ms); without them the same build runs 4.3–5.2 ms.
-                PlayerSettings.graphicsJobs = false;
+                // Graphics Jobs stay OFF for now (#4049). Measured again 2026-11-26 on Unity 6000.6, reference laptop with 16
+                // logical processors: with them the main thread takes 10.8 → 7.8 ms on High, 7.5 → 5.9 ms on Medium and
+                // 4.1 → 2.9 ms on Potato, the render thread 5.6 → 1.7 ms, with no extra long frames — on Direct3D 12 (native
+                // jobs, split threading) and on Direct3D 11 (legacy jobs: High 12.0 → 8.1 ms, Potato 3.9 → 3.3 ms) alike. So
+                // the 2026-09-04 result (1.5–2 ms SLOWER, Unity 6000.4) no longer holds on a large machine. What is not shown is
+                // that a small one gains: held to four logical processors, Potato was no faster (one run each: 55 → 52 fps
+                // walking, the world ready a second later), and Potato exists for exactly those machines; Linux is unmeasured.
+                // They go on once a real small machine has been checked. BBS_GRAPHICS_JOBS=1 builds a player WITH them for
+                // that check; the release scripts never set it, and the player's log names the mode it runs in.
+                bool graphicsJobs = string.Equals(Environment.GetEnvironmentVariable("BBS_GRAPHICS_JOBS"), "1", StringComparison.OrdinalIgnoreCase);
+                PlayerSettings.graphicsJobs = graphicsJobs;
+                if (graphicsJobs)
+                {
+                    Debug.Log("BlocksBeyondTheStars build: Graphics Jobs ON (BBS_GRAPHICS_JOBS=1) — a measurement build");
+                }
+
                 // Managed stripping stays Disabled on desktop: Low already removes the generic Serialize overloads that
                 // MessagePack's non-generic path looks up by reflection (NetCodec.Encode → "Sequence contains no matching element").
                 PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);

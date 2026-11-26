@@ -26,6 +26,66 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧵 Desktop uses its cores: chunk builds by core count, one detail pass per frame, far-view workers, allocation-free generator lookups — measured — epic #4051 (#4044–#4050, #4052), PR #4053 — ✅ done 2026-11-26 (⚠ playtest open; client + Client.Core + world generation (output unchanged, goldens green) + docs; no protocol, save, data or terrain-generation change, no new texts, nothing changes the picture)
+
+Marcel's question of 2026-11-26: High is the desktop showpiece — can it use threads the browser's single thread kept us
+from? The analysis found the large steps already done (mesher, collider cooks, far terrain and minimap on workers, the
+server a process of its own) and four things left; a profiler capture found three more. Numbers: reference laptop,
+16 logical processors, 3840 × 2400, view distance 8 — the full tables are in LOOK.md § "Frame cost".
+
+- **#4044 PerfProbe measures the chunk work.** Per phase: the mesher's build time per chunk on its thread, the main
+  thread's chunk pass (dispatch copy, uploads) and detail pass, the receive path, how long a chunk waits from its arrival
+  to its first mesh; per run: when the loading veil lifts, when the view is fully meshed and what the fill was made of,
+  when the far view is complete, and the screen (resolution, MSAA, render scale, rendering threading mode). New phase
+  `-perfOutdoor <s>` (standing on free ground near the spawn — idle is aboard the starter ship), new `-perfFeature`
+  tokens (`PerfProbe.Features.cs`, with the look's measurement switches in `LookProbe.cs`), and the editor tool
+  `ProfilerTimeReport` (a capture's time by sample name, main and render thread, per phase). The pipeline feeds
+  `Client.Core/ChunkWorkStats` on every platform.
+- **#4045 Chunk builds by cores in flight, not four per frame** (`Client.Core/ChunkBuildBudget`). Four to eight builds
+  in flight by the machine's logical processors (twelve behind the loading veil), the main thread's copies and uploads
+  on a time budget (uploads 3–8 ms by frame time, 10 ms behind the veil) instead of counts. High: the veil lifts after
+  11.3 s instead of 13.1 s, the view is meshed after 9.8 s instead of 17.6 s, and while walking a chunk waits 0.2 s
+  (median) and at most 1.2 s for its first mesh instead of 0.9 s and 9.5 s. A machine with up to eight logical
+  processors keeps four in flight; the browser keeps its inline budgets.
+- **#4046 One detail pass per frame** (`GameBootstrap.Detail.cs`). Tufts, the grass carpet, grass clumps, plant bodies
+  and crown clusters had an `Update()` per chunk and drawer — 2150 calls a frame at view distance 8, most of them to
+  return. Now GameBootstrap walks the chunks that carry their data and only those in reach hand anything over; the
+  chunk view caches its drawers. Main thread, idle: Medium 9.9 → 7.5 ms, High 13.6 → 11.2 ms (medians; the frame rate
+  stays where the graphics card puts it on this panel). Part (b) of the issue — instance data that stays on the graphics
+  card — is not built: skipping chunks outside the camera's view was tried first and brought 4 % (crowns and plants
+  beside the player still cast into the view), so the 2.6 ms left are the hand-over itself; that needs shader work and a
+  look by eye, and **#4046 stays open for it**.
+- **#4047 Decoding chunk payloads stays on the main thread — measured.** 0.13–0.26 ms per frame while a view streams,
+  of which the envelope's decode is 0.02 ms. Not worth a second thread and its ordering rule.
+- **#4048 Far-view workers** (`Client.Core/FarTerrain/FarPatchWorkers`): one to three sampling threads by processors and
+  memory, each with a generator of its own. The 1024-block view is complete after 7.3–8.4 s instead of 10.0–10.4 s.
+- **#4049 Graphics Jobs measured again, left off.** On the reference laptop they take 3 ms off the main thread on High
+  and 1.2 ms on Potato, on Direct3D 12 and 11 — the 2026-09-04 result no longer holds there. Held to four logical
+  processors Potato gained nothing (one run), so they stay off until a real small machine is checked; `BuildScript`
+  carries the numbers, `BBS_GRAPHICS_JOBS=1` builds a player with them.
+- **#4052 Allocations the capture found.** The world generator's calibration lookup allocated on every call (a lambda
+  captured its parameter, so the compiler built the capture object on the hit path too), `ResolveBiomes` rebuilt the
+  biome list per column query, the far view's column mask asked the generator for every drawn chunk four times a second,
+  and the room-reflection scan grew a fresh set twice a second. Main-thread allocations on High: 38 300 → 6 300 a second;
+  the far view's `Update()` 2.6 → 0.1 ms. The generator fixes also reach the server. `FarTerrainAllocationTests` pins
+  "a warm sample allocates nothing".
+- **#4050 Where High's GPU time goes.** A sweep with one part switched off per run, standing on open ground beside a
+  wood: 27.5 ms in all on the laptop's 3840 x 2400 panel. A quarter of the pixels saves 15.3 ms, every shadow 8.3 ms,
+  the near crowns 3.9 ms, ambient occlusion 3.6 ms, volumetric light 3.5 ms, MSAA 2.8 ms, all post effects 2.1 ms. So
+  High is bound by the graphics card on this panel because of its pixel count (an estimated 12 ms at 1080p). The table
+  is in LOOK.md, the options on the issue; nothing in the renderer changed.
+- **Tests:** `ChunkBuildBudgetTests`, `FarPatchWorkersTests`, `ChunkWorkStatsTests`, `FarTerrainAllocationTests`,
+  `DetailPassWiringTests`; the meadow and ground-scatter wiring tests follow the detail pass. World-generation goldens
+  unchanged. **Docs:** ARCHITECTURE (Client runtime → Threads), CLIENT_TESTING (what the probe reports, the outdoor phase,
+  the capture tools), LOOK (§ "Frame cost": the play-view tables).
+- **Not verified:** nobody has looked at the picture — nothing is meant to change in it, a playtest on High and Potato
+  is open. Measured on one machine; the browser build was not built or run for this package (its paths are the inline
+  ones, unchanged), the far view's 2048-block range and Linux were not measured.
+- **Open after it:** (1) Graphics Jobs on: check on a real small machine first. (2) #4046 part (b): instance data of
+  the near drawers on the graphics card (the 2.6 ms hand-over on High). (3) The six options from the GPU sweep (#4050's
+  closing comment), each a look decision — the largest is the render scale on panels above 2560 x 1440.
+  (4) **IL2CPP on the desktop** (today Mono) — a separate experiment run, decided 2026-11-26.
+
 ### 🚃 Player reports of 2026-11-26: a wall behind the train's benches, clearer plain glass; "World options…" out of the divider; the browser points to the desktop — #4039, #4040, #4041, #4043, branch fix/reports-2026-11-26 — 🔄 in PR #4042 (client + Client.Core + shared + one shader + locales; no protocol, save or world-generation change; 3 new texts in all 14 languages)
 
 Two F1 reports from the intercity train (v2026.11.31), one menu bug and one wish. Order by Marcel 2026-11-26 (Option A for

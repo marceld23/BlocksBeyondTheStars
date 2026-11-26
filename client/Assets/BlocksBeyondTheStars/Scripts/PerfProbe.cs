@@ -21,12 +21,15 @@ namespace BlocksBeyondTheStars.Client
     ///   <item><b>idle</b> — standing still after the spawn area has fully meshed (steady-state cost)</item>
     ///   <item><b>walk</b> — scripted straight-line traversal via <see cref="InputMap.ScriptedMove"/>, so
     ///   chunk streaming + meshing churn continuously (the historical stutter scenario)</item>
+    ///   <item><b>outdoor</b> (only with <c>-perfOutdoor</c>) — standing on open ground a fixed way from the spawn: the
+    ///   still outdoor picture a <c>-perfFeature</c> sweep compares (#4050; idle is aboard the starter ship)</item>
     ///   <item><b>dense</b> (only with <c>-perfDense</c>) — Extreme creature abundance at forced visual midnight,
     ///   so the glowing-entity point-light cost (#361) is exercised instead of the sparse baseline walk</item>
     /// </list>
     /// Results go to <c>&lt;out&gt;/perf_baseline_&lt;platform&gt;.json</c> plus a human-readable .txt and the
     /// log; the process exits when done, so a script can run this end-to-end. Flags: <c>-perfProbe</c>,
     /// <c>-perfOut &lt;dir&gt;</c>, <c>-seed &lt;n&gt;</c>, <c>-perfIdle &lt;sec&gt;</c>, <c>-perfWalk &lt;sec&gt;</c>,
+    /// <c>-perfOutdoor &lt;sec&gt;</c> (a third phase standing on open ground, PerfProbe.Outdoor.cs),
     /// <c>-perfPreset &lt;name&gt;</c>, <c>-perfVd &lt;n&gt;</c>, and <c>-perfFeature "ssao=off|half|full,depth=off,
     /// smaa=off,scatter=off,softdist=off,shadowmap=2048,shadowdist=40"</c> (isolate one preset feature's cost — see #374;
     /// <c>softdist=off</c> drops the soft-distance blur of #3462).
@@ -35,7 +38,7 @@ namespace BlocksBeyondTheStars.Client
     /// in #374), the wall-clock frame time still moves with each feature toggle, so a <c>-perfFeature</c>
     /// sweep at fixed preset/VD gives a usable first-order cost split without a GPU capture.
     /// </summary>
-    public sealed class PerfProbe : MonoBehaviour
+    public sealed partial class PerfProbe : MonoBehaviour
     {
         private const string WorldName = "PerfProbe";
         private const long DefaultSeed = 424242L;      // same reproducible world the marketing shots use
@@ -57,6 +60,7 @@ namespace BlocksBeyondTheStars.Client
         // at Medium and toggle one feature per run. Null/empty = no per-feature override.
         private string _featureSpec;
         private string _featureTag;       // sanitized summary of what the override actually changed (for the filename)
+        private List<string> _earlyTags = new List<string>(); // the tokens applied before the world started (#4045)
 
         // -perfDense: adds a third "dense" phase (settlement/creature-pack-at-night stand-in for #361). The world
         // is created with Extreme creature abundance on a breathable planet so fauna auto-spawns in the 18–45 block
@@ -226,6 +230,7 @@ namespace BlocksBeyondTheStars.Client
                 ? new WorldCreationOptions { Creatures = 4 /* Extreme */, StartPlanetType = DensePlanet }
                 : null;
 
+            _earlyTags = ApplyEarlyFeatures(); // #4045: what must hold from the world's first frame on
             Debug.Log($"[PerfProbe] Starting world (seed {_seed}, preset {shell.Settings.Preset}, view distance {shell.Settings.ViewDistanceChunks}{(_dense ? ", dense scene" : "")}).");
             if (Application.platform == RuntimePlatform.WebGLPlayer)
             {
@@ -250,6 +255,7 @@ namespace BlocksBeyondTheStars.Client
                 yield break;
             }
 
+            StartCoroutine(WatchFill(boot)); // #4044: the time until the view has settled, and the backlog
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
@@ -306,6 +312,16 @@ namespace BlocksBeyondTheStars.Client
             InputMap.ScriptedMove = Vector2.zero;
             StopCoroutine(hop);
             phases.Add(r);
+
+            // Phase 3 (-perfOutdoor): standing on open ground — the still outdoor picture a feature sweep compares (#4050).
+            float outdoorSeconds = OutdoorSeconds();
+            if (outdoorSeconds > 0f)
+            {
+                yield return StandOutdoors(boot, hoverStart);
+                yield return Sample("outdoor", outdoorSeconds, x => r = x);
+                phases.Add(r);
+            }
+
             if (!string.IsNullOrEmpty(_profilePath) && Debug.isDebugBuild)
             {
                 UnityEngine.Profiling.Profiler.enabled = false;
@@ -314,7 +330,7 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log("[PerfProbe] Profiler capture closed.");
             }
 
-            // Phase 3 (optional): dense — force visual midnight and stand among the Extreme creature pack so the
+            // Phase 4 (optional): dense — force visual midnight and stand among the Extreme creature pack so the
             // glowing entities' point lights dominate the frame (#361). Walking first left a filled ring; a short
             // extra settle lets it top up before sampling.
             if (_dense)
@@ -455,11 +471,16 @@ namespace BlocksBeyondTheStars.Client
                         if (urp != null && float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sd) && sd >= 0f) { urp.shadowDistance = sd; tags.Add($"sd{sd:0}"); }
                         break;
                     default:
-                        Debug.LogWarning($"[PerfProbe] Unknown -perfFeature token '{token}' ignored.");
+                        if (!ApplyMoreFeature(key, val, tags)) // PerfProbe.Features.cs
+                        {
+                            Debug.LogWarning($"[PerfProbe] Unknown -perfFeature token '{token}' ignored.");
+                        }
+
                         break;
                 }
             }
 
+            tags.InsertRange(0, _earlyTags);
             return tags.Count > 0 ? string.Join("-", tags) : null;
         }
 
@@ -485,6 +506,15 @@ namespace BlocksBeyondTheStars.Client
             public int gcGen2;
             public long managedMemDeltaBytes;
             public int meshBuilds;
+            // #4044: the chunk work of the phase (PerfProbe.ChunkWork.cs). Times in ms; a "Total" is the sum over the phase.
+            public int buildsFinished, uploads, chunksReceived, backlogMax, inFlightMax;
+            public float buildTotalMs, buildP50Ms, buildP90Ms, buildMaxMs;
+            public float dispatchTotalMs, dispatchP90Ms, uploadTotalMs, uploadP90Ms, uploadMaxMs;
+            public float chunkPassTotalMs, chunkPassP50Ms, chunkPassP90Ms, chunkPassMaxMs;
+            public float receiveTotalMs, receiveP90Ms, receiveMaxMs, storeTotalMs;
+            public float detailPassTotalMs, detailPassP50Ms, detailPassP90Ms, detailPassMaxMs; // #4046
+            public float detailChunksAvg; // chunks inside a drawer's reach, per frame
+            public float meshLatencyP50Ms, meshLatencyP90Ms, meshLatencyMaxMs; // from a chunk's arrival to its first mesh
         }
 
         [Serializable]
@@ -499,6 +529,11 @@ namespace BlocksBeyondTheStars.Client
             public long seed;
             public string device;
             public string featureOverride; // null unless -perfFeature changed something (the itemization run)
+            public float fillSeconds, farViewSeconds; // #4044: -1 = not reached within the run
+            public float worldReadySeconds, streamEndSeconds, fillCoresBusy, fillUploadMs;
+            public int fillBuilds;
+            public int fillBacklogMax, fillInFlightMax, logicalCores, buildsInFlightCap;
+            public string screen;
             public PhaseResult[] phases;
         }
 
@@ -510,6 +545,7 @@ namespace BlocksBeyondTheStars.Client
             int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
             long mem = GC.GetTotalMemory(false);
             int builds0 = GameBootstrap.MeshBuildsDispatched;
+            BeginChunkWork();
 
             var census = new TextChangeCensus();
             float t = 0f;
@@ -556,6 +592,7 @@ namespace BlocksBeyondTheStars.Client
             float[] ft = timing.Percentiles();
             (r.gpuP50Ms, r.gpuP90Ms, r.presentWaitP50Ms, r.presentWaitP90Ms) = (ft[0], ft[1], ft[2], ft[3]);
             (r.cpuMainP50Ms, r.cpuMainP90Ms, r.cpuRenderP50Ms, r.cpuRenderP90Ms) = (ft[4], ft[5], ft[6], ft[7]);
+            EndChunkWork(r);
             done(r);
         }
 
@@ -675,6 +712,7 @@ namespace BlocksBeyondTheStars.Client
                 featureOverride = _featureTag,
                 phases = phases.ToArray(),
             };
+            StampFill(result); // #4044: the fill times, the screen and the machine (PerfProbe.ChunkWork.cs)
 
             var txt = new StringBuilder();
             txt.AppendLine($"Perf baseline — {result.capturedUtc} UTC — v{result.appVersion} — {result.platform}");
@@ -684,12 +722,14 @@ namespace BlocksBeyondTheStars.Client
                 txt.AppendLine($"Feature override: {result.featureOverride}");
             }
             txt.AppendLine(result.device);
+            AppendFill(txt);
             foreach (var ph in result.phases)
             {
                 txt.AppendLine($"[{ph.name}] {ph.frames} frames / {ph.seconds:0.0}s — avg {ph.avgMs:0.00} ms ({1000f / Mathf.Max(0.001f, ph.avgMs):0} FPS), "
                              + $"p50 {ph.p50Ms:0.00}, p95 {ph.p95Ms:0.00}, p99 {ph.p99Ms:0.00}, max {ph.maxMs:0.0} ms; GPU p50/p90 {ph.gpuP50Ms:0.00}/{ph.gpuP90Ms:0.00}, present wait {ph.presentWaitP50Ms:0.00}/{ph.presentWaitP90Ms:0.00}, main {ph.cpuMainP50Ms:0.00}/{ph.cpuMainP90Ms:0.00}, render {ph.cpuRenderP50Ms:0.00}/{ph.cpuRenderP90Ms:0.00} ms; "
                              + $">33ms: {ph.framesOver33Ms}, >100ms: {ph.framesOver100Ms}; "
                              + $"GC {ph.gcGen0}/{ph.gcGen1}/{ph.gcGen2}, managed Δ {ph.managedMemDeltaBytes / (1024f * 1024f):0.0} MB, mesh builds {ph.meshBuilds}");
+                AppendChunkWork(txt, ph);
             }
 
             // The summary always goes to the log FIRST: in the browser the console (captured over the

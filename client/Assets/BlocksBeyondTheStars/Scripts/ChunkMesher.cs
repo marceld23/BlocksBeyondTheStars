@@ -3783,7 +3783,7 @@ namespace BlocksBeyondTheStars.Client
         // Small bounded pool: builds run on worker threads while Release happens on the main thread, so access
         // is lock-guarded (a handful of ops per frame — contention is negligible). The cap bounds how much list
         // capacity idles here; an over-cap Release simply drops the instance to the GC (= the old behaviour).
-        private const int MaxPooled = 8;
+        private static readonly int MaxPooled = System.Math.Max(8, ChunkBuildBudget.InFlightWhileLoading(System.Environment.ProcessorCount)); // #4045: one per build in flight
         private static readonly Stack<ChunkMeshData> Pool = new Stack<ChunkMeshData>();
         private bool _pooled;
 

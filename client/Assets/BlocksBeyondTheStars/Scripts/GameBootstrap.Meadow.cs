@@ -17,129 +17,126 @@ namespace BlocksBeyondTheStars.Client
         /// pooled mesh buffers can go back right after; a chunk without points disables them. The browser and phones never
         /// get a meadow component at all (<see cref="HighDetails.DesktopClass"/>); a desktop keeps the tops on every preset,
         /// so switching to High needs no remesh.</summary>
-        private void ApplyGroundDetail(GameObject go, ChunkCoord coord, ChunkMeshData data)
+        private void ApplyGroundDetail(ChunkView view, ChunkCoord coord, ChunkMeshData data)
         {
-            ApplyScatter(go, data);
-            ApplyShells(go, coord, data);
+            ApplyScatter(view, data);
+            ApplyShells(view, coord, data);
 
             // Grass clumps: dense clumps of blades on the same carpet tops, with a fringe over open edges.
             if (GameLook.GrassClumps && HighDetails.DesktopClass)
             {
-                ApplyGrassClumps(go, coord, data);
+                ApplyGrassClumps(view, coord, data);
             }
 
             // Plant bodies: the small plants the mesher recorded, drawn as bodies near the camera.
             if (GameLook.PlantBodies && HighDetails.DesktopClass)
             {
-                ApplyPlantBodies(go, data);
+                ApplyPlantBodies(view, data);
             }
 
             // Staged crowns: the crown cells the mesher recorded, drawn as micro-block clusters near the camera.
             if (GameLook.StagedCrowns)
             {
-                ApplyCrownClusters(go, coord, data);
+                ApplyCrownClusters(view, coord, data);
             }
+
+            TrackDetail(view); // #4046: in or out of the per-frame detail pass (GameBootstrap.Detail.cs)
         }
 
         /// <summary>The T0 tufts of a chunk's open ground (Medium and up), or none.</summary>
-        private static void ApplyScatter(GameObject go, ChunkMeshData data)
+        private static void ApplyScatter(ChunkView view, ChunkMeshData data)
         {
-            var scatter = go.GetComponent<GroundScatter>();
             if (data.Scatter != null && data.Scatter.Count > 0)
             {
-                if (scatter == null)
+                if (view.Scatter == null)
                 {
-                    scatter = go.AddComponent<GroundScatter>();
+                    view.Scatter = view.Go.AddComponent<GroundScatter>();
                 }
 
-                scatter.Setup(data.Scatter, data.ScatterLight);
+                view.Scatter.Setup(data.Scatter, data.ScatterLight);
             }
-            else if (scatter != null)
+            else if (view.Scatter != null)
             {
-                scatter.Setup(null);
+                view.Scatter.Setup(null);
             }
         }
 
         /// <summary>The grass carpet and its flowers on a chunk's grass tops (desktop clients only), or none.</summary>
-        private void ApplyShells(GameObject go, ChunkCoord coord, ChunkMeshData data)
+        private void ApplyShells(ChunkView view, ChunkCoord coord, ChunkMeshData data)
         {
-            var shells = go.GetComponent<GrassShells>();
             if (HighDetails.DesktopClass && data.GrassTops != null && data.GrassTops.Count > 0)
             {
-                if (shells == null)
+                if (view.Shells == null)
                 {
-                    shells = go.AddComponent<GrassShells>();
+                    view.Shells = view.Go.AddComponent<GrassShells>();
                 }
 
                 GrassShells.UseAtlas(Atlas);
                 var origin = WorldConstants.ChunkOrigin(coord);
-                shells.Setup(data.GrassTops, new Vector3Int(origin.X, origin.Y, origin.Z), data.GrassLight);
+                view.Shells.Setup(data.GrassTops, new Vector3Int(origin.X, origin.Y, origin.Z), data.GrassLight);
             }
-            else if (shells != null)
+            else if (view.Shells != null)
             {
-                shells.Setup(null, default);
+                view.Shells.Setup(null, default);
             }
         }
 
         /// <summary>The dense grass clumps on the carpet tops and the ground cover of bare ground, or none.</summary>
-        private void ApplyGrassClumps(GameObject go, ChunkCoord coord, ChunkMeshData data)
+        private void ApplyGrassClumps(ChunkView view, ChunkCoord coord, ChunkMeshData data)
         {
-            var clumps = go.GetComponent<GrassClumps>();
             if ((data.GrassTops != null && data.GrassTops.Count > 0) || data.ScrubTops.Count > 0)
             {
-                if (clumps == null)
+                if (view.Clumps == null)
                 {
-                    clumps = go.AddComponent<GrassClumps>();
+                    view.Clumps = view.Go.AddComponent<GrassClumps>();
                 }
 
                 GrassClumps.UseAtlas(Atlas);
                 var clumpOrigin = WorldConstants.ChunkOrigin(coord);
-                clumps.Setup(data.GrassTops, data.GrassLight, data.GrassEdges,
+                view.Clumps.Setup(data.GrassTops, data.GrassLight, data.GrassEdges,
                     new Vector3Int(clumpOrigin.X, clumpOrigin.Y, clumpOrigin.Z), data.ScrubTops, data.ScrubLight);
             }
-            else if (clumps != null)
+            else if (view.Clumps != null)
             {
-                clumps.Setup(null, null, null, default);
+                view.Clumps.Setup(null, null, null, default);
             }
         }
 
         /// <summary>The bodies of the small plants the mesher recorded, or none.</summary>
-        private void ApplyPlantBodies(GameObject go, ChunkMeshData data)
+        private void ApplyPlantBodies(ChunkView view, ChunkMeshData data)
         {
-            var plants = go.GetComponent<PlantBodies>();
             if (data.PlantCells.Count > 0)
             {
-                if (plants == null)
+                if (view.Plants == null)
                 {
-                    plants = go.AddComponent<PlantBodies>();
+                    view.Plants = view.Go.AddComponent<PlantBodies>();
                 }
 
                 PlantBodies.UseAtlas(Atlas);
-                plants.Setup(data.PlantCells);
+                view.Plants.Setup(data.PlantCells);
             }
-            else if (plants != null)
+            else if (view.Plants != null)
             {
-                plants.Setup(null);
+                view.Plants.Setup(null);
             }
         }
 
         /// <summary>The micro-block clusters of the crown cells the mesher recorded, or none.</summary>
-        private static void ApplyCrownClusters(GameObject go, ChunkCoord coord, ChunkMeshData data)
+        private static void ApplyCrownClusters(ChunkView view, ChunkCoord coord, ChunkMeshData data)
         {
-            var crowns = go.GetComponent<CrownClusters>();
             if (data.CrownCells.Count > 0)
             {
-                if (crowns == null)
+                if (view.Crowns == null)
                 {
-                    crowns = go.AddComponent<CrownClusters>();
+                    view.Crowns = view.Go.AddComponent<CrownClusters>();
                 }
 
                 var crownOrigin = WorldConstants.ChunkOrigin(coord);
-                crowns.Setup(data.CrownCells, new Vector3Int(crownOrigin.X, crownOrigin.Y, crownOrigin.Z));
+                view.Crowns.Setup(data.CrownCells, new Vector3Int(crownOrigin.X, crownOrigin.Y, crownOrigin.Z));
             }
-            else if (crowns != null)
+            else if (view.Crowns != null)
             {
-                crowns.Setup(null, default);
+                view.Crowns.Setup(null, default);
             }
         }
 

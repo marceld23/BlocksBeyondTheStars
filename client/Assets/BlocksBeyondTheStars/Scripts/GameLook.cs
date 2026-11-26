@@ -183,7 +183,7 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (!HighDetails.DesktopClass)
+                if (!HighDetails.DesktopClass || LookProbe.CrownsOff)
                 {
                     return 0f;
                 }
@@ -220,7 +220,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>How far the near clusters cast their own shadows right now: <see cref="CrownShadow"/>, never beyond the
         /// middle of the cross-fade (there the far cube takes over anyway).</summary>
-        public static float CrownShadowNow => Mathf.Min(CrownShadow, CrownRangeNow - (0.5f * CrownFade));
+        public static float CrownShadowNow => LookProbe.NearShadowsOff ? 0f : Mathf.Min(CrownShadow, CrownRangeNow - (0.5f * CrownFade));
 
         /// <summary>True: grass tops grow clumps of blades (the chunk mesher records the open edges of a grass top).</summary>
         public static bool GrassClumps => true;
@@ -319,7 +319,7 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (!HighDetails.DesktopClass)
+                if (!HighDetails.DesktopClass || LookProbe.ClumpsOff)
                 {
                     return 0f;
                 }
@@ -367,7 +367,7 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (!HighDetails.DesktopClass)
+                if (!HighDetails.DesktopClass || LookProbe.PlantsOff)
                 {
                     return 0f;
                 }
@@ -418,7 +418,7 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (!Coats)
+                if (!Coats || LookProbe.FeltOff)
                 {
                     return 0f;
                 }
@@ -466,7 +466,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>How far the bodies cast their own shadows right now: to the middle of the cross-fade — beyond it the
         /// crossed picture casts.</summary>
-        public static float PlantShadowNow => Mathf.Max(0f, PlantRangeNow - (0.5f * PlantFadeNow));
+        public static float PlantShadowNow => LookProbe.NearShadowsOff ? 0f : Mathf.Max(0f, PlantRangeNow - (0.5f * PlantFadeNow));
 
         /// <summary>The play bloom: a lower threshold and a stronger, wider glow outdoors.</summary>
         public static void Bloom(ref float threshold, ref float intensity, float home = 0f)

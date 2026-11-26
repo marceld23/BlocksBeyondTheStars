@@ -204,7 +204,7 @@ namespace BlocksBeyondTheStars.Client
         // "server finished the frozen spawn view" signal (streaming keeps chunks arriving every tick); the backlog
         // check confirms those last arrivals are meshed. The spawn grace below still hard-caps the wait.
         private const float ViewSettleQuietSeconds = 0.6f;
-        private const int ViewSettleBacklog = 6; // ~a frame's worth of the mesh budget (MeshChunksPerFrame)
+        private const int ViewSettleBacklog = 6; // about what the mesher starts in a frame (ChunkBuildBudget)
 
         /// <summary>How long the spawn freeze may hold the veil up before the world is revealed regardless.</summary>
         private const float SettleGraceSeconds = 8f;
