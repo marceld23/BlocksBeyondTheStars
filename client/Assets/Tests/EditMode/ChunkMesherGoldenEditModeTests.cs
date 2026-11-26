@@ -90,8 +90,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0x9853a1693b05640dUL,
-            ["surface (5,2,7)"] = 0x0e2dbce980b97a89UL,
+            ["deep (5,1,7)"] = 0x5110aad0d7a4b88dUL,
+            ["surface (5,2,7)"] = 0x3b834421b96eea0dUL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

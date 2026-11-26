@@ -27,6 +27,11 @@ public static class SoundersIds
     /// <summary>One of the giant translucent jellyfish from the other reality (#3359); plural "Qualis".</summary>
     public const string Quali = "quali";
 
+    /// <summary>The species id of the low-drifting Qualis that live on the other side (#3905) — the Quali record with
+    /// another hover band, sent only to the players who are over there. The client asks it to tell them from our side's
+    /// animals (#4024).</summary>
+    public const string OverThereQuali = "au_quali_over";
+
     /// <summary>The small light-loving fluff ball (#3359, #3366).</summary>
     public const string Soundeling = "soundeling";
 

@@ -379,6 +379,8 @@
   // masonry of the gates and the amphitheatre, the statue's green copper, the mine's track and cart, and every layer the
   // burger restaurant is built from (#3498 had left them found-only). Dripstone stays a found material: it is mined in the
   // caverns, never made.
+  // #4031: the school club's bricks — stone and a handful of earth fired into a red brick wall, as cheap as the travertine.
+  { "key": "bricks",              "station": "workshop", "inputs": [ { "item": "stone", "count": 4 }, { "item": "dirt", "count": 1 } ],                            "outputs": [ { "item": "bricks", "count": 4 } ] },
   { "key": "travertine",          "station": "workshop", "inputs": [ { "item": "stone", "count": 3 }, { "item": "sand", "count": 1 } ],                            "outputs": [ { "item": "travertine", "count": 4 } ] },
   { "key": "blackened_sandstone", "station": "workshop", "inputs": [ { "item": "sandstone", "count": 2 }, { "item": "carbon", "count": 1 } ],                       "outputs": [ { "item": "blackened_sandstone", "count": 2 } ] },
   { "key": "verdigris_copper",    "station": "workshop", "inputs": [ { "item": "copper_block", "count": 1 }, { "item": "water", "count": 1 } ],                    "outputs": [ { "item": "verdigris_copper", "count": 1 } ] },

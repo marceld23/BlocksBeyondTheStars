@@ -672,6 +672,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Start in third-person (showing your own figure) instead of first-person.</summary>
         public bool ThirdPerson = false;
 
+        /// <summary>#4027: where the on-foot third-person camera sits — High (the default: orbiting above and behind, the
+        /// figure in the lower third), Behind (the view before #4027) or Shoulder. JsonUtility stores the number; an older
+        /// settings file has none and gets High. Pushed live to the player from the settings screen.</summary>
+        public ThirdPersonView ThirdPersonView = ThirdPersonView.High;
+
         /// <summary>Show the ship AI's (VEGA) advisor hints and story lines. The onboarding objective chip
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;

@@ -237,7 +237,7 @@ Last updated: 2026-11-22.
 | **Mouse** | Look |
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface** (at the surface you simply float, head above the water; under water — in a flooded tunnel or cave under its ceiling too — you sink slowly while you hold nothing); **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
 | **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. **In water it is a sprint swim** — faster, lying nearly level in the water. Not while crouched, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
-| **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
+| **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off. **It works from the water's surface too** (floating with your head out — not under water): you lift off out of the water; flying down into water ends the flight |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; **dive down in water**; descend in zero-g. **Sneaking is quiet:** a sleeping animal does not wake when you sneak up to it (see *Creatures*), and the sandworms do not hear your steps. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** or the **Quantum Teleporter** selected it opens the destination picker — ship, allies, bases, beam blocks, beacons and map markers, and with the Quantum Teleporter typed coordinates or the map waypoint, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
@@ -257,7 +257,7 @@ Last updated: 2026-11-22.
 | **K** | Send a dock request to a nearby player (at the helm and on a spacewalk too — see §3) |
 | **U** | Undock from a player / leave a boarded space station. As a **guest** in a docked friend's ship: **back to my ship** (the hint reads "Visiting Lena's ship · U: back to my ship"). As the **host** while a friend visits: **send the guest home** (it undocks; the hint reads "Tom is visiting · U: send home") |
 | **O** | Aboard your own (or any player-built) station: toggle **zero-g construction mode** for yourself — the suit floats over the decks (Jump rises, Crouch sinks) so you can extend the hull without walking; press again to walk. Not saved; off whenever you board |
-| **V** | Toggle first / third-person camera |
+| **V** | Toggle first / third-person camera — where the third-person camera sits is a setting (*Third-person view*, see below) |
 | **P** (hold or tap) | **Emote wheel** — hold the key, point at one of the nine gestures, let go to play it; or tap the key and click a gesture (see §5 → Emotes) — rebindable; on a gamepad and on a tablet it is in the action list |
 | **F10** | **HUD off / on** — hides the whole display for a clean view or a screenshot; a short note names the key that brings it back — rebindable |
 | **F4** | **Test Pilot task** — while you work on a playtest task: opens the task with all its steps, and the same key (or Esc) takes you straight back into the game; in an editor it opens and folds the task's list (see *Test Pilot*). Does nothing without a task — rebindable; on a gamepad use the **Test Pilot** row of the pause menu |
@@ -271,6 +271,14 @@ Last updated: 2026-11-22.
 | **Esc** | Close the current screen; if no game screen is open, open the pause menu (Resume · Settings · **Back to my ship** while on foot · Quit) |
 
 Interaction reach is ~6 m (extended by reach equipment).
+
+**The third-person view.** *Settings → Accessibility → Third-person view* chooses where the camera sits when you see
+your own figure (**V**): **High** (the default) looks down at you from above and behind and moves around you as you look
+up and down, so your figure stays in the lower third of the screen and you see what lies ahead; **Behind** is the
+camera close behind your head (the view before this setting); **Over the shoulder** looks past your right shoulder. In
+every view you mine, build and use things as far in front of your figure as in first person. Under a low ceiling the
+camera moves in close, and when it comes very close your own figure is hidden so it does not fill the screen. The
+vehicles, the ship's outside view and the story scenes keep their own cameras.
 
 **How moving feels.** Your suit answers quickly: it reaches full pace within a tenth of a second and stops just as
 fast, so you stop on the block you meant. In the air and in water it turns a little more slowly. Two small helps
@@ -1384,7 +1392,8 @@ round.
   swim up and surface, and hold **Crouch** (Ctrl / C, pad B, touch DOWN) to **dive** down. While you swim, the controls
   line at the bottom right names both keys ("Space up · Ctrl/C dive"), and VEGA explains them the first time you swim.
   At the surface you **float** with your head above the water — with or without Space, no bobbing — so floating does
-  not use up your suit's air.
+  not use up your suit's air. In a **Creative/Sandbox** world a **double-tap of Space** at the surface lifts you out of
+  the water into free flight (the controls line shows "Space×2 fly" there); under water it does nothing.
 - Your body **lies in the water the way you swim**: treading water you stay upright, arms sculling and legs kicking
   slowly; swimming slowly is a breast stroke; swimming forward you lie forward in a crawl just under the surface; diving
   you go down head first; swimming backwards you lean back a little. Hold **Run** (Left Shift, or the pad/touch run
@@ -1408,7 +1417,8 @@ round.
   into space — and you are **in space on foot**: a toast says so and names the controls, VEGA explains it the first
   time, and the HUD's location line shows **ZERO-G**. The sky turns black and starry.
 - **There is no gravity up there — you float.** Hold **Jump** to rise, hold **Crouch** (Ctrl/C, pad B, touch
-  DOWN) to sink faster; let go of both and the suit **sinks slowly back down** on its own. Walking off a summit
+  DOWN) to sink faster; let go of both and the suit **sinks slowly back down** on its own — up there the controls line
+  at the bottom right names both keys ("Space up · Ctrl down"). Walking off a summit
   edge therefore no longer leaves you hovering in the air. Climbing walls does not work in zero-g.
 - **Air:** above the line there is nothing to breathe, even over a breathable world — the suit's oxygen tank
   drains until you are back below it, and your health does not regenerate up there.
@@ -4268,7 +4278,8 @@ have one, and three rune stones you place yourself make one too.
   the gate's rune stones. You must be on foot, on a planet or in a station. A single rune stone only sings.
 - **What it is like.** The other side is the same world — the same hills, the same blocks — in **white, grey and black**.
   Nothing can hurt you there: no hunger, no thin air, no cold or heat, and nothing attacks you. Players on our side
-  cannot see you; you still see them, and friends who crossed too see each other. The **Lights** drift by (you know them
+  cannot see you; you still see them, and friends who crossed too see each other. The animals and people of our side
+  do not notice you either — nobody turns to look at you and no beast snaps at you; only those who live over there do. The **Lights** drift by (you know them
   as Qualis; they never speak), and Sounders stand at the gates — talk to them with **[Use]**.
 - **What you can do there.** Walk and fly, chat, play rune stones and the melody bar, talk to those who live there, and
   use the **Resonance Blaster**. Everything else — mining, building, crafting, trading — waits until you are back; the
@@ -5023,9 +5034,16 @@ controls line at the bottom leaves out the quick-bar keys.
   now and then. *Release* sends it on board — you never lose it.
 - **Duel taming** (#3365): a few proud creatures — the **wild Soundis** of Soaniri — cannot be talked round. Use the
   **creature translator** on one and it challenges you to a **duel**: only that one fights you, and it **gives up** long
-  before it is hurt — it never dies — and becomes a pet that stays on its world. Walking away (about 24 blocks), leaving
+  before it is hurt — it never dies — and becomes your pet. Walking away (about 24 blocks), leaving
   the world or fainting ends the duel; try again any time. Hit such a creature **inside its pack** outside a duel and the
   whole pack defends it for about 20 seconds, then calms down.
+- **A Soundi you won travels with you** (#4025): a wild Soundi won in a duel comes along to **every world** while it
+  follows you — after a landing it steps out beside you (never in space, on a station or inside your ship). The Creatures
+  tab says **travels with you** next to its home world. Switch it to **Stays home** and it goes back to its home world
+  (where you won it) and waits for you there. Unlike the story Soundi it is a real pet: feed it, and it **counts towards
+  your six pets — on every world**, because it can be on every world. If one of your worlds already has six pets, a new
+  Soundi stays on the world where you won it for now (the game tells you); release a pet and it comes along. Soundis you
+  won before this update come along too, the next time you join.
 - **Soundelings and light** (#3366): the small fluff balls of Soaniri love light and fear the dark. By day, hold a torch,
   lantern or other light block and press **Feed** (Q) next to one — it coos, carries the light off and places it in a dark
   spot nearby (never inside someone else's base). At night they curl up into a ball; by day in the dark they hide until a
@@ -5338,6 +5356,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   aluminium, …), concrete and hull walls, scrap, ice, obsidian — and **glass**, which stays see-through as a stair or a
   sphere. Only blocks with a form or job of their own keep it: fluids, lamps, crystals, machines, doors, crates and
   other props, leaves.
+- **Bricks** (a school club wish, #4031): a red brick wall with light mortar joints, made at the **workbench** from
+  **4 stone + 1 dirt → 4 Bricks**. The bricks sit on the same small grid the shapes are cut on, so a slab, a stair or a
+  quarter cube always shows whole bricks; you can dye them like any other building material.
 - **Sitting:** press **E** on any **chair**- or **bench**-shaped cell to sit down — you turn to face away from the
   backrest, the camera settles to seat height and other players see you sitting (in your own third-person view, too,
   you sit on the seat). **One seat, one sitter:** a seat somebody already sits on — another player or a
@@ -5503,7 +5524,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   When you join a world, the others see your whole look straight away — colours, face and every painted part.
 - **Skin templates** — ready-made looks under the outfits (**SKIN TEMPLATES**), for everybody who would rather start
   from something finished: the **Green spacesuit** (a whole look with a dark visor face, painted by a player and sent
-  in with *Submit*) is always there, in the main menu's designer too; the **Christmas outfit** (green, white and gold
+  in with *Submit*) and the **Blue spacesuit** (a blue suit with grey trousers, a painted blue face with big dark eyes and
+  a wide smile, and a drawing on the helmet — painted by a school club member, #4032) are always there, in the main
+  menu's designer too; the **Christmas outfit** (green, white and gold
   with red buttons) appears once door 6 of the **Advent calendar** is open in this world. A click puts a template on —
   the colours and all four paintings. A template **with a face** brings it along (the status line says so); with one
   that has none your **face stays your own**. You can paint on from there like on any outfit. A template cannot be
@@ -5925,7 +5948,7 @@ reminds you.
   warning when none is worn — with a radio in your backpack (or, aboard, in the hold) a **Wear …** button puts it
   into a free module slot right there.
 - **The chat window.** Enter opens a **big window in the middle of the screen** (half see-through, so you still
-  see the world around it) with everything said this session — the last 200 lines — a title row with **×**, a
+  see the world around it) with everything said this session — the last 500 lines — a title row with **×**, a
   hint row and the box you type into. **Enter** sends a line and closes the window; after a **command** (a line
   starting with `/`, such as `/help` or `/tp`) the window **stays open** so you can read the answer — **Esc** (or
   **×**) closes it. The mouse is free while it is open: the **mouse wheel**, **PageUp/PageDown** or the
@@ -6239,7 +6262,8 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 
 Write the number straight after the word or separated by a space — `/tp village2` and `/tp village 2` are
 the same thing, and leaving it off means the first one. **`/tp` on its own lists everything on this body**
-with the exact word to type and how far away it is, so you never have to guess a number. While you fly in
+with the exact word to type and how far away it is, so you never have to guess a number — always the whole list,
+however long; scroll up in the chat window to see its start. While you fly in
 space, `/tp` only knows the giant wrecks of the system (`/tp giantwreck`); for everything else, land first.
 
 Two limits worth knowing: this only ever resolves on the body you are **currently standing on** (the

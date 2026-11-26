@@ -123,6 +123,7 @@ internal static class AuthoredSpeciesMapping
         species.SwallowsCreatures = a.SwallowsCreatures; // #2076: an authored worm says whether it hunts the animals
         species.DuelTame = a.DuelTame;         // #3365: the Soundi is tamed in a duel …
         species.PackDefender = a.PackDefender; // … and its pack defends it outside one
+        species.Travels = a.Travels;           // #4025: … and once tamed it travels with its tamer
         species.DefendsItself = a.DefendsItself; // #3973: a shy dog bites back
     }
 

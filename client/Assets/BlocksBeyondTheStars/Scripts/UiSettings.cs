@@ -357,6 +357,7 @@ namespace BlocksBeyondTheStars.Client
                 pc.MouseSensitivity = S.MouseSensitivity;
                 pc.InvertY = S.InvertY;
                 pc.CameraMotion = S.CameraMotion;
+                pc.ThirdPersonView = ThirdPersonRig.Normalize((int)S.ThirdPersonView); // #4027
                 pc.SetBaseFov(S.ClampedFieldOfView);
             }
 

@@ -94,10 +94,15 @@ namespace BlocksBeyondTheStars.Client
             // no other tell. Appended rather than baked into ui.hud.hint so Explorer worlds stay uncluttered.
             // #2502: "{key:Jump}×2" — the pad line used to append the keyboard's "Space×2".
             // #3924: while swimming the line names the keys that swim up and dive instead — nothing else says that Crouch
-            // dives; a double jump flies only out of the water.
+            // dives. #4028: a double jump flies out of the water and from its surface again — not from under it.
+            // #4028: on foot above the atmosphere line (or in a station's zero-g) the same slot names the keys that rise and
+            // sink — the line said "jump" up there, and nothing on screen told how to get back down.
             bool swimming = Game.Swimming;
-            string swim = swimming ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_swim")) : null;
-            string fly = Game.CanFly && !swimming ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_fly")) : null;
+            string swim = swimming ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_swim"))
+                : Game.OnFootInSpace ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_zero_g")) : null;
+            string fly = WaterTakeoff.ShowsFlyHint(Game.CanFly, swimming, Game.SwimmingAtSurface)
+                ? ExpandKeyTokens(loc, loc.Get("ui.hud.hint_fly"))
+                : null;
 
             // Holding a rotatable block (a crafted shape or furniture): surface the rotate control (#863) —
             // nothing else in the game ever said the key exists. Appended only while it applies, like the

@@ -461,7 +461,7 @@ def _cabins(d: ShipDesign, rooms) -> None:
         cx, _, cz = r.centre
         d.put(cx, r.y0, cz, WOOD.shaped(sc.pack(sc.TABLE)))
         if k % 2 == 0 and (inner, r.y0, r.z0 + 1) in r.cells:
-            d.put(cx + (2 if r.side == "left" else -2), r.y0 - 0, cz, Mat("rug", tint=0x7A3A30))
+            d.put(cx + (2 if r.side == "left" else -2), r.y0 - 0, cz, Mat("rug", tint=0x7A3A30, shape=sc.pack(sc.SHEET)))
 
 
 def _mess(d: ShipDesign, rooms) -> None:
@@ -547,7 +547,7 @@ def _chests(d: ShipDesign, rooms: dict) -> None:
 
 
 def build() -> ShipDesign:
-    d = ShipDesign("battleship", "Battleship", weight=3, groundRow=6)
+    d = ShipDesign("battleship", "Battleship", weight=3, groundRow=6, civilization="sps")
     h, tower = _hulls(d)
     _decks(d, h)
     rooms = _deck_rooms(d, h)

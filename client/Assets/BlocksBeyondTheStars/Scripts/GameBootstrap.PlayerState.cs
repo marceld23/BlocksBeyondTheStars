@@ -146,6 +146,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3924: whether the own figure swims this frame (<see cref="SwimmingFrame"/> is current).</summary>
         public bool Swimming => SwimmingFrame >= Time.frameCount - 1;
 
+        /// <summary>#4028: the frame the own figure last floated at the water's open surface — where a double-tap of Jump
+        /// flies, so the controls line names it there. Frame-stamped like <see cref="SwimmingFrame"/>.</summary>
+        public int SwimSurfaceFrame { get; set; } = -10;
+
+        /// <summary>#4028: whether the own figure floats at the surface this frame (<see cref="SwimSurfaceFrame"/> is current).</summary>
+        public bool SwimmingAtSurface => SwimSurfaceFrame >= Time.frameCount - 1;
+
         /// <summary>#2286: the <see cref="WorldTime"/> at which "Back to my ship" is ready again, from the server's last
         /// state update (the server sends the seconds left; the pause menu counts them down between updates). On the
         /// world clock, not <c>Time.time</c>: the server's cooldown runs on its uptime, which stands still while the

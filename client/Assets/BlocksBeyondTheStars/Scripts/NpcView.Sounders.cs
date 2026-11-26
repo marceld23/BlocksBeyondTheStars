@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool echo = SounderRules.IsEcho(nd.Look);
+            n.LivesOverThere = OtherSideView.NpcLivesOverThere(nd.Look); // #4024: an Echo sees a player over there
             n.Avatar.SetVisible(false);
             n.Go.transform.localScale = Vector3.one; // the rig is built at the Sounder's own height
             var bodyRoot = new GameObject(echo ? "EchoBody" : "SounderBody");
@@ -68,7 +69,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var d = Game.PlayerPosition - n.Go.transform.position;
-            n.SounderRig.SetGazeTarget(Game.PlayerPosition, d.sqrMagnitude <= SounderLookRange * SounderLookRange);
+            n.SounderRig.SetGazeTarget(Game.PlayerPosition,
+                d.sqrMagnitude <= SounderLookRange * SounderLookRange && Game.OtherSide.MayReactToPlayer(n.LivesOverThere)); // #4024
         }
 
         /// <summary>The clips an NPC speaks with: a Sounder's hums, everyone else's voice bank.</summary>

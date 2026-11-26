@@ -26,10 +26,56 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 School club reports of 2026-11-25 (v2026.11.30) — a second Ben in the credits — branch fix/reports-2026-11-25 — ⏳ open (analysis done, decisions on the reports pending)
+### 📬 School club reports of 2026-11-25: nobody turns to you over there, Soundis that travel, flat rugs in the wrecks, a third-person setting, flight from the water, the wheel over gaps, where flower seeds come from, bricks, a blue spacesuit, both Bens, the whole /tp list — #4024–#4034, branch fix/reports-2026-11-25 — ✅ done 2026-11-26, PR pending (server + shared + client + Client.Core + data + tools; **save version 22** (one new block, ids shift), protocol unchanged (one additive field `NetCompanion.TravellingPet`), terrain generation unchanged; 17 new texts and 1 changed in all 14 languages)
 
-- **Credits.** The club has two children called Ben; the README and the in-game credits (`ui.credits.body`, all 14
-  languages) named one. Both now read "Ben, Ben, Daimien, …" — the doubled name is deliberate, not a typo.
+Seven F1 reports of the school club and one question from Lyxette (v2026.11.30), plus six older club reports that had
+waited in the club PCs' local send queue since 11-04/11-11/11-18 (`FeedbackSpool`, one retry per world start) and arrived
+together on 11-25. Decisions by Marcel 2026-11-25.
+
+- **#4024 Over there, nobody turns to you.** The server already ignored a player on the other side; the client did not:
+  animals within 12 m turned their gaze, NPCs within 6 m their head, Sounder NPCs within 7 m their rig, and a hostile in
+  bite reach played its lunge, call and bite. One Client.Core rule (`OtherSideView.MayReactToPlayer` /
+  `MayCreatureReact` / `MayNpcReact`) gates all four in `CreatureView`, `NpcView.UpdateLook` and `NpcView.Sounders`;
+  echoes and the over-there Qualis (`SoundersIds.OverThereQuali`) still look. The `/bump` snapshot's player block now
+  carries `otherSide` (over, client support, last change, entry gate, crossed-from spot, sound blocks).
+- **#4025 Soundis won in a duel travel with you.** Data flag `travels` (creatures.json, the soundi) → persisted
+  `TamedCreature.Travels`: while it follows, the pet appears on every non-void world (never in space, on a station or in
+  the ship); "Leave at home" makes it a planet pet again. A travelling pet takes a pet slot on every world (pets living
+  there + all travellers ≤ 6); a tame that does not fit stays home and the player is told. Old duel Soundis are migrated
+  at join (oldest first, while they fit). Companions tab: "travels with you" / "Comes along when you land"
+  (`NetCompanion.TravellingPet`, additive). The Sreekmakra's follow cap now counts travellers and no longer the robot.
+  `GameServerTravellingPets.cs`, `TravellingPetTests`, CREATURE_TAMING.md.
+- **#4026 Rugs lie flat in the giant wrecks.** The ship scripts placed rugs, flower pots and the carrier's stretcher with
+  shape 0 (full cubes); they now carry their place form (sheet, pot, table), regenerated — six palette shapes changed.
+  The scripts now write the survey fleet's `civilization: "sps"` themselves (hand-added in #3651, lost on any
+  regeneration). `TemplatePropShapeTests` guards every giant ship and landmark (exempt: beds — the abandoned-bed pass
+  lays them out —, ladders, the carrier's inlaid floor rug). Accepted: the four fingerprints change, so space wrecks with
+  stored changes stay away and already stamped planet wrecks keep their cube rugs.
+- **#4027 Third-person view setting** (Settings → Accessibility → Movement & view): **High** (default — orbit around a
+  pivot 1.6 m above the feet on an arm of (0, 1.2, −3.5), orbit pitch clamped −25…+75°, the head sits about a third up
+  the screen at FOV 80), **Behind** (the old view) and **Over the shoulder**; `ClientSettings.ThirdPersonView`, applied
+  live; rig and spring-arm maths in `Client.Core/ThirdPersonRig.cs`; the own figure hides below a 0.8 m arm. In third
+  person mining, placing, doors and talking reach 8 m in front of the BODY again (ray = Reach + arm, body-reach check).
+- **#4028 Flight from the water surface** (regression from #3860): a double-tap of Space counts while floating at the
+  open surface, a 0.4 s take-off grace lifts the body out (≥ 4 m/s); never from under water, and flying into water still
+  ends flight (#836). `Client.Core/WaterTakeoff.cs`. The controls line shows "Space×2 fly" at the surface, and on foot in
+  zero-g (above the atmosphere) "Space up · Ctrl down".
+- **#4029 The mouse wheel keeps scrolling over gaps** — the Tab menu panes, the Suit list, the trade rows and the arcade
+  rail had no raycast target in their viewports; `UiKit.EnsureScrollHit` (from `AddInlineScrollbar`) adds a
+  near-transparent hit Image. `ScrollWheelHitGuardTests` + an EditMode test.
+- **#4030 Where flower seeds come from** — the seed description names the gatherers in the wilderness huts (4 berries →
+  4 seeds) and the travelling merchant (Lyxette's question).
+- **#4031 Bricks** (Ben's wish): block + item `bricks` (Ziegelsteine), workbench 4 stone + 1 dirt → 4, shapeable and
+  dyeable; tile by gpt-image-2.6-sunburst from a layout guide, snapped to the 8 px micro-cell raster
+  (`tools/ai-assets/calm_tiles/make_bricks_tile.py`). New block → save version 22; Unity goldens re-pinned.
+- **#4032 Blue spacesuit** — the club's avatar-editor submission "Mein Skin" (Jafar) is the free skin template
+  `blue_spacesuit`; NOTICES credit.
+- **#4033 Both Bens in the credits** — README and `ui.credits.body` (14 languages) read "Ben, Ben, Daimien, …" on purpose.
+- **#4034 The whole `/tp` list** — `/tp`, `/giantwreck`, `/landmark`, `/ressaw` and `/spstower` print every entry (the
+  24-line cap and `srv.tp.list_more` are gone); the chat history keeps 500 lines (was 200). `AdminTeleportListTests`.
+- **Open:** playtest — cross over near animals/villagers; win a Soundi and fly to another world; rugs in the battleship
+  wreck; the three camera views (corridors, low ceilings, looking down); flying off the sea; the wheel over the inventory
+  gaps; the brick tile on slabs/stairs and dyed.
 
 ### ⚙️ CI: test-shard weights refreshed — the slowest shard no longer runs twice as long as the fastest — ✅ done 2026-11-24 (CI weights + comments + DEVELOPER.md; no code, no test change)
 

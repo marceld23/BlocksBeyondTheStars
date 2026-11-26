@@ -77,6 +77,13 @@ public sealed class TamedCreature
     /// robot, Rudolpho). False for every animal.</summary>
     public bool Roams { get; set; }
 
+    /// <summary>#4025: a tamed animal of a travelling species (<see cref="CreatureSpecies.Travels"/>, the duel-won Soundi):
+    /// while it <see cref="Following"/> it comes along to every world but a void one, like a roaming companion; when it does
+    /// not follow it stays home on <see cref="HomeBodyId"/> like any planet pet. Unlike <see cref="Roams"/> it is a pet: it
+    /// takes a pet slot on every world. False on every other record (and on a traveller that found no free slot — it stays a
+    /// planet pet until one frees up).</summary>
+    public bool Travels { get; set; }
+
     /// <summary>#3295: the robot was knocked out in a fight — it is gone from the world and its parts wait for their
     /// owner-locked crate (placed as soon as the owner stands on open ground; never lost). The record goes once the crate
     /// is out.</summary>

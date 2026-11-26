@@ -77,12 +77,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Comfort toggle (settings): head bob + FOV kick + impact shake. Off = steady camera.</summary>
         public bool CameraMotion = true;
         public bool ThirdPerson = false;
+
+        /// <summary>#4027: where the third-person camera sits (settings; <see cref="ThirdPersonRig"/> holds the numbers).</summary>
+        public ThirdPersonView ThirdPersonView = ThirdPersonView.High;
         public float Reach = 8f; // match the server's MaxReach (8) — a shorter client reach left a silent dead-band (B32)
 
         private const int HotbarSlots = 9;
 
         internal static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
-        private static readonly Vector3 ThirdPersonEye = new Vector3(0f, 1.9f, -3.5f);
 
         // Crouch / sneak (hold Ctrl or C on the ground): shrink the capsule so you fit tight spaces, walk slower,
         // and — crucially — refuse to step off a ledge. That edge-stop lets you lean out over an edge and lay a

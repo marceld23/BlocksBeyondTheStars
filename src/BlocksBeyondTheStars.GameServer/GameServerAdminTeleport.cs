@@ -31,14 +31,10 @@ public sealed partial class GameServer
     /// Sized for the tallest stamped structure (settlement halls, monument arcades) plus headroom.</summary>
     private const int TeleportClearProbeHeight = 48;
 
-    /// <summary>Chat is a scrollback, not a table: cap the listing so a world full of loot chests cannot
-    /// scroll the admin's own screen into uselessness (same reasoning as <c>/builds</c>).</summary>
-    private const int TeleportListMaxLines = 24;
-
     /// <summary>One resolvable destination on the current body. <paramref name="Number"/> is 1-based within
     /// its kind, so the wire form is <c>{Kind}{Number}</c>. A target with a <paramref name="StationId"/> is a giant wreck in
     /// space (#3655): the teleport boards it instead of moving the player to <paramref name="Position"/>.</summary>
-    private readonly record struct TeleportTarget(string Kind, int Number, string Label, Vector3f Position, string? StationId = null);
+    internal readonly record struct TeleportTarget(string Kind, int Number, string Label, Vector3f Position, string? StationId = null);
 
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
@@ -378,7 +374,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Prints every resolvable target on this body with the exact word to type and its distance, so
-    /// the numbering is discoverable instead of guessed at.</summary>
+    /// the numbering is discoverable instead of guessed at. The whole list, however long (#4034): the chat
+    /// scrolls, and a list cut off after a few lines hid exactly the targets an admin was looking for.</summary>
     private void ListTeleportTargets(PlayerSession session, List<TeleportTarget> targets)
     {
         if (targets.Count == 0)
@@ -392,25 +389,24 @@ public sealed partial class GameServer
             Text = Localize(session.Locale, "srv.tp.list_header").Replace("{count}", targets.Count.ToString()),
         });
 
-        var here = session.State.Position;
-        string inSpace = Localize(session.Locale, "srv.tp.in_space");
-        foreach (var t in targets.Take(TeleportListMaxLines))
+        foreach (string line in TeleportListLines(targets, session.State.Position, Localize(session.Locale, "srv.tp.in_space")))
         {
-            // A giant wreck in space (#3655) has no distance on this body: it says where it is instead.
+            Send(session, new ServerMessage { Text = line });
+        }
+    }
+
+    /// <summary>One chat line per target, in the given order, each with the word to type and its distance from
+    /// <paramref name="here"/>; a giant wreck in space (#3655) has no distance on this body and says
+    /// <paramref name="inSpace"/> instead.</summary>
+    internal static IEnumerable<string> TeleportListLines(IReadOnlyList<TeleportTarget> targets, Vector3f here, string inSpace)
+    {
+        foreach (var t in targets)
+        {
             float dx = t.Position.X - here.X, dz = t.Position.Z - here.Z;
             string where = t.StationId is null
                 ? FormattableString.Invariant($"{MathF.Sqrt((dx * dx) + (dz * dz)):0} m")
                 : inSpace;
-            Send(session, new ServerMessage { Text = $"/tp {t.Kind}{t.Number} · {t.Label} · {where}" });
-        }
-
-        if (targets.Count > TeleportListMaxLines)
-        {
-            Send(session, new ServerMessage
-            {
-                Text = Localize(session.Locale, "srv.tp.list_more")
-                    .Replace("{count}", (targets.Count - TeleportListMaxLines).ToString()),
-            });
+            yield return $"/tp {t.Kind}{t.Number} · {t.Label} · {where}";
         }
     }
 

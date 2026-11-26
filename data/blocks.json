@@ -317,6 +317,9 @@
   // #3483: the building materials of the school club's giant buildings — the pale limestone of the leaning tower and the
   // golden bird gate, the blackened sandstone of the old city gate, the green copper of the singer's statue, and the
   // burger's remaining layers (lettuce, tomato, the sesame top bun). All craftable at the workbench.
+  // #4031: the school club's bricks (Ben's wish, "stone that looks like bricks") — a red brick wall fired at the workbench
+  // from stone and a little earth; shapeable and dyeable like every cube material. Drilled like concrete.
+  { "key": "bricks", "nameKey": "block.bricks.name", "category": "building", "hardness": 3.4, "requiredTool": "drill", "minToolTier": 1, "color": 11886406, "drops": [ { "item": "bricks", "count": 1 } ] },
   { "key": "travertine", "nameKey": "block.travertine.name", "category": "building", "hardness": 3.4, "requiredTool": "drill", "minToolTier": 1, "color": 15982255, "drops": [ { "item": "travertine", "count": 1 } ] },
   { "key": "blackened_sandstone", "nameKey": "block.blackened_sandstone.name", "category": "building", "hardness": 3.6, "requiredTool": "drill", "minToolTier": 1, "color": 3156002, "drops": [ { "item": "blackened_sandstone", "count": 1 } ] },
   { "key": "verdigris_copper", "nameKey": "block.verdigris_copper.name", "category": "building", "hardness": 4.4, "requiredTool": "drill", "minToolTier": 1, "color": 6731910, "metal": 0.2, "drops": [ { "item": "verdigris_copper", "count": 1 } ] },

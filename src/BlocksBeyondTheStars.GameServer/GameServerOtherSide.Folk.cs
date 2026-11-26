@@ -36,7 +36,7 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>The species id of the low-drifting Qualis of the other side (the Quali record, another hover band).</summary>
-    internal const string OtherSideQualiSpeciesId = "au_quali_over";
+    internal const string OtherSideQualiSpeciesId = SoundersIds.OverThereQuali;
 
     /// <summary>The middle of the band they drift in, blocks over the ground (their own wave makes it about 10–18).</summary>
     internal const float QualiHoverAltitude = 14f;

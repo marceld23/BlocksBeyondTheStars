@@ -336,6 +336,11 @@ public sealed partial class GameServer
         int used = 0, cap = 0;
         FillSoundBlockCount(s, ref used, ref cap);
         var gate = EntryGateOf(s);
+        if (reason != OtherSideReasons.Sync)
+        {
+            s.OtherSideLastChange = reason; // #4024: the /bump snapshot names it
+        }
+
         Send(s, new OtherSideState
         {
             Over = s.OtherSide,

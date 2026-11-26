@@ -863,13 +863,39 @@ namespace BlocksBeyondTheStars.Client
             return bar;
         }
 
+        /// <summary>#4029: a <see cref="ScrollRect"/> only gets the wheel (and a drag) when the pointer's ray hits a raycast
+        /// target inside its hierarchy. Rows have gaps and texts are no targets, so over a gap the ray fell through to the
+        /// panel behind and the list stopped scrolling. A viewport without a <see cref="Graphic"/> of its own (or the
+        /// scroll's own object when it has no viewport) gets the near-transparent hit image of
+        /// <see cref="AddScrollViewport"/>. It sits on the viewport, the parent of the rows, so every row, button,
+        /// tooltip and drop slot still gets the pointer first, and it covers nothing outside the viewport's rect.</summary>
+        public static void EnsureScrollHit(ScrollRect scroll)
+        {
+            if (scroll == null)
+            {
+                return;
+            }
+
+            var target = scroll.viewport != null ? scroll.viewport.gameObject : scroll.gameObject;
+            if (target.GetComponent<Graphic>() != null)
+            {
+                return; // AddScrollViewport, ScrollList and the wiki already carry one
+            }
+
+            var hit = target.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0.001f);
+            hit.raycastTarget = true;
+        }
+
         /// <summary>A thin auto-hiding scrollbar hugging the ScrollRect viewport's right edge — anchor-based,
         /// so callers need no coordinates, and AutoHide keeps it invisible whenever the page fits. Parent it
         /// to the VIEWPORT (done here), never the content: per-tab rebuilds clear content children and would
         /// destroy it. Visibility must stay AutoHide, not AutoHideAndExpandViewport — expanding would resize
-        /// the viewport and shift Place()-positioned children.</summary>
+        /// the viewport and shift Place()-positioned children. It also makes sure the viewport catches the wheel
+        /// over the gaps between its rows (<see cref="EnsureScrollHit"/>, #4029).</summary>
         public static Scrollbar AddInlineScrollbar(ScrollRect scroll, float width = 8f)
         {
+            EnsureScrollHit(scroll);
             var go = new GameObject("InlineScrollbar", typeof(RectTransform));
             var rt = (RectTransform)go.transform;
             rt.SetParent(scroll.viewport, false);

@@ -164,6 +164,41 @@ public sealed class OtherSideVisibilityTests
         Assert.Equal(0, a.State.Inventory.CountOf("stone"));
     }
 
+    /// <summary>#4024: a report filed over there says so — the /bump snapshot's player block names the side, how the
+    /// player got there and the entry gate, instead of leaving it to be guessed from nearby over-there creatures.</summary>
+    [Fact]
+    public void TheBumpSnapshot_NamesTheSide_HowThePlayerGotThere_AndTheEntryGate()
+    {
+        using var w = new OtherSideStage(Content, "bump_side");
+        var a = w.Player("Kid", w.AtGateA);
+        OtherSideStage.Dress(a);
+
+        using (var home = System.Text.Json.JsonDocument.Parse(w.Server.BumpOtherSideSnapshotJsonForTest(a)))
+        {
+            Assert.False(home.RootElement.GetProperty("over").GetBoolean());
+            Assert.True(home.RootElement.GetProperty("clientShowsOtherSide").GetBoolean());
+            Assert.Equal(string.Empty, home.RootElement.GetProperty("lastChange").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, home.RootElement.GetProperty("entryGate").ValueKind);
+        }
+
+        w.Use(a, w.GateA[1]);
+        Assert.True(a.OtherSide);
+        using (var over = System.Text.Json.JsonDocument.Parse(w.Server.BumpOtherSideSnapshotJsonForTest(a)))
+        {
+            Assert.True(over.RootElement.GetProperty("over").GetBoolean());
+            Assert.Equal(OtherSideReasons.Crossed, over.RootElement.GetProperty("lastChange").GetString());
+            Assert.Equal(a.CurrentLocationId, over.RootElement.GetProperty("entryGateWorld").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Object, over.RootElement.GetProperty("entryGate").ValueKind);
+            Assert.Equal(System.Text.Json.JsonValueKind.Object, over.RootElement.GetProperty("crossedFrom").ValueKind);
+        }
+
+        Assert.True(w.Server.TryReturnForTest(a, w.GateA[1], out _));
+        using var back = System.Text.Json.JsonDocument.Parse(w.Server.BumpOtherSideSnapshotJsonForTest(a));
+        Assert.False(back.RootElement.GetProperty("over").GetBoolean());
+        Assert.Equal(OtherSideReasons.Returned, back.RootElement.GetProperty("lastChange").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, back.RootElement.GetProperty("entryGate").ValueKind);
+    }
+
     /// <summary>A flip changes nothing on the star map but its player list — and the message has no players-only part. So
     /// a flip only marks; the 1 Hz watch sends the map once, and only to those whose list changed.</summary>
     [Fact]

@@ -90,7 +90,7 @@ SHIP_MARKERS = ("entrance", "door_slide", "chest", "sound", "loot", "data_termin
 GLASS = ("glass", "glass_clear")
 SHIP_HEADER_FIELDS = {
     "key", "name", "giantShip", "nameKey", "weight", "minTerrainGeneration", "groundRow", "style", "pack",
-    "planetTypes", "pinOnly", "ruinStrength", "ruinZones", "tier", "kind",
+    "planetTypes", "pinOnly", "ruinStrength", "ruinZones", "tier", "kind", "civilization",
 }
 DIRS = {"up": (0, 1, 0), "down": (0, -1, 0), "left": (-1, 0, 0), "right": (1, 0, 0), "front": (0, 0, 1),
         "back": (0, 0, -1)}
@@ -154,16 +154,18 @@ def _shaped(m, shape: int):
 
 
 class ShipDesign(Design):
-    """A giant ship under construction. The header is written as `key, name, giantShip, nameKey, weight,
-    minTerrainGeneration, groundRow, style` plus anything passed in `header` (pack, planetTypes, pinOnly, ruinStrength,
-    ruinZones ...). `groundRow` is the row that lies on the ground when the wreck crashes on a planet: the rows below it
+    """A giant ship under construction. The header is written as `key, name, giantShip, nameKey, [civilization,]
+    weight, minTerrainGeneration, groundRow, style` plus anything passed in `header` (pack, planetTypes, pinOnly,
+    ruinStrength, ruinZones ...). `groundRow` is the row that lies on the ground when the wreck crashes on a planet: the rows below it
     are buried (the keel sunk into the rock). `style='alien'` = a crystal wreck."""
 
     def __init__(self, key: str, name: str, weight: int = 1, groundRow: int = 0, style: str = "", **header) -> None:
         super().__init__(key, name)
-        self.header = {"key": key, "name": name, "giantShip": True, "nameKey": f"giantship.{key}.name",
-                       "weight": weight, "minTerrainGeneration": GIANT_GENERATION, "groundRow": groundRow,
-                       "style": style}
+        self.header = {"key": key, "name": name, "giantShip": True, "nameKey": f"giantship.{key}.name"}
+        if "civilization" in header:  # the survey fleet's tag (#3649) sits right after the name key, as it shipped
+            self.header["civilization"] = header.pop("civilization")
+        self.header.update({"weight": weight, "minTerrainGeneration": GIANT_GENERATION, "groundRow": groundRow,
+                            "style": style})
         self.header.update(header)
         self.header.pop("landmark", None)  # a giant ship is never a landmark
         self.hulls: list[Hull] = []

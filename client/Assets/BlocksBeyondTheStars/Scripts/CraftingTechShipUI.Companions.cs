@@ -73,9 +73,14 @@ namespace BlocksBeyondTheStars.Client
             string title = string.IsNullOrEmpty(c.Name) ? c.SpeciesName : c.Name;
             UiKit.AddText(_listContent, 8, y + 4, 700, 26, dot + title, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            string state = c.Present ? L("ui.companions.present") : L("ui.companions.away");
+            string state = L(CompanionSelection.PresenceKey(c));
             // #3344: the server says which companions travel (the robot, Rudolpho, the Soundi) — no more guessing by body plan.
-            string where = CompanionSelection.Travels(c) ? L("ui.companions.robot_follows") : $"{L("ui.companions.home")}: {c.HomeBodyName}";
+            // #4025: a travelling pet (the duel-won Soundi) travels along and still has a home world.
+            string home = $"{L("ui.companions.home")}: {c.HomeBodyName}";
+            string whereKey = CompanionSelection.WhereKey(c);
+            string where = whereKey == null ? home
+                : CompanionSelection.TravellingPet(c) ? $"{L(whereKey)}  ·  {home}"
+                : L(whereKey);
             string sub = $"{c.SpeciesName}  ·  {where}  ·  {L("ui.companions.bond")} {c.Bond}  ·  {state}";
             UiKit.AddText(_listContent, 28, y + 30, 700, 22, sub, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
 

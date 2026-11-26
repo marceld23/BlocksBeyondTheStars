@@ -270,6 +270,7 @@ namespace BlocksBeyondTheStars.Client
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
             ProbeFooting(out bool inWater, out bool onLadder); // swimming, or on a ladder out of the water
+            bool atSurface = inWater && SwimAtOpenSurface(); // floating with open air over the head (#3956)
             UpdateFloorWait(grounded);
 
             // Crouch/sneak: shrink the capsule + slow the walk while held on the ground.
@@ -279,9 +280,13 @@ namespace BlocksBeyondTheStars.Client
                 move *= CrouchSpeedMul;
             }
 
-            UpdateFlight(grounded, inWater, onLadder || _climbing);
+            UpdateFlight(grounded, inWater, onLadder || _climbing, atSurface);
             if (_flying)
             {
+                // #4028: a flight still in the water is the take-off from the surface (UpdateFlight ends any other) — the
+                // swim's rules stand aside until the body is out.
+                inWater = false;
+                atSurface = false;
                 move *= FlyHorizontalMul;
             }
 
@@ -346,14 +351,11 @@ namespace BlocksBeyondTheStars.Client
                 // impulse mounts the land — when you swim into a low bank (B), or press Jump with a bank face in front (A).
                 // #3860: never in open water, where it used to chain into a row of dolphin hops.
                 bool pushing = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
-                // Open air above the head — #2134: a still liquid (a gas giant's gas, oil) over the head is no "surface" either;
-                // it used to hand out the climb-out hop at any depth in the gas. #3956: nor is a ceiling over flooded water
-                // (the swimmer hung under it), nor a submerged kelp stalk or ladder, which counts as water (#1902).
-                Vector3 headCell = transform.position + Vector3.up * 1.9f;
-                string aboveHead = BlockKeyAt(headCell);
-                bool aboveLiquid = aboveHead == "water" || LiquidKeys.Contains(aboveHead ?? string.Empty)
-                                   || (Game != null && Game.IsWaterAt(headCell));
-                bool atSurface = SwimRules.OpenSurface(aboveLiquid, IsCollidingKey(aboveHead));
+                if (atSurface && Game != null)
+                {
+                    Game.SwimSurfaceFrame = Time.frameCount; // #4028: the controls line names the double-tap that flies from here
+                }
+
                 bool climbingOut = SwimRules.ClimbOutHop(pushing, atSurface, InputMap.JumpHeld(), LedgeAhead(move), BankAhead(move));
                 if (climbingOut)
                 {
@@ -402,7 +404,9 @@ namespace BlocksBeyondTheStars.Client
                 // Creative flight: no gravity at all. Jump rises, crouch (Ctrl/C) sinks, and letting go holds
                 // altitude — the same feel as Minecraft's creative flight. Collision stays ON (this is flight,
                 // not the observer mode's noclip), so you can still land on and build against things.
-                _verticalVelocity = (InputMap.JumpHeld() ? FlySpeed : 0f) - (InputMap.DescendHeld() ? FlySpeed : 0f);
+                // #4028: a take-off from the water's surface lifts the body out first.
+                _verticalVelocity = WaterTakeoff.Vertical(
+                    (InputMap.JumpHeld() ? FlySpeed : 0f) - (InputMap.DescendHeld() ? FlySpeed : 0f), _waterTakeoff);
             }
             else if (grounded)
             {
@@ -603,6 +607,19 @@ namespace BlocksBeyondTheStars.Client
         /// or form counts as water (#1902), so a diver swims through a kelp forest instead of dropping to the seabed.</summary>
         private bool IsSubmerged() => Game != null && Game.IsWaterAt(transform.position + Vector3.up * 1.1f);
 
+        /// <summary>Whether a swimmer floats at the surface: open air above the head. #2134: a still liquid (a gas giant's
+        /// gas, oil) over the head is no "surface" either — it used to hand out the climb-out hop at any depth in the gas.
+        /// #3956: nor is a ceiling over flooded water (the swimmer hung under it), nor a submerged kelp stalk or ladder,
+        /// which counts as water (#1902). #4028: asked before the flight too — a double-tap flies from the surface.</summary>
+        private bool SwimAtOpenSurface()
+        {
+            Vector3 headCell = transform.position + Vector3.up * 1.9f;
+            string aboveHead = BlockKeyAt(headCell);
+            bool aboveLiquid = aboveHead == "water" || LiquidKeys.Contains(aboveHead ?? string.Empty)
+                               || (Game != null && Game.IsWaterAt(headCell));
+            return SwimRules.OpenSurface(aboveLiquid, IsCollidingKey(aboveHead));
+        }
+
         /// <summary>#3923: the world Y of the water's surface over a swimmer whose feet stand at <paramref name="feet"/>: walk up
         /// from the chest's cell through the water cells (as <c>Sky.WaterSurfaceAbove</c> does for the camera). Only asked at
         /// the surface, where the cell over the head is open — so a few cells are always enough.</summary>
@@ -682,6 +699,9 @@ namespace BlocksBeyondTheStars.Client
             ShipOrWorldKeyAt(transform.position + Vector3.up * 0.3f) == "ladder"
             || ShipOrWorldKeyAt(transform.position + Vector3.up * 1.1f) == "ladder";
 
+        /// <summary>#4028: seconds left of a take-off from the water's surface (<see cref="WaterTakeoff"/>); 0 otherwise.</summary>
+        private float _waterTakeoff;
+
         /// <summary>
         /// Drives creative flight (#836): a double-tap of jump toggles it, and it ends when the world stops
         /// allowing it, when the player touches down, or in water / on a ladder, which have their own vertical
@@ -690,11 +710,21 @@ namespace BlocksBeyondTheStars.Client
         /// Landing turns it off deliberately: without that, walking around a base means constantly holding
         /// crouch to stay down. Toggling back on is one double-tap away.
         /// </para>
+        /// <para>#4028: floating at the water's open surface (<paramref name="atSurface"/>) the taps count too — since the float
+        /// of #3860 keeps the chest in the water, flight could never start there. A flight started in the water takes off: for
+        /// <see cref="WaterTakeoff.Grace"/> the water does not end it and the body rises out. Under water nothing counts.</para>
         /// </summary>
-        private void UpdateFlight(bool grounded, bool inWater, bool onLadder)
+        private void UpdateFlight(bool grounded, bool inWater, bool onLadder, bool atSurface)
         {
             bool allowed = Game != null && Game.CanFly;
-            if (!allowed || inWater || onLadder)
+            _waterTakeoff = WaterTakeoff.Tick(_waterTakeoff, Time.deltaTime);
+            if (!allowed || onLadder || (_flying && WaterTakeoff.WaterEndsFlight(inWater, _waterTakeoff)))
+            {
+                _flying = false;
+                _waterTakeoff = 0f;
+            }
+
+            if (!allowed || onLadder || !WaterTakeoff.TapCounts(inWater, atSurface))
             {
                 _flying = false;
                 return;
@@ -709,6 +739,7 @@ namespace BlocksBeyondTheStars.Client
                     _flying = !_flying;
                     _lastJumpTapTime = -1f; // consumed: a third tap starts a fresh pair, not another toggle
                     _verticalVelocity = 0f;
+                    _waterTakeoff = _flying ? WaterTakeoff.Start(inWater) : 0f;
                     ClientAudio.Instance?.Cue("jump", 0.5f);
                 }
                 else

@@ -121,8 +121,10 @@ namespace BlocksBeyondTheStars.Client
 
             Vector3 o = Camera.transform.position;
             Vector3 dir = Camera.transform.forward;
-            if (!Game.Views.Doors.AimDoor(o, dir, Reach, out doorId, out cell, out float doorDist))
+            if (!Game.Views.Doors.AimDoor(o, dir, AimRayLength, out doorId, out cell, out float doorDist)
+                || !AimCellInReach(cell.x, cell.y, cell.z))
             {
+                doorId = 0;
                 return false;
             }
 
@@ -216,8 +218,8 @@ namespace BlocksBeyondTheStars.Client
             float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
 
             bool prevFluid = IsFluidBlock(Game.World.GetBlock(x, y, z)); // the eye's own cell: swimming → pass through
-            float t = 0f;
-            for (int i = 0; i < 80 && t <= Reach; i++)
+            float t = 0f, rayLength = AimRayLength; // #4027: in third person the ray runs past the figure, the reach is the body's
+            for (int i = 0; i < 80 && t <= rayLength; i++)
             {
                 var id = Game.World.GetBlock(x, y, z);
                 var fluidKind = id.IsAir ? FluidAim.None : FluidKindOf(id);
@@ -226,14 +228,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = new Vector3Int(px, py, pz);
-                    return true;
+                    return AimCellInReach(x, y, z);
                 }
 
                 if (fluid && (fluidSurfaces & fluidKind) != 0 && !prevFluid)
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = hitCell; // into the fluid cell itself — the server displaces it (#851)
-                    return true;
+                    return AimCellInReach(x, y, z);
                 }
 
                 if (!Game.LandedShipBlockAt(x, y, z, out var s, out _).IsAir)
@@ -241,7 +243,7 @@ namespace BlocksBeyondTheStars.Client
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = new Vector3Int(px, py, pz);
                     ship = s;
-                    return true;
+                    return AimCellInReach(x, y, z);
                 }
 
                 prevFluid = fluid;
@@ -282,15 +284,15 @@ namespace BlocksBeyondTheStars.Client
             float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - o.y) : (o.y - y)) * invy;
             float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
 
-            float t = 0f;
-            for (int i = 0; i < 80 && t <= Reach; i++)
+            float t = 0f, rayLength = AimRayLength; // #4027
+            for (int i = 0; i < 80 && t <= rayLength; i++)
             {
                 var id = Game.World.GetBlock(x, y, z);
                 if (!id.IsAir && (includeFluids || !IsFluidBlock(id)))
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = new Vector3Int(px, py, pz);
-                    return true;
+                    return AimCellInReach(x, y, z);
                 }
 
                 px = x; py = y; pz = z;
@@ -300,6 +302,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return false;
+        }
+
+        /// <summary>#4027: how far the aim ray runs from the camera — <see cref="Reach"/> in first person; in third person the
+        /// spring arm on top, since the camera hangs behind the figure (only ~4.5 m in front of it were usable before).
+        /// <see cref="AimCellInReach"/> keeps the reach itself the first person's.</summary>
+        private float AimRayLength => ThirdPerson ? ThirdPersonRig.AimRayLength(Reach, _cameraBoomLength) : Reach;
+
+        /// <summary>#4027: whether an aimed cell may be worked — always in first person (the ray's length is the reach); in third
+        /// person only within <see cref="Reach"/> of the body, so the longer ray never reaches past what the server allows.</summary>
+        private bool AimCellInReach(int x, int y, int z)
+        {
+            if (!ThirdPerson)
+            {
+                return true;
+            }
+
+            Vector3 feet = transform.position;
+            return ThirdPersonRig.CellWithinBodyReach(x, y, z, feet.x, feet.y, feet.z, Reach);
         }
 
         /// <summary>Water/lava are passed through when aiming (they have no collider — you swim/sink into them).</summary>

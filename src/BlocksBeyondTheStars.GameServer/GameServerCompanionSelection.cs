@@ -41,7 +41,9 @@ public sealed partial class CombatEntity
 /// <item>The follow payoffs (fetch, the growl and the robber stall, the bandit and machine wards, scouting, the robot's
 /// guarding) come only from followers; the at-home effects (the produce drop and its sample) keep working.</item>
 /// </list>
-/// The caps are unchanged: six planet pets per world (a pet at home is one of them), travelling companions apart.
+/// The caps are unchanged: six planet pets per world (a pet at home is one of them), travelling companions apart. #4025: a
+/// travelling pet (the duel-won Soundi) follows to every world like a travelling companion but stays home like a planet pet
+/// when it does not follow, and it takes a pet slot on every world.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -152,12 +154,13 @@ public sealed partial class GameServer
 
     /// <summary>One companion's follow choice, record and live entity: a pet at home starts pottering about its home spot
     /// (the spot it stands on, if it has none yet), a follower trots back to its owner, one that waits on board leaves the
-    /// world and one that comes along again appears beside its owner.</summary>
+    /// world and one that comes along again appears beside its owner. #4025: a travelling pet left at home away from its home
+    /// world goes home (it leaves this one).</summary>
     private void ApplyFollowChoice(PlayerSession session, TamedCreature tc, bool following)
     {
         tc.Following = following;
         var live = _creatures.FirstOrDefault(c => c.CompanionId == tc.Id && c.OwnerId == session.State.PlayerId);
-        if (CompanionOnBoard(tc))
+        if (CompanionOnBoard(tc) || (IsTravellingPet(tc) && !CompanionLivesOn(tc, _world.LocationId)))
         {
             _creatures.RemoveAll(c => c.CompanionId == tc.Id);
             return;
@@ -169,9 +172,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (tc.Roams && session.CurrentLocationId == _world.LocationId)
+        if ((tc.Roams || IsTravellingPet(tc)) && session.CurrentLocationId == _world.LocationId)
         {
-            SpawnCompanionsForSession(session); // back from on board: it steps out beside its owner (never in space)
+            SpawnCompanionsForSession(session); // back from on board (or from home, #4025): it steps out beside its owner (never in space)
         }
     }
 

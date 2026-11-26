@@ -40,7 +40,7 @@
     "habitat": "Land", "activity": "Diurnal", "temperament": "Passive", "locoStyle": "Strider", "bodyPlan": "Soundi",
     "size": 0.5, "speed": 2.6, "maxHealth": 24,
     "legs": 4, "hasWings": false, "hasTail": true, "bodySegments": 1, "colorRgb": 9423858, "bellyRgb": 12579535, "eyes": 0, "horns": 0, "hasCrest": false, "glows": false,
-    "socialGroupSize": 4, "duelTame": true, "packDefender": true,
+    "socialGroupSize": 4, "duelTame": true, "packDefender": true, "travels": true,
     "dropItem": "plant_fiber", "dropCount": 1, "dropKind": "Material",
     "biomeSurfaces": [], "biomeExclusive": false, "hide": "fur" },
   { "key": "soundrak", "namePrefix": "Soundrak", "fixedName": true,

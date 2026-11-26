@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Sounders;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -137,6 +138,35 @@ public sealed class OtherSideViewTests
         Assert.True(view.MayTalkTo(livesOverThere: true));
         Assert.True(view.ShapesSound(blasterInHand: true));
         Assert.False(view.ShapesSound(blasterInHand: false));
+    }
+
+    [Fact]
+    public void OverThere_OnlyThoseWhoLiveThere_ReactToThePlayer()
+    {
+        // #4024: our side's animals and people turn to the player and hostiles play their bite on our side …
+        var view = new OtherSideView();
+        Assert.True(view.MayReactToPlayer(livesOverThere: false));
+        Assert.True(view.MayCreatureReact("sp3"));
+        Assert.True(view.MayCreatureReact(null));
+        Assert.True(view.MayNpcReact("villager"));
+        Assert.True(view.MayNpcReact(SoundersIds.Sounder));
+
+        // … and over there they look through the player; only the Qualis of the other side and the Echoes still see them.
+        view.Apply(State(true, OtherSideReasons.Crossed));
+        Assert.False(view.MayReactToPlayer(livesOverThere: false));
+        Assert.True(view.MayReactToPlayer(livesOverThere: true));
+        Assert.False(view.MayCreatureReact("sp3"));
+        Assert.False(view.MayCreatureReact(SoundersIds.Quali)); // a Quali of our side is ours
+        Assert.False(view.MayCreatureReact(null));
+        Assert.True(view.MayCreatureReact(SoundersIds.OverThereQuali));
+        Assert.False(view.MayNpcReact("villager"));
+        Assert.False(view.MayNpcReact(SoundersIds.Sounder)); // a living Sounder is of our side
+        Assert.True(view.MayNpcReact(SoundersIds.Echo));
+
+        // Back home everybody sees the player again.
+        view.Apply(State(false, OtherSideReasons.Returned));
+        Assert.True(view.MayCreatureReact("sp3"));
+        Assert.True(view.MayNpcReact("villager"));
     }
 
     [Fact]

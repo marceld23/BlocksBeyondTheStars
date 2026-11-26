@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             public CreatureAnimator SounderRig;
             public IReadOnlyList<string> Hums;
             public float SounderHead;
+            public bool LivesOverThere;    // #4024: an Echo — the only person who still turns to a player over there
             public Vector3 Target;        // canonical world space (the newest snapshot)
             public Vector3 SettledWorld;   // interpolated world position (mapped to scene for display)
             public float Yaw;              // the drawn yaw, degrees
@@ -306,7 +307,7 @@ namespace BlocksBeyondTheStars.Client
 
             bool look = false;
             float yaw = 0f, pitch = 0f;
-            if (Game != null && n.Pose != 2)
+            if (Game != null && n.Pose != 2 && Game.OtherSide.MayReactToPlayer(n.LivesOverThere)) // #4024: ours look through a player over there
             {
                 var head = n.Go.transform.position + Vector3.up * (HeadHeight(n) * n.Go.transform.localScale.y);
                 var d = Game.PlayerPosition + Vector3.up * 1.5f - head;

@@ -402,6 +402,7 @@ public sealed partial class GameServer
                     inventory,
                     rations,
                     equipment, // #2110: the worn gear by slot
+                    otherSide = BumpOtherSideSnapshot(session), // #4024: over there or not, how, and the entry gate
                 },
                 tutorial, // #2555: active training steps + tutorial / VEGA hint milestones
                 story = BumpStorySnapshot(session), // #3386: the world story, the finale, the player's track + cutscene ledger

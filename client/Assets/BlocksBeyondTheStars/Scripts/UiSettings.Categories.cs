@@ -246,6 +246,13 @@ namespace BlocksBeyondTheStars.Client
                 () => SetFieldOfView(S.ClampedFieldOfView - ClientSettings.FieldOfViewStep),
                 () => SetFieldOfView(S.ClampedFieldOfView + ClientSettings.FieldOfViewStep),
                 Mathf.RoundToInt(S.ClampedFieldOfView) + "°", L("ui.settings.fov_hint"));
+            // #4027: where the third-person camera sits — High (the default), Behind (the old view) or over the shoulder; live.
+            Cycle(ref y, L("ui.settings.third_person_view"), L(ThirdPersonViewKey(S.ThirdPersonView)), dir =>
+            {
+                S.ThirdPersonView = ThirdPersonRig.Step(S.ThirdPersonView, dir);
+                ApplyLiveWorld();
+                Rebuild();
+            }, L("ui.settings.third_person_view_hint"));
 
             Kicker(ref y, L("ui.settings.group.flashes"));
             // #2152: photosensitivity — big full-screen flashes become a soft wash.
@@ -261,6 +268,14 @@ namespace BlocksBeyondTheStars.Client
                 L("ui.settings.story_text_wait_hint"));
             FeelAccessibilityRows(ref y); // story text size + backdrop, signal colours, keys that switch (UiSettings.Feel.cs)
         }
+
+        /// <summary>#4027: the localization key of a third-person view's name.</summary>
+        private static string ThirdPersonViewKey(ThirdPersonView view) => ThirdPersonRig.Normalize((int)view) switch
+        {
+            ThirdPersonView.Behind => "ui.settings.third_person_view.behind",
+            ThirdPersonView.Shoulder => "ui.settings.third_person_view.shoulder",
+            _ => "ui.settings.third_person_view.high",
+        };
 
         private void SetFieldOfView(float degrees)
         {

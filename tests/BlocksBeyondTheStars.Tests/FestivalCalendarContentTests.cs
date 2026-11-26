@@ -147,6 +147,23 @@ public sealed class FestivalCalendarContentTests
     }
 
     [Fact]
+    public void TheSchoolClubsBlueSpacesuit_IsAFreeTemplate_WithItsFaceAndHelmet()
+    {
+        // #4032: the school club's "Mein Skin" (by Jafar) taken over 1:1 — the default suit colours, an unpainted suit, the
+        // painted helmet and the painted blue face. Its name is the game's, never the player's.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        var suit = Assert.Single(content.Skins, s => s.Key == "blue_spacesuit");
+        Assert.Equal(string.Empty, suit.Unlock);
+        Assert.True(suit.HasFace);
+        Assert.Equal(BodyPaint.ChunkPixels, suit.Face.Length);
+        Assert.Equal(BodyPaint.PartCount, suit.Paint.Length);
+        Assert.False(string.IsNullOrEmpty(suit.Paint[BodyPaint.Helmet])); // the helmet drawing
+        Assert.Equal(new[] { string.Empty, "#3373cc", "#3373cc", "#404052" }, suit.Colors);
+        Assert.Equal("Blue spacesuit", content.CreateLocalizer(GameLocale.English).Get(suit.NameKey));
+        Assert.Equal("Blauer Raumanzug", content.CreateLocalizer(GameLocale.German).Get(suit.NameKey));
+    }
+
+    [Fact]
     public void TheCompanionOnlyBodies_AreNeverWild()
     {
         Assert.True(GameContent.IsCompanionOnlyBodyPlan(CreatureBodyPlan.Robot));

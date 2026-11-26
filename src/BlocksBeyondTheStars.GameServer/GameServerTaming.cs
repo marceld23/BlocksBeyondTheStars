@@ -235,7 +235,7 @@ public sealed partial class GameServer
         var p = session.State;
         string body = _world.LocationId;
 
-        if (p.TamedCreatures.Count(t => t.HomeBodyId == body && !t.Roams) >= MaxCompanionsPerWorld) // #3295: the robot is no pet slot
+        if (PetSlotsUsedOn(p, body) >= MaxCompanionsPerWorld) // #3295: the robot is no pet slot; #4025: a travelling pet is one everywhere
         {
             _tameAttempts.Remove(p.PlayerId);
             Send(session, new TameResult { CreatureId = creature.Id, Success = false, MessageKey = "creature.tame.msg.full" });
@@ -281,6 +281,7 @@ public sealed partial class GameServer
         };
         SetHomeSpot(tc, creature.Position); // #3344: left at home, it lives where it was tamed
         p.TamedCreatures.Add(tc);
+        string tameKey = TravellingTameKey(session, tc, sp, successKey); // #4025: a duel-won Soundi travels along when it fits
 
         // First tame of this species (per world) pays research knowledge; repeats pay nothing — the old
         // +1 trickle was an unbounded knowledge faucet that helped trivialise the research gate (#767).
@@ -306,7 +307,7 @@ public sealed partial class GameServer
             Success = true,
             CompanionId = tc.Id,
             CompanionName = tc.Name,
-            MessageKey = successKey, // #2082: a feed-tame says what won it over
+            MessageKey = tameKey, // #2082: a feed-tame says what won it over; #4025: a travelling pet says it comes along
             KnowledgeGained = reward,
             KnowledgeTotal = p.KnowledgePoints,
         });
@@ -952,6 +953,7 @@ public sealed partial class GameServer
 
         session.State.TamedCreatures.Remove(tc);
         _creatures.RemoveAll(c => c.CompanionId == tc.Id);
+        PromoteTravellingPetsAfterRelease(session); // #4025: a freed slot lets a Soundi that stayed home come along
         _repo.SavePlayer(session.State);
         BroadcastCreatures();
         SendCompanions(session);
@@ -974,6 +976,7 @@ public sealed partial class GameServer
                 CanFeed = CanFeedCompanion(session, tc),
                 Following = tc.Following, // #3344: follows / stays home / on board
                 Roams = tc.Roams,
+                TravellingPet = IsTravellingPet(tc), // #4025: the duel-won Soundi comes along to every world
                 Kind = tc.Kind ?? string.Empty,
                 GearWeapon = tc.GearWeapon ?? string.Empty, // #3398: the robot's weapon and (#3399) jetpack — "Take back"
                 GearJetpack = tc.GearJetpack ?? string.Empty,

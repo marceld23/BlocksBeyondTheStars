@@ -86,7 +86,7 @@ TABLE_CACHE = "giant_cache"
 
 
 def build() -> ShipDesign:
-    d = ShipDesign("liner", "Liner", weight=3, groundRow=GROUND)
+    d = ShipDesign("liner", "Liner", weight=3, groundRow=GROUND, civilization="sps")
     hull = _hull(d)
     _decks(d, hull)
     _windows(d, hull)
@@ -354,7 +354,7 @@ def _lounge(d: ShipDesign, a: int, b: int) -> None:
     for z in range(a + 4, b - 3, 3):
         d.put(CX + 11, WALK4, z, Mat("wood_planks", shape=sc.pack("chair", sc.yaw_toward(-1, 0))))
     for x, z in ((CX - 16, a + 1), (CX - 16, b - 1), (CX + 16, a + 1), (CX + 16, b - 1)):
-        d.put(x, WALK4, z, Mat("flower_pot"))
+        d.put(x, WALK4, z, Mat("flower_pot", shape=sc.pack(sc.POT)))
 
 
 def _reception(d: ShipDesign, a: int, b: int) -> None:
@@ -366,7 +366,7 @@ def _reception(d: ShipDesign, a: int, b: int) -> None:
         for x in (CX - 12, CX - 9):
             d.put(x, WALK4, z, Mat("concrete", tint=0x3A6A9A, shape=sc.pack("chair", sc.yaw_toward(0, 1))))
     for x, z in ((CX - 16, a + 1), (CX - 16, b - 1), (CX + 8, a + 1), (CX + 8, b - 1)):
-        d.put(x, WALK4, z, Mat("flower_pot"))
+        d.put(x, WALK4, z, Mat("flower_pot", shape=sc.pack(sc.POT)))
     for x in (CX - 10, CX + 10):
         d.put(x, WALK4 + 4, (a + b) // 2, LIGHT)
 

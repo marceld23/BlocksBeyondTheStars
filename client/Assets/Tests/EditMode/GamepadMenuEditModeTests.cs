@@ -161,5 +161,37 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var nav = root.AddComponent<UiNavFocus>();
             Assert.IsNull(nav.FocusTarget(), "a screen whose only Selectable is a scrollbar offers the pad nothing");
         }
+
+        // ---- #4029: the wheel works over the gaps between rows -------------------------------------------------
+
+        [Test]
+        public void InlineScrollbar_GivesAViewportWithoutAGraphic_ANearTransparentHitImage()
+        {
+            var root = new GameObject("Screen", typeof(RectTransform));
+            _spawned.Add(root);
+            root.AddComponent<Canvas>();
+            var viewGo = new GameObject("Viewport", typeof(RectTransform));
+            viewGo.transform.SetParent(root.transform, false);
+            var scroll = viewGo.AddComponent<ScrollRect>();
+            scroll.viewport = (RectTransform)viewGo.transform;
+
+            UiKit.AddInlineScrollbar(scroll);
+
+            var hit = viewGo.GetComponent<Image>();
+            Assert.IsNotNull(hit, "the viewport must catch the wheel between its rows");
+            Assert.IsTrue(hit.raycastTarget);
+            Assert.Less(hit.color.a, 0.01f, "the hit image must not be seen");
+
+            // A viewport that already has its graphic (UiKit.AddScrollViewport, ScrollList) keeps it — no second one.
+            var shaded = new GameObject("Shaded", typeof(RectTransform));
+            shaded.transform.SetParent(root.transform, false);
+            var tint = shaded.AddComponent<Image>();
+            tint.color = new Color(0f, 0f, 0f, 0.18f);
+            var other = shaded.AddComponent<ScrollRect>();
+            other.viewport = (RectTransform)shaded.transform;
+            UiKit.AddInlineScrollbar(other);
+            Assert.AreSame(tint, shaded.GetComponent<Graphic>());
+            Assert.AreEqual(0.18f, tint.color.a, 1e-4f);
+        }
     }
 }

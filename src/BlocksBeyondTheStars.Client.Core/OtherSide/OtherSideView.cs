@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Sounders;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -106,6 +107,26 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Whether a talk may start: on our side with anybody; over there only with somebody who lives there.</summary>
         public bool MayTalkTo(bool livesOverThere) => !Over || livesOverThere;
+
+        /// <summary>
+        /// #4024: whether a being may react to the player — an animal or a person turning to look, a hostile's lunge, bite
+        /// call and attack effect. On our side everybody may; over there only those who live there: nothing of our side
+        /// sees a player who is over there (the server's rule — no damage, no greeting, no hunt), so nothing of our side
+        /// may look as if it did.
+        /// </summary>
+        public bool MayReactToPlayer(bool livesOverThere) => !Over || livesOverThere;
+
+        /// <summary>#4024: <see cref="MayReactToPlayer"/> for an animal, told by its species id.</summary>
+        public bool MayCreatureReact(string? speciesId) => MayReactToPlayer(CreatureLivesOverThere(speciesId));
+
+        /// <summary>#4024: <see cref="MayReactToPlayer"/> for a person, told by its look key.</summary>
+        public bool MayNpcReact(string? look) => MayReactToPlayer(NpcLivesOverThere(look));
+
+        /// <summary>Whether an animal lives over there: the low-drifting Quali of the other side.</summary>
+        public static bool CreatureLivesOverThere(string? speciesId) => speciesId == SoundersIds.OverThereQuali;
+
+        /// <summary>Whether a person lives over there: an Echo (the story's four and the figures at the gates).</summary>
+        public static bool NpcLivesOverThere(string? look) => SounderRules.IsEcho(look);
 
         /// <summary>Hunger, air and temperature warnings: nothing drains and nothing hurts over there, so nothing warns.</summary>
         public bool ShowsNeedWarnings => !Over;

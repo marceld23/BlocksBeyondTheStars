@@ -72,7 +72,7 @@ public sealed partial class GameServer
         {
             Text = Localize(session.Locale, "srv.spstower.list_header").Replace("{count}", towers.Count.ToString(CultureInfo.InvariantCulture)),
         });
-        foreach (var t in towers.Take(TeleportListMaxLines))
+        foreach (var t in towers) // every template, however many (#4034)
         {
             Send(session, new ServerMessage
             {
