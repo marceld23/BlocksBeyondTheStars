@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 School club reports of 2026-11-25: nobody turns to you over there, Soundis that travel, flat rugs in the wrecks, a third-person setting, flight from the water, the wheel over gaps, where flower seeds come from, bricks, a blue spacesuit, both Bens, the whole /tp list, a chat filter that fails closed — #4024–#4034, #4036, branch fix/reports-2026-11-25 — ✅ done 2026-11-26, PR pending (server + shared + client + Client.Core + data + tools; **save version 22** (one new block, ids shift), protocol unchanged (one additive field `NetCompanion.TravellingPet`), terrain generation unchanged; 17 new texts and 1 changed in all 14 languages)
+### 📬 School club reports of 2026-11-25: nobody turns to you over there, Soundis that travel, flat rugs in the wrecks, a third-person setting, flight from the water, the wheel over gaps, where flower seeds come from, bricks, a blue spacesuit, both Bens, the whole /tp list, a chat filter that fails closed — #4024–#4034, #4036, branch fix/reports-2026-11-25 — ✅ released in v2026.11.31, PR #4035 (`ad1a6b68`) (server + shared + client + Client.Core + data + tools; **save version 22** (one new block, ids shift), protocol unchanged (one additive field `NetCompanion.TravellingPet`), terrain generation unchanged; 17 new texts and 1 changed in all 14 languages)
 
 Seven F1 reports of the school club and one question from Lyxette (v2026.11.30), plus six older club reports that had
 waited in the club PCs' local send queue since 11-04/11-11/11-18 (`FeedbackSpool`, one retry per world start) and arrived
@@ -81,7 +81,7 @@ together on 11-25. Decisions by Marcel 2026-11-25.
   wreck; the three camera views (corridors, low ceilings, looking down); flying off the sea; the wheel over the inventory
   gaps; the brick tile on slabs/stairs and dyed.
 
-### ⚙️ CI: test-shard weights refreshed — the slowest shard no longer runs twice as long as the fastest — ✅ done 2026-11-24 (CI weights + comments + DEVELOPER.md; no code, no test change)
+### ⚙️ CI: test-shard weights refreshed — the slowest shard no longer runs twice as long as the fastest — ✅ done 2026-11-24, PR #4023 (`ee94fc73`) (CI weights + comments + DEVELOPER.md; no code, no test change)
 
 - **Why.** Since the last refresh (2026-11-14) the fast tier grew from ~21 300 to ~27 900 test-seconds and 111 test
   classes had no weight, each guessed at 10 s — 4.4 % of the predicted load, just under the drift guard's 5 %. The new
