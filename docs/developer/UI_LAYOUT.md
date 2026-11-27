@@ -145,7 +145,8 @@ The browser's fullscreen button (bottom right of the page) pulls both short cont
 three contexts for overlaps.
 
 **While the console (Tab) is open** the objective chip and VEGA's folded tab step aside; a line VEGA says meanwhile (a
-lesson about that very screen) draws above the opaque console instead of disappearing behind it
+lesson about that very screen) draws above the opaque console instead of disappearing behind it — and above its Codex
+and DataQubes screens, which have their own canvases at order 55 (#4071; under them she shone through as a ghost)
 (`VegaPanel.RiseAboveMenu` — only for the console; trade, dialogues and the taming panel keep VEGA under them).
 
 ## 3. The editor shell (#3688–#3690, epic #3696)

@@ -26,6 +26,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🕹️ DataQubes start card: text wraps, no grey box, VEGA above the Codex / DataQubes — #4069, #4070, #4071 — ✅ done 2026-11-27, branch fix/dataqube-minigame-ui (client only; no protocol, save, text or world-generation change)
+
+Marcel's screenshot (Orbit-Schleuder start card, German) showed the description running out of the card, a grey box behind
+it and a faint VEGA line under the screen.
+
+- **Text** (#4069): `UiKit.AddText` never wraps, and `MinigameHostUI` put whole paragraphs through it — 15 of 21 German
+  descriptions (19 French) ran out of the 640 px card. The start description, the record line and the help block now wrap and
+  best-fit their boxes (`FitLabel`); the start title, the result's reward line and the Arcade rail's game names keep to one
+  line (`FitLabelSingleLine`).
+- **Grey box** (#4070): a game creates its canvas only when a round starts, so the start screen showed the host's unfilled
+  640 × 440 texture (Unity's grey; the previous game's last frame when the size matched). `MinigameHostUI.ShowSurface` shows
+  the surface only while the game has a canvas — also in the story window's note-key game.
+- **VEGA** (#4071): the Codex and DataQubes draw at order 55, above VEGA's "above the console" 52, so her line shone through
+  their 96 % backdrop. `VegaPanel.AboveMenuSortingOrder` is 56 now (still under the editors, trade and the console's dialogs);
+  `UI_LAYOUT.md` §2 says so.
+
 ### 🏗️ Station / Village editor: basedOn survives Save + LOAD; an unchanged shipped template is not sent — #4067 — ✅ done 2026-11-27, branch fix/structure-submission-basedon (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
 
 The follow-up Marcel asked for after the ship fix below: the Station / Village editor had the same two gaps.

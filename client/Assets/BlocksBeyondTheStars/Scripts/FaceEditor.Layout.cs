@@ -43,8 +43,8 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color BackdropColor = new Color(0.02f, 0.04f, 0.08f, 1f);
 
         /// <summary>
-        /// The editor's canvas order in a world: above the console (50), VEGA while the console is up (52) and the Codex /
-        /// DataQubes (55); the HUD renders below every overlay canvas anyway. Below what must stay on top: the F1 feedback
+        /// The editor's canvas order in a world: above the console (50), the Codex / DataQubes (55) and VEGA while the console
+        /// is up (56, #4071); the HUD renders below every overlay canvas anyway. Below what must stay on top: the F1 feedback
         /// form (60), the console's own small dialogs (61), the submit dialog (70), the transition and loading covers
         /// (70–75), the death flash and prompt (80–85).
         /// </summary>
