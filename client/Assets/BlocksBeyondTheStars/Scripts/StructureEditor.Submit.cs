@@ -150,7 +150,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #4067: a shipped template, cell for cell, holds nothing the developers could adopt — say so kindly instead of
             // sending it, like an empty build (the Ship Designer does the same, #4065).
-            string twin = ShippedTemplateMatch.Find(DesignCells(), ShippedPool());
+            string twin = ShippedTemplateMatch.Find(MatchCells(), ShippedPool());
             if (twin.Length > 0)
             {
                 SetStatus(string.Format(L("ui.submit.unchanged_structure"), ShippedTemplateName(twin)), EditorStatusSeverity.Warning);
@@ -276,7 +276,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return ShippedTemplateMatch.Find(DesignCells(), pool);
+            return ShippedTemplateMatch.Find(MatchCells(), pool);
         }
 
         /// <summary>The shipped templates of this mode (the client's content holds no user templates); null without content.</summary>
@@ -285,7 +285,7 @@ namespace BlocksBeyondTheStars.Client
                 : EditorMode == Mode.Station ? Shell.Content.StationTemplates : Shell.Content.SettlementTemplates;
 
         /// <summary>The build as Save exports it, as <see cref="ShippedTemplateMatch"/> compares it.</summary>
-        private List<CreationCell> DesignCells()
+        private List<CreationCell> MatchCells()
         {
             var cells = new List<CreationCell>(_design.Count);
             foreach (var kv in _design)
