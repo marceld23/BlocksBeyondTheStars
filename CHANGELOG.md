@@ -11,6 +11,72 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.33] — 2026-11-27
+
+A release made of your reports. **The sky sits behind the landscape again**: a planet's ring, the moons and the
+planets no longer stand in front of far mountains and clouds. **Air fish and sky rays fly over a hill** instead of
+gliding along its slope, and **every flying animal now casts a soft shadow** on the ground below it. In the **Ship
+Editor** and the **Station / Village Editor**, **Submit** now notices when a build is still one of the game's own ships
+or buildings, block for block, and a copy no longer forgets which ship or building it started from. And the
+**DataQubes** start card shows its whole text, without a grey box behind it.
+
+ℹ️ **Compatibility:** nothing changes for your worlds — no world is converted. The **save version stays at 22**, the
+**terrain generation at 49** and the **network protocol at version 12**, and the list of blocks is the same, so a game
+on 2026.11.32 can still join a server on 2026.11.33. Everything in this release comes to **every world, old and new**.
+
+### 🌙 The sky behind the landscape (#4059, #4060)
+
+- On a planet with a ring, **the ring's arc no longer juts up out of the middle of the landscape**. Every mountain in
+  front of it now covers it, as far as the far view reaches.
+- **Moons and planets in the sky** had the same bug: a setting moon stood in front of the hills, with its lower half
+  over the landscape, and in front of distant clouds. Now they go down behind the mountains. Among themselves they keep
+  their order, so a moon still passes in front of its planet.
+- The sun, the stars and the nebula were already right. The space view and the cockpit hologram are unchanged. It looks
+  the same on every graphics preset and costs nothing.
+
+### 🐟 Flying animals (#4061, #4062)
+
+- **Air fish and sky rays climb before a hill** and fly over it. Before, they followed the slope, so from above an air
+  fish gliding up a mountainside looked as if it were climbing it. When the ground falls away, they hold their height
+  and sink slowly. They still never lift themselves over a wall you built, and never through a roof.
+- **A shadow under flying animals.** Every flying animal up to size 4 casts a soft dark spot straight below it, fainter
+  the higher it flies, by day and by night. Now you can see how high it is. A bird sitting on the ground by day gets
+  none, like an animal walking.
+
+### 🚀 Submitting ships and buildings (#4064, #4065, #4067)
+
+- **Submit** in the Ship Editor and the Station / Village Editor now tells you when a build is still one of the game's
+  own ships or buildings, block for block: "This is still the game's ship “…”, block for block. Build something of your
+  own into it first – then we'd love to see it!" One painted, added or removed block is enough, and so is a sign text
+  or a device setting of your own in a building. Changing only the values, the name, the tier or the cabin size does not
+  count.
+- **A copy remembers where it started.** When you load a ship or a building from the game and save it as your own, the
+  copy now keeps its link to the original. The link stays after you load the copy again, and it is in the exported file
+  too, so we can see what you changed.
+
+### 🕹️ DataQubes (#4069, #4070, #4071)
+
+- **The start card shows its whole text.** A game's description, the record line and the help now wrap inside the card
+  and fit their box. In German, 15 of the 21 descriptions ran out of the card. The game names in the list, the titles
+  and the reward line stay on one line.
+- **No grey box behind the start card.** The game area appears only once a round runs. The Song Disc game at a Song
+  Spindle uses the same screen and is fixed with it.
+- **VEGA no longer shines through the Codex and DataQubes.** When she says something while one of those screens is open,
+  her line now sits above it and is readable. Before, it showed through as a faint ghost.
+
+### 🔧 Under the hood
+
+- The sky bodies and the ring band squeeze their depth into a thin band just in front of the far plane (new
+  `SkyDepth.hlsl`). The ring band and the bodies' ring discs moved from queue 3001 to 2500 (#4059, #4060).
+- Sky gliders look ahead on the generator's natural surface, never at real blocks, so a player's wall stays a wall. No
+  protocol or save change (#4061).
+- `tools/pull_submissions.py` flags a submission that is identical to a shipped ship or template
+  (`IDENTICAL TO SHIPPED <key>`), so submissions from older versions are caught too (#4065, #4067).
+- The editor's Submit checks for the modes that cannot be sent moved into their own method; no behaviour change (#4067).
+
+Thank you to Lyxette for the climbing fish, to the player who sent us the very first ship, and to everyone who sends us
+ideas and reports!
+
 ## [2026.11.32] — 2026-11-27
 
 A release for the cockpit and for the desktop. **The hologram over your cockpit desk now shows the star system you are
@@ -12177,7 +12243,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.32...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.33...HEAD
+[2026.11.33]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.32...v2026.11.33
 [2026.11.32]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.31...v2026.11.32
 [2026.11.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.30...v2026.11.31
 [2026.11.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.29...v2026.11.30
