@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🕹️ DataQubes start card: text wraps, no grey box, VEGA above the Codex / DataQubes — #4069, #4070, #4071 — ✅ done 2026-11-27, branch fix/dataqube-minigame-ui (client only; no protocol, save, text or world-generation change)
+### 🕹️ DataQubes start card: text wraps, no grey box, VEGA above the Codex / DataQubes — #4069, #4070, #4071 — ✅ released in v2026.11.33, PR #4072 (`25c498b9`) (client only; no protocol, save, text or world-generation change)
 
 Marcel's screenshot (Orbit-Schleuder start card, German) showed the description running out of the card, a grey box behind
 it and a faint VEGA line under the screen.
@@ -42,7 +42,7 @@ it and a faint VEGA line under the screen.
   their 96 % backdrop. `VegaPanel.AboveMenuSortingOrder` is 56 now (still under the editors, trade and the console's dialogs);
   `UI_LAYOUT.md` §2 says so.
 
-### 🏗️ Station / Village editor: basedOn survives Save + LOAD; an unchanged shipped template is not sent — #4067 — ✅ done 2026-11-27, branch fix/structure-submission-basedon (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
+### 🏗️ Station / Village editor: basedOn survives Save + LOAD; an unchanged shipped template is not sent — #4067 — ✅ released in v2026.11.33, PR #4068 (`68e16639`) (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
 
 The follow-up Marcel asked for after the ship fix below: the Station / Village editor had the same two gaps.
 
@@ -56,7 +56,7 @@ The follow-up Marcel asked for after the ship fix below: the Station / Village e
   `ShippedTemplateMatchTests`; the text sits in the structure status box of `EditorTextFitTests`.
 - Known gap: old templates with doors authored as blocks heal into door markers on load — their copy is sent as before.
 
-### 🚀 Ship submission of 2026-11-27: an unchanged shipped ship is not sent; basedOn survives Save + LOAD — #4064, #4065 — ✅ done 2026-11-27, branch fix/ship-submission-basedon (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
+### 🚀 Ship submission of 2026-11-27: an unchanged shipped ship is not sent; basedOn survives Save + LOAD — #4064, #4065 — ✅ released in v2026.11.33, PR #4066 (`6bfa944d`) (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
 
 The first ship submission in the inbox (v2026.11.32, Russian UI, key `hammerhead_2`) was the shipped Hammerhead, all 564
 cells unchanged — only the card's stats (hull 220 → 380, shield 60 → 110, speed 0.9 → 1.5, handling 0.75 → 1.0, cargo 200)
@@ -73,7 +73,7 @@ and a larger cabin frame. Its `basedOn` was empty.
   older clients. Tests: `ShippedShipMatchTests`; the text sits in the ship status box of `EditorTextFitTests`.
 - The Station / Village editor had the same pattern — done in the follow-up #4067 above.
 
-### 🌙 Player reports of 2026-11-27: the sky's ring, moons and planets sit behind the landscape; air fish fly over a hill instead of up its slope, with a drop shadow — #4059, #4060, #4061, #4062 — ✅ done 2026-11-27, branch fix/reports-2026-11-27 (client + Client.Core + shared + server + two shaders; no protocol, save, world-generation or text change)
+### 🌙 Player reports of 2026-11-27: the sky's ring, moons and planets sit behind the landscape; air fish fly over a hill instead of up its slope, with a drop shadow — #4059, #4060, #4061, #4062 — ✅ released in v2026.11.33, PR #4063 (`90738c7d`) (client + Client.Core + shared + server + two shaders; no protocol, save, world-generation or text change)
 
 Two F1 reports (v2026.11.32) and Marcel's add-on "check the moons too — do they really sit at the horizon?". Decisions by
 Marcel 2026-11-27: fix the ring AND the moons/planets (option A), the air fish both steadier (b) and with a shadow (c).
