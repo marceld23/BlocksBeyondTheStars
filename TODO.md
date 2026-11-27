@@ -26,7 +26,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛰️ A lower cockpit desk, and its hologram shows the real system with travelling planets — #4054, #4055 — ✅ done 2026-11-27
+### 🛰️ A lower cockpit desk, and its hologram shows the real system with travelling planets — #4054, #4055 — ✅ released in v2026.11.32, PR #4056 (`940df822`)
 
 Marcel's two points of 2026-11-26 about the cockpit station: the console is so tall that the holographic map sticks to
 the cabin ceiling, and the map shows three circling spheres instead of the system you are in. His choices: keep the
@@ -54,7 +54,7 @@ console but trim it, let the planets travel, lean the map slightly.
   picture. Open for a playtest: the short, wide screen strip of the trimmed desk, and how the map reads at 20°.
 - **Tiers.** The same on every tier and in the browser. Client only: no server, protocol, save or data change.
 
-### 🎛️ The near drawers draw from buffers on the graphics card — #4046 part b — ✅ done 2026-11-27
+### 🎛️ The near drawers draw from buffers on the graphics card — #4046 part b — ✅ released in v2026.11.32, PR #4056 (`940df822`)
 
 What the one detail pass per frame (#4053) left over: tufts, the grass carpet with its flowers, grass clumps, plant
 bodies and crown clusters bake their instances once per chunk build, but handed every batch's matrices and per-instance
@@ -80,7 +80,7 @@ vectors to the engine again each frame.
   one buffer per mesh across chunks would be the next step. Linux (Vulkan) was not run.
 - **Tiers.** Desktop High and Medium. Potato, Low and the browser draw none of this (ADR 0021).
 
-### 🧵 Desktop uses its cores: chunk builds by core count, one detail pass per frame, far-view workers, allocation-free generator lookups — measured — epic #4051 (#4044–#4050, #4052), PR #4053 — ✅ done 2026-11-26 (⚠ playtest open; client + Client.Core + world generation (output unchanged, goldens green) + docs; no protocol, save, data or terrain-generation change, no new texts, nothing changes the picture)
+### 🧵 Desktop uses its cores: chunk builds by core count, one detail pass per frame, far-view workers, allocation-free generator lookups — measured — epic #4051 (#4044–#4050, #4052), PR #4053 (`b4c89e28`) — ✅ released in v2026.11.32 (⚠ playtest open; client + Client.Core + world generation (output unchanged, goldens green) + docs; no protocol, save, data or terrain-generation change, no new texts, nothing changes the picture)
 
 Marcel's question of 2026-11-26: High is the desktop showpiece — can it use threads the browser's single thread kept us
 from? The analysis found the large steps already done (mesher, collider cooks, far terrain and minimap on workers, the
@@ -140,7 +140,7 @@ server a process of its own) and four things left; a profiler capture found thre
   closing comment), each a look decision — the largest is the render scale on panels above 2560 x 1440.
   (4) **IL2CPP on the desktop** (today Mono) — a separate experiment run, decided 2026-11-26.
 
-### 🚃 Player reports of 2026-11-26: a wall behind the train's benches, clearer plain glass; "World options…" out of the divider; the browser points to the desktop — #4039, #4040, #4041, #4043, branch fix/reports-2026-11-26 — 🔄 in PR #4042 (client + Client.Core + shared + one shader + locales; no protocol, save or world-generation change; 3 new texts in all 14 languages)
+### 🚃 Player reports of 2026-11-26: a wall behind the train's benches, clearer plain glass; "World options…" out of the divider; the browser points to the desktop — #4039, #4040, #4041, #4043, branch fix/reports-2026-11-26 — ✅ released in v2026.11.32, PR #4042 (`3bbf8ac4`) (client + Client.Core + shared + one shader + locales; no protocol, save or world-generation change; 3 new texts in all 14 languages)
 
 Two F1 reports from the intercity train (v2026.11.31), one menu bug and one wish. Order by Marcel 2026-11-26 (Option A for
 the menu; the browser card's mock approved the same evening).

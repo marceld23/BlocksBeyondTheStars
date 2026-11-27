@@ -11,6 +11,69 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.32] — 2026-11-27
+
+A release for the cockpit and for the desktop. **The hologram over your cockpit desk now shows the star system you are
+in** — every planet on its orbit, its moons beside it, all of it travelling slowly — and the desk under it is lower, so
+the map floats at eye height instead of under the ceiling. On the desktop **the world appears much faster**: the game
+now builds the landscape with as many of your computer's processor cores as it has. Two reports from the intercity
+train are in too — **the wagons have their lower wall back behind the benches**, and **plain glass is a little
+clearer**.
+
+ℹ️ **Compatibility:** nothing changes for your worlds — no world is converted. The **save version stays at 22**, the
+**terrain generation at 49** and the **network protocol at version 12**, and the list of blocks is the same, so a game
+on 2026.11.31 can still join a server on 2026.11.32. Everything in this release comes to **every world, old and new**.
+
+### 🛰️ The cockpit shows your star system (#4054, #4055)
+
+- The **hologram over the cockpit desk is the real system** now: the star in its own colour, every planet on its orbit
+  ring, its moons beside it, an asteroid belt as a band, stations and wrecks as small dots. The bigger, brighter dot is
+  where you are.
+- **The planets travel** along their rings, each at its own pace and in its own direction, and the moons circle their
+  planet. It is a time lapse — a real orbit takes hours.
+- Before, the map showed the first five entries of the system at made-up distances, all turning together, and some of
+  them drifted through the wall.
+- **The desk is lower**, and the map floats just over it at eye height, leaning slightly toward you, so you look down
+  onto the orbits. It used to hang right under the cabin ceiling.
+
+### 🚆 The intercity train (#4040)
+
+- The seat wagon had **no lower wall** behind its benches, the bar wagon none behind its benches, and the sleeper had a
+  slit over each berth. The walls are closed again.
+
+### 🪟 Clearer glass (#4041)
+
+- **Plain glass is a little more see-through.** It stays frosted and clearly different from clear glass.
+
+### 🖥️ Faster on the desktop (#4051, #4046)
+
+- **The world appears faster.** The game builds the landscape with as many processor cores as your computer has,
+  instead of four pieces per frame. On our test laptop, on High: the loading veil lifts after 11.3 seconds instead of
+  13.1, the view is complete after 9.8 seconds instead of 17.6, and while you walk a new piece of the world appears
+  after 0.2 seconds instead of 0.9 (and never later than 1.2 seconds, where it could take 9.5).
+- **The far view** is complete sooner too (about 8 seconds instead of 10).
+- **Less work for the processor** on Medium and High: grass, plants and tree crowns near you are now kept on the
+  graphics card instead of being handed over again every frame.
+- The picture is meant to be exactly the same. Low, Potato and the browser are unchanged.
+
+### 🧭 Menus (#4039, #4043)
+
+- On **My worlds → New world**, the button **World options…** no longer sits on top of the dividing line.
+- **In the browser**, the main menu now says that the desktop version looks even prettier, with a link to it — the
+  browser offers the Potato and Low graphics only.
+
+### 🔧 Under the hood
+
+- The performance probe measures the chunk work, the time until the world is complete and where the processor's time
+  goes; it can run a rule the old way in the same build to compare (#4044, #4045, #4046).
+- Measured and left alone: decoding world data on a second thread (0.02 ms per frame), and Graphics Jobs (a gain on a
+  large machine, none shown on a small one) (#4047, #4049).
+- The world generator's lookups, the far view's mask and the room scan no longer allocate memory on every call (#4052).
+- The start option `-instanceArrays` makes grass, plants and crowns draw the old way, in case a graphics driver has
+  trouble with the new one (#4046).
+
+Thank you to everyone who sent a report from the train — and to everyone who sends us ideas and reports!
+
 ## [2026.11.31] — 2026-11-26
 
 The school-club release. The children of our school club played on Wednesday and sent us their reports — and nearly
@@ -12114,7 +12177,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.31...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.32...HEAD
+[2026.11.32]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.31...v2026.11.32
 [2026.11.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.30...v2026.11.31
 [2026.11.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.29...v2026.11.30
 [2026.11.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.28...v2026.11.29
