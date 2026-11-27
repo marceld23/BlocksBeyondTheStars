@@ -111,15 +111,17 @@ namespace BlocksBeyondTheStars.Client
 
         // --- builders -------------------------------------------------------------------------
 
-        /// <summary>The console form with its animated screen + the holographic system map above it.</summary>
+        /// <summary>The console form with its animated screen + the holographic system map over it. The map hangs on the
+        /// form's turning child, so it leans toward the pilot whichever way the console faces (#4054).</summary>
         private GameObject BuildCockpit()
         {
             var root = new GameObject("CockpitDecor");
             AddForm(root.transform, StationDecorForms.Kind.Cockpit, new Color(0.30f, 0.75f, 0.95f)); // the console body
 
             var holo = new GameObject("HoloMap");
-            holo.transform.SetParent(root.transform, false);
-            holo.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+            holo.transform.SetParent(root.transform.Find(FormTurnName) ?? root.transform, false);
+            holo.transform.localPosition = new Vector3(0f, StationDecorForms.HoloMapHeight, 0f);
+            holo.transform.localRotation = Quaternion.Euler(StationDecorForms.HoloMapTilt, 0f, 0f);
             var map = holo.AddComponent<HoloMap>();
             map.Game = Game;
 
@@ -289,122 +291,6 @@ namespace BlocksBeyondTheStars.Client
                     Destroy(gameObject);
                 }
             }
-        }
-
-        /// <summary>The cockpit hologram: the active system's bodies as tinted orbiting dots around a
-        /// warm star over a faint projection disc. Built lazily from the star-map data on first
-        /// approach; slowly rotates; collapses to zero scale while the player is away.</summary>
-        private sealed class HoloMap : MonoBehaviour
-        {
-            public GameBootstrap Game;
-
-            private bool _built;
-
-            private void Update()
-            {
-                bool near = CameraNear(transform, 5f);
-                if (near && !_built)
-                {
-                    Build();
-                }
-
-                transform.localScale = Vector3.Lerp(transform.localScale, near ? Vector3.one : Vector3.zero, Time.deltaTime * 6f);
-                if (near)
-                {
-                    transform.Rotate(0f, 12f * Time.deltaTime, 0f, Space.Self);
-                }
-            }
-
-            private void Build()
-            {
-                _built = true;
-                transform.localScale = Vector3.zero;
-
-                // Projection disc under the bodies.
-                var disc = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                StripCollider(disc);
-                disc.transform.SetParent(transform, false);
-                disc.transform.localPosition = new Vector3(0f, -0.18f, 0f);
-                disc.transform.localScale = new Vector3(1.2f, 0.01f, 1.2f);
-                disc.GetComponent<Renderer>().sharedMaterial = Translucent(new Color(0.35f, 0.8f, 1f, 0.10f));
-
-                // Central star.
-                Dot(Vector3.zero, 0.10f, new Color(1f, 0.85f, 0.5f));
-
-                int i = 0;
-                foreach (var body in ActiveSystemBodies())
-                {
-                    if (i >= 5)
-                    {
-                        break;
-                    }
-
-                    float radius = 0.28f + i * 0.16f;
-                    float angle = (body.Id?.GetHashCode() ?? i * 977) * 0.013f;
-                    var pos = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
-                    Dot(pos, 0.05f, PlanetTypeColor(body.PlanetType));
-                    i++;
-                }
-            }
-
-            private void Dot(Vector3 localPos, float size, Color c)
-            {
-                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                StripCollider(go);
-                go.transform.SetParent(transform, false);
-                go.transform.localPosition = localPos;
-                go.transform.localScale = Vector3.one * size;
-                go.GetComponent<Renderer>().sharedMaterial = Unlit(c);
-            }
-
-            private IEnumerable<NetBody> ActiveSystemBodies()
-            {
-                var map = Game?.StarMap;
-                if (map?.Systems == null)
-                {
-                    yield break;
-                }
-
-                NetStarSystem active = null;
-                foreach (var sys in map.Systems)
-                {
-                    foreach (var b in sys.Bodies)
-                    {
-                        if (b.Id == map.ActiveLocationId)
-                        {
-                            active = sys;
-                            break;
-                        }
-                    }
-
-                    if (active != null)
-                    {
-                        break;
-                    }
-                }
-
-                active ??= map.Systems.Length > 0 ? map.Systems[0] : null;
-                if (active == null)
-                {
-                    yield break;
-                }
-
-                foreach (var b in active.Bodies)
-                {
-                    yield return b;
-                }
-            }
-
-            private static Color PlanetTypeColor(string planetType) => (planetType ?? string.Empty) switch
-            {
-                "ice" or "frozen" or "tundra" => new Color(0.70f, 0.85f, 1f),
-                "lava" or "volcanic" or "ashen" => new Color(1f, 0.50f, 0.20f),
-                "desert" or "savanna" => new Color(0.90f, 0.75f, 0.45f),
-                "jungle" or "forest" or "swamp" or "fungal" => new Color(0.40f, 0.80f, 0.40f),
-                "ocean" => new Color(0.30f, 0.60f, 1f),
-                "crystal" or "crystal_living" => new Color(0.80f, 0.70f, 1f),
-                _ => new Color(0.60f, 0.70f, 0.75f),
-            };
         }
     }
 }

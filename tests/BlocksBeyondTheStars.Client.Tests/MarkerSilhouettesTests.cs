@@ -87,6 +87,17 @@ public sealed class MarkerSilhouettesTests
         }
     }
 
+    [Fact]
+    public void TheCockpitsMapFloatsAtEyeHeightOverALowConsole()
+    {
+        // #4054: the hologram used to be a cube under the cabin ceiling (up to y 2.4).
+        var s = MarkerSilhouettes.For("cockpit", MarkerSilhouettes.KindStation)!.Value;
+        Assert.True(s.Boxes.Max(b => b.Centre.Y + b.Size.Y * 0.5f) <= 1.7f);
+        var map = s.Boxes.OrderBy(b => b.Centre.Y).Last();
+        Assert.Equal(1f + StationDecorForms.HoloMapHeight, map.Centre.Y, 4);
+        Assert.True(map.Size.Y < 0.1f && map.Size.X > 0.8f && map.Size.Z > 0.8f, "the map is a flat sheet across the cell");
+    }
+
     [Theory]
     [InlineData("reactor")]
     [InlineData("life_support")]

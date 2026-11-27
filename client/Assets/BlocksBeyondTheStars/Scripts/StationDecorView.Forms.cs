@@ -42,8 +42,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Hangs a station's form under <paramref name="parent"/>: the housing-and-deck body and, for a console, its
         /// flickering screen in <paramref name="screenColor"/> — both on a child (<see cref="FormTurnName"/>) that turns the
-        /// form toward whoever uses it (<see cref="QueueFormTurn"/>) about the cell's centre, so the root's placement and the
-        /// hologram stay as they are.</summary>
+        /// form toward whoever uses it (<see cref="QueueFormTurn"/>) about the cell's centre, so the root's placement stays as
+        /// it is. The cockpit's hologram hangs on that child too and turns with its console.</summary>
         private static void AddForm(Transform parent, StationDecorForms.Kind kind, Color screenColor)
         {
             ReadFormTiles();
