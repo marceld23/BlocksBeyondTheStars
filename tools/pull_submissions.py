@@ -28,10 +28,11 @@ A submission is only unpacked when all three consents are recorded (made it myse
 distribute it / 16 or older, or the parents agreed). One without them is listed as "NO CONSENT" and left alone —
 delete it in the inbox. Every block key of a ship or structure is checked against data/blocks.json: unknown keys (a
 block renamed or removed since the player's version) are listed per submission and in its submission.json — they
-would load as air, i.e. as silent holes. A ship whose layout is cell for cell a shipped one (data/ship_layouts/) is
-flagged "IDENTICAL TO SHIPPED <key>" and noted as identicalTo in its submission.json (#4065): only its stats or texts
-changed, so there is nothing to adopt — answer the player kindly instead. The Ship Designer itself refuses to send such
-a ship now; the flag catches older clients.
+would load as air, i.e. as silent holes. A ship whose layout is cell for cell a shipped one (data/ship_layouts/) — or a
+station / town module that is cell for cell a template of data/station_templates.json / settlement_templates.json,
+device settings and sign texts included — is flagged "IDENTICAL TO SHIPPED <key>" and noted as identicalTo in its
+submission.json (#4065, #4067): only its stats, name or texts changed, so there is nothing to adopt — answer the player
+kindly instead. The editors themselves refuse to send such a build now; the flag catches older clients.
 
 Names and texts are NEVER copied into the locale files by this tool: a player's ship name, description, sign or label
 is free text from a child's keyboard. Read the inbox card's "free text" list first, then name the adopted design
@@ -201,15 +202,20 @@ def _int(value):
         return 0
 
 
-def build_of(cells):
+def _cell_row(c, devices):
+    row = (_int(c.get("x")), _int(c.get("y")), _int(c.get("z")), c.get("kind") or "block", str(c.get("id") or ""),
+           _int(c.get("tint")), _int(c.get("glow")), _int(c.get("shape")))
+    if devices:
+        row += (str(c.get("port") or ""), _int(c.get("mode")), str(c.get("config") or ""), str(c.get("label") or ""),
+                bool(c.get("keep")))
+    return row
+
+
+def build_of(cells, devices=False):
     """A layout's cells as a set, moved so the smallest x/y/z is 0 — a build shifted as a whole is the same build.
-    Compared like the Ship Designer's own check (ShippedShipMatch, #4065): position, kind (empty = block), id, tint,
-    glow, shape."""
-    rows = [
-        (_int(c.get("x")), _int(c.get("y")), _int(c.get("z")), c.get("kind") or "block", str(c.get("id") or ""),
-         _int(c.get("tint")), _int(c.get("glow")), _int(c.get("shape")))
-        for c in cells or [] if isinstance(c, dict)
-    ]
+    Compared like the editors' own checks (ShippedShipMatch #4065, ShippedTemplateMatch #4067): position, kind (empty =
+    block), id, tint, glow, shape — and for a station / town module (devices=True) port, mode, config, label, keep."""
+    rows = [_cell_row(c, devices) for c in cells or [] if isinstance(c, dict)]
     if not rows:
         return frozenset()
     low = [min(row[axis] for row in rows) for axis in range(3)]
@@ -233,6 +239,28 @@ def shipped_twin(files):
         if isinstance(shipped, dict) and build_of(shipped.get("cells")) == build:
             return str(ship.get("key", ""))
     return ""
+
+
+def shipped_template_twin(files):
+    """The key of the shipped station / settlement template (data/<kind>_templates.json) that holds exactly the cells
+    of this submission's layout.json, device settings included, else "" (#4067)."""
+    layout = files.get("layout.json")
+    build = build_of(layout.get("cells"), devices=True) if isinstance(layout, dict) else frozenset()
+    if not build:
+        return ""
+    kind = "settlement" if (files.get("structure.json") or {}).get("kind") == "settlement" else "station"
+    pool = [t for t in load_entries(REPO / "data" / f"{kind}_templates.json") if isinstance(t, dict) and t.get("cells")]
+    for template in sorted(pool, key=lambda t: str(t.get("key", ""))):
+        if len(template["cells"]) == len(layout.get("cells") or []) and build_of(template["cells"], devices=True) == build:
+            return str(template.get("key", ""))
+    return ""
+
+
+def twin_of(files, kind):
+    """The shipped ship or template a ship / structure submission still is, cell for cell; "" for anything else."""
+    if kind == "ship":
+        return shipped_twin(files)
+    return shipped_template_twin(files) if kind == "structure" else ""
 
 
 def target_dir(out_root, kind, files, block_key, item_id):
@@ -268,7 +296,7 @@ def fetch_creation(base, key, item, block, kind, out_root, block_keys):
     if not files:
         return "the payload holds none of " + ", ".join(FILE_NAMES[kind]), []
     unknown = unknown_blocks(files, block_keys) if kind in ("ship", "structure") else {}
-    twin = shipped_twin(files) if kind == "ship" else ""
+    twin = twin_of(files, kind)
     target = target_dir(out_root, kind, files, creation_key, item["id"])
     target.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
@@ -284,7 +312,7 @@ def fetch_creation(base, key, item, block, kind, out_root, block_keys):
         "consentTextVersion": (block.get("consent") or {}).get("textVersion"),
         "unknownBlocks": unknown,
     }
-    if kind == "ship":
+    if kind in ("ship", "structure"):
         info["identicalTo"] = twin
     (target / "submission.json").write_text(json.dumps(info, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     notes = [f"-> {target}"]

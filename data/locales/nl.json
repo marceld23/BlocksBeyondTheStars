@@ -7812,6 +7812,7 @@
   "ui.submit.too_many_cells": "Te groot om te verzenden: {0} cellen, maximaal {1} zijn toegestaan. Maak het iets kleiner.",
   "ui.submit.too_large": "Te groot om te verzenden, zelfs ingepakt. Maak het iets kleiner.",
   "ui.submit.unchanged_ship": "Dit is nog steeds het schip van het spel “{0}”, blok voor blok. Bouw eerst iets van jezelf in – daarna willen we het graag zien!",
+  "ui.submit.unchanged_structure": "Dit is nog steeds het gebouw “{0}” uit het spel, blok voor blok. Bouw er eerst iets van jezelf in – daarna zien we het graag!",
   "ui.submit.not_configured": "Deze bouw kan niet naar de ontwikkelaars worden verzonden. Sla het in plaats daarvan op en stuur ons de map.",
   "ui.submit.ship.title": "Een schip verzenden",
   "ui.submit.ship.intro": "Stuur ons je schip! Als het in het spel past, kunnen we het toevoegen – dan kan elke speler het bouwen en vliegen.",

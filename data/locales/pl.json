@@ -7812,6 +7812,7 @@
   "ui.submit.too_many_cells": "Za duże do wysłania: {0} komórek, maksymalnie dozwolone {1}. Zmniejsz to trochę.",
   "ui.submit.too_large": "Za duże do wysłania, nawet po spakowaniu. Zmniejsz to trochę.",
   "ui.submit.unchanged_ship": "To wciąż statek z gry „{0}”, blok po bloku. Najpierw zbuduj w nim coś swojego — a potem chętnie to zobaczymy!",
+  "ui.submit.unchanged_structure": "To wciąż budowla z gry „{0}”, blok po bloku. Najpierw zbuduj w niej coś swojego — a potem chętnie to zobaczymy!",
   "ui.submit.not_configured": "Ta konstrukcja nie może zostać wysłana do deweloperów. Zapisz ją zamiast tego i prześlij nam folder.",
   "ui.submit.ship.title": "Wyślij statek",
   "ui.submit.ship.intro": "Prześlij nam swój statek! Jeśli pasuje do gry, możemy go dodać – wtedy każdy gracz będzie mógł go zbudować i pilotować.",

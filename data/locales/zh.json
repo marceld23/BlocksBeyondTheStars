@@ -7812,6 +7812,7 @@
   "ui.submit.too_many_cells": "太大无法提交：{0} 单元，最多允许 {1}。稍微缩小一点。",
   "ui.submit.too_large": "即使打包后也太大无法提交。稍微缩小一点。",
   "ui.submit.unchanged_ship": "这仍然是游戏里的飞船 “{0}”，一块都没变。先在上面建点你自己的东西——然后我们很想看看！",
+  "ui.submit.unchanged_structure": "这仍然是游戏里的建筑 “{0}”，一块都没变。先在里面建点你自己的东西——然后我们很想看看！",
   "ui.submit.not_configured": "该构建无法提交给开发者。请另存并将文件夹发送给我们。",
   "ui.submit.ship.title": "提交一艘飞船",
   "ui.submit.ship.intro": "把你的飞船发送给我们！如果它适合游戏，我们可能会加入它 — 这样每位玩家都能建造并驾驶它。",

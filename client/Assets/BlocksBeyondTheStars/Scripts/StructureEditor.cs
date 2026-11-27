@@ -794,6 +794,7 @@ namespace BlocksBeyondTheStars.Client
                     key = key, name = _name, tier = meta.tier, kind = meta.kind, pack = meta.pack, weight = meta.weight,
                     planetTypes = meta.planetTypes, role = meta.role, kit = meta.kit, function = meta.function, style = meta.style, underground = meta.underground,
                     protection = meta.protection, // generation 39
+                    basedOn = meta.basedOn,       // #4067: a reopened copy still names the shipped template it started from
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", meta.kind + "_templates");
@@ -932,9 +933,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Common load path for built-in and user templates: cells + form fields, then the status
-        /// (skipped cells, copy hint) and a UI rebuild.</summary>
+        /// (skipped cells, copy hint) and a UI rebuild. <paramref name="basedOn"/> is the shipped template a saved file names
+        /// (#4067); a copy of a shipped template is based on that template itself.</summary>
         private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy, string role = "",
-            string kit = "", string function = "", string style = "", bool underground = false, string protection = "")
+            string kit = "", string function = "", string style = "", bool underground = false, string protection = "", string basedOn = "")
         {
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
@@ -947,7 +949,7 @@ namespace BlocksBeyondTheStars.Client
             DropPreview(); // a load replaced the design a preview kept aside
 
             _key = copy ? key + "_2" : key;
-            _basedOn = copy ? key : string.Empty; // a submission names the shipped template it started from (#3262)
+            _basedOn = copy ? key : SavedBase(basedOn); // a submission names the shipped template it started from (#3262, #4067)
             _name = string.IsNullOrEmpty(name) ? key : name;
             _pack = string.IsNullOrEmpty(pack) ? "default" : pack;
             _weight = Mathf.Max(1, weight);
@@ -1054,7 +1056,8 @@ namespace BlocksBeyondTheStars.Client
                     function: meta?.function ?? string.Empty,
                     style: meta?.style ?? string.Empty,
                     underground: meta != null && meta.underground,
-                    protection: meta?.protection ?? string.Empty);
+                    protection: meta?.protection ?? string.Empty,
+                    basedOn: meta?.basedOn ?? string.Empty);
             }
             catch (Exception e)
             {
