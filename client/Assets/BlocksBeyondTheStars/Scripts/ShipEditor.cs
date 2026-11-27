@@ -585,6 +585,10 @@ namespace BlocksBeyondTheStars.Client
         [Serializable] private sealed class ExportShipJson
         {
             public string key, name, description, requiredBlueprint, layout;
+
+            /// <summary>The shipped ship this design started from (#4064): kept in the file so a submission still names it
+            /// after the ship was saved and opened again. <c>tools/merge_ship.py</c> and the server do not read it.</summary>
+            public string basedOn;
             public float baseHull, baseShield, flightSpeed, handling;
             public int cargoSlots;
             public List<ExportCostJson> craftCost = new();

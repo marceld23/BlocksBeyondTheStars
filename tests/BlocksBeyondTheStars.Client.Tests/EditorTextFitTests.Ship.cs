@@ -55,7 +55,7 @@ public sealed partial class EditorTextFitTests
         FitLine("ShipEditor Save subline (350)", SaveSublineW, 16, 16, "ui.editor.save_sub.ship"),
         Wrap("ShipEditor status (shell status bar, 1140)", StatusTextW, 3, 16, "ui.ed.saved_ship", "ui.ed.need_key",
             "ui.ed.export_failed_hint", "ui.ed.load_failed_hint", "ui.ed.loaded", "ui.ed.not_found", "ui.ed.skipped",
-            "ui.ed.user_ship_renamed", "ui.submit.empty") with { Sample = "my_ship" },
+            "ui.ed.user_ship_renamed", "ui.submit.empty", "ui.submit.unchanged_ship") with { Sample = "my_ship" },
         Lines("ShipEditor key line (shell status bar, 680×44)", HintW, 44f, 16, 16, 16, "ui.ship.hint", "ui.ship.hint_remove",
             "ui.ship.hint_pad", "ui.ship.hint_pad_panel"),
     };

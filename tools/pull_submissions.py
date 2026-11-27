@@ -28,7 +28,10 @@ A submission is only unpacked when all three consents are recorded (made it myse
 distribute it / 16 or older, or the parents agreed). One without them is listed as "NO CONSENT" and left alone —
 delete it in the inbox. Every block key of a ship or structure is checked against data/blocks.json: unknown keys (a
 block renamed or removed since the player's version) are listed per submission and in its submission.json — they
-would load as air, i.e. as silent holes.
+would load as air, i.e. as silent holes. A ship whose layout is cell for cell a shipped one (data/ship_layouts/) is
+flagged "IDENTICAL TO SHIPPED <key>" and noted as identicalTo in its submission.json (#4065): only its stats or texts
+changed, so there is nothing to adopt — answer the player kindly instead. The Ship Designer itself refuses to send such
+a ship now; the flag catches older clients.
 
 Names and texts are NEVER copied into the locale files by this tool: a player's ship name, description, sign or label
 is free text from a child's keyboard. Read the inbox card's "free text" list first, then name the adopted design
@@ -191,6 +194,47 @@ def unknown_blocks(files, block_keys):
     return unknown
 
 
+def _int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def build_of(cells):
+    """A layout's cells as a set, moved so the smallest x/y/z is 0 — a build shifted as a whole is the same build.
+    Compared like the Ship Designer's own check (ShippedShipMatch, #4065): position, kind (empty = block), id, tint,
+    glow, shape."""
+    rows = [
+        (_int(c.get("x")), _int(c.get("y")), _int(c.get("z")), c.get("kind") or "block", str(c.get("id") or ""),
+         _int(c.get("tint")), _int(c.get("glow")), _int(c.get("shape")))
+        for c in cells or [] if isinstance(c, dict)
+    ]
+    if not rows:
+        return frozenset()
+    low = [min(row[axis] for row in rows) for axis in range(3)]
+    return frozenset((row[0] - low[0], row[1] - low[1], row[2] - low[2]) + row[3:] for row in rows)
+
+
+def shipped_twin(files):
+    """The key of the shipped ship whose data/ship_layouts file holds exactly the cells of this submission's
+    layout.json, else "" (#4065: the first ship submission was the shipped Hammerhead with only its stats changed)."""
+    layout = files.get("layout.json")
+    build = build_of(layout.get("cells")) if isinstance(layout, dict) else frozenset()
+    if not build:
+        return ""
+    ships = [s for s in load_entries(REPO / "data" / "ships.json") if isinstance(s, dict) and s.get("layout")]
+    for ship in sorted(ships, key=lambda s: str(s.get("key", ""))):
+        path = REPO / "data" / "ship_layouts" / f"{ship['layout']}.json"
+        try:
+            shipped = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(shipped, dict) and build_of(shipped.get("cells")) == build:
+            return str(ship.get("key", ""))
+    return ""
+
+
 def target_dir(out_root, kind, files, block_key, item_id):
     """<out>/<kind>_exports/<key>/ — station/settlement for a structure; a second submission of the same key gets
     the report id appended instead of overwriting the first."""
@@ -224,6 +268,7 @@ def fetch_creation(base, key, item, block, kind, out_root, block_keys):
     if not files:
         return "the payload holds none of " + ", ".join(FILE_NAMES[kind]), []
     unknown = unknown_blocks(files, block_keys) if kind in ("ship", "structure") else {}
+    twin = shipped_twin(files) if kind == "ship" else ""
     target = target_dir(out_root, kind, files, creation_key, item["id"])
     target.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
@@ -239,8 +284,12 @@ def fetch_creation(base, key, item, block, kind, out_root, block_keys):
         "consentTextVersion": (block.get("consent") or {}).get("textVersion"),
         "unknownBlocks": unknown,
     }
+    if kind == "ship":
+        info["identicalTo"] = twin
     (target / "submission.json").write_text(json.dumps(info, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     notes = [f"-> {target}"]
+    if twin:
+        notes.append(f"IDENTICAL TO SHIPPED {twin}: not a new design, nothing to adopt — answer the player kindly")
     if unknown:
         listed = ", ".join(f"{k or '?'} ({n})" for k, n in sorted(unknown.items()))
         notes.append(f"UNKNOWN BLOCKS (would load as air): {listed}")

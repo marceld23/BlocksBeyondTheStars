@@ -247,7 +247,7 @@ namespace BlocksBeyondTheStars.Client
         private void LoadDesign(string key)
         {
             EditorPlaytest.Loaded(EditorPlaytest.Ship);
-            _basedOn = string.Empty; // the player's own design; a shipped key is recognised at submit time
+            _basedOn = string.Empty; // the player's own design, unless its ship.json names the shipped ship it started from (#4064)
             string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))
@@ -266,6 +266,7 @@ namespace BlocksBeyondTheStars.Client
                 if (File.Exists(shipPath) && JsonUtility.FromJson<ExportShipJson>(File.ReadAllText(shipPath)) is { } ship)
                 {
                     ApplyShipMeta(ship, key, keepCostWhenEmpty: true);
+                    _basedOn = SavedBase(ship.basedOn);
                 }
                 else
                 {

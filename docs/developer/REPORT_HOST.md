@@ -151,7 +151,8 @@ is the export bundle as a JSON document `{ formatVersion, kind, key, files: { "<
 - **Adopting one:** `python tools/pull_submissions.py --kind ship|structure|avatar [--fetch]` — consent check, unpack
   into `analysis/submissions/{ship,station,settlement,avatar}_exports/<key>/` (the editors' own export layout, plus a
   `submission.json` with author, report id, `basedOn` and the **unknown block keys** checked against
-  `data/blocks.json`), then `tools/merge_ship.py` / `tools/merge_structure.py <dir>` (the latter also folds a
+  `data/blocks.json`; a ship whose layout is cell for cell a shipped one is flagged `IDENTICAL TO SHIPPED <key>` and
+  gets `identicalTo` there — nothing to adopt, answer the player kindly, #4065), then `tools/merge_ship.py` / `tools/merge_structure.py <dir>` (the latter also folds a
   `kit.json`) or `tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --key … --author <nickname>` (a pioneer's look) — or, for a
   skin that should be a **template every player can pick** (#3770),
   `tools/gen_festive_skins.py --from-skin <dir>/skin.json --key …` (kept 1:1 with its face in `data/skins.json`; add

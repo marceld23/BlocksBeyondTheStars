@@ -7811,6 +7811,7 @@
   "ui.submit.empty": "Construa algo primeiro – não há nada para enviar ainda.",
   "ui.submit.too_many_cells": "Grande demais para enviar: {0} células, no máximo {1} são permitidas. Faça um pouco menor.",
   "ui.submit.too_large": "Grande demais para enviar, mesmo compactado. Faça um pouco menor.",
+  "ui.submit.unchanged_ship": "Esta ainda é a nave do jogo “{0}”, bloco por bloco. Construa algo seu nela primeiro — depois adoraríamos ver!",
   "ui.submit.not_configured": "Esta construção não pode ser enviada aos desenvolvedores. Salve-a em vez disso e nos envie a pasta.",
   "ui.submit.ship.title": "Enviar um navio",
   "ui.submit.ship.intro": "Envie sua nave! Se ela se encaixar no jogo, podemos adicioná-la – então todo jogador poderá construí-la e pilotá-la.",

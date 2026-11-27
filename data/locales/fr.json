@@ -7811,6 +7811,7 @@
   "ui.submit.empty": "Construis d'abord quelque chose — rien à envoyer pour l'instant.",
   "ui.submit.too_many_cells": "Trop grand pour être envoyé : {0} cellules, au maximum {1} sont autorisées. Réduis un peu.",
   "ui.submit.too_large": "Trop grand pour être envoyé, même compressé. Réduis un peu.",
+  "ui.submit.unchanged_ship": "C'est encore le vaisseau « {0} » du jeu, bloc pour bloc. Ajoute-y d'abord quelque chose de toi — ensuite, on sera ravis de le voir !",
   "ui.submit.not_configured": "Cette construction ne peut pas être envoyée aux développeurs. Sauvegarde-la et envoie-nous le dossier.",
   "ui.submit.ship.title": "Envoyer un vaisseau",
   "ui.submit.ship.intro": "Envoie-nous ton vaisseau ! S'il convient au jeu, nous pourrions l'ajouter – alors tous les joueurs pourront le construire et le piloter.",

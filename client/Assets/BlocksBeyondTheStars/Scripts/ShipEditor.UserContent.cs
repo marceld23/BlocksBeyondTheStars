@@ -21,6 +21,9 @@ namespace BlocksBeyondTheStars.Client
         private sealed class UserShipJson
         {
             public string key, name, description, requiredBlueprint, pack;
+
+            /// <summary>The shipped ship the design started from (#4064) — for a later submission; the server ignores it.</summary>
+            public string basedOn;
             public float baseHull, baseShield, flightSpeed, handling;
             public int weight = 1;
             public List<ExportCostJson> craftCost = new();
@@ -50,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
                 description = ship.description,
                 requiredBlueprint = ship.requiredBlueprint,
                 pack = old?.pack ?? string.Empty,
+                basedOn = ship.basedOn ?? string.Empty,
                 baseHull = ship.baseHull,
                 baseShield = ship.baseShield,
                 flightSpeed = ship.flightSpeed,
@@ -137,10 +141,11 @@ namespace BlocksBeyondTheStars.Client
             return section;
         }
 
-        /// <summary>Rebuilds the editor from a user ship file: its cells, interior, texts, stats, modules and cost.</summary>
+        /// <summary>Rebuilds the editor from a user ship file: its cells, interior, texts, stats, modules, cost and the shipped ship
+        /// it started from (#4064 — the copy of a shipped ship lives under <c>&lt;key&gt;_2</c>, so its key no longer tells).</summary>
         private void LoadUserShip(UserShipJson s)
         {
-            _basedOn = string.Empty; // the player's own design, like an export
+            _basedOn = SavedBase(s.basedOn); // empty = the player's own design, like an export
             var skippedIds = new List<string>();
             int skipped = ApplyCells(s.layout.cells, skippedIds);
             if (s.layout.width > 0 && s.layout.length > 0 && s.layout.height > 0)
