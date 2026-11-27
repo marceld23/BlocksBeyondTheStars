@@ -91,6 +91,11 @@ public sealed partial class GameServer
                         ? AirRestSurfaceYAt(x, z, p.Y, HoverOf(sp))
                         : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y), canopyCarries: false); // #2945
                     float baseY = rest + (airborne ? HoverOf(sp) : LandHovererHeight);
+                    if (airborne && CreatureMotion.IsSkyGlider(sp))
+                    {
+                        baseY = GlideCruiseBase(c, sp, p, baseY, dt); // report 2026-11-27: flies over a hill, never up its slope
+                    }
+
                     float target = baseY + prof.VertAmp * vertWave;
                     if (airborne)
                     {
@@ -155,6 +160,41 @@ public sealed partial class GameServer
     }
 
     private static float HoverOf(CreatureSpecies sp) => sp.HoverAltitude > 0f ? sp.HoverAltitude : CreatureFlyAltitude;
+
+    /// <summary>How far ahead along its heading a sky glider reads the ground (player report 2026-11-27): an air fish at its
+    /// ~1.5 blocks/s cruise sees a hill four seconds early and is up before it gets there; close enough that it does not
+    /// climb for a hill it is merely passing.</summary>
+    private const float GlideLookAhead = 6f;
+
+    /// <summary>The cruise base of a sky glider (an air fish, a sky ray) stepping from where it stands to
+    /// <paramref name="p"/>: the higher of the ground base under it (<paramref name="groundBase"/>, rest + hover) and the
+    /// NATURAL ground <see cref="GlideLookAhead"/> blocks ahead along its step, then held by
+    /// <see cref="VerticalMotion.GlideBase"/> — it climbs early and at once, but sinks only slowly when the ground falls
+    /// away. Player report 2026-11-27 (Lyxette, "a fish climbs the mountain"): the air fish traced every slope ten blocks
+    /// above it at its full 3.5 blocks/s ease, and seen from a plateau above it crawled up the hillside.
+    /// <para>The look-ahead reads the generator's surface, not real blocks, on purpose: a hill rises early, but a player's
+    /// wall or roof ahead stays what it was before — a hunting sky ray read a base wall as a hill, lifted itself over it
+    /// and put its wings into it (#2943's guard test). It never lifts through a roof over the glider itself (a natural
+    /// arch, a player's ceiling), and there is no look-ahead without a real step (a pause, a sleeper, a seam jump across
+    /// the world's wrap).</para></summary>
+    private float GlideCruiseBase(CombatEntity c, CreatureSpecies sp, Vector3f p, float groundBase, double dt)
+    {
+        float dx = p.X - c.Position.X, dz = p.Z - c.Position.Z;
+        float len = MathF.Sqrt((dx * dx) + (dz * dz));
+        if (len > 1e-4f && len < GlideLookAhead)
+        {
+            int ax = (int)System.Math.Floor(p.X + (dx / len * GlideLookAhead));
+            int az = (int)System.Math.Floor(p.Z + (dz / len * GlideLookAhead));
+            float aheadBase = _generator.SurfaceHeight(_world.Planet, ax, az) + 1 + HoverOf(sp);
+            int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
+            if (aheadBase > groundBase && !RoofBetween(x, z, (int)System.Math.Floor(p.Y), (int)System.Math.Ceiling(aheadBase) + 1))
+            {
+                groundBase = aheadBase;
+            }
+        }
+
+        return VerticalMotion.GlideBase(ref c.Vert, groundBase, dt);
+    }
 
     /// <summary>
     /// A flier's vertical life (#1332): cruise at its hover band over the REAL ground (a player roof counts),

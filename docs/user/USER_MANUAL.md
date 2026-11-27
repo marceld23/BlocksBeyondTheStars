@@ -4784,6 +4784,9 @@ controls line at the bottom leaves out the quick-bar keys.
   stairs are fine), and a sky ray glides up over a roof next to it — or turns away from a high wall — instead of
   pushing its wings in. **Only animals that fly sit on tree crowns**; a land animal never climbs into one, and one
   that got up there drops back to the ground.
+  **Air fish and sky rays fly over a hill**, not along its slope: they climb before they reach it and glide down slowly
+  behind it. Every flying animal casts a soft **shadow straight below it**, so you can see how high it flies — on some
+  worlds the "fish" you see in the air really live there.
 - **Animals and water.** Land animals wade through water **one block** deep; deeper water is a wall to them —
   and the kelp, seagrass and coral on a pond's floor count as the pond, so a land animal never walks along a lake
   bed between the plants, and none ever appears on one. Flying animals keep their height above a pond's

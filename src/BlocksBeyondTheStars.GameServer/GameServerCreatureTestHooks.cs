@@ -35,6 +35,18 @@ public sealed partial class GameServer
     /// default (speed 0: the animal stands still) when the world has none for the id.</summary>
     public LocomotionProfile LocomotionProfileForTest(string speciesId) => ProfileFor(speciesId);
 
+    /// <summary>Test seam (report 2026-11-27): the cruise base a sky glider takes for a step from where it stands to
+    /// <paramref name="next"/> over <paramref name="dt"/> seconds — the ground base there, the look-ahead and the hold, as
+    /// the creature tick computes it. Advances the creature's held base like a real tick would.</summary>
+    public float SkyGliderCruiseBaseForTest(string id, Vector3f next, double dt)
+    {
+        var c = _creatures.First(x => x.Id == id);
+        var sp = _speciesById[c.SpeciesId];
+        float hover = HoverOf(sp);
+        int rest = AirRestSurfaceYAt((int)Math.Floor(next.X), (int)Math.Floor(next.Z), next.Y, hover);
+        return GlideCruiseBase(c, sp, next, rest + hover, dt);
+    }
+
     /// <summary>Test-only: puts a creature's locomotion controller into a roam PAUSE for <paramref name="seconds"/>
     /// (as if it had rolled one), so a test can trigger the behaviour a pause drives — a flier landing to
     /// rest (#1332) — without waiting for the seeded roll.</summary>

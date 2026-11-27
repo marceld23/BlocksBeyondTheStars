@@ -23,6 +23,8 @@ public struct VerticalState
     public FlightPhase Flight;  // fliers only
     public float PerchY;        // the feet Y a landing flier is descending to
     public bool InWater;        // amphibians: which class was in effect last tick (one cell of hysteresis)
+    public bool GlideHeld;      // sky gliders: GlideBaseY holds a cruise base (false = fresh state, take the ground's)
+    public float GlideBaseY;    // sky gliders: the held cruise base — climbs at once, sinks at VerticalMotion.GlideSinkRate
 }
 
 /// <summary>
@@ -183,6 +185,31 @@ public static class VerticalMotion
         bool cross = !s.Airborne && s.LastWave <= 0f && wave > 0f && s.ClimbTargetY <= 0f;
         s.LastWave = wave;
         return cross;
+    }
+
+    /// <summary>How fast a sky glider's held cruise base sinks when the ground falls away under it (blocks/s) — well below
+    /// its 3.5 blocks/s ease, so an air fish or a sky ray glides down off a hill instead of tracing the slope.</summary>
+    public const float GlideSinkRate = 1f;
+
+    /// <summary>A drop of the ground base larger than this is a relocation (a teleport, a re-placed companion, a cliff
+    /// far deeper than any hill), not terrain to glide down from: the held base is let go at once.</summary>
+    public const float GlideHoldReach = 24f;
+
+    /// <summary>A sky glider's cruise base for this tick (player report 2026-11-27: "a fish climbs the mountain" — an air fish
+    /// gliding ten blocks over a slope traced it so closely that, seen from above, it crawled up the hillside). It climbs to
+    /// a higher <paramref name="groundBase"/> at once (the glider's own ease smooths the climb) but sinks toward a lower one
+    /// only at <see cref="GlideSinkRate"/>, so it holds its height over a hill instead of following every slope. A fresh
+    /// state, a drop beyond <see cref="GlideHoldReach"/> or an infinite step takes the ground base outright. Updates
+    /// <paramref name="s"/> and returns the base.</summary>
+    public static float GlideBase(ref VerticalState s, float groundBase, double dt)
+    {
+        float held = s.GlideBaseY;
+        float next = !s.GlideHeld || groundBase >= held || held - groundBase > GlideHoldReach || double.IsPositiveInfinity(dt)
+            ? groundBase
+            : System.Math.Max(groundBase, held - (float)(GlideSinkRate * dt));
+        s.GlideHeld = true;
+        s.GlideBaseY = next;
+        return next;
     }
 
     /// <summary>Eases a Y toward a target at a capped rate — the flier's descent/ascent and the buoyant hover.

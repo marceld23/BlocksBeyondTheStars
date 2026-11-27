@@ -2,6 +2,9 @@
 // re-tint it per frame (daytime sky wash) without touching the mesh. The band pattern lives in
 // _MainTex (u = radial across the ring, generated per RingSeed). ZWrite Off + Transparent queue:
 // the opaque planet sphere occludes the far half, terrain occludes it near the horizon.
+// _SkyDepth (player report 2026-11-27, see SkyDepth.hlsl): in the SURFACE sky the ring discs and the planet's own ring
+// band move into a thin depth band just in front of the far plane, so terrain at ANY distance covers them (the ring
+// "grew out of the landscape" in front of the far view). 0 = real depth (the space view, the cockpit hologram).
 // Dual-pipeline (URP + Built-in RP), like every other shader here.
 Shader "BlocksBeyondTheStars/PlanetRing"
 {
@@ -9,6 +12,7 @@ Shader "BlocksBeyondTheStars/PlanetRing"
     {
         _MainTex ("Ring Bands", 2D) = "white" {}
         _Color ("Tint", Color) = (1, 1, 1, 1)
+        _SkyDepth ("Sky depth (0 off, 1 by distance, 2 nearest sky layer)", Float) = 0
     }
 
     // ---------------- URP ----------------
@@ -25,6 +29,7 @@ Shader "BlocksBeyondTheStars/PlanetRing"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "SkyDepth.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -32,6 +37,7 @@ Shader "BlocksBeyondTheStars/PlanetRing"
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 half4 _Color;
+                float _SkyDepth;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
@@ -40,7 +46,8 @@ Shader "BlocksBeyondTheStars/PlanetRing"
             Varyings vert(Attributes v)
             {
                 Varyings o;
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                float3 wp = TransformObjectToWorld(v.positionOS.xyz);
+                o.positionCS = BbtsSkyDepth(TransformWorldToHClip(wp), wp, _WorldSpaceCameraPos, _SkyDepth);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
@@ -68,10 +75,12 @@ Shader "BlocksBeyondTheStars/PlanetRing"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "SkyDepth.hlsl"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
             fixed4 _Color;
+            float _SkyDepth;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
@@ -79,7 +88,8 @@ Shader "BlocksBeyondTheStars/PlanetRing"
             v2f vert(appdata v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
+                float3 wp = mul(unity_ObjectToWorld, v.vertex).xyz;
+                o.pos = BbtsSkyDepth(UnityObjectToClipPos(v.vertex), wp, _WorldSpaceCameraPos, _SkyDepth);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }

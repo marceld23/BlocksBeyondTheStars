@@ -513,6 +513,26 @@ preview cameras (their `_Sc_Fog` is off).
     after the opaque depth copy (2501). They then read as far plane, but they would drop out of the water reflections,
     which reflect via the opaque copy.
 
+### The sky sits behind the landscape (#1582, #4059, #4060)
+
+Everything in the surface sky is a mesh at a finite distance, but the far view draws terrain to 1024 m (2048 m on High):
+whatever lay beyond such a mesh was painted over by it. Two cures, one rule — **terrain at any distance covers the sky**:
+
+- **The domes** (stars, nebula, atmosphere; #1582): the vertex shader puts them ON the far plane (`z = w × 1e-6`
+  reversed, `w × (1 − 1e-6)` OpenGL), queue `Geometry+499`, ZWrite Off — drawn only where nothing else was.
+- **The sky bodies, their ring discs and the planet's own ring band** (2026-11-27 — the ring "jutted up from the middle
+  of the landscape", a setting moon stood in front of the hills): they need depth among themselves (a moon before its
+  planet, a disc before and behind its sphere), so `SkyDepth.hlsl` squeezes their depth into a thin band just IN FRONT
+  of the far plane instead: `2e-6 × (1 + 460 / distance)` depth units from it, the ring band at the nearest layer
+  (`8e-6`). With the 0.1 near plane all terrain nearer than ~2200 m (farClip 2688) / ~1270 m (1408) / ~720 m (the
+  browser's 768) is in front of the band — always beyond the far view's reach — and the domes (1e-6) stay behind it;
+  24-bit depth still separates a moon's front from its back by ~9 steps. Switched by the material float `_SkyDepth`
+  (`SkyBodyPhase`, `PlanetRing`; 0 = real depth for the space view and the cockpit hologram), set every frame like
+  `_DayLight` (a set-once material switch did not reach WebGPU, #2843). The ring band and the bodies' ring discs draw at
+  queue 2500 (after the domes, before water and clouds, inside the opaque copy, so they also show in water reflections).
+- The **sun disc** needs neither: it draws before all opaque geometry (`Background+10`, ZTest Always). The sun rays,
+  shooting stars (20–70° up) and the aurora (really 130 m+ up in the air) keep real depth on purpose.
+
 ## Design rationale worth keeping
 
 - **Why URP.** TAA, SSR, a maintained post stack, Forward+ many-lights and Shader Graph are first-class

@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Client.Feel;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -13,15 +14,16 @@ namespace BlocksBeyondTheStars.Client
     /// the real sun shadow already grounds the figure (out in the daylight on a preset with shadows), so the two never
     /// stack. Cheap by rule: the ground is probed a few times a second, only near the camera, and nothing is allocated
     /// per frame.
+    /// <para>Flying animals (player report 2026-11-27, <see cref="ContactShadowFade"/>): a drop shadow straight under the
+    /// animal that reaches 18 m down and thins with height, so an air fish ten blocks over a slope reads as flying, not
+    /// as climbing it. It shows by day too (fainter) — a low sun throws the real shadow far to the side.</para>
     /// </summary>
     public sealed class BlobShadow : MonoBehaviour
     {
         private const float ProbeSeconds = 0.12f;   // how often the ground under the figure is looked up
-        private const float ProbeUp = 0.6f;         // the probe starts this far above the feet
-        private const float ProbeDown = 5f;         // … and looks this far down: higher than that there is no shadow
+        private const float ProbeUp = 0.6f;         // the probe starts this far above the feet (and looks Reach down)
         private const float MaxDistance = 48f;      // beyond this the blob would be a few pixels
         private const float Lift = 0.03f;           // above the ground, clear of z-fighting
-        private const float MaxAlpha = 0.42f;
 
         private static Mesh _quad;
         private static int _strengthFrame = -1;
@@ -33,15 +35,16 @@ namespace BlocksBeyondTheStars.Client
         private MeshRenderer _renderer;
         private Mesh _mesh;
         private float _radius;
+        private bool _flier; // a flying animal: the long drop shadow (ContactShadowFade)
         private float _probeAt;
         private float _gameLookupAt;
         private float _groundY = float.NaN;
         private float _shownAlpha = -1f;
         private readonly Color32[] _colors = new Color32[4];
 
-        /// <summary>Gives <paramref name="figure"/> a contact shadow of <paramref name="radius"/> metres. A second call
-        /// only updates the radius.</summary>
-        public static void Attach(GameObject figure, GameBootstrap game, float radius)
+        /// <summary>Gives <paramref name="figure"/> a contact shadow of <paramref name="radius"/> metres — with
+        /// <paramref name="flier"/> the long drop shadow of a flying animal. A second call only updates both.</summary>
+        public static void Attach(GameObject figure, GameBootstrap game, float radius, bool flier = false)
         {
             if (figure == null)
             {
@@ -56,6 +59,7 @@ namespace BlocksBeyondTheStars.Client
 
             shadow._game = game;
             shadow._radius = Mathf.Max(0.15f, radius);
+            shadow._flier = flier;
             shadow._avatar = figure.GetComponent<PlayerAvatar>();
         }
 
@@ -102,6 +106,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float strength = Strength(_game);
+            // A flier's drop shadow shows by day too (see the summary) — let it past the gate; Place weighs it by height.
+            float gate = _flier && (_game == null || !_game.SpaceViewActive)
+                ? Mathf.Max(strength, ContactShadowFade.FlierDayStrength)
+                : strength;
             var cam = Camera.main;
             var feet = transform.position;
             if (_avatar != null && !_avatar.IsVisible)
@@ -110,7 +118,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (strength <= 0.01f || cam == null || (cam.transform.position - feet).sqrMagnitude > MaxDistance * MaxDistance)
+            if (gate <= 0.01f || cam == null || (cam.transform.position - feet).sqrMagnitude > MaxDistance * MaxDistance)
             {
                 Hide();
                 return;
@@ -135,19 +143,18 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _probeAt = Time.time + ProbeSeconds;
-            _groundY = Physics.Raycast(feet + (Vector3.up * ProbeUp), Vector3.down, out var hit, ProbeUp + ProbeDown,
+            _groundY = Physics.Raycast(feet + (Vector3.up * ProbeUp), Vector3.down, out var hit, ProbeUp + ContactShadowFade.Reach(_flier),
                 Physics.DefaultRaycastLayers & PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore)
                 ? hit.point.y
                 : float.NaN;
         }
 
         /// <summary>Lays the blob on the ground under the feet: full while standing; rising above the ground it thins
-        /// out and shrinks a little, like a real one.</summary>
+        /// out and shrinks a little, like a real one (a flier's slowly, over a much longer reach).</summary>
         private void Place(Vector3 feet, float strength)
         {
             float height = Mathf.Max(0f, feet.y - _groundY);
-            float near = 1f - Mathf.Clamp01(height / ProbeDown);
-            float alpha = MaxAlpha * strength * near * near;
+            float alpha = ContactShadowFade.Alpha(height, strength, _flier);
             if (alpha <= 0.01f)
             {
                 Hide();
@@ -155,7 +162,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _blob.position = new Vector3(feet.x, _groundY + Lift, feet.z);
-            float size = _radius * Mathf.Max(0.2f, transform.lossyScale.x) * (0.7f + (0.3f * near)); // a scaled figure (a big robber) casts a bigger one
+            float size = _radius * Mathf.Max(0.2f, transform.lossyScale.x) * ContactShadowFade.SizeFactor(height, _flier); // a scaled figure (a big robber) casts a bigger one
             _blob.localScale = new Vector3(size, 1f, size);
             if (Mathf.Abs(alpha - _shownAlpha) > 0.01f)
             {

@@ -328,9 +328,11 @@ namespace BlocksBeyondTheStars.Client
                     root.transform.SetParent(transform, true); // under the game root → destroyed on teardown (not leaked into menus/editors)
                     root.transform.position = Game.ScenePos(pos.x, pos.y, pos.z); // seam-aware (longitude wraps)
                     new CreatureBuilder { Ground = ProbeGround, Planets = PlanetOf }.Build(root, c);
-                    if (c.Habitat != "Air" && c.Habitat != "Water" && c.Size <= 4f)
+                    if (c.Habitat != "Water" && c.Size <= 4f)
                     {
-                        BlobShadow.Attach(root, Game, 0.5f * Mathf.Clamp(c.Size, 0.4f, 4f)); // walkers only: fliers, swimmers and giants cast none
+                        // Walkers a contact shadow; flying animals the long drop shadow (report 2026-11-27: an air fish ten
+                        // blocks over a slope read as climbing it). Swimmers and giants cast none.
+                        BlobShadow.Attach(root, Game, 0.5f * Mathf.Clamp(c.Size, 0.4f, 4f), flier: c.Habitat == "Air");
                     }
                     // The generated voice (#902–#907): call sample, phrase rhythm, pitch contour, calling
                     // rate and timbre op, all derived from the species' world-unique voice seed and the
