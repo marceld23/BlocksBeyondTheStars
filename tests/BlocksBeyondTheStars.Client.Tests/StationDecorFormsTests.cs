@@ -50,7 +50,7 @@ public sealed class StationDecorFormsTests
         => Assert.Equal(0f, BoxesOf(kind).Min(Lowest), 4);
 
     [Theory]
-    [InlineData(Kind.Cockpit, 0.5f)]
+    [InlineData(Kind.Cockpit, 0.375f)]
     [InlineData(Kind.Terminal, 0.375f)]
     public void TheTiltedFrameRestsOnTheBlockBehindTheDeck(Kind kind, float restY)
     {
@@ -86,6 +86,66 @@ public sealed class StationDecorFormsTests
         var frame = BoxesOf(Kind.Cockpit).Single(b => b.Surface == Surface.Housing && b.TiltX != 0f);
         Assert.True(frame.Centre.Z < high.Centre.Z, "the screen frame stands behind the decks");
         Assert.True(Highest(high) < Highest(frame));
+    }
+
+    /// <summary>#4054: the console is low, so the map over it floats at eye height instead of under the cabin ceiling.
+    /// A figure's eyes are 1.6 blocks over the cabin floor and the marker block is one block high: 0.6 in this frame.</summary>
+    private const float EyeHeight = 0.6f;
+
+    [Fact]
+    public void TheCockpitConsoleIsLow_AndItsMapFloatsAtEyeHeight()
+    {
+        Assert.True(BoxesOf(Kind.Cockpit).Max(Highest) <= 0.65f, "the console's top edge stays at or below 1.65 blocks over the cabin floor");
+        Assert.InRange(HoloMapHeight, EyeHeight - 0.1f, EyeHeight + 0.05f);
+        Assert.Equal(HoloMapHeight, HoloMapPoint(0f, 0f).Y, 5);
+    }
+
+    [Fact]
+    public void TheHoloMapLeansTowardThePilot()
+    {
+        var near = HoloMapPoint(0f, HoloMapRadius);
+        var far = HoloMapPoint(0f, -HoloMapRadius);
+        Assert.True(near.Z > 0f && far.Z < 0f, "the map's +z edge is the pilot's");
+        Assert.True(far.Y > near.Y + 0.2f, $"far edge {far.Y}, near edge {near.Y}");
+
+        // A pilot one block in front of the cell's centre looks DOWN onto the bodies' plane, not along its edge.
+        var eye = new Vector3(0f, EyeHeight, 1f);
+        var normal = Tilt(new Vector3(0f, 1f, 0f), HoloMapTilt);
+        Assert.True(Vector3.Dot(eye - HoloMapPoint(0f, 0f), normal) > 0.25f);
+    }
+
+    [Fact]
+    public void TheHoloMapStaysInTheCell_AndClearsTheConsole()
+    {
+        Assert.True(HoloMapChartRadius < HoloMapRadius && HoloMapRadius <= 0.5f);
+        for (int step = 0; step < 72; step++)
+        {
+            double a = step * Math.PI / 36.0;
+            float x = HoloMapRadius * (float)Math.Cos(a), z = HoloMapRadius * (float)Math.Sin(a);
+            foreach (var p in new[] { HoloMapPoint(x, z), HoloMapPoint(x, z, HoloMapSheetDrop) })
+            {
+                Assert.InRange(p.X, -0.5f, 0.5f);
+                Assert.InRange(p.Z, -0.5f, 0.5f);
+                Assert.InRange(p.Y, 0.3f, 1f);
+            }
+        }
+
+        // The sheet under the bodies passes over every corner of the console — the whole plane, not only its round part.
+        float sin = (float)Math.Sin(HoloMapTilt * Math.PI / 180.0), cos = (float)Math.Cos(HoloMapTilt * Math.PI / 180.0);
+        float closest = float.MaxValue;
+        foreach (var box in BoxesOf(Kind.Cockpit))
+        {
+            foreach (var c in Corners)
+            {
+                var corner = PointToCell(box, c);
+                float inPlane = (corner.Z + (HoloMapSheetDrop * sin)) / cos;
+                float sheet = HoloMapPoint(0f, inPlane, HoloMapSheetDrop).Y;
+                closest = Math.Min(closest, sheet - corner.Y);
+            }
+        }
+
+        Assert.True(closest >= 0.015f, $"the sheet comes within {closest} of the console");
+        Assert.True(closest <= 0.06f, $"the map floats {closest} over the console — it should lie just over it");
     }
 
     [Theory]

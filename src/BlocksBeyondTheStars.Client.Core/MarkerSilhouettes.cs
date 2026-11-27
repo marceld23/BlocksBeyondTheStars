@@ -104,11 +104,14 @@ namespace BlocksBeyondTheStars.Client
             new Box(0.5f, 1.52f, 0.45f, 0.72f, 0.34f, 0.05f), // screen
         };
 
+        // The cockpit's console is lower than a terminal's and its map floats at eye height just over it (#4054): a flat
+        // sheet at StationDecorForms.HoloMapHeight, where it used to be a cube under the cabin ceiling.
         private static readonly Box[] CockpitDecor =
         {
-            new Box(0.5f, 1.18f, 0.5f, 0.85f, 0.36f, 0.45f),  // console base
-            new Box(0.5f, 1.52f, 0.45f, 0.72f, 0.34f, 0.05f), // screen
-            new Box(0.5f, 2.15f, 0.5f, 0.50f, 0.50f, 0.50f),  // the holographic system map
+            new Box(0.5f, 1.15f, 0.5f, 0.85f, 0.30f, 0.45f),  // console base
+            new Box(0.5f, 1.44f, 0.45f, 0.72f, 0.28f, 0.05f), // screen
+            new Box(0.5f, 1f + StationDecorForms.HoloMapHeight, 0.5f,
+                StationDecorForms.HoloMapRadius * 2f, 0.03f, StationDecorForms.HoloMapRadius * 2f), // the holographic system map
         };
 
         private static readonly Box[] CapsuleDecor =

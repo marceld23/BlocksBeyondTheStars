@@ -31,6 +31,17 @@ UNITY_INSTANCING_BUFFER_START(BbtsGrassShellProps)
     UNITY_DEFINE_INSTANCED_PROP(float4, _ShellLight)
 UNITY_INSTANCING_BUFFER_END(BbtsGrassShellProps)
 
+#include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+void BbtsGrassShellInstance()
+{
+    #if defined(BBTS_GPU_INSTANCES)
+        BBTS_GPU_INSTANCE(inst)
+        _ShellTile = inst.a;
+        _ShellInfo = inst.b;
+        _ShellLight = inst.c;
+    #endif
+}
+
 struct ShellAttributes
 {
     float4 positionOS : POSITION; // xz = -0.5 … 0.5 across the cell, y = the layer 0 … 1 (lifted here)

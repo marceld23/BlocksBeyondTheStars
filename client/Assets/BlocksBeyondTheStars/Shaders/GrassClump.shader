@@ -40,6 +40,17 @@ Shader "BlocksBeyondTheStars/GrassClump"
             UNITY_DEFINE_INSTANCED_PROP(float4, _GcAccent)
         UNITY_INSTANCING_BUFFER_END(BbtsGrassClumpProps)
 
+        #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+        void BbtsGrassClumpInstance()
+        {
+            #if defined(BBTS_GPU_INSTANCES)
+                BBTS_GPU_INSTANCE(inst)
+                _GcTile = inst.a;
+                _GcLight = inst.b;
+                _GcAccent = inst.c;
+            #endif
+        }
+
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
         struct ClumpAttributes
@@ -124,6 +135,7 @@ Shader "BlocksBeyondTheStars/GrassClump"
             #pragma vertex BbtsClumpVert
             #pragma fragment frag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsGrassClumpInstance
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -169,6 +181,7 @@ Shader "BlocksBeyondTheStars/GrassClump"
             #pragma vertex BbtsClumpVert
             #pragma fragment depthFrag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsGrassClumpInstance
 
             half4 depthFrag(ClumpVaryings i) : SV_Target
             {

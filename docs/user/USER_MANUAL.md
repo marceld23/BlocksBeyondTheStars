@@ -898,7 +898,9 @@ The game's look has no switch of its own; the **quality preset** decides how muc
   lit by the sun. Lava, crystals and glowing plants tint the haze near them.
   Devices have a body inside their block (§5 *Craftable block shapes*), the cockpit desk and the terminals aboard are
   bodies too and face the pilot and the side you stand on, and the ceiling lamps aboard are separate bright lamps
-  instead of one white glare. Butterflies, beetles, fish and the other small creatures are small bodies with beating
+  instead of one white glare. Over the cockpit desk, at eye height, floats a small **map of the star system you are
+  in**: the star in its own colour, every planet on its orbit ring with its moons beside it, travelling slowly along
+  the ring; the bright, bigger dot is where you are. Butterflies, beetles, fish and the other small creatures are small bodies with beating
   wings.
 - **On Medium and High (desktop client):** near you, grass grows as dense clumps of blades, bare sand and earth carry dry
   tufts and pebbles, and grass also grows under the plants; small plants are small bodies that sway in the wind (farther

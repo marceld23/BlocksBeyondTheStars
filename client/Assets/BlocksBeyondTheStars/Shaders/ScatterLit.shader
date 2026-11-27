@@ -26,6 +26,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsScatterInstance
             // #3063: receive the sun's real-time shadow map (the block shader's keywords).
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
@@ -41,6 +42,15 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             UNITY_INSTANCING_BUFFER_START(BbtsScatterProps)
                 UNITY_DEFINE_INSTANCED_PROP(float4, _ScatterLight)
             UNITY_INSTANCING_BUFFER_END(BbtsScatterProps)
+
+            #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+            void BbtsScatterInstance()
+            {
+                #if defined(BBTS_GPU_INSTANCES)
+                    BBTS_GPU_INSTANCE(inst)
+                    _ScatterLight = inst.a;
+                #endif
+            }
 
             // #2835: a tuft (vertex alpha 1) takes the world's grass colour like the flora shader re-tints a plant —
             // luminance x tint, 85 % — so the ground tufts match the grass billboards.
@@ -120,8 +130,17 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             #pragma vertex depthVert
             #pragma fragment depthFrag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsScatterInstance
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "AtmosphereCommon.hlsl" // the tufts' wind sway
+
+            #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+            void BbtsScatterInstance()
+            {
+                #if defined(BBTS_GPU_INSTANCES)
+                    BBTS_GPU_INSTANCE(inst)
+                #endif
+            }
 
             struct DAttr
             {

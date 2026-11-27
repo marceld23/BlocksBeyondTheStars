@@ -30,6 +30,7 @@ Shader "BlocksBeyondTheStars/GrassShell"
             #pragma vertex BbtsShellVert
             #pragma fragment frag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsGrassShellInstance
             // Receive the sun's real-time shadow map (the block shader's keywords, nothing new).
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
@@ -90,6 +91,7 @@ Shader "BlocksBeyondTheStars/GrassShell"
             #pragma vertex BbtsShellVert
             #pragma fragment depthFrag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsGrassShellInstance
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "AtmosphereCommon.hlsl"
             #include "GrassShellCommon.hlsl"

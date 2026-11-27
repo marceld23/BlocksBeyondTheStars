@@ -22,6 +22,16 @@ UNITY_INSTANCING_BUFFER_START(BbtsMeadowFlowerProps)
     UNITY_DEFINE_INSTANCED_PROP(float4, _FlowerInfo)
 UNITY_INSTANCING_BUFFER_END(BbtsMeadowFlowerProps)
 
+#include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+void BbtsMeadowFlowerInstance()
+{
+    #if defined(BBTS_GPU_INSTANCES)
+        BBTS_GPU_INSTANCE(inst)
+        _FlowerColor = inst.a;
+        _FlowerInfo = inst.b;
+    #endif
+}
+
 TEXTURE2D(_FlowerTex); SAMPLER(sampler_FlowerTex);
 
 // The material's one property, in the same cbuffer layout in both passes (this file) as URP expects.

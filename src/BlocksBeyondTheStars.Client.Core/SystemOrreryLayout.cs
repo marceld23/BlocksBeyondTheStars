@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client.Core;
 /// Chart units from the star (the chart's centre), +<see cref="Y"/> = the system's +z — the flight chart's orientation.</summary>
 public readonly struct OrreryMarker
 {
-    public OrreryMarker(int index, string id, float x, float y, float dotRadius, float ringRadius, string hostId)
+    public OrreryMarker(int index, string id, float x, float y, float dotRadius, float ringRadius, string hostId, int belt = -1)
     {
         Index = index;
         Id = id;
@@ -21,6 +21,7 @@ public readonly struct OrreryMarker
         DotRadius = dotRadius;
         RingRadius = ringRadius;
         HostId = hostId;
+        Belt = belt;
     }
 
     /// <summary>Index of the body in the list the layout was built from.</summary>
@@ -38,6 +39,9 @@ public readonly struct OrreryMarker
     /// <summary>The body this one is drawn beside (a moon's planet, a station hanging over one); empty for a body drawn
     /// at its own position.</summary>
     public string HostId { get; }
+
+    /// <summary>The belt this body is a member of — its position in <see cref="OrreryLayout.Belts"/>; -1 = none.</summary>
+    public int Belt { get; }
 
     public bool IsSatellite => HostId.Length > 0;
 }
@@ -204,7 +208,7 @@ public static class SystemOrreryLayout
         PlaceSatellites(host, x, z, dot, ringOf, bodies, px, py);
 
         var belts = new List<OrreryBelt>();
-        var beltMember = Belts(bodies, primary, x, z, scale, belts);
+        var beltOf = Belts(bodies, primary, x, z, scale, belts);
 
         var markers = new List<OrreryMarker>(n);
         for (int i = 0; i < n; i++)
@@ -216,14 +220,14 @@ public static class SystemOrreryLayout
             }
 
             float ring = 0f;
-            if (primary[i] && !beltMember[i])
+            if (primary[i] && beltOf[i] < 0)
             {
                 float r = SystemChartLayout.OrbitRadius(px[i], py[i]);
                 ring = SystemChartLayout.ShowRing(r) ? r : 0f;
             }
 
             markers.Add(new OrreryMarker(i, b.Id ?? string.Empty, px[i], py[i], dot[i], ring,
-                host[i] >= 0 ? bodies[host[i]]!.Id ?? string.Empty : string.Empty));
+                host[i] >= 0 ? bodies[host[i]]!.Id ?? string.Empty : string.Empty, beltOf[i]));
         }
 
         return new OrreryLayout(scale, markers, belts);
@@ -371,11 +375,17 @@ public static class SystemOrreryLayout
     }
 
     /// <summary>Groups the star-orbiting asteroid bodies by orbit radius; <see cref="BeltMinMembers"/> or more within
-    /// <see cref="BeltGroupGap"/> of each other are one belt. Returns which bodies are belt members.</summary>
-    private static bool[] Belts(IReadOnlyList<NetBody?> bodies, bool[] primary, float[] x, float[] z, float scale, List<OrreryBelt> belts)
+    /// <see cref="BeltGroupGap"/> of each other are one belt. Returns each body's belt (its position in
+    /// <paramref name="belts"/>), -1 for a body in none.</summary>
+    private static int[] Belts(IReadOnlyList<NetBody?> bodies, bool[] primary, float[] x, float[] z, float scale, List<OrreryBelt> belts)
     {
         int n = bodies.Count;
-        var member = new bool[n];
+        var beltOf = new int[n];
+        for (int i = 0; i < n; i++)
+        {
+            beltOf[i] = -1;
+        }
+
         var fields = new List<(float R, string Id, int Index)>();
         for (int i = 0; i < n; i++)
         {
@@ -400,17 +410,18 @@ public static class SystemOrreryLayout
 
             if (k - start >= BeltMinMembers)
             {
-                belts.Add(new OrreryBelt(fields[start].R * scale, fields[k - 1].R * scale));
                 for (int m = start; m < k; m++)
                 {
-                    member[fields[m].Index] = true;
+                    beltOf[fields[m].Index] = belts.Count;
                 }
+
+                belts.Add(new OrreryBelt(fields[start].R * scale, fields[k - 1].R * scale));
             }
 
             start = k;
         }
 
-        return member;
+        return beltOf;
     }
 
     private static float Wrap(float angle)

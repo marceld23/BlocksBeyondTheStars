@@ -46,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
 
         private Matrix4x4[] _tufts;
         private MaterialPropertyBlock _props;
+        private GpuInstances _gpu; // #4046: the same tufts on the graphics card
         private int _propsLength;
         private Vector3 _worldCenter;
         private Vector3 _bakedPos; // the chunk position the world matrices were baked at
@@ -62,6 +63,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _tufts = null;
                 _ready = false;
+                ReleaseGpu();
                 return;
             }
 
@@ -72,6 +74,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _tufts = null;
                 _ready = false;
+                ReleaseGpu();
                 return;
             }
 
@@ -85,6 +88,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _props.SetVectorArray(ScatterLightId, lights);
+            if (GpuInstances.Active)
+            {
+                (_gpu ??= new GpuInstances()).Upload(_tufts, _tufts.Length, lights); // #4046: once, onto the graphics card
+            }
+            else
+            {
+                ReleaseGpu();
+            }
+
             tufts.Clear();
             lights.Clear();
             _worldCenter = transform.TransformPoint(new Vector3(
@@ -174,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
             if (pos != _bakedPos)
             {
                 Shift(_tufts, pos - _bakedPos);
+                ReleaseGpu(); // the buffer holds the old places; the arrays draw until the chunk's next mesh
                 _worldCenter += pos - _bakedPos;
                 _bakedPos = pos;
             }
@@ -187,7 +200,23 @@ namespace BlocksBeyondTheStars.Client
 
             // #3063: tufts receive the sun's shadow but cast none (ScatterLit has no ShadowCaster pass), so they stay out of
             // the shadow pass's culling altogether.
+            // #4046: the instances are on the graphics card — a frame names the buffer instead of handing the arrays over.
+            if (GpuInstances.Active && _gpu != null && _gpu.Count == _tufts.Length)
+            {
+                _gpu.Draw(_tuftMesh, _material, ShadowCastingMode.Off, 0);
+                return;
+            }
+
             Graphics.DrawMeshInstanced(_tuftMesh, 0, _material, _tufts, _tufts.Length, _props, ShadowCastingMode.Off, true);
+        }
+
+        private void OnDestroy() => ReleaseGpu();
+
+        /// <summary>Gives the tufts' buffer on the graphics card back (#4046 part b).</summary>
+        private void ReleaseGpu()
+        {
+            _gpu?.Release();
+            _gpu = null;
         }
 
         private static void Shift(Matrix4x4[] matrices, Vector3 delta)

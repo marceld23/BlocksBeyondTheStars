@@ -96,24 +96,41 @@ namespace BlocksBeyondTheStars.Client
         private static readonly FormBox[] TerminalBoxes = BuildTerminal();
         private static readonly FormBox[] MedbayBoxes = BuildMedbay();
 
-        /// <summary>The cockpit console: a recessed base, the body, a riser at the back, two side cheeks, a low deck at the
-        /// front and a high deck on the riser (it steps down toward the pilot), and the tilted screen frame at the back.
-        /// The decks are 2/8 deep and 6/8 wide, so the deck tile's 2/8 buttons show whole (3 × 1 per deck).
-        /// The holographic map floats above it as before (not a box).</summary>
+        /// <summary>Where the cockpit's holographic system map hangs over the console (#4054), in the decor frame: the height
+        /// of its centre above the marker's top face — the eye height of a figure standing on the cabin floor — and how far it
+        /// leans toward the pilot (about X, its far edge up). The lean is the console's own slope, from the front of the
+        /// cheeks to the top of the screen frame, so the map lies just over it and the pilot looks down onto its orbits
+        /// instead of along its edge.</summary>
+        public const float HoloMapHeight = 0.6f, HoloMapTilt = 20f;
+
+        /// <summary>The radius of the map's round sheet, the radius its bodies are fitted to (their dots included, a little
+        /// inside the sheet's rim) and how far the sheet lies under the plane of the bodies. All inside the cell.</summary>
+        public const float HoloMapRadius = 0.46f, HoloMapChartRadius = 0.44f, HoloMapSheetDrop = 0.045f;
+
+        /// <summary>A point of the holographic map in the decor frame: <paramref name="x"/> and <paramref name="z"/> in the
+        /// map's own plane (z toward the pilot), <paramref name="drop"/> below that plane.</summary>
+        public static Vector3 HoloMapPoint(float x, float z, float drop = 0f)
+            => new Vector3(0f, HoloMapHeight, 0f) + Tilt(new Vector3(x, -drop, z), HoloMapTilt);
+
+        /// <summary>The cockpit console: a recessed base, a thin body, a riser at the back, two side cheeks, a low deck at
+        /// the front and a high deck on the riser (it steps down toward the pilot), and the short tilted screen frame at the
+        /// back. The decks are 2/8 deep and 6/8 wide, so the deck tile's 2/8 buttons show whole (3 × 1 per deck).
+        /// It is low (#4054: its top edge at 5/8 of a block, where it used to reach 7/8) so the holographic map, which is not
+        /// a box, floats at eye height over it (<see cref="HoloMapHeight"/>) instead of under the cabin ceiling.</summary>
         private static FormBox[] BuildCockpit()
         {
-            const float tilt = -18f; // today's cockpit screen tilt
-            Framed(new Vector3(6 * Eighth, 3 * Eighth, Sixteenth), -2 * Eighth, 4 * Eighth, tilt, 5 * Eighth, 0.28125f, out var frame, out var screen);
+            const float tilt = -18f; // the cockpit screen's tilt
+            Framed(new Vector3(6 * Eighth, 2 * Eighth, Sixteenth), -2 * Eighth, 3 * Eighth, tilt, 5 * Eighth, 3 * Sixteenth, out var frame, out var screen);
             return new[]
             {
                 Housing(0f, Sixteenth, -Sixteenth, 5 * Eighth, Eighth, 4 * Eighth),                 // base, y 0..1/8
-                Housing(0f, 2 * Eighth, 0f, 6 * Eighth, 2 * Eighth, 6 * Eighth),                    // body, y 1/8..3/8
-                Housing(0f, 3.5f * Eighth, -Eighth, 6 * Eighth, Eighth, 4 * Eighth),                // riser, y 3/8..4/8, z -3/8..1/8
-                Housing(-0.40625f, 0.34375f, -Sixteenth, Sixteenth, 7 * Sixteenth, 5 * Eighth),     // left cheek
-                Housing(0.40625f, 0.34375f, -Sixteenth, Sixteenth, 7 * Sixteenth, 5 * Eighth),      // right cheek
+                Housing(0f, 1.5f * Eighth, 0f, 6 * Eighth, Eighth, 6 * Eighth),                     // body, y 1/8..2/8
+                Housing(0f, 2.5f * Eighth, -Eighth, 6 * Eighth, Eighth, 4 * Eighth),                // riser, y 2/8..3/8, z -3/8..1/8
+                Housing(-0.40625f, 0.28125f, -Sixteenth, Sixteenth, 5 * Sixteenth, 5 * Eighth),     // left cheek, y 1/8..7/16
+                Housing(0.40625f, 0.28125f, -Sixteenth, Sixteenth, 5 * Sixteenth, 5 * Eighth),      // right cheek
                 frame,
-                Deck(0f, 0.40625f, 2 * Eighth, 6 * Eighth, Sixteenth, 2 * Eighth),                  // low deck, front, z 1/8..3/8
-                Deck(0f, 0.53125f, 0f, 6 * Eighth, Sixteenth, 2 * Eighth),                          // high deck, on the riser, z -1/8..1/8
+                Deck(0f, 0.28125f, 2 * Eighth, 6 * Eighth, Sixteenth, 2 * Eighth),                  // low deck, front, y 2/8..5/16, z 1/8..3/8
+                Deck(0f, 0.40625f, 0f, 6 * Eighth, Sixteenth, 2 * Eighth),                          // high deck, on the riser, y 3/8..7/16, z -1/8..1/8
                 screen,
             };
         }

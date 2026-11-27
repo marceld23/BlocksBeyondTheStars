@@ -320,6 +320,7 @@ namespace BlocksBeyondTheStars.Client
                 yield return StandOutdoors(boot, hoverStart);
                 yield return Sample("outdoor", outdoorSeconds, x => r = x);
                 phases.Add(r);
+                yield return CompareInstancePaths(); // #4046 part b: buffers and arrays draw the same picture
             }
 
             if (!string.IsNullOrEmpty(_profilePath) && Debug.isDebugBuild)

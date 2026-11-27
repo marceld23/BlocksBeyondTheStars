@@ -50,6 +50,18 @@ Shader "BlocksBeyondTheStars/PlantBody"
             UNITY_DEFINE_INSTANCED_PROP(float4, _PbAccent)
         UNITY_INSTANCING_BUFFER_END(BbtsPlantBodyProps)
 
+        #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+        void BbtsPlantBodyInstance()
+        {
+            #if defined(BBTS_GPU_INSTANCES)
+                BBTS_GPU_INSTANCE(inst)
+                _PbTile = inst.a;
+                _PbTint = inst.b;
+                _PbLight = inst.c;
+                _PbAccent = inst.d;
+            #endif
+        }
+
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
         float4 _Sc_LookWood; // the world's wood colour (a > 0.5 = set); PlantBodies.UseWorld
@@ -200,6 +212,7 @@ Shader "BlocksBeyondTheStars/PlantBody"
             #pragma vertex BbtsBodyVert
             #pragma fragment frag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsPlantBodyInstance
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -305,6 +318,7 @@ Shader "BlocksBeyondTheStars/PlantBody"
             #pragma vertex shadowVert
             #pragma fragment shadowFrag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsPlantBodyInstance
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
             float3 _LightDirection; // set by URP while rendering the shadow map
@@ -361,6 +375,7 @@ Shader "BlocksBeyondTheStars/PlantBody"
             #pragma vertex BbtsBodyVert
             #pragma fragment depthFrag
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsPlantBodyInstance
 
             half4 depthFrag(BodyVaryings i) : SV_Target
             {
