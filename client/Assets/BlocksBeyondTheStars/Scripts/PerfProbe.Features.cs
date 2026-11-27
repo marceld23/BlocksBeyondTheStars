@@ -19,6 +19,9 @@ namespace BlocksBeyondTheStars.Client
     ///   <item><b>Chunk pipeline</b> — <c>meshbudget=frame</c>: the mesher's rule before #4045 (four builds started and
     ///   eight uploaded per frame, whatever the machine); <c>loadbudget=off</c>: the loading veil gets the budgets of
     ///   play. Both are applied before the world starts, so the fill is measured with them.</item>
+    ///   <item><b>Instance data</b> — <c>instances=arrays</c>: the near drawers and the ground detail hand their
+    ///   instances over as arrays each frame, as before #4046 part b, instead of drawing from buffers on the graphics
+    ///   card (<see cref="GpuInstances"/>). Applied before the world starts, so nothing is uploaded.</item>
     ///   <item><b>Pipeline</b> — <c>msaa=1|2|4</c>, <c>scale=0.5</c> (render scale: how much of the frame is bound by the
     ///   pixel count), <c>cascades=2</c>, <c>sunshadow=pipeline</c> (9 taps instead of desktop High's 16) or
     ///   <c>sunshadow=hard</c>, <c>post=off</c> (every post effect), <c>opaque=off</c> (the colour copy the water reads),
@@ -53,6 +56,11 @@ namespace BlocksBeyondTheStars.Client
                     GameBootstrap.LoadingBudgetOff = true;
                     tags.Add("loadBudgetOff");
                 }
+                else if (key == "instances")
+                {
+                    GpuInstances.Enabled = !string.Equals(val, "arrays", StringComparison.OrdinalIgnoreCase);
+                    tags.Add(GpuInstances.Enabled ? "instBuffers" : "instArrays");
+                }
             }
 
             return tags;
@@ -60,7 +68,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A token of this file's set, applied once the world runs. False for a token nobody knows.</summary>
         private static bool ApplyMoreFeature(string key, string val, List<string> tags)
-            => key == "meshbudget" || key == "loadbudget" // applied early (ApplyEarlyFeatures)
+            => key == "meshbudget" || key == "loadbudget" || key == "instances" // applied early (ApplyEarlyFeatures)
                || ApplyPipelineFeature(key, val, tags) || ApplyHighDetailFeature(key, val, tags)
                || ApplyNearDrawerFeature(key, val, tags) || ApplyWorldFeature(key, val, tags);
 

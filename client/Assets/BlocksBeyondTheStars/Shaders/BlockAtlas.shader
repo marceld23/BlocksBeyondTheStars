@@ -42,8 +42,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             // Staged crowns: the instanced variant draws the near micro-block clusters (CrownClusters.cs).
-            // Everything it adds sits behind UNITY_INSTANCING_ENABLED — the chunk meshes' variant is unchanged.
+            // Everything it adds sits behind the two instancing variants (arrays, or #4046's buffer on the graphics
+            // card) — the chunk meshes' variant is unchanged.
             #pragma multi_compile_instancing
+            #pragma instancing_options procedural:BbtsCrownInstance
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
@@ -112,7 +114,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             CBUFFER_END
 
             // Staged crowns: what a chunk-mesh vertex carries per crown CELL comes per instance here.
-            #if defined(UNITY_INSTANCING_ENABLED)
+            #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
             UNITY_INSTANCING_BUFFER_START(BbtsCrownProps)
                 UNITY_DEFINE_INSTANCED_PROP(float4, _CcTile)     // xy = the leaf tile's centre (atlas UV), z = emission, w = metal
                 UNITY_DEFINE_INSTANCED_PROP(float4, _CcTint)     // rgb = species tint or dye (black = the world's flora hue), a = tint mode
@@ -120,6 +122,18 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 UNITY_DEFINE_INSTANCED_PROP(float4, _CcLightDir) // xyz = the block light's dominant direction
             UNITY_INSTANCING_BUFFER_END(BbtsCrownProps)
             #endif
+
+            #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+            void BbtsCrownInstance()
+            {
+                #if defined(BBTS_GPU_INSTANCES)
+                    BBTS_GPU_INSTANCE(inst)
+                    _CcTile = inst.a;
+                    _CcTint = inst.b;
+                    _CcLight = inst.c;
+                    _CcLightDir = inst.d;
+                #endif
+            }
 
             struct Attributes
             {
@@ -132,7 +146,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 bl : TEXCOORD3;   // propagated coloured block-light (placed lights illuminate)
                 float3 blDir : TEXCOORD4; // dominant block-light direction (toward source); 0 = none
                 float4 color : COLOR;    // r=gloss, g=metal, b=face AO, a=emission
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                 float3 cube : TEXCOORD5; // The middle of the small cube this vertex belongs to (cluster-local)
                 #endif
                 UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -176,7 +190,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             {
                 Varyings o = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(v);
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     // Staged crowns: a near cluster. The cell's tile, tint, light and material come from the
                     // instance, the cube's tone and class from the shared mesh; a cube right at the eye shrinks away.
                     float4 ccTile = UNITY_ACCESS_INSTANCED_PROP(BbtsCrownProps, _CcTile);
@@ -212,7 +226,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // #2519: torches and lanterns stand rigid, sheltered plants stand still (BbtsBlockSway).
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0));
                 // The small cubes of a micro-block crown rock in the wind — not the closed far cubes of staged crowns.
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
                 #else
                     if (_Sc_Look2.y < 2.5)
@@ -386,7 +400,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Staged crowns: the screen-door cross-fade at the end of the near range — a pixel shows the
                 // near cluster or the far cube, never both (BbtsCrownNearShare / BbtsIgn in AtmosphereCommon).
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     clip(BbtsCrownNearShare(i.wp, _WorldSpaceCameraPos) - BbtsIgn(i.positionCS.xy) - 0.0001);
                 #else
                     bool farCrown = closedCrown && _Sc_Look2.y > 2.5;
@@ -418,7 +432,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // gap between two leaves — the mean colour stands, a little darker. The picture fades out with distance,
                 // where a leaf is smaller than a pixel and its pattern would only shimmer.
                 float leafGap = 1.0;
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     if (_Sc_LookLeaf.x > 0.0)
                     {
                         float leafShare = _Sc_LookLeaf.x * (1.0 - smoothstep(_Sc_LookLeaf.y, _Sc_LookLeaf.z, distance(_WorldSpaceCameraPos, i.wp)));
@@ -456,7 +470,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     texel.rgb *= puff.x;
                 }
 
-                #if !defined(UNITY_INSTANCING_ENABLED)
+                #if !defined(UNITY_INSTANCING_ENABLED) && !defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     if (farCrown)
                     {
                         texel.rgb *= BbtsCrownFar(i.uv, i.wp, i.wn); // staged crowns: the far picture's painted cubes
@@ -772,6 +786,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma vertex shadowVert
             #pragma fragment shadowFrag
             #pragma multi_compile_instancing // Staged crowns: the near clusters cast the near shadows
+            #pragma instancing_options procedural:BbtsCrownInstance
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             #include "AtmosphereCommon.hlsl" // #2397: the shadow follows the swaying leaves
@@ -785,6 +800,14 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
             float3 _LightDirection; // set by URP while rendering the shadow map (a global, not a material property)
 
+            #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+            void BbtsCrownInstance()
+            {
+                #if defined(BBTS_GPU_INSTANCES)
+                    BBTS_GPU_INSTANCE(inst)
+                #endif
+            }
+
             struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; float4 color : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct SVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float cut : TEXCOORD1; float3 wp : TEXCOORD2; }; // cut = the cutout code, wp = the world position
 
@@ -796,7 +819,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float tintMode = fmod(v.sky.y, 16.0);
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0)); // #2519: same sway as the forward pass
                 // … and the same flutter (the near clusters of staged crowns only, as in the forward pass)
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
                 #else
                     if (_Sc_Look2.y < 2.5)
@@ -840,7 +863,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // Staged crowns: one of the two pictures casts — the near cluster up to the clusters' shadow
                 // range (_Sc_LookEye.w, at most the middle of the cross-fade), the far cube beyond it. No dither
                 // here: this pass renders from the sun's view.
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     clip(_Sc_LookEye.w - distance(i.wp, _Sc_LookEye.xyz));
                 #else
                     if (_Sc_Look2.y > 2.5 && i.cut > 0.5 && i.cut < 1.5)
@@ -874,8 +897,17 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma vertex depthVert
             #pragma fragment depthFrag
             #pragma multi_compile_instancing // Staged crowns: the near clusters are in the depth prepass too
+            #pragma instancing_options procedural:BbtsCrownInstance
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "AtmosphereCommon.hlsl" // #2397: the depth prepass follows the swaying leaves too
+
+            #include "GpuInstances.hlsl" // #4046: on a buffer draw the instance comes from the graphics card
+            void BbtsCrownInstance()
+            {
+                #if defined(BBTS_GPU_INSTANCES)
+                    BBTS_GPU_INSTANCE(inst)
+                #endif
+            }
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -887,7 +919,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             struct DAttr
             {
                 float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; float4 color : COLOR;
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                 float3 cube : TEXCOORD5; // The middle of the small cube this vertex belongs to (cluster-local)
                 #endif
                 UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -898,7 +930,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             {
                 DVary o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     // Staged crowns: the same shrink right at the eye as in the forward pass.
                     float ccScale = BbtsCrownCubeScale(TransformObjectToWorld(v.cube), _WorldSpaceCameraPos);
                     v.positionOS.xyz = lerp(v.cube, v.positionOS.xyz, ccScale);
@@ -907,7 +939,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float tintMode = fmod(v.sky.y, 16.0);
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0)); // #2519: same sway as the forward pass
                 // … and the same flutter (the near clusters of staged crowns only, as in the forward pass)
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     wp += BbtsCrownFlutter(wp, v.leaf.x, v.color.r);
                 #else
                     if (_Sc_Look2.y < 2.5)
@@ -942,7 +974,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 }
 
                 // Staged crowns: the same screen-door cross-fade as the forward pass, pixel for pixel.
-                #if defined(UNITY_INSTANCING_ENABLED)
+                #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                     clip(BbtsCrownNearShare(i.wp, _WorldSpaceCameraPos) - BbtsIgn(i.positionCS.xy) - 0.0001);
                 #else
                     if (_Sc_Look2.y > 2.5 && i.cut > 0.5 && i.cut < 1.5)

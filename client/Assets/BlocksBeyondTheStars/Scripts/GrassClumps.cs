@@ -624,6 +624,23 @@ namespace BlocksBeyondTheStars.Client
             return s.ToMesh("GrassFringe", new Bounds(new Vector3(0f, 0f, 0.3f), new Vector3(1.4f, 0.6f, 1.2f)));
         }
 
+        /// <summary>Gives the batches' buffers on the graphics card back with the chunk (#4046 part b).</summary>
+        private void OnDestroy()
+        {
+            foreach (var list in _batches)
+            {
+                if (list == null)
+                {
+                    continue;
+                }
+
+                foreach (var batch in list)
+                {
+                    batch.Release();
+                }
+            }
+        }
+
         /// <summary>One instanced draw: up to <see cref="BatchSize"/> matrices and three per-instance vectors. Reused across
         /// rebuilds (grown, never shrunk).</summary>
         private sealed class Batch
@@ -634,6 +651,7 @@ namespace BlocksBeyondTheStars.Client
             private readonly List<Vector4> _accent = new List<Vector4>();
             private MaterialPropertyBlock _props;
             private int _propsLength;
+            private GpuInstances _gpu; // #4046: the same instances on the graphics card
 
             public int Count => _matrices.Count;
 
@@ -671,6 +689,10 @@ namespace BlocksBeyondTheStars.Client
                 _props.SetVectorArray(TileId, _tile);
                 _props.SetVectorArray(LightId, _light);
                 _props.SetVectorArray(AccentId, _accent);
+                if (GpuInstances.Active)
+                {
+                    (_gpu ??= new GpuInstances()).Upload(_matrices, _tile, _light, _accent);
+                }
             }
 
             public void Draw(Mesh mesh, Material material, int layer)
@@ -680,8 +702,22 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // #4046: the instances are on the graphics card — a frame names the buffer instead of handing the arrays over.
+                if (GpuInstances.Active && _gpu != null && _gpu.Count == Count)
+                {
+                    _gpu.Draw(mesh, material, ShadowCastingMode.Off, layer);
+                    return;
+                }
+
                 Graphics.DrawMeshInstanced(mesh, 0, material, _matrices, _props, ShadowCastingMode.Off, true, layer, null,
                     LightProbeUsage.Off);
+            }
+
+            /// <summary>Gives the batch's buffer on the graphics card back (the chunk is going).</summary>
+            public void Release()
+            {
+                _gpu?.Release();
+                _gpu = null;
             }
         }
     }

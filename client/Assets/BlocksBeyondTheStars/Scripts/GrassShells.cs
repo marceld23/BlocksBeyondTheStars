@@ -109,7 +109,21 @@ namespace BlocksBeyondTheStars.Client
             Live.Add(this);
         }
 
-        private void OnDestroy() => Live.Remove(this);
+        private void OnDestroy()
+        {
+            Live.Remove(this);
+
+            // #4046 part b: the batches' buffers on the graphics card go with the chunk.
+            foreach (var batch in _carpet)
+            {
+                batch.Release();
+            }
+
+            foreach (var batch in _flowers)
+            {
+                batch.Release();
+            }
+        }
 
         /// <summary>Submits this chunk's carpet and flowers for the current frame. Called by the detail pass for chunks
         /// inside the reach (#4046) — no <c>Update()</c> of its own.</summary>
@@ -280,6 +294,7 @@ namespace BlocksBeyondTheStars.Client
             private Matrix4x4[] _matrices = System.Array.Empty<Matrix4x4>();
             private MaterialPropertyBlock _props;
             private int _propsLength;
+            private GpuInstances _gpu; // #4046: the same instances on the graphics card
 
             public int Count { get; private set; }
 
@@ -325,6 +340,11 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _props.SetVectorArray(cId.Value, C);
                 }
+
+                if (GpuInstances.Active)
+                {
+                    (_gpu ??= new GpuInstances()).Upload(_matrices, Count, A, B, cId.HasValue ? C : null);
+                }
             }
 
             public void Draw(Mesh mesh, Material material)
@@ -334,9 +354,24 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // #4046: the instances are on the graphics card — a frame names the buffer instead of handing the arrays over.
+                if (GpuInstances.Active && _gpu != null && _gpu.Count == Count)
+                {
+                    _gpu.Draw(mesh, material, ShadowCastingMode.Off, 0);
+                    CountInstances(Count);
+                    return;
+                }
+
                 Graphics.DrawMeshInstanced(mesh, 0, material, _matrices, Count, _props, ShadowCastingMode.Off, true, 0, null,
                     LightProbeUsage.Off);
                 CountInstances(Count);
+            }
+
+            /// <summary>Gives the batch's buffer on the graphics card back (the chunk is going).</summary>
+            public void Release()
+            {
+                _gpu?.Release();
+                _gpu = null;
             }
         }
     }

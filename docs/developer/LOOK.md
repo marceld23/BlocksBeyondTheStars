@@ -555,17 +555,28 @@ edges are softly chamfered on High and Medium.
 main cells. The placement ghost and the icons show the chamfer in one colour. An older client shows a slotted form in
 one colour. Round primitives inside player forms are not part of this.
 
-## 14. Ship station decor (#3937)
+## 14. Ship station decor (#3937, cockpit #4054, hologram #4055)
 
-**What the player sees.** The cockpit desk is a body of its own — a base, a body, a top, two cheeks, two key decks
-sloping toward the pilot and a tilted frame with the flickering screen — facing the pilot; lab and console terminals are
-the same in small (green and teal screens) and face the side you stand on; the medbay's capsule stands on a base with a
-collar and a cap. The housing of desk and terminals is light, not dark. The holographic system map and the workshop
-sparks are unchanged.
+**What the player sees.** The cockpit desk is a body of its own — a base, a thin body, a top, two cheeks, two key
+decks sloping toward the pilot and a short tilted frame with the flickering screen — facing the pilot; lab and console
+terminals are the same in small (green and teal screens) and face the side you stand on; the medbay's capsule stands on
+a base with a collar and a cap. The housing of desk and terminals is light, not dark. The workshop sparks are unchanged.
+
+The cockpit desk is low (#4054): its top edge is 5/8 of a block over the desk block, where it used to reach 7/8, and
+the holographic system map floats just over it at eye height (1.6 blocks over the cabin floor, where it hung at 2.15
+under a ceiling at 3) and leans 20° toward the pilot — the desk's own slope — so the pilot looks down onto the orbits.
+
+The map shows the system the ship is in (#4055): the star in its own colour, every body as a dot in the charts'
+colours where the travel screen's chart shows it, an orbit ring through every planet, a belt as one band, the body you
+are at bigger and brighter, all on a faint round sheet inside the station's cell. The planets travel along their rings
+in time lapse. It used to show the first five entries of the body list at made-up distances, turning together, some of
+them outside the cell.
 
 **How.** `Scripts/StationDecorView.cs`, `StationDecorView.Forms.cs`, `StationDecorView.FormMesh.cs`,
 `StationDecorView.Facing.cs`, `src/BlocksBeyondTheStars.Client.Core/StationDecorForms.cs` (boxes and mapping),
-`StationDecorFacing.cs` (the side). The decor still sits in the cell over the station's marker block, without collision,
+`StationDecorFacing.cs` (the side), `StationDecorView.HoloMap.cs` and
+`src/BlocksBeyondTheStars.Client.Core/HoloSystemMap.cs` (the map). The decor still sits in the cell over the station's
+marker block (the map too, now: it used to reach into the second cell), without collision,
 and the server knows nothing of it. Boxes are multiples of an eighth of a block, metal and keys are mapped by size (an
 eighth of a block = eight texels), the screen tile only on the screen's front, in grey shown in the station's colour.
 Drawn with `LitColor`, so it stands in the look's light; the housing uses the light housing tile
@@ -577,9 +588,25 @@ decor height, floor below); with several, the one toward the ship's centre. The 
 marker block is not loaded yet the view asks again twice a second and turns with what it knows after half a minute. The
 form hangs under its own child object (`DecorFormTurn`), so turning never touches the screen's animation.
 
-**Tiers.** Every tier and the browser (never run there). One draw call more per station.
+**The map.** `HoloSystemMap` (Unity-free, tested against generated systems) lays the system out with
+`SystemOrreryLayout`, the travel chart's layout, in a chart of 100 units fitted to 0.44 blocks, and gives every body
+what it circles, its distance, its direction at second 0 and its speed. The speed comes from the body's orbital period
+(`NetBody.OrbitPeriodDays`, negative = the other way): one orbit takes 12 s × √days, held to 24–90 s around the star
+and 6–20 s around a planet, because a real orbit takes hours and a moon's is a hundred times shorter than an outer
+planet's. The satellites of one body turn together at the pace of the slowest, and so do the members of a belt — they
+share a ring or a band and would run through each other. A body without a period (a station, a wreck) keeps its place.
+In flight space the bodies stand still, so the map drifts away from the flight chart; that is intended. The map hangs
+on the desk's turning child at `StationDecorForms.HoloMapHeight`, tilted by `HoloMapTilt`; a test pins that its sheet
+passes over every corner of the desk and stays in the cell. It is built when the player comes within five blocks, and
+again when the star map or the location changes (the clock runs on, so the planets do not jump back); away from it,
+it is scaled to nothing and updates nothing. The build editors' outline of the cockpit station
+(`MarkerSilhouettes`) follows the same heights.
 
-**Known limits.** The heal tank's cap, like its capsule, reaches out of the one cell.
+**Tiers.** Every tier and the browser (never run there). One draw call more per station. The map is the same on
+every tier: one small sphere per body and three flat meshes (sheet, belts, rings), only while the player stands near.
+
+**Known limits.** The heal tank's cap, like its capsule, reaches out of the one cell. The map's translucent parts use
+the cloud shader like the other glows aboard, so a pea-souper thins them.
 
 ## 15. The cabin light limit (#3938)
 
@@ -806,6 +833,46 @@ such machines; Linux is unmeasured. They stay off until a real small machine has
 the numbers; `BBS_GRAPHICS_JOBS=1` builds a player with them).
 
 Not measured here: the far view's 2048-block range, the browser, Linux, and any machine but this one.
+
+### The near drawers' instance data on the graphics card (2026-11-27, #4046 part b)
+
+After the one pass per frame, what was left of the detail pass was the hand-over itself: every instanced call
+(`Graphics.DrawMeshInstanced`) copied its matrices and per-instance vectors to the engine again each frame, although a
+chunk bakes them once per mesh build. Now a batch uploads them once into a structured buffer (`Scripts/GpuInstances.cs`)
+and a frame only names that buffer (`Graphics.RenderMeshPrimitives`); the shaders of the five drawers read the
+instance in their procedural instancing variant (`Shaders/GpuInstances.hlsl` — the pipeline's instancing header turns
+the instanced properties into plain variables there, so a pass only has to fill them and the object matrices). The
+arrays stay: they draw on a graphics API without structured buffers in a vertex shader, with the start option
+`-instanceArrays`, and for a chunk of tufts that crossed the world's seam until its next mesh.
+
+Same laptop, a 1600 × 900 window this time, Direct3D 12, view distance 8, seed 424242, a fresh probe world per run,
+one run each; "before" is the same build with `-perfFeature instances=arrays`:
+
+| | High: arrays | High: buffers | Medium: arrays | Medium: buffers |
+|---|---|---|---|---|
+| Detail pass, idle (129 chunks in reach) | 2.70 ms | 1.45 ms | 1.64 ms | 0.73 ms |
+| Detail pass, walking (80–83 chunks) | 2.02 ms | 1.14 ms | 0.87 ms | 0.54 ms |
+| Detail pass, outdoors (86 chunks) | 2.39 ms | 1.32 ms | 0.97 ms | 0.69 ms |
+| Main thread, idle (median) | 11.5 ms | 9.5 ms | 7.9 ms | 6.4 ms |
+| Main thread, outdoors | 11.8 ms | 10.1 ms | 8.5 ms | 7.6 ms |
+| Render thread, idle / outdoors | 5.7 / 6.0 ms | 6.8 / 6.6 ms | 3.6 / 4.5 ms | 3.8 / 4.5 ms |
+| GPU, idle / outdoors | 12.1 / 12.0 ms | 12.5 / 12.0 ms | 7.6 / 7.0 ms | 7.9 / 7.1 ms |
+| Frame rate, idle / outdoors | 72 / 70 | 72 / 71 | 105 / 101 | 108 / 102 |
+
+- **The main thread** loses 1.7–1.9 ms on High and 0.9–1.6 ms on Medium. The frame rate does not move: the graphics
+  card sets it here.
+- **The render thread** takes 0.7–1.1 ms more on High in these single runs and nothing more on Medium. It stays well
+  under the main thread. Not explained; a guess is the buffer each draw binds, in every pass.
+- **What is left** of the detail pass is the calls themselves: about 1200 buffer draws a frame on High outdoors (480
+  on Medium), one per chunk, drawer and mesh. Fewer draws — one buffer per mesh across chunks — would be the next step;
+  not built.
+- **The same picture, in numbers.** At the end of the outdoor phase the probe compares three frames in a row
+  (`PerfProbe.Instances.cs`): drawn from the buffers, from the arrays, from the buffers again. Buffers and arrays differ
+  by 0.22 % of full scale on High (1.0 % of the pixels moved by more than 16 of 255) and 0.17 % on Medium (0.6 %); two
+  buffer frames differ by 0.37 % (1.6 %) and 0.23 % (0.9 %) — wind and sky alone. The way of drawing changes less than
+  one frame of wind does. Nobody has looked at the picture.
+- A buffer draw is culled as a whole by the box of its instances, per camera and shadow cascade; an array draw never
+  was. Potato, Low and the browser draw none of this.
 
 ### What High's GPU time is made of (2026-11-26, #4050)
 

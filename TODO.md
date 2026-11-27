@@ -26,6 +26,60 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ A lower cockpit desk, and its hologram shows the real system with travelling planets — #4054, #4055 — ✅ done 2026-11-27
+
+Marcel's two points of 2026-11-26 about the cockpit station: the console is so tall that the holographic map sticks to
+the cabin ceiling, and the map shows three circling spheres instead of the system you are in. His choices: keep the
+console but trim it, let the planets travel, lean the map slightly.
+
+- **#4054 The desk is one layer lower** (`Client.Core/StationDecorForms`): a thin body and a shorter screen frame, top
+  edge 5/8 of a block over the desk block instead of 7/8. The map floats just over it at eye height — 1.6 blocks over the
+  cabin floor, where it hung at 2.15 under a ceiling at 3 — and leans 20° toward the pilot, the desk's own slope, so the
+  pilot looks down onto the orbits instead of up at a plate. It hangs on the desk's turning child and so faces the pilot
+  whichever way the desk stands. The square plate that reached into the neighbouring cells is a round sheet inside the
+  cell, and the whole map now stays in the one cell over the desk block. The build editors' outline of the cockpit
+  station (`MarkerSilhouettes`) follows.
+- **#4055 The hologram is the real system** (`Client.Core/HoloSystemMap`, `StationDecorView.HoloMap.cs`). It took the
+  first five entries of the body list (so moons stood in as planets and the rest was cut off), put them at distances made
+  up from the list index and angles hashed from their ids, turned them all together, and let the outer ones sweep through
+  the wall or the station next door. Now it is laid out by `SystemOrreryLayout` — the travel screen's chart: every body
+  where that chart shows it, a ring through every planet, moons beside their planet, a belt as one band — fitted to the
+  cell, with the star in the system's colour and the body you are at bigger and brighter. From there **the planets
+  travel** along their rings in time lapse, in the direction and at a pace from their orbital period (12 s × √days, held
+  to 24–90 s around the star and 6–20 s around a planet); the moons of one planet turn together and so do the members of
+  a belt, so no two dots run into each other; a station or a wreck keeps its place. The map is rebuilt when the star map
+  or the location changes — it used to be built once and never looked again.
+- **Not checked by eye.** Heights, the fit in the cell, the clearance over the desk, the layout and the movement are
+  pinned by tests (`StationDecorFormsTests`, `HoloSystemMapTests`, `MarkerSilhouettesTests`); nobody has looked at the
+  picture. Open for a playtest: the short, wide screen strip of the trimmed desk, and how the map reads at 20°.
+- **Tiers.** The same on every tier and in the browser. Client only: no server, protocol, save or data change.
+
+### 🎛️ The near drawers draw from buffers on the graphics card — #4046 part b — ✅ done 2026-11-27
+
+What the one detail pass per frame (#4053) left over: tufts, the grass carpet with its flowers, grass clumps, plant
+bodies and crown clusters bake their instances once per chunk build, but handed every batch's matrices and per-instance
+vectors to the engine again each frame.
+
+- **Built** (`Scripts/GpuInstances.cs`, `Shaders/GpuInstances.hlsl`): a batch uploads its instances once into a
+  structured buffer and a frame names that buffer (`Graphics.RenderMeshPrimitives`). The six shaders read the instance
+  in their procedural instancing variant — every instanced pass got the option line and a small function that fills the
+  object matrices and the pass's instanced properties from the buffer; the rest of each shader is untouched. The arrays
+  stay as the fallback (a graphics API without structured buffers in a vertex shader, the start option
+  `-instanceArrays`, the browser — where these drawers do not run anyway). Buffers go with their chunk.
+- **Measured** (reference laptop, 1600 × 900 window, Direct3D 12, view distance 8, one run each, the old way in the
+  same build with `-perfFeature instances=arrays`): the detail pass 2.70 → 1.45 ms on High and 1.64 → 0.73 ms on Medium
+  with 129 chunks in reach; the main thread's median 11.5 → 9.5 ms and 7.9 → 6.4 ms. The frame rate stays where the
+  graphics card puts it. The render thread took 0.7–1.1 ms more on High (5.7 → 6.8 ms), nothing more on Medium; not
+  explained. Table in LOOK.md § "Frame cost".
+- **The same picture — in numbers, not by eye.** The probe compares a frame drawn from the buffers with one drawn from
+  the arrays (`PerfProbe.Instances.cs`): they differ by 0.22 % of full scale on High and 0.17 % on Medium, less than
+  two frames drawn the same way differ by wind and sky (0.37 % and 0.23 %). `GpuInstancesWiringTests` pins that every
+  instanced pass has its function, the order of the vectors, the layout of an instance and that buffers are given back.
+  Nobody has looked at the picture; a playtest on High and Medium is open.
+- **Left.** About 1200 buffer draws a frame on High (one per chunk, drawer and mesh) are what the pass still costs;
+  one buffer per mesh across chunks would be the next step. Linux (Vulkan) was not run.
+- **Tiers.** Desktop High and Medium. Potato, Low and the browser draw none of this (ADR 0021).
+
 ### 🧵 Desktop uses its cores: chunk builds by core count, one detail pass per frame, far-view workers, allocation-free generator lookups — measured — epic #4051 (#4044–#4050, #4052), PR #4053 — ✅ done 2026-11-26 (⚠ playtest open; client + Client.Core + world generation (output unchanged, goldens green) + docs; no protocol, save, data or terrain-generation change, no new texts, nothing changes the picture)
 
 Marcel's question of 2026-11-26: High is the desktop showpiece — can it use threads the browser's single thread kept us
@@ -53,8 +107,8 @@ server a process of its own) and four things left; a profiler capture found thre
   chunk view caches its drawers. Main thread, idle: Medium 9.9 → 7.5 ms, High 13.6 → 11.2 ms (medians; the frame rate
   stays where the graphics card puts it on this panel). Part (b) of the issue — instance data that stays on the graphics
   card — is not built: skipping chunks outside the camera's view was tried first and brought 4 % (crowns and plants
-  beside the player still cast into the view), so the 2.6 ms left are the hand-over itself; that needs shader work and a
-  look by eye, and **#4046 stays open for it**.
+  beside the player still cast into the view), so the 2.6 ms left are the hand-over itself — built on 2026-11-27, see
+  the entry above.
 - **#4047 Decoding chunk payloads stays on the main thread — measured.** 0.13–0.26 ms per frame while a view streams,
   of which the envelope's decode is 0.02 ms. Not worth a second thread and its ordering rule.
 - **#4048 Far-view workers** (`Client.Core/FarTerrain/FarPatchWorkers`): one to three sampling threads by processors and

@@ -169,7 +169,13 @@ series depends on it.
 
 `-perfFeature "a=off,b=…"` switches single cost-bearing parts off for one run, so a sweep at a fixed preset and view
 distance itemises a preset's cost; the tokens are listed in `PerfProbe.Features.cs`. Two of them compare a rule of the
-chunk pipeline with the one before it in the same build (`meshbudget=frame`, `loadbudget=off`). Graphics Jobs are a
+chunk pipeline with the one before it in the same build (`meshbudget=frame`, `loadbudget=off`), and
+`instances=arrays` does the same for the near drawers' instance data (#4046 part b: arrays handed over each frame
+instead of buffers on the graphics card). With `-perfOutdoor` a run from the buffers also compares one frame drawn
+from them with one drawn from the arrays, in numbers, beside the difference of two frames drawn the same way
+(`PerfProbe.Instances.cs`; two `[PerfProbe] Instance …` lines in `Player.log`). The probe's world `PerfProbe` is kept
+in `singleplayer-saves/`: a run that finds it continues where the last one stood, so remove it before a run that is to
+be compared with another. Graphics Jobs are a
 setting of the built player, not a switch: `BBS_GRAPHICS_JOBS=1` before `scripts/build-client.ps1` builds a player with
 them for such a comparison (never set by the release scripts; the player's log names the mode it runs in).
 

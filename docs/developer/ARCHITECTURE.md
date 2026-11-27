@@ -241,10 +241,13 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   - *The detail pass* (`GameBootstrap.Detail.cs`, #4046) is main-thread work by nature — it hands instanced
     draws to the engine — so it is kept small instead: one walk per frame over the chunks that carry tufts,
     meadow, grass clumps, plant bodies or crown clusters, and only chunks inside a drawer's reach call it.
-    None of the five drawers has an `Update()` of its own. What is left is the hand-over itself (about
-    2.6 ms per frame on High with 130 chunks in reach): every instanced call copies its matrices and
-    per-instance values to the engine. Skipping chunks outside the camera's view was measured and dropped —
-    4 % — because crowns and plants beside the player still cast into the view.
+    None of the five drawers has an `Update()` of its own. What was left was the hand-over itself (about
+    2.6 ms per frame on High with 130 chunks in reach): every instanced call copied its matrices and
+    per-instance values to the engine. On the desktop that data now stays on the graphics card (#4046 part b,
+    `GpuInstances.cs`, `Shaders/GpuInstances.hlsl`): a batch uploads it once per chunk build into a structured
+    buffer and a frame names the buffer (`Graphics.RenderMeshPrimitives`, the shaders' procedural instancing
+    variant), which halves the pass. The arrays stay as the fallback. Skipping chunks outside the camera's
+    view was measured and dropped — 4 % — because crowns and plants beside the player still cast into the view.
   - *The far view's column mask* is rebuilt four times a second on the main thread (the browser's only one);
     it remembers each column's sampled surface instead of asking the generator again (#4052).
   - The singleplayer server is a process of its own with two to four chunk-generation threads

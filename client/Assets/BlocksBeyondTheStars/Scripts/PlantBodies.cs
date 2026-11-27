@@ -692,6 +692,18 @@ namespace BlocksBeyondTheStars.Client
             return centre;
         }
 
+        /// <summary>Gives the batches' buffers on the graphics card back with the chunk (#4046 part b).</summary>
+        private void OnDestroy()
+        {
+            foreach (var slot in _slots)
+            {
+                foreach (var batch in slot.Batches)
+                {
+                    batch.Release();
+                }
+            }
+        }
+
         private sealed class Slot
         {
             public readonly List<Batch> Batches = new List<Batch>();
@@ -711,6 +723,7 @@ namespace BlocksBeyondTheStars.Client
             private readonly List<Vector4> _accent = new List<Vector4>();
             private MaterialPropertyBlock _props;
             private int _propsLength;
+            private GpuInstances _gpu; // #4046: the same instances on the graphics card
 
             public int Count => _matrices.Count;
 
@@ -751,6 +764,10 @@ namespace BlocksBeyondTheStars.Client
                 _props.SetVectorArray(TintId, _tint);
                 _props.SetVectorArray(LightId, _light);
                 _props.SetVectorArray(AccentId, _accent);
+                if (GpuInstances.Active)
+                {
+                    (_gpu ??= new GpuInstances()).Upload(_matrices, _tile, _tint, _light, _accent);
+                }
             }
 
             public void Draw(Mesh mesh, Material material, ShadowCastingMode cast, int layer)
@@ -760,7 +777,21 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // #4046: the instances are on the graphics card — a frame names the buffer instead of handing the arrays over.
+                if (GpuInstances.Active && _gpu != null && _gpu.Count == Count)
+                {
+                    _gpu.Draw(mesh, material, cast, layer);
+                    return;
+                }
+
                 Graphics.DrawMeshInstanced(mesh, 0, material, _matrices, _props, cast, true, layer, null, LightProbeUsage.Off);
+            }
+
+            /// <summary>Gives the batch's buffer on the graphics card back (the chunk is going).</summary>
+            public void Release()
+            {
+                _gpu?.Release();
+                _gpu = null;
             }
         }
     }
