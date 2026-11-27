@@ -160,4 +160,54 @@ public sealed class VerticalMotionTests
         Assert.Equal(-VerticalMotion.TerminalSpeed, s.VertVel, 3);
         Assert.True(maxStep <= VerticalMotion.TerminalSpeed * (float)Dt + 0.05f, $"the largest step was {maxStep:F2} blocks");
     }
+
+    [Fact]
+    public void GlideBase_FreshState_TakesTheGroundBase()
+    {
+        var s = new VerticalState();
+        Assert.Equal(40f, VerticalMotion.GlideBase(ref s, 40f, Dt));
+        Assert.True(s.GlideHeld);
+        Assert.Equal(40f, s.GlideBaseY);
+    }
+
+    [Fact]
+    public void GlideBase_ClimbsToHigherGroundAtOnce()
+    {
+        var s = new VerticalState();
+        VerticalMotion.GlideBase(ref s, 40f, Dt);
+        Assert.Equal(52f, VerticalMotion.GlideBase(ref s, 52f, Dt)); // a hill ahead: the base is up in one tick
+    }
+
+    [Fact]
+    public void GlideBase_SinksOnlySlowly_WhenTheGroundFallsAway_ThenRestsOnIt()
+    {
+        // Report 2026-11-27: off a hill the glider holds its height and glides down at GlideSinkRate — it no longer
+        // traces the slope at its full ease.
+        var s = new VerticalState();
+        VerticalMotion.GlideBase(ref s, 52f, Dt);
+        float afterOneSecond = 0f;
+        for (int i = 0; i < 15; i++)
+        {
+            afterOneSecond = VerticalMotion.GlideBase(ref s, 40f, Dt);
+        }
+
+        Assert.Equal(52f - VerticalMotion.GlideSinkRate, afterOneSecond, 3);
+
+        float settled = afterOneSecond;
+        for (int i = 0; i < 15 * 20; i++)
+        {
+            settled = VerticalMotion.GlideBase(ref s, 40f, Dt);
+        }
+
+        Assert.Equal(40f, settled); // never below the ground base
+    }
+
+    [Fact]
+    public void GlideBase_LetsGoOfTheHold_ForARelocation()
+    {
+        // A drop deeper than GlideHoldReach is a teleport or a re-placed companion — no ten-second glide down to it.
+        var s = new VerticalState();
+        VerticalMotion.GlideBase(ref s, 120f, Dt);
+        Assert.Equal(60f, VerticalMotion.GlideBase(ref s, 60f, Dt));
+    }
 }

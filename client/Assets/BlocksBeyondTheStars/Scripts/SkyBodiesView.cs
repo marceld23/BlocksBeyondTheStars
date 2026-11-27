@@ -17,6 +17,12 @@ namespace BlocksBeyondTheStars.Client
     /// sessions. Bodies rise and set, are tinted by their planet type, sized by their real walkable size, and
     /// read a touch brighter at night. Pure client ambience driven by the star map; terrain occludes them.
     /// Aboard a station the set is the HOST body's (#1856) — the hull occludes it, the windows show it.
+    /// <para>Player report 2026-11-27: the spheres sit ≤ 460 m from the eye, but the far view draws terrain to 1024 m
+    /// (2048 m on High), so a rising or setting moon stood IN FRONT of every mountain beyond 460 m and its lower half was
+    /// painted over the landscape. Bodies and their ring discs now draw in the sky depth band (<c>_SkyDepth</c> 1,
+    /// SkyDepth.hlsl): just in front of the far plane, still ordered among themselves (a moon before its planet, a
+    /// disc before/behind its sphere), so terrain and clouds at any distance cover them. The ring discs moved from 3001
+    /// to the end of the opaque queue (<see cref="RingBand.SkyRenderQueue"/>) so water is drawn over them too.</para>
     /// </summary>
     public sealed class SkyBodiesView : MonoBehaviour
     {
@@ -49,6 +55,10 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int PhaseSunDirId = Shader.PropertyToID("_PhaseSunDir");
         private static readonly int DayLightId = Shader.PropertyToID("_DayLight");
+        private static readonly int SkyDepthId = Shader.PropertyToID("_SkyDepth");
+
+        /// <summary><c>_SkyDepth</c> mode of the bodies and their rings: by distance (SkyDepth.hlsl).</summary>
+        private const float SkyDepthByDistance = 1f;
 
         private readonly List<SkyBody> _bodies = new();
         private string _builtFor = "\0"; // ActiveLocationId the current set was built for
@@ -208,6 +218,9 @@ namespace BlocksBeyondTheStars.Client
                 // shader from its true phase (night) toward a fully front-lit disc (day) so bodies stay a visible
                 // feature; the crescent/phase still reads at twilight and night. `day` is 0 at night → 1 at noon.
                 b.Mat.SetFloat(DayLightId, day);
+                // Report 2026-11-27: behind every terrain pixel at any distance. Set every frame like _DayLight — a
+                // material switch set only once after `new Material` did not reach its shader on WebGPU (#2843).
+                b.Mat.SetFloat(SkyDepthId, SkyDepthByDistance);
                 float horizon = Mathf.Clamp01((dir.y + 0.04f) / 0.12f);
                 // Overall brightness: a night boost so bodies dominate the dark sky, full strength by day — the
                 // old 0.7 noon dim left the disc 3-4x darker than the ACES-tonemapped daytime sky, which still
@@ -222,6 +235,7 @@ namespace BlocksBeyondTheStars.Client
                     var ringCol = Color.Lerp(b.RingTint * Mathf.Lerp(1.25f, 1f, day), skyCol * 1.05f, day * 0.55f);
                     ringCol.a = Mathf.Lerp(0.62f, 0.38f, day) * horizon;
                     b.RingMat.color = ShaderColor.Srgb(ringCol);
+                    b.RingMat.SetFloat(SkyDepthId, SkyDepthByDistance);
                 }
             }
         }
@@ -427,7 +441,7 @@ namespace BlocksBeyondTheStars.Client
                 Transform ringTf = null;
                 if (body.RingSeed != 0 && apparent >= 14f)
                 {
-                    var ringGo = PlanetRings.Attach(go.transform, body.RingSeed, sunHue, 0.6f, 3001, out ringMat);
+                    var ringGo = PlanetRings.Attach(go.transform, body.RingSeed, sunHue, 0.6f, RingBand.SkyRenderQueue, out ringMat);
                     ringTf = ringGo != null ? ringGo.transform : null;
                     ringTint = PlanetRings.TintFor(body.RingSeed, sunHue);
                 }

@@ -422,7 +422,10 @@ banks it like a flier, from `CreatureMotion.IsSkyGliderBody`.
 
 A legless, wingless, finned Air body: the standard build with fins, the swimmer's body weave
 (`RigDescription.Aquatic`), and `PoseFins` sculling in the air — slower and smaller than in water, and never
-folded, because a hovering fish rows all the time. Also a sky glider.
+folded, because a hovering fish rows all the time. Also a sky glider — it holds its height over hills (ENTITY_MOTION.md,
+"Sky gliders hold their height") and, like every flying animal, casts a drop shadow straight below it (`BlobShadow` flier
+mode, GAME_FEEL.md), so ten blocks over a slope it reads as flying, not as a fish climbing the mountain (report
+2026-11-27, #4061, #4062).
 
 ## The hound (#3327)
 

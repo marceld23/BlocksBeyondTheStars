@@ -106,7 +106,10 @@ reverb and muffling are baked into the clips (`SampleKit`), and a mixer would be
   (`Talk`). A drawn pixel face hides the stock features.
 - **Contact shadow** (`BlobShadow.cs`): a soft quad under players, NPCs, bandits and walking animals where the sun's
   shadow map does not reach — the Potato preset, under a roof, underground, aboard, at night. It hides with the
-  figure (the own body in first person, a cloaked player).
+  figure (the own body in first person, a cloaked player). **Flying animals** (#4062) get a drop
+  shadow straight under them instead: it looks 18 m down, thins with height and shows by day too (fainter — a low sun
+  throws the real shadow far aside), so an air fish ten blocks over a slope reads as flying, not as climbing it. A bird
+  sitting on the ground by day gets none, like a walker. The numbers live in `ContactShadowFade` (Client.Core).
 
 ### The emote wheel and the wire
 

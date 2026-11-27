@@ -26,6 +26,37 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌙 Player reports of 2026-11-27: the sky's ring, moons and planets sit behind the landscape; air fish fly over a hill instead of up its slope, with a drop shadow — #4059, #4060, #4061, #4062 — ✅ done 2026-11-27, branch fix/reports-2026-11-27 (client + Client.Core + shared + server + two shaders; no protocol, save, world-generation or text change)
+
+Two F1 reports (v2026.11.32) and Marcel's add-on "check the moons too — do they really sit at the horizon?". Decisions by
+Marcel 2026-11-27: fix the ring AND the moons/planets (option A), the air fish both steadier (b) and with a shadow (c).
+
+- **The planet's own ring "juts up from the middle of the landscape"** (#4059, and the moons and planets #4060). `RingBand` draws the ring arc as an annulus
+  0.24–0.42 × far from the eye; the far view draws terrain to 1024 m (2048 m on High), so every mountain beyond the ring
+  was painted over. **Moons and planets in the sky** (`SkyBodiesView`, opaque spheres at ≤ 460 m) and their ring discs
+  had the same bug: a setting moon stood in front of the hills, its lower half over the landscape, and in front of
+  distant clouds. (The sun disc was right — drawn before all opaque geometry; stars, nebula and atmosphere since #1582.)
+  New `SkyDepth.hlsl`: in the surface sky `SkyBodyPhase` and `PlanetRing` (`_SkyDepth`, set every frame like `_DayLight`)
+  squeeze their depth into a thin band just in front of the far plane — terrain at any distance the far view reaches
+  covers them, the bodies keep their order among themselves (a moon before its planet, a disc before/behind its sphere),
+  the domes stay behind them. The ring band is the nearest sky layer and moved, with the bodies' ring discs, from queue
+  3001 to 2500 (after the domes, before water and clouds). 0 = real depth everywhere else (space view, cockpit hologram).
+  Every tier the same, shader only, no cost; the browser takes the OpenGL depth branch.
+- **Lyxette: "a fish climbs the mountain"** (#4061). It is an air fish (#1779: red, legless, hovers 9.75 blocks — the snapshot's
+  heights prove it) gliding over the foot of a mountain: it traced the slope at its full 3.5 blocks/s ease, so from the
+  plateau above it looked as if it crawled up the hillside. Sky gliders (air fish, sky rays) now read the NATURAL ground
+  6 blocks ahead and climb early, and hold their height when the ground falls away (sinking 1 block/s,
+  `VerticalMotion.GlideBase`, `GameServer.GlideCruiseBase`). The look-ahead reads the generator's surface, not real
+  blocks: a player's wall stays a wall (a hunting ray lifted itself over a base wall in a first try — #2943's guard test
+  caught it), and it never lifts through a roof over the glider. Tests: `SkyGliderCruiseTests`, `VerticalMotionTests`.
+- **A drop shadow under flying animals** (#4062). `BlobShadow` (#3738) gets a flier mode: it looks 18 m down and thins with
+  height, and shows by day too (at 0.6 — a low sun throws the real shadow far aside), but not under a bird sitting on the
+  ground by day. All flying animals up to size 4 (giants none, as before). Rules in `ContactShadowFade` (Client.Core,
+  `ContactShadowFadeTests`). Every tier; one quad per animal near the camera.
+- Local Windows Unity build green (0 compile errors, no shader errors). OPEN: Marcel's visual acceptance (ring + a moon
+  behind mountains, an air fish over a hill, the drop shadow by day and night; no one has seen it yet), a WebGL build for
+  the browser's depth branch (not run locally — the next release builds it), reply to Lyxette after the merge.
+
 ### 🛰️ A lower cockpit desk, and its hologram shows the real system with travelling planets — #4054, #4055 — ✅ released in v2026.11.32, PR #4056 (`940df822`)
 
 Marcel's two points of 2026-11-26 about the cockpit station: the console is so tall that the holographic map sticks to

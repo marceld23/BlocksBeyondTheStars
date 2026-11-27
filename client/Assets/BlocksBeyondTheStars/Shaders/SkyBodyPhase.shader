@@ -6,6 +6,9 @@
 //
 // DUAL-PIPELINE (URP migration): SubShader 1 is the URP port (HLSL), SubShader 2 the Built-in RP pass (CG).
 // #3462: the URP pass writes stencil bit 64 — the soft distance's composite skips those pixels (sky bodies always sharp).
+// _SkyDepth (player report 2026-11-27, see SkyDepth.hlsl): in the SURFACE sky the body moves into a thin depth band just
+// in front of the far plane, so terrain at any distance covers it — a setting moon at 460 m stood in front of every
+// mountain the far view draws beyond that. 0 (the default) = real depth: the space view, the cockpit hologram.
 Shader "BlocksBeyondTheStars/SkyBodyPhase"
 {
     Properties
@@ -23,6 +26,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
         // silhouette against the bright sky. Front-lighting it by day keeps the body a visible feature; the
         // true crescent/phase is preserved at night/twilight where it looks right. Default 0 → space view unchanged.
         _DayLight ("Daytime front-lit blend", Range(0, 1)) = 0
+        _SkyDepth ("Sky depth (0 off, 1 by distance)", Float) = 0
     }
 
     // ---------------- URP ----------------
@@ -50,6 +54,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "FxCommon.hlsl" // #2153: hash for the planet-scanner resource dots
+            #include "SkyDepth.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -64,6 +69,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float _TermSoft;
                 float _LimbDark;
                 float _DayLight;
+                float _SkyDepth;
             CBUFFER_END
 
             float4 _Sc_Sky; // global: current sky colour (linear, set by Sky.cs) — daytime atmosphere wash
@@ -119,7 +125,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             {
                 Varyings o;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
-                o.positionCS = TransformWorldToHClip(wp);
+                o.positionCS = BbtsSkyDepth(TransformWorldToHClip(wp), wp, _WorldSpaceCameraPos, _SkyDepth);
                 o.wn = TransformObjectToWorldNormal(v.normal);
                 o.wp = wp; // world position → world-space view dir for limb darkening
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
@@ -174,6 +180,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "SkyDepth.hlsl"
 
             fixed4 _Color;
             sampler2D _MainTex;
@@ -183,6 +190,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _TermSoft;
             float _LimbDark;
             float _DayLight;
+            float _SkyDepth;
             float4 _Sc_Sky; // global: current sky colour (linear, set by Sky.cs) — daytime atmosphere wash
 
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
@@ -191,9 +199,9 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             v2f vert(appdata v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.wn = UnityObjectToWorldNormal(v.normal);
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz; // world pos for world-space view dir limb darkening
+                o.pos = BbtsSkyDepth(UnityObjectToClipPos(v.vertex), o.wp, _WorldSpaceCameraPos, _SkyDepth);
+                o.wn = UnityObjectToWorldNormal(v.normal);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }

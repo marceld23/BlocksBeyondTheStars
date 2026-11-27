@@ -86,6 +86,14 @@ Interpolation can only draw what the server simulates. These rules removed kinks
   the step, so the animal halts with its head outside a wall while hills and stairs stay open. **Crowns carry fliers
   only** (`CanopyCarries`): every ground probe of a non-air animal reads leaves as no floor — it neither climbs a crown
   that reaches the ground nor is lifted onto one, and one already up there drops; birds still perch on crowns.
+- **Sky gliders hold their height** (#4061, `GameServer.GlideCruiseBase`, `VerticalMotion.GlideBase`):
+  an air fish or a sky ray used to trace the ground under it at its full 3.5 blocks/s ease — an air fish ten blocks
+  over a slope, seen from a plateau, crawled up the hillside ("a fish climbs the mountain"). Its band base is now the
+  higher of the ground under it and the NATURAL ground (the generator's surface) `GlideLookAhead` = 6 blocks ahead along
+  its step, so it climbs before a hill; and when the ground falls away the base sinks only at `GlideSinkRate` = 1 block/s
+  (a drop beyond `GlideHoldReach` = 24 is a relocation and taken at once). The look-ahead deliberately ignores real
+  blocks: a player's wall or roof ahead stays what it was (a hunting ray read a base wall as a hill and lifted itself
+  over it, wings first), and it never lifts through a roof over the glider. Gas sacs and other hoverers are unchanged.
 - **A scan-drone's hovering body against the blocks** (#2950, `GameServerDroneClearance`): its ground probe used to start
   at the generator's surface and take the nearest standable cavity, so under a raised base a drone spawned and patrolled
   in a tunnel with its body in the roof. The spawn probe now starts at the live column top (`DroneSpawnRefY`: scan down
@@ -197,6 +205,9 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
 - `CreatureBodyBlockTests`: a sky ray beside a roof rides over it and a hunting ray never puts its wings into a wall; a
   big walker stops with its head outside a wall and still climbs a stair; a crawler never climbs a stair of leaves, a
   land animal on a crown comes down, the ground probe reads a crown as floor for fliers only, a bird still perches on one.
+- `SkyGliderCruiseTests` (+ the `GlideBase` cases in `VerticalMotionTests`): an air fish heading for a natural hill
+  climbs before it gets there but not when it flies away, a built wall ahead is never read as a hill, and when the
+  ground under it drops away it glides down slowly and settles on the lower ground.
 - `DroneClearanceTests`: a drone spawned next to a raised base with a tunnel inside appears over the base, a pushed
   drone stops at a low roof but passes a tree crown, a drone buried in a roof is lifted over the raised ground.
 - `NpcGridPathTests`: string-pulling (open square, walls, corners, doorways, steps).

@@ -10,11 +10,26 @@ namespace BlocksBeyondTheStars.Client
     /// arcs across the sky as a pale banded ribbon — bold at night, a faint sky-washed arc by day (the
     /// real-Saturn look). A camera-following annulus (the shared <see cref="PlanetRings"/> mesh/texture,
     /// so the bands match what you saw from orbit) whose plane sits offset from the eye, which turns the
-    /// ring into a wide arc instead of a hairline. Terrain occludes it naturally; the far half sits below
-    /// the horizon. Purely cosmetic, driven by the star map's RingSeed for the active body.
+    /// ring into a wide arc instead of a hairline; the far half sits below the horizon. Purely cosmetic,
+    /// driven by the star map's RingSeed for the active body.
+    /// <para>Player report 2026-11-27 ("the ring does not stand at the horizon, it juts up from somewhere in the
+    /// middle"): the annulus sits 0.24–0.42 × far from the eye, but the far view draws terrain to 1024 m (2048 m on
+    /// High), so everything beyond the ring was painted over — the ring grew out of the landscape. It now draws in
+    /// the sky depth band (<c>_SkyDepth</c> 2, SkyDepth.hlsl: just in front of the far plane, in front of the moons) at
+    /// the end of the opaque queue right after the sky domes (#1582), so terrain at any distance covers it, and water
+    /// and clouds (Transparent) are drawn over it. Same look over open sky as before.</para>
     /// </summary>
     public sealed class RingBand : MonoBehaviour
     {
+        /// <summary>The end of the opaque queue, one after the sky domes (Geometry+499) — after the domes like before
+        /// (the old 3001 drew it over them too), but before water and clouds.</summary>
+        internal const int SkyRenderQueue = 2500;
+
+        /// <summary><c>_SkyDepth</c> mode of the band: the nearest sky layer (SkyDepth.hlsl).</summary>
+        internal const float SkyDepthNearest = 2f;
+
+        private static readonly int SkyDepthId = Shader.PropertyToID("_SkyDepth");
+
         public GameBootstrap Game;
         public Camera Camera;
 
@@ -36,7 +51,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _mat = new Material(shader) { renderQueue = 3001 };
+            _mat = new Material(shader) { renderQueue = SkyRenderQueue };
             var go = new GameObject("RingBand");
             go.transform.SetParent(transform, false);
             go.AddComponent<MeshFilter>().sharedMesh = PlanetRings.AnnulusMesh();
@@ -115,6 +130,9 @@ namespace BlocksBeyondTheStars.Client
             var col = Color.Lerp(_tint, skyCol * 1.05f, day * 0.45f);
             col.a = Mathf.Lerp(0.28f, 0.55f, _fade);
             _mat.color = ShaderColor.Srgb(col);
+            // Set every frame like the colour: a material switch set only once right after `new Material` did not reach
+            // its shader on WebGPU (#2843).
+            _mat.SetFloat(SkyDepthId, SkyDepthNearest);
         }
 
         private void Rebuild(string activeId)
