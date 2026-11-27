@@ -358,7 +358,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.AreEqual(7, tabs.Buttons.Length, "face, torso, arms, legs, helmet, Figure, HUD frame — one bar");
             Assert.AreEqual(5, Get<int>(editor, "_figureTab"));
             Assert.AreEqual(6, Get<int>(editor, "_hudTab"));
-            Assert.Greater(editor.Shell.Canvas.sortingOrder, 55, "above the console (50), the Codex (55) and VEGA over it (52)");
+            Assert.Greater(editor.Shell.Canvas.sortingOrder, 56, "above the console (50), the Codex (55) and VEGA over them (56, #4071)");
             Assert.Less(editor.Shell.Canvas.sortingOrder, 60, "under the F1 form (60) and the console's own dialogs (61)");
             var backdrop = editor.Shell.WorkArea.Find("EditorBackdrop")?.GetComponent<Image>();
             Assert.IsNotNull(backdrop, "an opaque backdrop: the world and the console stay behind");

@@ -157,6 +157,7 @@ namespace BlocksBeyondTheStars.Client
             int cw = 640, ch = 440; // a default until the game creates its canvas on StartGame
             _labels.Hide(); // the last game's words go with it
             EnsureTexture(cw, ch);
+            ShowSurface(false); // #4070: nothing drawn yet — the start card sits on the screen's own dark blue
             _shownState = (MinigameState)(-1);
             ResetKeyState();
             _pad = new MinigamePadMapper(_host.Press, _host.Release, _host.Pointer); // #1218
@@ -184,6 +185,26 @@ namespace BlocksBeyondTheStars.Client
 
         private void HandleResult(MinigameResult r) => OnReport?.Invoke(_key, r.Score, r.Rating, r.Completed);
 
+        /// <summary>
+        /// #4070: the surface shows only while the game has a canvas. A game creates it when a round starts, so on the start
+        /// screen (and after Quit) the texture holds nothing the game drew — a fresh one is Unity's uninitialised grey, a
+        /// reused one the previous game's last frame. A round, the pause and the result screen keep it (the last frame
+        /// stays behind the result card). Hiding it takes the canvas' words along.
+        /// </summary>
+        private void ShowSurface(bool show)
+        {
+            if (_surface.enabled == show)
+            {
+                return;
+            }
+
+            _surface.enabled = show;
+            if (!show)
+            {
+                _labels.Hide();
+            }
+        }
+
         /// <summary>#3352: one note of a game — <c>note_&lt;instrument&gt;_&lt;tone&gt;</c>, the melody block's procedural voices.</summary>
         private static void PlayNote(int instrument, int tone) => ClientAudio.Instance?.Cue("note_" + instrument + "_" + tone, 0.8f);
 
@@ -199,6 +220,7 @@ namespace BlocksBeyondTheStars.Client
 
             // The game (re)creates its canvas on StartGame — match the texture + layout to it.
             var surf = _host.Api.Surface;
+            ShowSurface(surf != null);
             if (surf != null)
             {
                 EnsureTexture(surf.Width, surf.Height);
@@ -497,12 +519,17 @@ namespace BlocksBeyondTheStars.Client
             var g = _host.Game;
             var panel = Panel().transform;
             float pw = ((RectTransform)panel).rect.width;
-            UiKit.AddText(panel, 0, 40, pw, 44, g.Title.Get(_host.Localize), 30, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var title = UiKit.AddText(panel, 20, 40, pw - 40, 44, g.Title.Get(_host.Localize), 30, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.FitLabelSingleLine(title, pw - 40, 20, 30);
             UiKit.AddText(panel, 0, 92, pw, 26, L("ui.minigame.difficulty", "Difficulty") + ": " + g.Difficulty + "/5", 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
-            UiKit.AddText(panel, 40, 140, pw - 80, 140, g.Desc.Get(_host.Localize), 18, UiKit.TextCol, TextAnchor.UpperCenter);
+            // #4069: AddText never wraps — the description is a paragraph, so it wraps inside the card and shrinks a little
+            // before a long translation would be cut.
+            var desc = UiKit.AddText(panel, 40, 140, pw - 80, 140, g.Desc.Get(_host.Localize), 18, UiKit.TextCol, TextAnchor.UpperCenter);
+            UiKit.FitLabel(desc, 14, 18);
             if (!StoryMode)
             {
-                UiKit.AddText(panel, 40, 300, pw - 80, 40, L("ui.minigame.beat_best", "Beat your best for knowledge (+5/+10/+15)"), 14, UiKit.Ok, TextAnchor.MiddleCenter);
+                var beat = UiKit.AddText(panel, 40, 300, pw - 80, 40, L("ui.minigame.beat_best", "Beat your best for knowledge (+5/+10/+15)"), 14, UiKit.Ok, TextAnchor.MiddleCenter);
+                UiKit.FitLabel(beat, 11, 14);
             }
 
             float bw = 200f, by = ((RectTransform)panel).rect.height - 90f;
@@ -524,7 +551,8 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append("• ").Append(line.Get(_host.Localize)).Append('\n');
             }
 
-            UiKit.AddText(panel, 44, 100, pw - 88, 300, sb.ToString(), 18, UiKit.TextCol, TextAnchor.UpperLeft);
+            var help = UiKit.AddText(panel, 44, 100, pw - 88, 300, sb.ToString(), 18, UiKit.TextCol, TextAnchor.UpperLeft);
+            UiKit.FitLabel(help, 12, 18); // #4069: wraps, and a long help shrinks instead of running into Back
             UiKit.AddTierButton(panel, pw / 2 - 100, ((RectTransform)panel).rect.height - 84f, 200, 54, L("ui.minigame.back", "Back"), () => _host.CloseHelp(),
                 ButtonTier.Quiet, "btn_back");
         }
@@ -554,7 +582,8 @@ namespace BlocksBeyondTheStars.Client
             string reward = StoryMode ? string.Empty : r.IsNewBest
                 ? "★ " + L("ui.minigame.new_best", "New best!") + "   +" + r.Knowledge + " " + L("ui.minigame.knowledge", "knowledge")
                 : (r.Completed ? L("ui.minigame.no_new_best", "No new best — beat it for knowledge") : string.Empty);
-            UiKit.AddText(panel, 40, 200, pw - 80, 30, reward, 16, r.IsNewBest ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleCenter);
+            var rewardText = UiKit.AddText(panel, 40, 200, pw - 80, 30, reward, 16, r.IsNewBest ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleCenter);
+            UiKit.FitLabelSingleLine(rewardText, pw - 80, 11, 16); // #4069: one line inside the card in every language
             float bw = 200f, by = ph - 90f;
             UiKit.AddTierButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.play_again", "Play again"), () => _host.StartGame(), ButtonTier.Primary);
             UiKit.AddTierButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.close", "Close"), () =>

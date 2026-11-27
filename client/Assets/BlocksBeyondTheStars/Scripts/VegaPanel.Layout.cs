@@ -102,6 +102,10 @@ namespace BlocksBeyondTheStars.Client
         /// likewise: three of her lines are about the lab's own tabs while it is open (its client lesson
         /// <c>vega.hint.bio_lab_tabs</c>, the first-analysis and no-change hints), and its opaque 1500 × 900 window at order
         /// 59 would hide them. Trade, a dialogue (laid out clear of her panel) and the taming panel keep VEGA under them.
+        /// <para>#4071: the console's Codex and DataQubes sub-screens draw on their own canvases at order 55, above the console;
+        /// with VEGA just above the console (52) her line shone through their near-opaque backdrop as an unreadable ghost. So
+        /// "above the console" means above those two as well — and still under what opens over the console: the appearance
+        /// editor (59), the texture editor and trade (60) and the console's own dialogs (61).</para>
         /// <para>The sorting order alone does not do it under the visor effect: there VEGA's canvas, like every diegetic
         /// canvas, renders through the visor's HUD camera into its render texture, which the visor composite puts under every
         /// screen-space-overlay canvas — the console's included, whatever the order. So while the console is open her canvas
@@ -133,9 +137,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>VEGA's canvas order: just above the HUD (10); above the console (50) or the bio lab (59) while one is
-        /// open.</summary>
-        private const int HudSortingOrder = 11, AboveMenuSortingOrder = 52, AboveLabSortingOrder = 61;
+        /// <summary>VEGA's canvas order: just above the HUD (10); above the console (50) and its Codex / DataQubes screens (55,
+        /// #4071) or the bio lab (59) while one is open.</summary>
+        private const int HudSortingOrder = 11, AboveMenuSortingOrder = 56, AboveLabSortingOrder = 61;
 
         /// <summary>True while the bio lab's window is open (a lookup — never builds the panel).</summary>
         private bool BioLabOpen => Game?.Context.Panel<BioLabUi>()?.IsOpen ?? false;

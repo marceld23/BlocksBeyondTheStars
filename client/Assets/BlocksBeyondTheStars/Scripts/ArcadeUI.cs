@@ -119,7 +119,8 @@ namespace BlocksBeyondTheStars.Client
                 string title = (string.IsNullOrEmpty(e.icon) ? "" : e.icon + "  ") + L(e.titleKey);
                 string hs = best > 0 ? "★ " + best : L("ui.arcade.no_record");
                 var btn = UiKit.AddButton(_rail, 0, y, 270, 64, string.Empty, () => PlayGame(key));
-                UiKit.AddText(btn.transform, 18, 7, 244, 30, title, 17, UiKit.TextCol, TextAnchor.LowerLeft, FontStyle.Bold);
+                var titleText = UiKit.AddText(btn.transform, 18, 7, 244, 30, title, 17, UiKit.TextCol, TextAnchor.LowerLeft, FontStyle.Bold);
+                UiKit.FitLabelSingleLine(titleText, 244, 12, 17); // #4069: "Décodeur de glyphes extraterrestres" stays in its button
                 UiKit.AddText(btn.transform, 18, 37, 244, 20, hs, 13,
                     best > 0 ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
                 y += 72f;
