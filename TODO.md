@@ -26,6 +26,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 Ship submission of 2026-11-27: an unchanged shipped ship is not sent; basedOn survives Save + LOAD — #4064, #4065 — ✅ done 2026-11-27, branch fix/ship-submission-basedon (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
+
+The first ship submission in the inbox (v2026.11.32, Russian UI, key `hammerhead_2`) was the shipped Hammerhead, all 564
+cells unchanged — only the card's stats (hull 220 → 380, shield 60 → 110, speed 0.9 → 1.5, handling 0.75 → 1.0, cargo 200)
+and a larger cabin frame. Its `basedOn` was empty.
+
+- **basedOn got lost** (#4064): LOAD → built-in sets it, but Save writes the user-content copy under `hammerhead_2`
+  (`UserShipFileRules.FreeKey`), and reopening that copy (`LoadUserShip`) or the export (`LoadDesign`) cleared it. Now the
+  export's `ship.json` and the user ship file carry `basedOn` (server and `merge_ship.py` ignore it) and both loaders restore
+  it; `BasedOn()` also falls back to the shipped ship the build still is cell for cell.
+- **Unchanged shipped ship** (#4065): Submit compares the build with every shipped layout (`ShippedShipMatch`, Client.Core:
+  position, kind, id, tint, glow, shape; a shift of the whole build ignored) and refuses a match with
+  `ui.submit.unchanged_ship` (en + de by hand, 12 community languages machine + hand QA), like an empty build.
+  `tools/pull_submissions.py` flags such a ship as `IDENTICAL TO SHIPPED <key>` (`identicalTo` in `submission.json`) for
+  older clients. Tests: `ShippedShipMatchTests`; the text sits in the ship status box of `EditorTextFitTests`.
+- Not in this change: the Station / Village editor has the same pattern (a copied template goes under `<key>_2`, a reopened
+  user template forgets its base, nothing stops an unchanged template) — offered to Marcel as a follow-up.
+
 ### 🌙 Player reports of 2026-11-27: the sky's ring, moons and planets sit behind the landscape; air fish fly over a hill instead of up its slope, with a drop shadow — #4059, #4060, #4061, #4062 — ✅ done 2026-11-27, branch fix/reports-2026-11-27 (client + Client.Core + shared + server + two shaders; no protocol, save, world-generation or text change)
 
 Two F1 reports (v2026.11.32) and Marcel's add-on "check the moons too — do they really sit at the horizon?". Decisions by

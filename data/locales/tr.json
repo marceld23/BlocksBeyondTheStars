@@ -7811,6 +7811,7 @@
   "ui.submit.empty": "Önce bir şey inşa et – gönderilecek bir şey yok.",
   "ui.submit.too_many_cells": "Göndermek için çok büyük: {0} hücre, en fazla {1} izinli. Biraz küçült.",
   "ui.submit.too_large": "Paketli hâliyle bile göndermek için çok büyük. Biraz küçült.",
+  "ui.submit.unchanged_ship": "Bu hâlâ oyunun gemisi “{0}”, blok blok aynı. Önce kendi tasarımını ekle – sonra görmeyi çok isteriz!",
   "ui.submit.not_configured": "Bu yapıyı geliştiricilere gönderemezsin. Bunun yerine kaydet ve klasörü bize gönder.",
   "ui.submit.ship.title": "Bir gemi gönder",
   "ui.submit.ship.intro": "Gemiğini gönder! Oyuna uygunsa ekleyebiliriz – o zaman her oyuncu onu inşa edip uçabilir.",

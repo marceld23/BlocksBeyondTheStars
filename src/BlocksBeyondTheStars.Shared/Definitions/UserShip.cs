@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// and its voxel layout in ONE file, with literal texts instead of locale keys (a player's ship has no locale entry). The
 /// content loader turns it into a <see cref="UserShip"/> (<c>GameContent.SetUserShips</c>): checked, clamped to the editor's
 /// ranges and filled with the defaults <c>tools/merge_ship.py</c> would fill. A file that fails a check is reported and
-/// dropped; it never breaks the load.
+/// dropped; it never breaks the load. The editor also writes <c>basedOn</c> (the shipped ship the design started from, for a
+/// later submission, #4064); the loader does not read it — unknown fields are ignored.
 /// </summary>
 public sealed class UserShipFile
 {

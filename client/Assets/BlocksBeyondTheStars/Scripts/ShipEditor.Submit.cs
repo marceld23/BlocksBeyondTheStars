@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using BlocksBeyondTheStars.Client.Feedback;
 using BlocksBeyondTheStars.Client.Playtests;
 using UnityEngine;
@@ -45,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
                 description = _desc,
                 requiredBlueprint = string.IsNullOrWhiteSpace(_requiredBlueprint) ? null : _requiredBlueprint.Trim(),
                 layout = $"{key}.json",
+                basedOn = BasedOn(key),
                 baseHull = Mathf.Round(_hull),
                 baseShield = Mathf.Round(_shield),
                 flightSpeed = (float)Math.Round(_flightSpeed, 2),
@@ -86,6 +88,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #4065: a shipped ship, block for block, holds nothing the developers could adopt (stats are re-balanced at
+            // merge anyway) — say so kindly instead of sending it, like an empty build.
+            string twin = ShippedShipMatch.Find(DesignCells(), Shell?.Content);
+            if (twin.Length > 0)
+            {
+                Status(string.Format(L("ui.submit.unchanged_ship"), ShippedShipName(twin)), EditorStatusSeverity.Warning);
+                return;
+            }
+
             var payload = BuildPayload(key);
             _capturingPreview = true;
             StartCoroutine(EditorPreviewCapture.FromCamera(_cam, _design.Keys, MaxW, MaxL, png =>
@@ -121,7 +132,8 @@ namespace BlocksBeyondTheStars.Client
             return PlaytestWork.OfCreation(CreationSubmission.KindShip, key, BuildPayload(key));
         }
 
-        /// <summary>The shipped ship this design started from: the one last loaded, or the one whose key it still carries.</summary>
+        /// <summary>The shipped ship this design started from: the one last loaded (also from a saved file, #4064), the one whose
+        /// key it still carries, or the one it still is block for block (a ship saved before its file kept the base).</summary>
         private string BasedOn(string key)
         {
             if (!string.IsNullOrEmpty(_basedOn))
@@ -129,8 +141,33 @@ namespace BlocksBeyondTheStars.Client
                 return _basedOn;
             }
 
-            return Shell?.Content != null && Shell.Content.Ships.ContainsKey(key) ? key : string.Empty;
+            if (Shell?.Content == null)
+            {
+                return string.Empty;
+            }
+
+            return Shell.Content.Ships.ContainsKey(key) ? key : ShippedShipMatch.Find(DesignCells(), Shell.Content);
         }
+
+        /// <summary>The build in layout coordinates, as <see cref="ShippedShipMatch"/> compares it.</summary>
+        private List<CreationCell> DesignCells()
+        {
+            var cells = new List<CreationCell>(_design.Count);
+            foreach (var kv in _design)
+            {
+                var d = kv.Value;
+                cells.Add(new CreationCell(kv.Key.X - Origin.X, kv.Key.Y - Origin.Y, kv.Key.Z - Origin.Z, d.Kind, d.Id, d.Tint, d.Glow, d.Shape));
+            }
+
+            return cells;
+        }
+
+        /// <summary>A shipped ship's name in the player's language (its key when the content does not know it).</summary>
+        private string ShippedShipName(string key)
+            => Shell?.Content != null && Shell.Content.Ships.TryGetValue(key, out var def) ? L(def.NameKey) : key;
+
+        /// <summary>A base read back from a saved file (#4064): a key-shaped word, or empty.</summary>
+        private static string SavedBase(string fromFile) => Slug(fromFile ?? string.Empty);
 
         private void OpenSubmitDialog(string key, CreationPayload payload, byte[] png)
         {

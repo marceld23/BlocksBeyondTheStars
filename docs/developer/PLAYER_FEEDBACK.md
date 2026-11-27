@@ -243,7 +243,17 @@ the texture keeps its approved `ui.tex.submit.*` wording unchanged.
   `ValidateForExport` (ports, seal, door lanes) before it even opens the dialog. A preview above 1 MB is dropped,
   never the creation. The key is reduced to `[a-z0-9_]` (the pull tool's folder name); the typed name travels as is.
 - `basedOn` is the shipped ship/template the player loaded as a starting point (LOAD → built-in), or the shipped key
-  the design still carries — the reviewer sees at once whether it is a remix.
+  the design still carries — the reviewer sees at once whether it is a remix. The Ship Designer keeps it across Save
+  and LOAD (#4064): the export's `ship.json` and the user ship file `usercontent/ship_types/<key>.json` carry a
+  `basedOn` field (the server and `tools/merge_ship.py` ignore it), because the user-content copy of a shipped ship
+  goes under `<key>_2` and its key no longer tells. A ship without the field (saved before) falls back to the shipped
+  ship it still is cell for cell (`ShippedShipMatch`, Client.Core).
+- **An unchanged shipped ship is not sent (#4065).** Before the dialog opens, the Ship Designer compares the build with
+  every shipped layout (`ShippedShipMatch.Find`: position, kind, id, tint, glow and shape of every cell; a shift of the
+  whole build is ignored). A match refuses with `ui.submit.unchanged_ship` ("This is still the game's ship “…”, block
+  for block …"), like an empty build — stats, texts and the cabin frame alone are nothing a reviewer can adopt, and the
+  "I made it myself" consent would not hold. One painted, added or removed block is enough. The first ship submission
+  (2026-11-27) was exactly that case: the shipped Hammerhead with its stats turned up.
 - The same data minimisation as for textures: no e-mail, no install token, no machine facts; `playerName` is the
   nickname. The free text inside the files (ship name/description, device labels and configs, the skin's name) is
   listed on the inbox card for a human review — see *Creation submissions* in [REPORT_HOST.md](REPORT_HOST.md).

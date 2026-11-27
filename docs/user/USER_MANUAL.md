@@ -5902,7 +5902,9 @@ and description, signs and device labels), your nickname, your note, the game ve
 answer — **no e-mail, no location**. A person looks at every submission by hand before anything goes into the game; the
 answer reaches you **in the game**, and a submission that is not adopted is deleted after twelve months at the latest.
 The Station / Village editor first runs the same checks as *Save* (ports, seal, door lanes) and does not send a module of
-more than 60 000 cells; a design that is still too big after packing is refused with a message too. Without a
+more than 60 000 cells; a design that is still too big after packing is refused with a message too. A ship that is
+still one of the game's own ships **block for block** (you only changed its values, name or cabin size) is not sent: the
+status line says which ship it still is. Build, remove or paint at least one block, then *Submit* works. Without a
 connection the submission waits and goes out the next time you start the game.
 
 | Editor | Designs | Export → merge tool |

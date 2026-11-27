@@ -7811,6 +7811,7 @@
   "ui.submit.empty": "Bau zuerst etwas – noch gibt es nichts zum Einreichen.",
   "ui.submit.too_many_cells": "Zu groß zum Einreichen: {0} Zellen, erlaubt sind höchstens {1}. Mach es etwas kleiner.",
   "ui.submit.too_large": "Auch gepackt zu groß zum Einreichen. Mach es etwas kleiner.",
+  "ui.submit.unchanged_ship": "Das ist noch das Spielschiff „{0}“, Block für Block. Bau zuerst etwas Eigenes ein – dann schauen wir es uns gern an!",
   "ui.submit.not_configured": "Diese Version kann nichts an die Entwickler schicken. Speichere es stattdessen und schick uns den Ordner.",
   "ui.submit.ship.title": "Schiff einreichen",
   "ui.submit.ship.intro": "Schick uns dein Schiff! Wenn es gut ins Spiel passt, bauen wir es vielleicht ein – dann können alle Spieler es bauen und fliegen.",
