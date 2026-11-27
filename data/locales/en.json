@@ -7812,6 +7812,7 @@
   "ui.submit.too_many_cells": "Too big to submit: {0} cells, at most {1} are allowed. Make it a bit smaller.",
   "ui.submit.too_large": "Too big to submit, even packed. Make it a bit smaller.",
   "ui.submit.unchanged_ship": "This is still the game's ship “{0}”, block for block. Build something of your own into it first – then we'd love to see it!",
+  "ui.submit.unchanged_structure": "This is still the game's building “{0}”, block for block. Build something of your own into it first – then we'd love to see it!",
   "ui.submit.not_configured": "This build cannot submit to the developers. Save it instead and send us the folder.",
   "ui.submit.ship.title": "Submit a ship",
   "ui.submit.ship.intro": "Send us your ship! If it fits the game we may add it – then every player can build and fly it.",

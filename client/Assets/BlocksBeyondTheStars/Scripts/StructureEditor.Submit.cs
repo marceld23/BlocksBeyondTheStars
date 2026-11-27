@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Client.Feedback;
 using BlocksBeyondTheStars.Client.Playtests;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -15,7 +16,8 @@ namespace BlocksBeyondTheStars.Client
     /// <c>layout.json</c> Save writes — plus the module's <c>kit.json</c> when it belongs to a kit — sent to the
     /// developers through <see cref="CreationSubmitDialog"/> with a picture from the editor's own camera. The save gate
     /// (<see cref="ValidateForExport"/>: ports, seal, door lanes) runs first, and a module above
-    /// <see cref="CreationSubmission.MaxCells"/> cells is refused with a sentence instead of being sent.
+    /// <see cref="CreationSubmission.MaxCells"/> cells is refused with a sentence instead of being sent — and so is a build
+    /// that is still a shipped template cell for cell (#4067, <see cref="ShippedTemplateMatch"/>).
     /// The reviewer adopts it with <c>tools/pull_submissions.py --kind structure</c> and <c>tools/merge_structure.py</c>.
     /// </summary>
     public sealed partial class StructureEditor : IPlaytestWorkSource
@@ -33,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
             public string style = string.Empty;      // #1890: "" = human, "alien" = the alien variant
             public bool underground;                 // #3333: a whole settlement template only the underground stamper seats
             public string protection = string.Empty; // generation 39: "" = auto (the rule of its kind), protected, open; a module none
+            public string basedOn = string.Empty;    // #4067: the shipped template it started from (merge_structure.py ignores it)
         }
 
         // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
@@ -48,6 +51,7 @@ namespace BlocksBeyondTheStars.Client
             public string style = string.Empty;
             public bool underground;
             public string protection = string.Empty;
+            public string basedOn = string.Empty; // #4067: for a later submission — the server's template loader ignores it
             public int width, height, length;
             public List<CellJson> cells = new();
         }
@@ -71,19 +75,7 @@ namespace BlocksBeyondTheStars.Client
             var layout = new LayoutJson();
             foreach (var kv in _design)
             {
-                var d = kv.Value;
-                layout.cells.Add(new CellJson
-                {
-                    x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
-                    kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
-                    tint = d.Tint, glow = d.Glow, shape = d.Shape, port = d.Port ?? string.Empty,
-                    mode = DeviceMode(d), label = DeviceLabel(d), // #2260
-                    // #3523: a marker's settings (a chest, a sound, a den — read by generation-38 worlds) and the keep flag (the
-                    // ruin pass of a fallen whole template or module) travel with every template; Save warns where the target
-                    // ignores them.
-                    config = d.Kind == "marker" ? d.Config ?? string.Empty : DeviceConfig(d),
-                    keep = d.Keep && d.Kind != "marker",
-                });
+                layout.cells.Add(ExportCell(kv.Key, kv.Value));
                 maxX = Mathf.Max(maxX, kv.Key.X);
                 maxY = Mathf.Max(maxY, kv.Key.Y);
                 maxZ = Mathf.Max(maxZ, kv.Key.Z);
@@ -94,6 +86,19 @@ namespace BlocksBeyondTheStars.Client
             layout.length = maxZ + 1;
             return (BuildMeta(key), layout);
         }
+
+        /// <summary>One cell as Save exports it — with the device settings only where they travel.</summary>
+        private CellJson ExportCell(Vector3i at, CellData d) => new CellJson
+        {
+            x = at.X, y = at.Y, z = at.Z,
+            kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
+            tint = d.Tint, glow = d.Glow, shape = d.Shape, port = d.Port ?? string.Empty,
+            mode = DeviceMode(d), label = DeviceLabel(d), // #2260
+            // #3523: a marker's settings (a chest, a sound, a den — read by generation-38 worlds) and the keep flag (the ruin pass
+            // of a fallen whole template or module) travel with every template; Save warns where the target ignores them.
+            config = d.Kind == "marker" ? d.Config ?? string.Empty : DeviceConfig(d),
+            keep = d.Keep && d.Kind != "marker",
+        };
 
         private MetaJson BuildMeta(string key)
         {
@@ -118,33 +123,15 @@ namespace BlocksBeyondTheStars.Client
                 style = _moduleMode && EditorMode == Mode.Settlement ? _style ?? string.Empty : string.Empty,
                 underground = !_moduleMode && EditorMode == Mode.Settlement && _underground,
                 protection = ProtectionWord(), // generation 39: merge_structure.py strips auto
+                basedOn = BasedOn(key),        // #4067: kept in the files, so a reopened copy still names its template
             };
         }
 
         /// <summary>Submit: the save gate, the cell cap, the bundle Save would write (+ kit), a picture, then the dialog.</summary>
         private void Submit()
         {
-            if (_capturingPreview || CreationSubmitDialog.IsAnyOpen)
+            if (_capturingPreview || CreationSubmitDialog.IsAnyOpen || SubmitBlockedByMode())
             {
-                return;
-            }
-
-            if (_entryMode || _previewOn)
-            {
-                // #3523: a generator entry is a file of a few lines (share it); a preview is never the design.
-                SetStatus(L(_entryMode ? "ui.ed.entry.no_submit" : PreviewLockedKey()), EditorStatusSeverity.Warning);
-                return;
-            }
-
-            if (_landmarkMode)
-            {
-                SetStatus(L("ui.ed.landmark.no_submit"), EditorStatusSeverity.Warning); // #3492: a landmark's compact file is no submission bundle yet
-                return;
-            }
-
-            if (_giantShipMode)
-            {
-                SetStatus(L("ui.ed.giantship.no_submit"), EditorStatusSeverity.Warning); // #3616: nor is a giant ship's
                 return;
             }
 
@@ -158,6 +145,15 @@ namespace BlocksBeyondTheStars.Client
             if (_design.Count == 0)
             {
                 SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
+                return;
+            }
+
+            // #4067: a shipped template, cell for cell, holds nothing the developers could adopt — say so kindly instead of
+            // sending it, like an empty build (the Ship Designer does the same, #4065).
+            string twin = ShippedTemplateMatch.Find(MatchCells(), ShippedPool());
+            if (twin.Length > 0)
+            {
+                SetStatus(string.Format(L("ui.submit.unchanged_structure"), ShippedTemplateName(twin)), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -180,6 +176,31 @@ namespace BlocksBeyondTheStars.Client
                 _capturingPreview = false;
                 OpenSubmitDialog(key, payload, png);
             }));
+        }
+
+        /// <summary>True — with the reason in the status line — when the editor's mode has no submission bundle.</summary>
+        private bool SubmitBlockedByMode()
+        {
+            if (_entryMode || _previewOn)
+            {
+                // #3523: a generator entry is a file of a few lines (share it); a preview is never the design.
+                SetStatus(L(_entryMode ? "ui.ed.entry.no_submit" : PreviewLockedKey()), EditorStatusSeverity.Warning);
+                return true;
+            }
+
+            if (_landmarkMode)
+            {
+                SetStatus(L("ui.ed.landmark.no_submit"), EditorStatusSeverity.Warning); // #3492: a landmark's compact file is no submission bundle yet
+                return true;
+            }
+
+            if (_giantShipMode)
+            {
+                SetStatus(L("ui.ed.giantship.no_submit"), EditorStatusSeverity.Warning); // #3616: nor is a giant ship's
+                return true;
+            }
+
+            return false;
         }
 
         private CreationPayload BuildPayload(string key)
@@ -232,7 +253,8 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        /// <summary>The shipped template this design started from: the one last loaded, or the one whose key it carries.</summary>
+        /// <summary>The shipped template this design started from: the one last loaded (also from a saved file, #4067), the one
+        /// whose key it carries, or the one it still is cell for cell (a copy saved before its file kept the base).</summary>
         private string BasedOn(string key)
         {
             if (!string.IsNullOrEmpty(_basedOn))
@@ -240,12 +262,12 @@ namespace BlocksBeyondTheStars.Client
                 return _basedOn;
             }
 
-            if (Shell?.Content == null)
+            var pool = ShippedPool();
+            if (pool == null)
             {
                 return string.Empty;
             }
 
-            var pool = EditorMode == Mode.Station ? Shell.Content.StationTemplates : Shell.Content.SettlementTemplates;
             foreach (var t in pool)
             {
                 if (t.Key == key)
@@ -254,8 +276,43 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return string.Empty;
+            return ShippedTemplateMatch.Find(MatchCells(), pool);
         }
+
+        /// <summary>The shipped templates of this mode (the client's content holds no user templates); null without content.</summary>
+        private IReadOnlyList<StructureTemplate> ShippedPool()
+            => Shell?.Content == null ? null
+                : EditorMode == Mode.Station ? Shell.Content.StationTemplates : Shell.Content.SettlementTemplates;
+
+        /// <summary>The build as Save exports it, as <see cref="ShippedTemplateMatch"/> compares it.</summary>
+        private List<CreationCell> MatchCells()
+        {
+            var cells = new List<CreationCell>(_design.Count);
+            foreach (var kv in _design)
+            {
+                var c = ExportCell(kv.Key, kv.Value);
+                cells.Add(ShippedTemplateMatch.Cell(c.x, c.y, c.z, c.kind, c.id, c.tint, c.glow, c.shape, c.port, c.mode, c.config, c.label, c.keep));
+            }
+
+            return cells;
+        }
+
+        /// <summary>A shipped template's name as the LOAD list shows it (its key when it has none).</summary>
+        private string ShippedTemplateName(string key)
+        {
+            foreach (var t in ShippedPool() ?? Array.Empty<StructureTemplate>())
+            {
+                if (t.Key == key)
+                {
+                    return string.IsNullOrEmpty(t.Name) ? t.Key : t.Name;
+                }
+            }
+
+            return key;
+        }
+
+        /// <summary>A base read back from a saved file (#4067): a key-shaped word, or empty.</summary>
+        private static string SavedBase(string fromFile) => Slug(fromFile ?? string.Empty);
 
         private void OpenSubmitDialog(string key, CreationPayload payload, byte[] png)
         {

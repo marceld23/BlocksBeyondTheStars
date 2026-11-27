@@ -109,7 +109,7 @@ namespace BlocksBeyondTheStars.Client
                     Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
                     Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
                     Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit,
-                        function: t.function, style: t.style, underground: t.underground, protection: t.protection),
+                        function: t.function, style: t.style, underground: t.underground, protection: t.protection, basedOn: t.basedOn),
                 });
             }
 

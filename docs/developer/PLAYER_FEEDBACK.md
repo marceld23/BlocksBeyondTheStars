@@ -254,6 +254,16 @@ the texture keeps its approved `ui.tex.submit.*` wording unchanged.
   for block …"), like an empty build — stats, texts and the cabin frame alone are nothing a reviewer can adopt, and the
   "I made it myself" consent would not hold. One painted, added or removed block is enough. The first ship submission
   (2026-11-27) was exactly that case: the shipped Hammerhead with its stats turned up.
+- **The Station / Village editor does the same (#4067).** `structure.json` (`MetaJson`) and the user-content template
+  (`TemplateJson`) carry `basedOn` (the server's template loader and `tools/merge_structure.py` ignore it), and both
+  loaders — the user-template section and an export bundle — pass it back into `ApplyTemplate` (a copy of a shipped
+  template stays based on that template). Submit compares the build, as Save exports it (`ExportCell`), with every shipped
+  template of the editor's mode (`ShippedTemplateMatch.Find` over `GameContent.StationTemplates` /
+  `SettlementTemplates` — on the client those hold only the shipped ones): position, kind, id, tint, glow, shape **and**
+  port, mode, config, label, keep, a whole-build shift ignored. A match refuses with `ui.submit.unchanged_structure`; a
+  renamed template or another tier is no change, one new sign text or device setting is. Known gap: a few old templates
+  that authored doors as blocks heal into door markers on load, so their copy no longer compares equal and is sent as
+  before.
 - The same data minimisation as for textures: no e-mail, no install token, no machine facts; `playerName` is the
   nickname. The free text inside the files (ship name/description, device labels and configs, the skin's name) is
   listed on the inbox card for a human review — see *Creation submissions* in [REPORT_HOST.md](REPORT_HOST.md).

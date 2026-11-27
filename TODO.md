@@ -26,6 +26,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏗️ Station / Village editor: basedOn survives Save + LOAD; an unchanged shipped template is not sent — #4067 — ✅ done 2026-11-27, branch fix/structure-submission-basedon (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
+
+The follow-up Marcel asked for after the ship fix below: the Station / Village editor had the same two gaps.
+
+- **basedOn:** `structure.json` (`MetaJson`) and `usercontent/<kind>_templates/<key>.json` (`TemplateJson`) now carry it;
+  the user-template section and `LoadDesign` pass it to `ApplyTemplate` (new `basedOn` parameter). `BasedOn()` falls back to
+  the shipped template the build still is. `BuildExport`'s cell mapping moved into `ExportCell`, which the comparison reuses.
+- **Unchanged template:** Submit refuses a build that is cell for cell a shipped template of its mode (`ShippedTemplateMatch`,
+  Client.Core — device settings, sign texts and the keep flag included) with `ui.submit.unchanged_structure` (en + de by
+  hand, 12 community languages machine + hand QA aligned with `ui.submit.unchanged_ship`). `tools/pull_submissions.py` flags
+  such a structure submission too (all 146 station + 294 settlement templates recognise themselves). Tests:
+  `ShippedTemplateMatchTests`; the text sits in the structure status box of `EditorTextFitTests`.
+- Known gap: old templates with doors authored as blocks heal into door markers on load — their copy is sent as before.
+
 ### 🚀 Ship submission of 2026-11-27: an unchanged shipped ship is not sent; basedOn survives Save + LOAD — #4064, #4065 — ✅ done 2026-11-27, branch fix/ship-submission-basedon (client + Client.Core + tools + texts in all 14 languages; no protocol, save or world-generation change)
 
 The first ship submission in the inbox (v2026.11.32, Russian UI, key `hammerhead_2`) was the shipped Hammerhead, all 564
@@ -41,8 +55,7 @@ and a larger cabin frame. Its `basedOn` was empty.
   `ui.submit.unchanged_ship` (en + de by hand, 12 community languages machine + hand QA), like an empty build.
   `tools/pull_submissions.py` flags such a ship as `IDENTICAL TO SHIPPED <key>` (`identicalTo` in `submission.json`) for
   older clients. Tests: `ShippedShipMatchTests`; the text sits in the ship status box of `EditorTextFitTests`.
-- Not in this change: the Station / Village editor has the same pattern (a copied template goes under `<key>_2`, a reopened
-  user template forgets its base, nothing stops an unchanged template) — offered to Marcel as a follow-up.
+- The Station / Village editor had the same pattern — done in the follow-up #4067 above.
 
 ### 🌙 Player reports of 2026-11-27: the sky's ring, moons and planets sit behind the landscape; air fish fly over a hill instead of up its slope, with a drop shadow — #4059, #4060, #4061, #4062 — ✅ done 2026-11-27, branch fix/reports-2026-11-27 (client + Client.Core + shared + server + two shaders; no protocol, save, world-generation or text change)
 

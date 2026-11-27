@@ -108,7 +108,7 @@ public sealed partial class EditorTextFitTests
             "ui.ed.landmark.kept", "ui.ed.landmark.unkept", "ui.ed.landmark.problem", "ui.ed.landmark.saved", "ui.ed.landmark.no_submit",
             "ui.ed.marker.none", "ui.ed.marker.applied", "ui.ed.giantship.preview_shown", "ui.ed.giantship.saved", "ui.ed.giantship.no_submit",
             "ui.ed.giantship.door_unclear", "ui.ed.civ.saved", "ui.struct.new_done", "ui.ed.zone.corner", "ui.ed.zone.set", "ui.ed.zone.full",
-            "ui.ed.zone.not_ruin", "ui.ed.zone.outside") with { Sample = "my_town" },
+            "ui.ed.zone.not_ruin", "ui.ed.zone.outside", "ui.submit.unchanged_structure") with { Sample = "my_town" },
         Wrap("StructureEditor status: a check's problem (shell status bar, 1140)", 1140f, 2, 16, "ui.problem.*.*") with { Sample = "my_town" },
         Lines("StructureEditor key line (shell status bar, 680×44)", 680f, 44f, 16, 16, 16, "ui.struct.hint_mouse", "ui.struct.hint_pad_build",
             "ui.struct.hint_pad_panels"),
