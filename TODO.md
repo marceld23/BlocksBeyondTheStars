@@ -26,14 +26,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌱 World options: the seed field on the main page — #4082, branch feat/seed-main-page — ✅ done 2026-11-28 (client only; no protocol, save, text or world-generation change)
+- At the bottom of "Hand-designed structures…" nobody found the seed box (#4078). It is now a row of the main page's right
+  column (*Generated world*), under **Universe size** and above the Stories row — a new `InputRow` helper beside `Row` and
+  `LinkRow` (label left, the box over the slider's place, the same `RowH`); the column ends at y 722, 56 px above the
+  footer. The structures page is back to its old layout (62 px rows, no seed line). `WorldOptionsLayoutTests` counts
+  `InputRow` calls in the column replay; `Seed_HasARowOnTheMainPage_AndReachesTheLaunch` replaces the structures-page
+  test. Texts unchanged (the same two keys).
+
 ### 🌱 World seed: an optional seed field, the name only a label, the seed in My worlds and in the reports — #4078, #4079, #4080, branch feat/world-seed — ✅ done 2026-11-28 (client + server + report inbox; protocol: one appended contractless `JoinAccepted` field; no save, data or world-generation change)
 - **Seed field, name decoupled** (#4078). A new world's seed used to be the hash of its name (the server's
   `StableHash(WorldName)` when no `--seed` came), so the name *was* the world. The new-world form now always passes a
-  seed: **World options → Hand-designed structures… → Seed**, optional — empty rolls a random one, a whole number is that
+  seed: **World options → Seed** (first at the bottom of "Hand-designed structures…", moved to the main page by #4082),
+  optional — empty rolls a random one, a whole number is that
   seed, any other text is `WorldGenerator.StableHash(text)` — the very hash the name got, so an old world's name typed as
   the seed makes that old world again; `0` and too-long numbers hash as text (`Client.Core/WorldSeedInput`). The dice
-  button "Random" (#2522) is gone with `RandomWorldName`; the name box takes the row. The page's rows step 56 px (was 62)
-  so the seed line fits above the footer. A preset never wipes a typed seed. The server's "seed 0 = derive from the name"
+  button "Random" (#2522) is gone with `RandomWorldName`; the name box takes the row. (The structures page's rows were
+  squeezed to 56 px for the seed line; #4082 moved the line to the main page and gave them back 62 px.) A preset never
+  wipes a typed seed. The server's "seed 0 = derive from the name"
   stays for dedicated servers, `BBS_SEED`, the playtest worlds and the tool runs; `--seed` is now written and parsed in
   the invariant culture (a negative seed under a U+2212 minus culture such as Swedish was refused before). Existing
   worlds are untouched: their seed is read from the save, the name is never hashed again. Tests: `WorldSeedInputTests`,

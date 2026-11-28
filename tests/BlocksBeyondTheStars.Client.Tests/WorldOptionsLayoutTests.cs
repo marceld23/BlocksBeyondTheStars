@@ -61,7 +61,7 @@ public sealed class WorldOptionsLayoutTests
         // the Row() helper is not matched (no numeric literal), so rows are counted exactly once.
         var steps = Regex.Matches(
             source,
-            $@"(?<step>\b{cursor} \+= (?<n>[0-9.]+)f;)|(?<row>\b(?:Row|LinkRow)\((?<side>true|false),)",
+            $@"(?<step>\b{cursor} \+= (?<n>[0-9.]+)f;)|(?<row>\b(?:Row|LinkRow|InputRow)\((?<side>true|false),)",
             RegexOptions.CultureInvariant,
             TimeSpan.FromSeconds(5));
 
@@ -208,9 +208,9 @@ public sealed class WorldOptionsLayoutTests
     }
 
     /// <summary>The authored-structures page (#1114, #2353, #2632, #3614) is a fixed grid too: its left column — the two
-    /// template sliders, the galaxy header, the galaxy switches, the debris fields, the derelicts, the giant ship wrecks, the
-    /// read-only terrain-generation line and the seed field (#4078) — must end above the footer. Replayed from the source:
-    /// the start <c>y</c>, every literal <c>y += n f</c> step, then the 40 px last line.</summary>
+    /// template sliders, the galaxy header, the galaxy switches, the debris fields, the derelicts, the giant ship wrecks and the
+    /// read-only terrain-generation line — must end above the footer. Replayed from the source: the start <c>y</c>, every
+    /// literal <c>y += n f</c> step, then the 40 px terrain-generation line.</summary>
     [Fact]
     public void StructuresPage_LeftColumn_EndsAboveTheFooterButtons()
     {
@@ -231,26 +231,33 @@ public sealed class WorldOptionsLayoutTests
 
         Assert.True(steps >= 8, $"Only {steps} steps parsed on the structures page — the guard lost track of the layout.");
         Assert.Contains("UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L(\"ui.worldopt.terrain_generation\")", page, StringComparison.Ordinal);
-        Assert.Contains("UiKit.AddInput(parent, 320f, y, 450f, 40f, opt.SeedText", page, StringComparison.Ordinal);
-        float bottom = y + LabelH; // the seed field's 40 px line closes the column
+        float bottom = y + LabelH; // the terrain-generation line closes the column
         Assert.True(bottom + MinClearance <= footerY,
             $"The structures page's left column ends at y={bottom}, under the footer buttons at y={footerY}.");
     }
 
-    /// <summary>#4078: the world's seed has an optional field on the galaxy &amp; terrain page, and what is typed there reaches
-    /// the launch — the new-world form resolves it (empty = random) instead of leaving the seed to the server's
-    /// "derive it from the name"; the dice button "Random" is gone; a difficulty preset never wipes a typed seed.</summary>
+    /// <summary>#4078/#4082: the world's seed has an optional field on the MAIN page — a row of the right column, under the
+    /// universe size (at the bottom of "Hand-designed structures…" nobody found it) — and what is typed there reaches the
+    /// launch: the new-world form resolves it (empty = random) instead of leaving the seed to the server's "derive it from
+    /// the name"; the dice button "Random" is gone; a difficulty preset never wipes a typed seed.</summary>
     [Fact]
-    public void Seed_HasAFieldOnTheStructuresPage_AndReachesTheLaunch()
+    public void Seed_HasARowOnTheMainPage_AndReachesTheLaunch()
     {
         string source = Source();
+        var row = Regex.Match(source,
+            @"InputRow\(false, shell\.L\(""ui\.worldopt\.seed""\), shell\.L\(""ui\.worldopt\.seed_placeholder""\), WorldSeedInput\.MaxLength,\s*\(\) => opt\.SeedText, v => opt\.SeedText = v\);",
+            RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+        Assert.True(row.Success, "The seed row should be an InputRow of the main page's right column.");
+        int universe = source.IndexOf("Row(false, shell.L(\"ui.worldopt.universe\")", StringComparison.Ordinal);
+        int stories = source.IndexOf("LinkRow(false, shell.L(\"ui.worldopt.stories\")", StringComparison.Ordinal);
+        Assert.True(universe >= 0 && universe < row.Index && row.Index < stories, "The seed row sits between Universe size and the Stories row.");
+
+        // Gone from the structures page — one seed box only.
         int start = source.IndexOf("private static void BuildStructures(", StringComparison.Ordinal);
         int end = source.IndexOf("// Pack picker (right column)", start, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);
-        string page = source.Substring(start, end - start);
-        Assert.Contains("shell.L(\"ui.worldopt.seed\")", page, StringComparison.Ordinal);
-        Assert.Contains("v => opt.SeedText = v", page, StringComparison.Ordinal);
-        Assert.Contains("placeholder: shell.L(\"ui.worldopt.seed_placeholder\"), maxLength: WorldSeedInput.MaxLength", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("ui.worldopt.seed", source.Substring(start, end - start), StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(source, @"opt\.SeedText = v", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2)));
 
         string scripts = Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
         string create = File.ReadAllText(Path.Combine(scripts, "UiSaveSelect.Create.cs"));

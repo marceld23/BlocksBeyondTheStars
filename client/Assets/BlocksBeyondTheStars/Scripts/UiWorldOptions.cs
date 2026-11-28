@@ -138,6 +138,19 @@ namespace BlocksBeyondTheStars.Client
                 if (leftCol) { ly += RowH; } else { ry += RowH; }
             }
 
+            // A row with a text box instead of a slider (#4082: the seed): the label where a slider row has its label, the box
+            // over the slider and its value. Same height and pitch — WorldOptionsLayoutTests counts these calls as rows too.
+            // Presets leave it alone (no rebuilder): they are about difficulty, not about which world is generated.
+            void InputRow(bool leftCol, string label, string placeholder, int maxLength, System.Func<string> get, System.Action<string> set)
+            {
+                float x = leftCol ? lx : rx;
+                float y = leftCol ? ly : ry;
+                UiKit.AddText(main.transform, x, y, 280f, 40f, label, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddInput(main.transform, x + 290f, y, 740f - 290f, 40f, get(), v => set(v),
+                    placeholder: placeholder, maxLength: maxLength, fontSize: 16);
+                if (leftCol) { ly += RowH; } else { ry += RowH; }
+            }
+
             // Left column: the living world + threats.
             UiKit.AddText(main.transform, lx, ly, 700f, 24f, shell.L("ui.worldopt.col_life"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ly += 34f;
@@ -175,10 +188,16 @@ namespace BlocksBeyondTheStars.Client
             // Four steps since #3997 (24 / 36 / 48 / 64 systems, WorldCreationOptions.UniverseSystems): the whole galaxy
             // exists from the start and every player charts it; the old fifth step "Growing" (#1123) is gone.
             Row(false, shell.L("ui.worldopt.universe"), L4("ui.worldopt.size"), () => opt.UniverseSize, v => opt.UniverseSize = v);
+            // #4078/#4082: the world's seed, optional — empty rolls a random world, a number or a word always makes the same
+            // world (with the same options and terrain generation); the new-world form resolves it (WorldSeedInput). Here, on
+            // the main page, because nobody looked for it at the bottom of "Hand-designed structures…".
+            InputRow(false, shell.L("ui.worldopt.seed"), shell.L("ui.worldopt.seed_placeholder"), WorldSeedInput.MaxLength,
+                () => opt.SeedText, v => opt.SeedText = v);
 
             // Stories (#2472, was the "Story" header + the storyline and pace sliders): ONE row "Stories: VEGA · Tutorial
             // Auto ›" that opens the Stories page — main story, pace and the tutorial's world rule. The page is a sub-page
-            // because this column has no room for another row (14 px left above the footer, WorldOptionsLayoutTests).
+            // because its choices never fitted this column; with the seed row (#4082) the column ends at y 722, 56 px above the
+            // footer (WorldOptionsLayoutTests) — room for one more row, not for a page of choices.
             ry += 10f;
             System.Action refreshStories = null;
             LinkRow(false, shell.L("ui.worldopt.stories"),
@@ -569,7 +588,7 @@ namespace BlocksBeyondTheStars.Client
             float y = 96f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.station_templates"), freqSteps,
                 () => opt.StationTemplates, v => opt.StationTemplates = v, rebuilders: null);
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.settlement_templates"), freqSteps,
                 () => opt.SettlementTemplates, v => opt.SettlementTemplates = v, rebuilders: null);
 
@@ -582,52 +601,44 @@ namespace BlocksBeyondTheStars.Client
             var galaxyOnOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.variance"), galaxyOnOff,
                 () => opt.SystemVariance ? 1 : 0, v => opt.SystemVariance = v == 1, rebuilders: null);
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.belts"), galaxyOnOff,
                 () => opt.AsteroidBelts ? 1 : 0, v => opt.AsteroidBelts = v == 1, rebuilders: null);
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.continents"), galaxyOnOff,
                 () => opt.TerrainContinents ? 1 : 0, v => opt.TerrainContinents = v == 1, rebuilders: null);
 
             // Debris fields (#2353): how many systems hold one. Here, not on the main page — its grid is full
             // (WorldOptionsLayoutTests pins the footer clearance), and the wormholes already took the last row there.
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.debris_fields"), freqSteps,
                 () => opt.DebrisFields, v => opt.DebrisFields = v, rebuilders: null);
 
             // Derelict stations (#2632): one near the start, otherwise rarely one to three in a system; Off removes them all.
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.derelicts"), freqSteps,
                 () => opt.Derelicts, v => opt.Derelicts = v, rebuilders: null);
 
             // Giant ship wrecks (#3614): one in the start system, otherwise rarely one in a system and on about every 20th
             // planet of a new world; Off removes them all — in space and on the planets.
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.giant_wrecks"), freqSteps,
                 () => opt.GiantWrecks, v => opt.GiantWrecks = v, rebuilders: null);
 
             // Guide towers (#3893): the ruin of a guide tower on about every sixth inhabited world of a new world, and
             // one for sure; Off removes them all.
-            y += 56f;
+            y += 62f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.sps_towers"), freqSteps,
                 () => opt.SpsTowers, v => opt.SpsTowers = v, rebuilders: null);
 
             // Landscape-variety package (#1644): the terrain generation is pinned to the newest one this launcher
             // knows (WorldCreationOptions.TerrainGeneration) — shown read-only so the panel says which landform
             // set the new world rolls; the classic set (0) stays a server-CLI escape hatch, not a slider.
-            y += 56f;
+            y += 62f;
             UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L("ui.worldopt.terrain_generation"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddText(parent, 320f, y, 450f, 40f,
                 shell.L("ui.worldopt.terrain_generation_value").Replace("{gen}", opt.TerrainGeneration.ToString()),
                 15, UiKit.Cyan, TextAnchor.MiddleLeft);
-
-            // #4078: the world's seed, optional — the box says what an empty one means. A number or a word always makes the
-            // same world (with the same options and terrain generation); the new-world form resolves it (WorldSeedInput).
-            // The rows above step 56 px like the main page's grid, so this one fits above the footer.
-            y += 56f;
-            UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L("ui.worldopt.seed"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(parent, 320f, y, 450f, 40f, opt.SeedText, v => opt.SeedText = v,
-                placeholder: shell.L("ui.worldopt.seed_placeholder"), maxLength: WorldSeedInput.MaxLength, fontSize: 16);
 
             // Pack picker (right column): one toggle per pack; "on" = enabled = not in DisabledPacks.
             float px = 820f, py = 96f;
