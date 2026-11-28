@@ -238,7 +238,8 @@ public sealed partial class GameServer
             () => new CrashReportWriter(
                 BugReportPaths.ResolveCrashes(Path.Combine(_repo.WorldDirectory, "crashes")),
                 _config.WorldName,
-                ServerVersionString),
+                ServerVersionString,
+                _meta?.Seed ?? 0L), // #4080: built at the first crash, when the world's metadata is loaded
             LazyThreadSafetyMode.ExecutionAndPublication);
         ConstructSystems();
         WireSoundersStory(); // #3368: the Sounders' Song — puzzle starters, solved handlers, the dialog listener
@@ -4346,6 +4347,7 @@ public sealed partial class GameServer
         {
             PlayerId = state.PlayerId,
             WorldSeed = _meta.Seed,
+            WorldName = _config.WorldName, // #4080: the save's name (as "My worlds" lists it) — reports name it beside the seed
             PlanetType = joinBodyType,
             PlanetName = planetName,
             SystemName = systemName,

@@ -374,6 +374,12 @@ public static class ReportHostPages
         AppendRow(sb, "E-mail", r.Email);
         AppendRow(sb, "Version", $"{r.GameVersion} {r.BuildNumber}".Trim());
         AppendRow(sb, "Platform", r.Platform);
+        string world = WorldLine(r.ReportJson);
+        if (world.Length > 0)
+        {
+            AppendRow(sb, "World", world); // #4080: which save, beside its seed — without scrolling the raw JSON
+        }
+
         AppendRow(sb, "Session", r.SessionId);
         AppendRow(sb, "Client time", r.ClientTimestamp);
         AppendRow(sb, "Report id", r.Id);
@@ -490,6 +496,43 @@ public static class ReportHostPages
 
     private static void AppendRow(StringBuilder sb, string label, string value)
         => sb.Append($"<tr><th>{label}</th><td>{E(value)}</td></tr>");
+
+    /// <summary>#4080: the world a report came from, as one Meta line — "name · seed n". The client's reports carry
+    /// <c>reportJson.worldName</c>/<c>worldSeed</c> (an F1 report from a world, a client crash report while one is joined),
+    /// a server crash report <c>world</c>/<c>seed</c>. Empty when the payload names neither (a menu report, an older client)
+    /// or does not parse — the row is then left out.</summary>
+    public static string WorldLine(string payload)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(payload);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object
+                || !doc.RootElement.TryGetProperty("reportJson", out var rj) || rj.ValueKind != JsonValueKind.Object)
+            {
+                return string.Empty;
+            }
+
+            string name = StringOf(rj, "worldName") ?? StringOf(rj, "world") ?? string.Empty;
+            long? seed = LongOf(rj, "worldSeed") ?? LongOf(rj, "seed");
+            if (seed == 0L)
+            {
+                seed = null; // the F1 report's "no world" placeholder
+            }
+
+            string seedText = seed is long s ? "seed " + s.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+            return name.Length > 0 && seedText.Length > 0 ? name + " · " + seedText : name + seedText;
+        }
+        catch (JsonException)
+        {
+            return string.Empty;
+        }
+
+        static string? StringOf(JsonElement o, string key)
+            => o.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String && v.GetString() is { Length: > 0 } text ? text : null;
+
+        static long? LongOf(JsonElement o, string key)
+            => o.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out long n) ? n : null;
+    }
 
     private static string Pretty(string json)
     {

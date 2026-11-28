@@ -39,6 +39,11 @@ public sealed class WorldSaveSummary
     /// <see cref="ModeSandbox"/>, by <see cref="ModeOf"/>. Absent from sidecars written before #3664.</summary>
     public string Mode { get; set; } = string.Empty;
 
+    /// <summary>The world's seed (#4079: the picker's world details show it, with a Copy button) — the
+    /// <see cref="WorldMetadata.Seed"/> the world was generated from. Absent (0) from sidecars written before #4079; the
+    /// next save of the world writes it.</summary>
+    public long Seed { get; set; }
+
     /// <summary>The <see cref="Mode"/> of a world (#3664) — the one rule both repositories write: <see cref="ModeSandbox"/>
     /// when the world's rules run in <see cref="GameMode.Creative"/>; else <see cref="ModeCreative"/> when a Creative world
     /// option is set (<see cref="WorldMetadata.CreativeUnlockAllBlueprints"/>, <see cref="WorldMetadata.CreativeStartAllShips"/>,

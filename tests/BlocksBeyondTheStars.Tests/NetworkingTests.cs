@@ -157,11 +157,12 @@ public class NetworkingTests
         Assert.Equal("Pilot", join.PlayerName);
 
         // Server replies; client processes it.
-        server.Send(connectedId, NetCodec.Encode(new JoinAccepted { PlayerId = "p1", WorldSeed = 99 }),
+        server.Send(connectedId, NetCodec.Encode(new JoinAccepted { PlayerId = "p1", WorldSeed = 99, WorldName = "Lyxettes_Welt" }),
             DeliveryMode.ReliableOrdered);
         client.Poll();
         var accepted = Assert.IsType<JoinAccepted>(clientGot);
         Assert.Equal("p1", accepted.PlayerId);
         Assert.Equal(99, accepted.WorldSeed);
+        Assert.Equal("Lyxettes_Welt", accepted.WorldName); // #4080: the reports name the world
     }
 }

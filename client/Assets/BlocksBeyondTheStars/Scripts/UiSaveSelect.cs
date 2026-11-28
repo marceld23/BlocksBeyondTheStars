@@ -32,8 +32,10 @@ namespace BlocksBeyondTheStars.Client
 
         // The selected world: its "last played" picture on top (16:9, WorldPreviewFrame — a placeholder until it has one), the
         // facts beside it, the name, mode line and Play under it; Play ends 30 px above the hosting row's divider (LanY - 14).
+        // Four facts (mode, last played, playtime, seed — #4079) at 66 px end at y 290, inside the picture's 24..294.
         private const float ShotX = 32f, ShotY = 24f, ShotW = 480f, ShotH = 270f;
-        private const float FactsX = ShotX + ShotW + 32f, FactsW = PaneW - 32f - FactsX, FactPitch = 88f;
+        private const float FactsX = ShotX + ShotW + 32f, FactsW = PaneW - 32f - FactsX, FactPitch = 66f;
+        private const float SeedCopyW = 130f;
         private const float NameY = ShotY + ShotH + 14f, PlayY = NameY + 92f;
 
         /// <summary>
@@ -161,7 +163,9 @@ namespace BlocksBeyondTheStars.Client
             private GameObject _detail, _empty, _create, _deleteButton;
             private Button _play, _emptyNew; // the pad's first focus once the list is there (with a world / without one)
             private Text _detailName, _detailMeta;
-            private readonly Text[] _facts = new Text[3]; // mode, last played, playtime
+            private readonly Text[] _facts = new Text[4]; // mode, last played, playtime, seed (#4079)
+            private Button _seedCopy;
+            private Text _seedCopyLabel;
             private WorldPreviewFrame _preview;
 
             // Delete confirmation (built last so it draws on top).
@@ -276,16 +280,41 @@ namespace BlocksBeyondTheStars.Client
                     ButtonTier.Primary, "btn_new");
             }
 
-            // The facts beside the picture: what the list row says, larger and labelled.
+            // The facts beside the picture: what the list row says, larger and labelled — and the seed (#4079) with a Copy
+            // button, so a world can be shared or made again (the seed field in World options takes the copied number).
+            private const int SeedFact = 3;
+
             private void BuildFacts(Transform d)
             {
-                string[] labels = { "ui.save.mode", "ui.save.last_played", "ui.save.playtime" };
+                string[] labels = { "ui.save.mode", "ui.save.last_played", "ui.save.playtime", "ui.save.seed" };
                 for (int i = 0; i < labels.Length; i++)
                 {
                     float y = ShotY + 4f + i * FactPitch;
                     UiKit.AddKicker(d, FactsX, y, FactsW, _shell.L(labels[i]));
-                    _facts[i] = UiKit.AddText(d, FactsX, y + 26f, FactsW, 38f, "", 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    _facts[i] = UiKit.AddText(d, FactsX, y + 26f, FactWidth(i), 38f, "", 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
                 }
+
+                float copyY = ShotY + 4f + SeedFact * FactPitch + 26f;
+                _seedCopy = UiKit.AddTierButton(d, FactsX + FactsW - SeedCopyW, copyY, SeedCopyW, 38f, _shell.L("ui.host.copy"), CopySeed,
+                    ButtonTier.Quiet);
+                _seedCopyLabel = _seedCopy.GetComponentInChildren<Text>();
+            }
+
+            /// <summary>A fact's value width: the seed shares its line with the Copy button.</summary>
+            private static float FactWidth(int fact) => fact == SeedFact ? FactsW - SeedCopyW - 12f : FactsW;
+
+            /// <summary>Puts the selected world's seed on the clipboard; the button's own label confirms it — a clipboard copy
+            /// is otherwise invisible.</summary>
+            private void CopySeed()
+            {
+                var world = _list.Find(_selected);
+                if (world == null || !world.HasSeed)
+                {
+                    return;
+                }
+
+                GUIUtility.systemCopyBuffer = WorldSeedInput.Format(world.Seed);
+                _seedCopyLabel.text = _shell.L("ui.save.seed_copied");
             }
 
             private void ShowDetail(SavedWorld world)
@@ -306,17 +335,22 @@ namespace BlocksBeyondTheStars.Client
                 _detailName.text = world.Name;
                 UiKit.FitLabelSingleLine(_detailName, PaneW - 64f, 20, 36);
                 _detailMeta.text = mode + "  ·  " + ago;
-                string[] facts = { mode, ago, played };
+                // #4079: a save not played since the seed reached its sidecar shows "—" and no Copy button.
+                string seed = world.HasSeed ? WorldSeedInput.Format(world.Seed) : "—";
+                string[] facts = { mode, ago, played, seed };
                 for (int i = 0; i < _facts.Length; i++)
                 {
                     _facts[i].text = facts[i];
-                    UiKit.FitLabelSingleLine(_facts[i], FactsW, 14, 22);
+                    UiKit.FitLabelSingleLine(_facts[i], FactWidth(i), 14, 22);
                 }
+
+                _seedCopy.gameObject.SetActive(world.HasSeed);
+                _seedCopyLabel.text = _shell.L("ui.host.copy");
 
                 _preview.Show(world.Name); // the "last played" picture of this world only — never one per list row
             }
 
-            // seed 0 = the server derives it from the name; "Random world" under a typed name passes its own (#2522).
+            // seed 0 = no --seed: an existing world loads its own from the save; a new world always passes one (#4078).
             private void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, bool sandbox = false,
                 WorldCreationOptions options = null, bool flight = false, long seed = 0)
             {

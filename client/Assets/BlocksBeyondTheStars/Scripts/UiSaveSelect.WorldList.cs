@@ -90,21 +90,6 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
-            /// <summary>The existing world names (empty while the list is loading).</summary>
-            public List<string> Names()
-            {
-                var names = new List<string>(_worlds?.Count ?? 0);
-                if (_worlds != null)
-                {
-                    foreach (var world in _worlds)
-                    {
-                        names.Add(world.Name);
-                    }
-                }
-
-                return names;
-            }
-
             /// <summary>Keeps these buttons disabled until the list is there (no-op when it already is).</summary>
             public void GateUntilLoaded(params Button[] buttons)
             {

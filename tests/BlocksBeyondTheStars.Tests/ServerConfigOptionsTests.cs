@@ -263,6 +263,29 @@ public sealed class ServerConfigOptionsTests
         Assert.Equal(HungerConsumption.Slow, Apply("maybe").Hunger);
     }
 
+    /// <summary>#4078: a typed seed may be negative, and the client writes it with an ASCII minus. A culture whose negative
+    /// sign is U+2212 (Swedish) must still read it — the bundled server inherits the player's system language.</summary>
+    [Fact]
+    public void CommandLine_SeedIsReadInTheInvariantCulture()
+    {
+        var before = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("sv-SE");
+            var config = new ServerConfig();
+
+            Assert.Equal(new[] { "seed" }, config.ApplyCommandLine(new[] { "--seed", "-4711" }));
+            Assert.Equal(-4711L, config.Seed);
+            Assert.Equal(new[] { "seed" }, config.ApplyCommandLine(new[] { "--seed", "9223372036854775807" }));
+            Assert.Equal(long.MaxValue, config.Seed);
+            Assert.Empty(config.ApplyCommandLine(new[] { "--seed", "12.5" }));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = before;
+        }
+    }
+
     [Fact]
     public void CommandLine_WorldRegimeSwitchesAcceptOnOffWords()
     {

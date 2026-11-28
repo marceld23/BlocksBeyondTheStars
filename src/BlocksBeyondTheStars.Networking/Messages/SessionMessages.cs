@@ -159,6 +159,10 @@ public sealed class JoinAccepted
     /// world's <c>WorldHarmony</c> from it — the plants' hues answer the sky, and the sky is rolled from the body's id, not
     /// from its display name. Appended contractless field: an older server leaves it empty.</summary>
     public string LocationId { get; set; } = string.Empty;
+
+    /// <summary>#4080: the server's world name (the save's name) — the client's bug and crash reports carry it beside
+    /// <see cref="WorldSeed"/>. Appended contractless field: an older server leaves it empty.</summary>
+    public string WorldName { get; set; } = string.Empty;
 }
 
 public sealed class JoinRejected
