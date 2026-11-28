@@ -105,11 +105,11 @@ Last updated: 2026-11-22.
   Toxica-Maxima, Arena Nigra) possible instead of switching them off, and **Frequent** really raises them; only **Off**
   removes them. KuBa-W is in every galaxy whatever the sliders say. Your home planet stays a varied world. The world *owns* its rules from then on; the world admin can live-edit the
   creature/enemy activity and PvP later in-game (Character tab → "World rules" / "Weltregeln").
-  **Seed (optional):** the page **"Hand-designed structures…"** ends, under *Galaxy & terrain*, with a **Seed** box.
-  Leave it empty and the new world is random. Type a **number** (e.g. `4711` or `-4711`, the seed a friend copied from
+  **Seed (optional):** on the world options' main page, in the right column under **Universe size**, is the **Seed**
+  box. Leave it empty and the new world is random. Type a **number** (e.g. `4711` or `-4711`, the seed a friend copied from
   *My worlds*) or any **word** (`Lyxette`, `Mars base`) and you get exactly the world that seed makes — the same
   seed gives the same world again, as long as the world options are the same and the game version builds the same
-  landforms (the page shows the terrain generation). A word is case-sensitive (`Erde` and `erde` are two worlds).
+  landforms (the page "Hand-designed structures…" shows the terrain generation). A word is case-sensitive (`Erde` and `erde` are two worlds).
   Worlds created before this update got their seed from their **name** — type an old world's name as the seed and you
   get that world again. The presets do not touch the seed box.
 - **Stories** ("Geschichten") at world creation: the row **"Stories: VEGA · Tutorial Auto ›"** at the bottom of the
