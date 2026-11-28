@@ -33,6 +33,16 @@ namespace BlocksBeyondTheStars.Client
         private const float PanelW = 1000f, PanelH = 660f;
         private const float RowH = 84f, RowsTop = 156f;
 
+        // #4076: every ingredient is a line of its own with its picture in front (IconResolver — the item's icon, or the
+        // block's in-game texture for ores and blocks). A row grows only when a side has three lines.
+        private const float LineH = 25f, LineIcon = 22f, RowPad = 28f;
+        private const float GiveX = 40f, ArrowX = 400f, GetX = 450f;
+        private const float ButtonX = PanelW - 230f, ButtonW = 170f, ButtonH = 56f;
+        private const float GiveTextW = ArrowX - 8f - (GiveX + LineIcon + 8f);
+        // #4076: the get side ends before the Trade button — it used to run 80 px under it (490..850 against 770..940).
+        private const float GetTextW = ButtonX - 12f - (GetX + LineIcon + 8f);
+        private static readonly Color ShortCol = new Color(1f, 0.55f, 0.55f);
+
         /// <summary>Seconds between two looks at whether the bound vendor still serves the player.</summary>
         private const float ReachCheckInterval = 0.25f;
 
@@ -233,7 +243,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddOutline(_title);
             _subtitle = UiKit.AddText(_root, px + 40, py + 78, PanelW - 80, 26, L("ui.vendor.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(_root, px + 40, py + 116, 380, 22, L("ui.vendor.give"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddText(_root, px + 470, py + 116, 320, 22, L("ui.vendor.get"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(_root, px + GetX, py + 116, 320, 22, L("ui.vendor.get"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             _discount = UiKit.AddText(_root, px + PanelW - 440, py + 116, 400, 22, string.Empty, 15, UiKit.Ok, TextAnchor.MiddleRight, FontStyle.Bold);
 
             // The rows live in a masked scroll viewport — a settlement can post more trades than the
@@ -299,6 +309,7 @@ namespace BlocksBeyondTheStars.Client
             _discount.text = inReach ? DiscountBadge() : string.Empty;
 
             int row = 0;
+            float rowsH = 0f; // #4076: rows differ in height now (one line per ingredient)
             if (!inReach)
             {
                 // #2629: the chosen vendor walked off — say so instead of silently shrinking the list to the common deals.
@@ -313,7 +324,8 @@ namespace BlocksBeyondTheStars.Client
                 string theme = vendor != null ? vendor.Theme : string.Empty;
                 foreach (var r in BlocksBeyondTheStars.Shared.Definitions.MarketStock.ListFor(Game.MarketRecipes(), theme, day))
                 {
-                    AddRow(row++, r);
+                    rowsH += AddRow(rowsH, r);
+                    row++;
                 }
 
                 if (row == 0)
@@ -326,31 +338,61 @@ namespace BlocksBeyondTheStars.Client
             // clamp the kept scroll position — an inventory-update rebuild mid-browse must not jump to the top.
             var rows = (RectTransform)_rows;
             float viewportH = ((RectTransform)rows.parent).rect.height;
-            float contentH = Mathf.Max(row * RowH + 8f, viewportH);
+            float contentH = Mathf.Max(rowsH + 8f, viewportH);
             rows.sizeDelta = new Vector2(rows.sizeDelta.x, contentH);
             rows.anchoredPosition = new Vector2(rows.anchoredPosition.x,
                 Mathf.Clamp(rows.anchoredPosition.y, 0f, contentH - viewportH));
         }
 
-        private void AddRow(int index, BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition r)
+        /// <summary>One trade at <paramref name="y"/>: give lines → get lines, each with its picture, and the Trade button.
+        /// Returns the row's height (#4076: a side with three lines makes the row taller).</summary>
+        private float AddRow(float y, BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition r)
         {
-            float y = index * RowH;
             // #3292: priced with the flower discount the server pushed — the same rule (MarketPricing) its barter takes.
             var cost = BlocksBeyondTheStars.Shared.Definitions.MarketPricing.Inputs(r, Discount);
             bool afford = cost.All(inp => Pooled(inp) >= inp.Count);
+            float rowH = Mathf.Max(RowH, Mathf.Max(r.Inputs.Count, r.Outputs.Count) * LineH + RowPad);
+            float inner = rowH - 12f;
 
-            UiKit.AddPanel(_rows, 20, y, PanelW - 40, RowH - 12, new Color(0.06f, 0.14f, 0.26f, 0.85f));
+            UiKit.AddPanel(_rows, 20, y, PanelW - 40, inner, new Color(0.06f, 0.14f, 0.26f, 0.85f));
 
-            string give = string.Join("   ", r.Inputs.Select((a, i) => GiveText(a, cost[i])));
-            string get = string.Join("   ", r.Outputs.Select(a => $"{a.Count}× {ItemName(a.Item)}"));
+            // An ingredient the player is short of reads red on its own line (with what they hold, GiveText).
+            for (int i = 0; i < r.Inputs.Count; i++)
+            {
+                var col = Pooled(cost[i]) >= cost[i].Count ? UiKit.TextCol : ShortCol;
+                AddLine(y, inner, i, r.Inputs.Count, GiveX, GiveTextW, r.Inputs[i].Item, GiveText(r.Inputs[i], cost[i]), col);
+            }
 
-            var giveCol = afford ? UiKit.TextCol : new Color(1f, 0.55f, 0.55f);
-            UiKit.AddText(_rows, 40, y + 6, 400, RowH - 24, give, 18, giveCol, TextAnchor.MiddleLeft);
-            UiKit.AddText(_rows, 440, y + 6, 36, RowH - 24, "→", 22, UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddText(_rows, 490, y + 6, 360, RowH - 24, get, 18, UiKit.Ok, TextAnchor.MiddleLeft);
+            UiKit.AddText(_rows, ArrowX, y, GetX - ArrowX - 8f, inner, "→", 22, UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Bold);
+            for (int i = 0; i < r.Outputs.Count; i++)
+            {
+                var a = r.Outputs[i];
+                AddLine(y, inner, i, r.Outputs.Count, GetX, GetTextW, a.Item, $"{a.Count}× {ItemName(a.Item)}", UiKit.Ok);
+            }
 
-            string key = r.Key;
-            var btn = UiKit.AddButton(_rows, PanelW - 230, y + 8, 170, RowH - 28,
+            AddTradeButton(y + (inner - ButtonH) * 0.5f, r.Key, afford);
+            return rowH;
+        }
+
+        /// <summary>#4076: one ingredient line — its picture, then "3× Iron ore" — the block of <paramref name="count"/> lines
+        /// centred in the row. A group ingredient (any log) shows the item it names; no picture (the atlas not ready on a very
+        /// early open) leaves the gap, so the names stay aligned.</summary>
+        private void AddLine(float rowY, float inner, int index, int count, float x, float textW, string item, string text, Color col)
+        {
+            float top = rowY + (inner - count * LineH) * 0.5f + index * LineH;
+            var icon = UiKit.AddIconSprite(_rows, x, top + (LineH - LineIcon) * 0.5f, LineIcon, IconResolver.Resolve(item, Game), IconResolver.Tint(item, Game));
+            if (icon != null)
+            {
+                BioIcons.SyncBadge(icon, item);
+            }
+
+            var label = UiKit.AddText(_rows, x + LineIcon + 8f, top, textW, LineH, text, 18, col, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(label, textW, 13, 18); // a long name shrinks instead of running into the next column
+        }
+
+        private void AddTradeButton(float y, string key, bool afford)
+        {
+            var btn = UiKit.AddButton(_rows, ButtonX, y, ButtonW, ButtonH,
                 afford ? L("ui.vendor.trade") : L("ui.vendor.cant_afford"),
                 afford ? () => Game.Network?.SendCraft(key, 1) : null);
             if (!afford)

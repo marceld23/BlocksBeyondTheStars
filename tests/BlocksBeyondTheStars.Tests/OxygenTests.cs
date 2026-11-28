@@ -151,6 +151,53 @@ public sealed class OxygenTests : IDisposable
     }
 
     [Fact]
+    public void AHeadInsideTheInnerStalkOfADenseKelpPatch_DrainsOxygen()
+    {
+        // #4075: in a kelp forest the middle stalk has kelp above and kelp on all four sides — its cells counted as dry, an
+        // air pocket you could breathe in. The water runs down the stalk now.
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "oxykelp"));
+        using (repo)
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig
+            {
+                WorldName = "oxykelp",
+                Seed = 7,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = true,
+                PlaceSettlements = false,
+                PlaceWrecks = false,
+            };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+
+            var p = server.AddLocalPlayer("Diver");
+            server.TickForTest(0.1);
+
+            var water = _content.GetBlock("water")!.NumericId;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var kelp = _content.GetBlock("flora_kelp")!.NumericId;
+            int cx = 240, cz = 240, floorY = 100;
+            for (int x = cx - 3; x <= cx + 3; x++)
+                for (int z = cz - 3; z <= cz + 3; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, floorY, z), stone);
+                    bool patch = System.Math.Abs(x - cx) <= 1 && System.Math.Abs(z - cz) <= 1;
+                    for (int y = floorY + 1; y <= floorY + 8; y++)
+                    {
+                        server.World.SetBlock(new Vector3i(x, y, z), patch && y <= floorY + 7 ? kelp : water);
+                    }
+                }
+
+            var dive = new Vector3f(cx + 0.5f, floorY + 3f, cz + 0.5f);
+            float before = p.State.Oxygen = 80f;
+            for (int i = 0; i < 6; i++) { p.State.Position = dive; server.TickForTest(0.5); }
+            Assert.True(p.State.Oxygen < before, $"A head inside the inner stalk of a kelp patch must drain oxygen (was {p.State.Oxygen}).");
+        }
+    }
+
+    [Fact]
     public void AboardShip_RefillsOxygen_OutsideDrainsIt()
     {
         var server = Start(out var repo);

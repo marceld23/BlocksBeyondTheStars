@@ -47,7 +47,17 @@ namespace BlocksBeyondTheStars.Client
             int have = OwnedOf(inp);
             bool ok = have >= inp.Count;
             bool craftable = Game.Content.CraftDepth(inp.Item) > 0;
-            UiKit.AddText(_detail, 20, y, 620, size + 8, $"{(ok ? "✓" : "✗")} {IngredientName(inp)}  {have}/{inp.Count}", size,
+            // #4076: the ingredient's picture in front of its line, as on the vendor's trade screen (a group ingredient — any
+            // log — shows the item it names). The text keeps its right edge (x 640): it only starts after the picture.
+            float iconSize = size + 2f;
+            var icon = UiKit.AddIconSprite(_detail, 20, y + 1f, iconSize, IconResolver.Resolve(inp.Item, Game), IconResolver.Tint(inp.Item, Game));
+            if (icon != null)
+            {
+                BioIcons.SyncBadge(icon, inp.Item);
+            }
+
+            float textX = 20f + iconSize + 8f;
+            UiKit.AddText(_detail, textX, y, 640f - textX, size + 8, $"{(ok ? "✓" : "✗")} {IngredientName(inp)}  {have}/{inp.Count}", size,
                 ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
             // Right-anchored, so its right edge must clear the detail viewport (636 wide, RectMask2D) AND the
             // 8-px inline scrollbar that overlays the viewport's right edge — x = 20 + 620 = 640 lost the last

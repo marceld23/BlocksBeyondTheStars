@@ -1409,7 +1409,8 @@ round.
   with breathable air the tank fills up again as soon as your head is back in the air: at the surface, or in a trapped
   **air pocket** (a sunken ruin may have one, see *Lost civilizations*).
 - Plants, ladders and shaped blocks standing in water are **under water too**: you swim through a kelp forest
-  and your suit air drains inside it — a kelp stalk or a ladder is no hidden air pocket.
+  and your suit air drains inside it — a kelp stalk or a ladder is no hidden air pocket, not even deep inside a
+  dense kelp patch (the water runs down every stalk).
 - **You can fight in the water.** Water dims the view rather than ending it: a few blocks of it are
   see-through, so you can hit something swimming beside you or just under the surface, while a whole lake
   still hides what is on the far side of it — nothing notices you across open water, and you cannot snipe
@@ -3994,7 +3995,8 @@ worlds created with a game version that has generation 43 have them; an older wo
   for themselves. A deposit whose mineral sample you traded away stays known to you: its next block is not a
   "first block" with a guaranteed sample again.
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
-  again) to open that vendor's **trade screen** (*you give → you get*). A vendor's themed goods only trade while that
+  again) to open that vendor's **trade screen** (*you give → you get*; every item on its own line with its picture —
+  an ingredient you are short of reads red). A vendor's themed goods only trade while that
   vendor stands right beside you (the grocer only inside his shop). Barter trades there swap your raw resources for
   goods. **Aboard your ship** the Crafting tab's **Market** page lists what the ship's trade console itself trades
   (iron ↔ titanium, iron → lead) — the vendors' themed goods are not offered there; its cards read *Can trade* and the button
