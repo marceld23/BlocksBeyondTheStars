@@ -36,6 +36,7 @@ public sealed class CrashReportWriter
 
     private readonly string _directory;
     private readonly string _worldName;
+    private readonly long _seed;
     private readonly string _version;
     private readonly Lock _gate = new();
     private int _seq;
@@ -43,11 +44,14 @@ public sealed class CrashReportWriter
     /// <param name="directory">Folder reports are written to (created on demand). Empty disables writing.</param>
     /// <param name="worldName">World tag baked into the file name + payload (kept stable across a run).</param>
     /// <param name="version">Server build/version string, recorded so a report identifies its binary.</param>
-    public CrashReportWriter(string directory, string worldName, string version)
+    /// <param name="seed">The world's seed, written beside <c>world</c> (#4080: once new worlds roll a random seed, the
+    /// name no longer says which world was generated). 0 = unknown, written as null.</param>
+    public CrashReportWriter(string directory, string worldName, string version, long seed = 0L)
     {
         _directory = directory ?? string.Empty;
         _worldName = string.IsNullOrWhiteSpace(worldName) ? "world" : worldName;
         _version = version ?? string.Empty;
+        _seed = seed;
     }
 
     /// <summary>The folder reports land in (for a startup hint that points the player at unsent files).</summary>
@@ -105,6 +109,7 @@ public sealed class CrashReportWriter
                     source = "server",
                     system,
                     world = _worldName,
+                    seed = _seed != 0L ? _seed : (long?)null,
                     serverVersion = _version,
                     uptimeSeconds,
                     exceptionType,

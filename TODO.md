@@ -26,6 +26,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌱 World seed: an optional seed field, the name only a label, the seed in My worlds and in the reports — #4078, #4079, #4080, branch feat/world-seed — ✅ done 2026-11-28 (client + server + report inbox; protocol: one appended contractless `JoinAccepted` field; no save, data or world-generation change)
+- **Seed field, name decoupled** (#4078). A new world's seed used to be the hash of its name (the server's
+  `StableHash(WorldName)` when no `--seed` came), so the name *was* the world. The new-world form now always passes a
+  seed: **World options → Hand-designed structures… → Seed**, optional — empty rolls a random one, a whole number is that
+  seed, any other text is `WorldGenerator.StableHash(text)` — the very hash the name got, so an old world's name typed as
+  the seed makes that old world again; `0` and too-long numbers hash as text (`Client.Core/WorldSeedInput`). The dice
+  button "Random" (#2522) is gone with `RandomWorldName`; the name box takes the row. The page's rows step 56 px (was 62)
+  so the seed line fits above the footer. A preset never wipes a typed seed. The server's "seed 0 = derive from the name"
+  stays for dedicated servers, `BBS_SEED`, the playtest worlds and the tool runs; `--seed` is now written and parsed in
+  the invariant culture (a negative seed under a U+2212 minus culture such as Swedish was refused before). Existing
+  worlds are untouched: their seed is read from the save, the name is never hashed again. Tests: `WorldSeedInputTests`,
+  `WorldOptionsLayoutTests` (+1), `ServerConfigOptionsTests` (+1), `WorldReportInfoTests` (the real server's name seed
+  equals the field's word seed).
+- **Seed in My worlds** (#4079). The world details show a fourth fact, **Seed**, with a **Copy** button (facts at 66 px,
+  was 88). The value comes from the `world.meta.json` sidecar (`WorldSaveSummary.Seed`, written by the SQLite and
+  PostgreSQL repositories); a save not played since shows "—" until its next save. Tests: `WorldListCacheTests` (+3).
+- **Name and seed in the reports** (#4080). `JoinAccepted.WorldName` (appended; an older server sends none); the F1
+  report sends `worldName` beside `worldSeed` (both dropped in the menu, as before); the client crash reporter reads a
+  thread-safe `WorldReportInfo.Current` (set on join, cleared on leaving); the server crash report carries `seed` beside
+  `world`; the report inbox's Meta table shows a **World** row (name · seed). The F1 privacy hint names the world's name
+  and seed (all 14 languages). Test-pilot reports stay anonymous and carry neither. Tests: `WorldReportInfoTests`,
+  `CrashReportWriterTests` (+1), `NetworkingTests`, `ReportHostWorldLineTests`. ⚠ The inbox row shows once the
+  report-host image is deployed.
+
 ### 🌊 Player report of 2026-11-28: no second water surface in kelp patches; pictures on the vendor's trade screen — #4075, #4076, branch fix/reports-2026-11-28 — ✅ done 2026-11-28 (shared + client; no protocol, save, data, world-generation or text change)
 
 - **"Another water surface under water"** (#4075, Marcel's laptop, Zoozre). Inside a dense kelp patch a stalk cell has the

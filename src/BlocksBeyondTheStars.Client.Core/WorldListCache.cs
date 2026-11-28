@@ -33,11 +33,17 @@ namespace BlocksBeyondTheStars.Client
         }
 
         public SavedWorld(string name, DateTime lastWriteUtc, long playtimeSeconds, string? mode)
+            : this(name, lastWriteUtc, playtimeSeconds, mode, seed: 0L)
+        {
+        }
+
+        public SavedWorld(string name, DateTime lastWriteUtc, long playtimeSeconds, string? mode, long seed)
         {
             Name = name;
             LastWriteUtc = lastWriteUtc;
             PlaytimeSeconds = playtimeSeconds;
             Mode = mode ?? string.Empty;
+            Seed = seed;
         }
 
         /// <summary>The save folder's name — the world's name.</summary>
@@ -54,6 +60,14 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="ModeSandbox"/>, as the server wrote it; empty when the sidecar names none (a save not played since
         /// #3664) or cannot be read — the picker then shows no mode.</summary>
         public string Mode { get; }
+
+        /// <summary>The world's seed from the sidecar (#4079), for the details' Seed line; 0 when the sidecar names none — a
+        /// save not played since #4079, or no readable sidecar — and the picker then shows "—". A real seed is never 0 (the
+        /// server reads 0 as "derive it from the name").</summary>
+        public long Seed { get; }
+
+        /// <summary>True when <see cref="Seed"/> is known.</summary>
+        public bool HasSeed => Seed != 0L;
 
         /// <summary>The locale key naming <see cref="Mode"/> (<see cref="ModeKeyOf"/>); empty when the mode is unknown.</summary>
         public string ModeKey => ModeKeyOf(Mode);
@@ -99,8 +113,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The headline-stats sidecar the server writes beside <see cref="WorldFile"/> (WorldSaveSummary).</summary>
         public const string SidecarFile = "world.meta.json";
 
-        /// <summary>What a world without a readable sidecar shows: no playtime (-1), no mode.</summary>
-        private static readonly (long PlaytimeSeconds, string Mode) NoSidecar = (-1, string.Empty);
+        /// <summary>What a world without a readable sidecar shows: no playtime (-1), no mode, no seed.</summary>
+        private static readonly (long PlaytimeSeconds, string Mode, long Seed) NoSidecar = (-1, string.Empty, 0L);
 
         private readonly object _gate = new object();
         private readonly Func<string, IReadOnlyList<SavedWorld>> _scan;
@@ -266,8 +280,8 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                var (played, mode) = withPlaytime ? ReadSidecar(dir) : NoSidecar;
-                worlds.Add(new SavedWorld(Path.GetFileName(dir), db.LastWriteTimeUtc, played, mode));
+                var (played, mode, seed) = withPlaytime ? ReadSidecar(dir) : NoSidecar;
+                worlds.Add(new SavedWorld(Path.GetFileName(dir), db.LastWriteTimeUtc, played, mode, seed));
             }
 
             worlds.Sort(NewestFirst);
@@ -287,9 +301,10 @@ namespace BlocksBeyondTheStars.Client
         public static long ReadPlaytimeSeconds(string worldDirectory) => ReadSidecar(worldDirectory).PlaytimeSeconds;
 
         /// <summary>What the picker reads from a world folder's <see cref="SidecarFile"/>, in ONE parse: the playtime in
-        /// seconds (-1 when the sidecar has none) and the game mode (#3664: <see cref="SavedWorld.Mode"/>, empty when the
-        /// sidecar has none). (-1, "") when there is no sidecar, it is locked or it does not parse.</summary>
-        public static (long PlaytimeSeconds, string Mode) ReadSidecar(string worldDirectory)
+        /// seconds (-1 when the sidecar has none), the game mode (#3664: <see cref="SavedWorld.Mode"/>, empty when the
+        /// sidecar has none) and the seed (#4079: <see cref="SavedWorld.Seed"/>, 0 when the sidecar has none). (-1, "", 0)
+        /// when there is no sidecar, it is locked or it does not parse.</summary>
+        public static (long PlaytimeSeconds, string Mode, long Seed) ReadSidecar(string worldDirectory)
         {
             try
             {
@@ -307,6 +322,7 @@ namespace BlocksBeyondTheStars.Client
 
                 long seconds = -1;
                 string mode = string.Empty;
+                long seed = 0L;
                 foreach (var property in doc.RootElement.EnumerateObject())
                 {
                     // PascalCase from the server (WorldSaveSummary), read case-blind like any sidecar reader should.
@@ -321,9 +337,15 @@ namespace BlocksBeyondTheStars.Client
                     {
                         mode = property.Value.GetString() ?? string.Empty;
                     }
+                    else if (string.Equals(property.Name, "Seed", StringComparison.OrdinalIgnoreCase)
+                             && property.Value.ValueKind == JsonValueKind.Number
+                             && property.Value.TryGetInt64(out long worldSeed))
+                    {
+                        seed = worldSeed;
+                    }
                 }
 
-                return (seconds, mode);
+                return (seconds, mode, seed);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is JsonException)
             {

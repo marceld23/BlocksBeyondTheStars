@@ -56,6 +56,12 @@ namespace BlocksBeyondTheStars.Client
         /// escape hatch. A loaded save always keeps the generation stored in its metadata.</summary>
         public int TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration;
 
+        /// <summary>#4078: the optional seed the player typed on the galaxy &amp; terrain page — empty = a random world, a
+        /// number = that seed, a word = its hash (<see cref="WorldSeedInput"/>). Not part of <see cref="ToArgs"/>: the form
+        /// resolves it into the launch's <c>--seed</c>. A preset never touches it (<see cref="CopyFrom"/>): presets are about
+        /// difficulty, and wiping a typed seed with a click on "Peaceful" would only surprise.</summary>
+        public string SeedText = string.Empty;
+
         // Hand-designed structure templates: how readily an authored station/settlement is used in place
         // of a procedural one (Freq index; server default = Rare). 0 (Off) ⇒ always procedural.
         public int StationTemplates = 2;     // Rare

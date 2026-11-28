@@ -704,10 +704,11 @@ backdrop, `visor` = the visor HUD's render targets, `total` = `LaunchGame` to th
 
 **Before the wait: the world picker (#3259).** The singleplayer world list is read off the main thread by
 `WorldListCache` (Client.Core; `LocalServerLauncher.WorldList`): the shell starts the scan when the main menu
-shows, with one `world.db` timestamp per world plus the playtime sidecar, and drops the list when a world is
-created, played or left (a delete just removes its entry). `UiSaveSelect` opens at once and builds its rows 25
-per frame (`UiSaveSelect.WorldList.cs`); a list still being read shows a spinner and "Loading worlds…" after
-150 ms, and *Create* / *Random world* stay disabled until it is there. Measured before: 264 saves froze the
+shows, with one `world.db` timestamp per world plus the sidecar (playtime, mode and — #4079 — seed), and drops the
+list when a world is created, played or left (a delete just removes its entry). `UiSaveSelect` opens at once and builds
+its rows 25 per frame (`UiSaveSelect.WorldList.cs`); a list still being read shows a spinner and "Loading worlds…" after
+150 ms, and *Create* stays disabled until it is there (the dice button *Random world* is gone since #4078 — a new
+world's seed is random unless World options name one, `WorldSeedInput`). Measured before: 264 saves froze the
 menu for 0.3 s on a warm file cache and 5.8 s on the first click after a game start.
 
 Two things to know when reading the numbers: the **NetCodec warm-up** (7–8 s of MessagePack codegen) runs on

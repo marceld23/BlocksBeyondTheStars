@@ -208,9 +208,9 @@ public sealed class WorldOptionsLayoutTests
     }
 
     /// <summary>The authored-structures page (#1114, #2353, #2632, #3614) is a fixed grid too: its left column — the two
-    /// template sliders, the galaxy header, the galaxy switches, the debris fields, the derelicts, the giant ship wrecks and the
-    /// read-only terrain-generation line — must end above the footer. Replayed from the source: the start <c>y</c>, every
-    /// literal <c>y += n f</c> step, then the 40 px terrain-generation line.</summary>
+    /// template sliders, the galaxy header, the galaxy switches, the debris fields, the derelicts, the giant ship wrecks, the
+    /// read-only terrain-generation line and the seed field (#4078) — must end above the footer. Replayed from the source:
+    /// the start <c>y</c>, every literal <c>y += n f</c> step, then the 40 px last line.</summary>
     [Fact]
     public void StructuresPage_LeftColumn_EndsAboveTheFooterButtons()
     {
@@ -231,9 +231,40 @@ public sealed class WorldOptionsLayoutTests
 
         Assert.True(steps >= 8, $"Only {steps} steps parsed on the structures page — the guard lost track of the layout.");
         Assert.Contains("UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L(\"ui.worldopt.terrain_generation\")", page, StringComparison.Ordinal);
-        float bottom = y + LabelH; // the terrain-generation line closes the column
+        Assert.Contains("UiKit.AddInput(parent, 320f, y, 450f, 40f, opt.SeedText", page, StringComparison.Ordinal);
+        float bottom = y + LabelH; // the seed field's 40 px line closes the column
         Assert.True(bottom + MinClearance <= footerY,
             $"The structures page's left column ends at y={bottom}, under the footer buttons at y={footerY}.");
+    }
+
+    /// <summary>#4078: the world's seed has an optional field on the galaxy &amp; terrain page, and what is typed there reaches
+    /// the launch — the new-world form resolves it (empty = random) instead of leaving the seed to the server's
+    /// "derive it from the name"; the dice button "Random" is gone; a difficulty preset never wipes a typed seed.</summary>
+    [Fact]
+    public void Seed_HasAFieldOnTheStructuresPage_AndReachesTheLaunch()
+    {
+        string source = Source();
+        int start = source.IndexOf("private static void BuildStructures(", StringComparison.Ordinal);
+        int end = source.IndexOf("// Pack picker (right column)", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        string page = source.Substring(start, end - start);
+        Assert.Contains("shell.L(\"ui.worldopt.seed\")", page, StringComparison.Ordinal);
+        Assert.Contains("v => opt.SeedText = v", page, StringComparison.Ordinal);
+        Assert.Contains("placeholder: shell.L(\"ui.worldopt.seed_placeholder\"), maxLength: WorldSeedInput.MaxLength", page, StringComparison.Ordinal);
+
+        string scripts = Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
+        string create = File.ReadAllText(Path.Combine(scripts, "UiSaveSelect.Create.cs"));
+        Assert.Contains("long seed = WorldSeedInput.Resolve(_worldOptions.SeedText, new System.Random());", create, StringComparison.Ordinal);
+        Assert.Contains("Launch(world, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight(), seed);", create, StringComparison.Ordinal);
+        Assert.DoesNotContain("ui.save.random_short", create, StringComparison.Ordinal);
+
+        string options = File.ReadAllText(Path.Combine(scripts, "WorldCreationOptions.cs"));
+        Assert.Contains("public string SeedText = string.Empty;", options, StringComparison.Ordinal);
+        Assert.DoesNotContain("SeedText = other.SeedText", options, StringComparison.Ordinal);
+
+        // The bundled server gets the seed with an ASCII minus in every language.
+        Assert.Contains("\" --seed \" + WorldSeedInput.Format(seed)", File.ReadAllText(Path.Combine(scripts, "LocalServerLauncher.cs")),
+            StringComparison.Ordinal);
     }
 
     /// <summary>#3614: the giant ship wrecks have their slider on the structures page, and the choice reaches the server — the

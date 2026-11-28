@@ -260,7 +260,8 @@ namespace BlocksBeyondTheStars.Client
             // player chose a count in BBS_CHUNK_GEN_WORKERS, which this command line would otherwise override.
             string workersArg = BlocksBeyondTheStars.Client.Core.BundledServerWorkers.Argument(SystemInfo.processorCount,
                 SystemInfo.systemMemorySize, Environment.GetEnvironmentVariable(BlocksBeyondTheStars.Client.Core.BundledServerWorkers.EnvironmentVariable));
-            string seedArg = seed != 0 ? $" --seed {seed}" : string.Empty;
+            // #4078: invariant digits — a typed seed may be negative, and some languages write the minus as U+2212.
+            string seedArg = seed != 0 ? " --seed " + WorldSeedInput.Format(seed) : string.Empty;
             // Singleplayer enables free space flight + PvE space combat so it's reachable solo.
             const string spaceArgs = " --free-flight true --space-combat PvE --space-npcs Normal";
             // Voice chat on by default for the bundled host (so hosting a world for friends has working voice

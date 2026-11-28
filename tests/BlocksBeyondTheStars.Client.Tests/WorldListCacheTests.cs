@@ -188,6 +188,48 @@ public sealed class WorldListCacheTests : IDisposable
         Assert.Equal("ui.save.mode_" + mode, world.ModeKey);
     }
 
+    // ---------------- #4079: the world's seed in the sidecar ----------------
+
+    [Theory]
+    [InlineData("{\"PlaytimeSeconds\":5,\"Mode\":\"creative\",\"Seed\":-4711}", -4711L)]
+    [InlineData("{\"seed\":9223372036854775807}", long.MaxValue)] // read case-blind; the whole long range
+    [InlineData("{\"PlaytimeSeconds\":7,\"Mode\":\"explorer\"}", 0L)] // a sidecar from before #4079: the picker shows "—"
+    [InlineData("{\"Seed\":\"12\"}", 0L)] // not a number
+    [InlineData("{ not json", 0L)]
+    public void ReadSidecar_ReadsTheSeed_AndAnOldSidecarHasNone(string json, long seed)
+    {
+        string dir = Sidecar(World("w", Base), json);
+
+        Assert.Equal(seed, WorldListCache.ReadSidecar(dir).Seed);
+        var world = Assert.Single(WorldListCache.Scan(_root));
+        Assert.Equal(seed, world.Seed);
+        Assert.Equal(seed != 0L, world.HasSeed);
+    }
+
+    [Fact]
+    public void TheRepository_WritesTheWorldsSeed_AndThePickerReadsIt()
+    {
+        using (var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "seeded")))
+        {
+            repo.Initialize();
+            repo.SaveMetadata(new WorldMetadata { WorldName = "seeded", Seed = -987654321012L });
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); // let the temp folder go on Windows
+
+        var world = Assert.Single(WorldListCache.Scan(_root));
+        Assert.Equal(-987654321012L, world.Seed);
+        Assert.True(world.HasSeed);
+    }
+
+    [Fact]
+    public void TheOlderConstructors_KnowNoSeed()
+    {
+        Assert.False(new SavedWorld("w", Base, 12).HasSeed);
+        Assert.False(new SavedWorld("w", Base, 12, "explorer").HasSeed);
+        Assert.Equal(-5L, new SavedWorld("w", Base, 12, "explorer", -5L).Seed);
+    }
+
     [Fact]
     public void ARulesOverrideInSurvival_IsAnExplorerWorld()
         => Assert.Equal(WorldSaveSummary.ModeExplorer, WorldSaveSummary.ModeOf(new WorldMetadata { RulesOverride = new GameRules() }));

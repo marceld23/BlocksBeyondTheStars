@@ -418,6 +418,7 @@ public sealed partial class PostgreSqlWorldRepository : IWorldRepository
                 PlaytimeSeconds = metadata.CumulativePlaytimeSeconds,
                 LastPlayedUtc = DateTime.UtcNow.ToString("o"),
                 Mode = WorldSaveSummary.ModeOf(metadata), // #3664: the picker shows each world's mode
+                Seed = metadata.Seed, // #4079: and its seed
             };
             File.WriteAllText(_paths.MetaSidecarFile, JsonSerializer.Serialize(summary, JsonOptions));
         }

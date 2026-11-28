@@ -59,6 +59,21 @@ public sealed class CrashReportWriterTests : IDisposable
         Assert.Contains("InvalidOperationException", rj.GetProperty("exceptionType").GetString());
         Assert.Equal("boom in the tick", rj.GetProperty("message").GetString());
         Assert.Contains("boom in the tick", rj.GetProperty("stackTrace").GetString());
+        Assert.Equal(JsonValueKind.Null, rj.GetProperty("seed").ValueKind); // no seed given: unknown, not a fake 0
+    }
+
+    /// <summary>#4080: once new worlds roll a random seed, the world's name no longer says which world was generated —
+    /// the server's crash report carries the seed beside it.</summary>
+    [Fact]
+    public void Write_CarriesTheWorldsSeedBesideItsName()
+    {
+        var writer = new CrashReportWriter(_dir, "Lyxettes_Welt", "1.2.3", seed: -4711L);
+        string? path = writer.Write("tick-fault", "TickCreatures", new InvalidOperationException("boom"));
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(path!));
+        var rj = doc.RootElement.GetProperty("reportJson");
+        Assert.Equal("Lyxettes_Welt", rj.GetProperty("world").GetString());
+        Assert.Equal(-4711L, rj.GetProperty("seed").GetInt64());
     }
 
     [Fact]

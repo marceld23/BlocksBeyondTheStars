@@ -63,11 +63,12 @@ public static class ServerConfigOptions
             return true;
         };
 
-    /// <summary>A long via the culture-default <c>long.TryParse(value, out …)</c>.</summary>
+    /// <summary>A long in the invariant culture (#4078): the seed — the one long option — can be negative, and the client
+    /// writes it with an ASCII minus, which a culture whose negative sign is U+2212 (Swedish, Norwegian, …) would refuse.</summary>
     private static Func<ServerConfig, string, bool> Long(Action<ServerConfig, long> set)
         => (config, value) =>
         {
-            if (!long.TryParse(value, out var parsed))
+            if (!long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
             {
                 return false;
             }

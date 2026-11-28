@@ -61,7 +61,7 @@ Created on first run; editable directly or through the admin UI.
 | `nearColumnChunksUp` | Chunks above the player's chunk a near column streams (2–3; 3 down is fixed; the in-browser game uses 2) | `3` |
 | `maxAnchoredChunks` | Chunks per world kept loaded away from the players for Crystal Nets, lifts and base builds while someone is on that body (0 = off, at most 8192; the in-browser game uses 128) — see below | `512` |
 | `tickRate` | Simulation Hz (10–20 recommended) | `15` |
-| `seed` | World seed (0 = derive from world name) | `0` |
+| `seed` | World seed of a NEW world, any `long` incl. negative (plain ASCII digits, read the same in every system language); 0 = derive it from the world name. An existing world keeps the seed stored in its save. The game's own new-world form always passes one (random unless the player typed one). | `0` |
 | `world.starSystemCount` / `world.hiddenStarMap` | The galaxy a NEW world is created with: its size (1–64; CLI `--systems`) and whether each player charts its star map (CLI `--hidden-map`, see [HIDDEN_STAR_MAP.md](HIDDEN_STAR_MAP.md)). A first `server.json` is written with `36` / `true`; a file from an older version keeps its values (12 open systems) until you change them. An existing world keeps the galaxy it was created with. | `36` / `true` |
 | `startPlanet` | Starting planet type | `varied` |
 | `adminBindAddress` | Admin UI bind address | `127.0.0.1` |

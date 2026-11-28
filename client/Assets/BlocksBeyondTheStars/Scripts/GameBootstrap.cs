@@ -142,6 +142,9 @@ namespace BlocksBeyondTheStars.Client
         /// OTHER bodies seen from orbit (FloraTints is a pure function of seed + location + species).</summary>
         public long WorldSeed => _worldSeed;
 
+        /// <summary>The server's world name (from JoinAccepted, #4080) — the reports carry it beside the seed; empty from an older server.</summary>
+        public string WorldName { get; private set; } = string.Empty;
+
         /// <summary>Whether this save was created with continents (#704, from JoinAccepted) — the local
         /// preview generators (minimap/orbit bakes) must apply the same gate as the server.</summary>
         public bool TerrainContinents { get; private set; }
@@ -438,6 +441,8 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
                 LoadingPlanetType = m.PlanetType;
                 _worldSeed = m.WorldSeed;
+                WorldName = m.WorldName ?? string.Empty;
+                WorldReportInfo.Current = new WorldReportInfo(WorldName, m.WorldSeed); // #4080: a client crash report names the world
                 GameLook.TerrainFormsSalt = m.WorldSeed; // #3964: the terrain forms hash with the world seed
                 TerrainContinents = m.TerrainContinents; // #704: previews must match the server's gate
                 TerrainGeneration = m.TerrainGeneration; // #1644: same for the landform generation
@@ -909,6 +914,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             Network?.Dispose();
+            WorldReportInfo.Current = null; // #4080: a crash in the menu belongs to no world
             RestoreMenuNavigation(); // #3921: play switched the menus' keyboard navigation off — the main menu gets it back
             _worldHold?.Forget(); // the world is gone — nothing left to hold or to tell (#2461)
             Cutscenes.Clear();    // #2461: a cinematic torn down with its world must not keep the next one's HUD hidden

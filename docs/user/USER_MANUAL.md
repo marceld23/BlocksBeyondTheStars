@@ -32,14 +32,17 @@ Last updated: 2026-11-22.
   long; a long list scrolls with the mouse wheel, the scrollbar or the gamepad). Click one to see it on the right — with a
   **picture of where you last were** (the game takes one after about half a minute of play, then every three minutes,
   when you open the pause menu and when you close the game window; never with the HUD, a menu or a cutscene in it; until
-  a world has one, a planet stands in) — then **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
+  a world has one, a planet stands in) — then **Play**; **Delete** (bin icon) removes it after a confirmation. Beside the
+  picture stand the world's mode, when you last played, how long, and its **Seed** — the number the world was generated
+  from — with a **Copy** button, so you can give it to a friend or make the same world again (a world you have not played
+  since this update shows "—" until you have played it once). **New world** opens the creation form on the right:
   type a name, pick the mode (**Explorer**, **Creative**, **Sandbox** or **Hard Survival** — each card says what it
   means; for Hard Survival see *Death & respawn*), optionally open
-  **World options…** (under the fourth mode card), then **Create & play** — or press the dice button **Random** for a surprise world, under the name
-  you typed, or as `world_<number>` when the name box is empty, still says `new_world` or holds the name of a world you
-  already have. The screen opens at once even with hundreds of saves; while the list is still being read, the left side
-  shows a spinner and **Loading worlds…**, and *Create & play* and *Random* wait until it is there (they check your name
-  against it). While a world starts, the loading
+  **World options…** (under the fourth mode card), then **Create & play**. **The name is only the world's label:** every
+  new world is a surprise, unless you give it a seed in the world options (see *World options* below) — two worlds with
+  the same name are two different worlds. The screen opens at once even with hundreds of saves; while the list is still
+  being read, the left side shows a spinner and **Loading worlds…**, and *Create & play* waits until it is there (it
+  checks your name against it). While a world starts, the loading
   screen's bottom line says what is happening right now — e.g. *Searching for landing sites…*, *Building
   settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. Then the screen goes dark
   with the planet's name, and under the spinner a short story steps along, one line every one and a half seconds while
@@ -102,6 +105,13 @@ Last updated: 2026-11-22.
   Toxica-Maxima, Arena Nigra) possible instead of switching them off, and **Frequent** really raises them; only **Off**
   removes them. KuBa-W is in every galaxy whatever the sliders say. Your home planet stays a varied world. The world *owns* its rules from then on; the world admin can live-edit the
   creature/enemy activity and PvP later in-game (Character tab → "World rules" / "Weltregeln").
+  **Seed (optional):** the page **"Hand-designed structures…"** ends, under *Galaxy & terrain*, with a **Seed** box.
+  Leave it empty and the new world is random. Type a **number** (e.g. `4711` or `-4711`, the seed a friend copied from
+  *My worlds*) or any **word** (`Lyxette`, `Mars base`) and you get exactly the world that seed makes — the same
+  seed gives the same world again, as long as the world options are the same and the game version builds the same
+  landforms (the page shows the terrain generation). A word is case-sensitive (`Erde` and `erde` are two worlds).
+  Worlds created before this update got their seed from their **name** — type an old world's name as the seed and you
+  get that world again. The presets do not touch the seed box.
 - **Stories** ("Geschichten") at world creation: the row **"Stories: VEGA · Tutorial Auto ›"** at the bottom of the
   world options opens its own page with three choices:
   - **Main story** — the story this world tells: **The VEGA Protocol** (default; a line under the list says what it is
@@ -6029,8 +6039,8 @@ with none at all that you need one.
 - Press **F1** (F2 in browser builds) during play to send a bug report or a wish: a title, a description
   and an optional e-mail. A screenshot of the moment you pressed the key — HUD, crosshair and on-screen
   hints included, without the form — and a small technical snapshot (player name,
-  version, position, stats) travel with it to the developers' inbox. No connection? The report is queued and sent on a
-  later start.
+  version, the world's name and seed, position, stats) travel with it to the developers' inbox. No connection? The report
+  is queued and sent on a later start. An automatic crash report from inside a world names the world and its seed too.
 - **F1 works in the main menu too** — and on the world list, Settings, Credits and the Editors overview —
   so a problem you hit before a world is even loaded (say, while creating one) can be reported right
   there. The menu form asks for the same title, description and optional e-mail; it attaches a

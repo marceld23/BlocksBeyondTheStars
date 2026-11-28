@@ -569,7 +569,7 @@ namespace BlocksBeyondTheStars.Client
             float y = 96f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.station_templates"), freqSteps,
                 () => opt.StationTemplates, v => opt.StationTemplates = v, rebuilders: null);
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.settlement_templates"), freqSteps,
                 () => opt.SettlementTemplates, v => opt.SettlementTemplates = v, rebuilders: null);
 
@@ -582,44 +582,52 @@ namespace BlocksBeyondTheStars.Client
             var galaxyOnOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.variance"), galaxyOnOff,
                 () => opt.SystemVariance ? 1 : 0, v => opt.SystemVariance = v == 1, rebuilders: null);
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.belts"), galaxyOnOff,
                 () => opt.AsteroidBelts ? 1 : 0, v => opt.AsteroidBelts = v == 1, rebuilders: null);
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.continents"), galaxyOnOff,
                 () => opt.TerrainContinents ? 1 : 0, v => opt.TerrainContinents = v == 1, rebuilders: null);
 
             // Debris fields (#2353): how many systems hold one. Here, not on the main page — its grid is full
             // (WorldOptionsLayoutTests pins the footer clearance), and the wormholes already took the last row there.
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.debris_fields"), freqSteps,
                 () => opt.DebrisFields, v => opt.DebrisFields = v, rebuilders: null);
 
             // Derelict stations (#2632): one near the start, otherwise rarely one to three in a system; Off removes them all.
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.derelicts"), freqSteps,
                 () => opt.Derelicts, v => opt.Derelicts = v, rebuilders: null);
 
             // Giant ship wrecks (#3614): one in the start system, otherwise rarely one in a system and on about every 20th
             // planet of a new world; Off removes them all — in space and on the planets.
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.giant_wrecks"), freqSteps,
                 () => opt.GiantWrecks, v => opt.GiantWrecks = v, rebuilders: null);
 
             // Guide towers (#3893): the ruin of a guide tower on about every sixth inhabited world of a new world, and
             // one for sure; Off removes them all.
-            y += 62f;
+            y += 56f;
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.sps_towers"), freqSteps,
                 () => opt.SpsTowers, v => opt.SpsTowers = v, rebuilders: null);
 
             // Landscape-variety package (#1644): the terrain generation is pinned to the newest one this launcher
             // knows (WorldCreationOptions.TerrainGeneration) — shown read-only so the panel says which landform
             // set the new world rolls; the classic set (0) stays a server-CLI escape hatch, not a slider.
-            y += 62f;
+            y += 56f;
             UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L("ui.worldopt.terrain_generation"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddText(parent, 320f, y, 450f, 40f,
                 shell.L("ui.worldopt.terrain_generation_value").Replace("{gen}", opt.TerrainGeneration.ToString()),
                 15, UiKit.Cyan, TextAnchor.MiddleLeft);
+
+            // #4078: the world's seed, optional — the box says what an empty one means. A number or a word always makes the
+            // same world (with the same options and terrain generation); the new-world form resolves it (WorldSeedInput).
+            // The rows above step 56 px like the main page's grid, so this one fits above the footer.
+            y += 56f;
+            UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L("ui.worldopt.seed"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(parent, 320f, y, 450f, 40f, opt.SeedText, v => opt.SeedText = v,
+                placeholder: shell.L("ui.worldopt.seed_placeholder"), maxLength: WorldSeedInput.MaxLength, fontSize: 16);
 
             // Pack picker (right column): one toggle per pack; "on" = enabled = not in DisabledPacks.
             float px = 820f, py = 96f;

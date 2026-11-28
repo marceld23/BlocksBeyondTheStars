@@ -11,7 +11,10 @@ namespace BlocksBeyondTheStars.Client
         private sealed partial class WorldsScreen
         {
             // ── New world (the right pane after "+ New world", #3664) ──────────────────────────
-            private string _name = RandomWorldName.DefaultName;
+            /// <summary>The name the name box starts with.</summary>
+            private const string DefaultWorldName = "new_world";
+
+            private string _name = DefaultWorldName;
             private Text _nameLabel;
             private InputField _nameInput;
 
@@ -90,10 +93,11 @@ namespace BlocksBeyondTheStars.Client
 
             // The name is sanitized AS IT IS TYPED, so the box always shows exactly what the save will be called — no silent
             // mangling three layers down. The label doubles as the message line: a warning right above the box is where the
-            // eye already is. The dice button next to it is "Random world" (#2522).
+            // eye already is. The name is only the world's label (#4078): its seed is random unless World options set one,
+            // so the dice button "Random" (#2522) is gone and the box takes the row.
             private void BuildNameRow(Transform c)
             {
-                _nameInput = UiKit.AddInput(c, 32f, 84f, 730f, 46f, _name, v =>
+                _nameInput = UiKit.AddInput(c, 32f, 84f, PaneW - 64f, 46f, _name, v =>
                 {
                     string clean = SanitizeWorldName(v, trimEnd: false); // still typing — keep a trailing space
                     _name = clean;
@@ -109,8 +113,6 @@ namespace BlocksBeyondTheStars.Client
                         SayName("ui.save.name", false);
                     }
                 }, maxLength: 24);
-                var dice = UiKit.AddTierButton(c, 778f, 84f, 200f, 46f, _shell.L("ui.save.random_short"), CreateRandom, ButtonTier.Secondary, "btn_dice");
-                _list.GateUntilLoaded(dice); // a taken name must not be reused (#3259)
             }
 
             private void SayName(string key, bool warn)
@@ -232,20 +234,10 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                Launch(world, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight());
-            }
-
-            // "Random world" honours a name the player actually typed (#2522): an edited, free name gets a random seed under
-            // that name; an empty, untouched or taken one keeps world_<n> (RandomWorldName).
-            private void CreateRandom()
-            {
-                if (!_list.Loaded)
-                {
-                    return; // waits for the list (#3259): a taken name must not be reused
-                }
-
-                var pick = RandomWorldName.Resolve(SanitizeWorldName(_name), RandomWorldName.DefaultName, _list.Names(), new System.Random());
-                Launch(pick.Name, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight(), pick.Seed);
+                // #4078: the seed is never left to the server's "derive it from the name" — World options' seed field, or a
+                // random one when it is empty, so the name stays a label.
+                long seed = WorldSeedInput.Resolve(_worldOptions.SeedText, new System.Random());
+                Launch(world, UnlockAll(), AllShips(), Kit(), _mode == 2, LaunchOptions(), Flight(), seed);
             }
 
             // ── Open to friends (hosting, #3664) — under both views ─────────────────────────────

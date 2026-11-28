@@ -835,7 +835,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 ["location"] = Game != null ? Game.LocationName : string.Empty,
                 ["station"] = Game != null ? Game.StationName : string.Empty,
-                ["worldSeed"] = Game != null ? Game.WorldSeed : 0L,
+                [WorldReportInfo.SeedKey] = Game != null ? Game.WorldSeed : 0L,
+                [WorldReportInfo.NameKey] = Game != null ? Game.WorldName : string.Empty, // #4080: which save, beside its seed
                 ["health"] = Game != null ? Mathf.RoundToInt(Game.Health) : 0,
                 ["oxygen"] = Game != null ? Mathf.RoundToInt(Game.Oxygen) : 0,
                 ["energy"] = Game != null ? Mathf.RoundToInt(Game.SuitEnergy) : 0,
@@ -845,9 +846,9 @@ namespace BlocksBeyondTheStars.Client
             };
             if (ShellMode)
             {
-                // Sent from the menu (#2523): there is no world, so a place, a seed and zeroed stats would only
-                // mislead — the screen the player was on says where instead.
-                foreach (string worldKey in new[] { "location", "station", "worldSeed", "health", "oxygen", "energy", "hunger", "sessionSeconds" })
+                // Sent from the menu (#2523): there is no world, so a place, a world name, a seed and zeroed stats would
+                // only mislead — the screen the player was on says where instead.
+                foreach (string worldKey in new[] { "location", "station", WorldReportInfo.SeedKey, WorldReportInfo.NameKey, "health", "oxygen", "energy", "hunger", "sessionSeconds" })
                 {
                     reportJson.Remove(worldKey);
                 }
