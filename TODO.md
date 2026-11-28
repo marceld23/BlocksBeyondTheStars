@@ -26,6 +26,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌊 Player report of 2026-11-28: no second water surface in kelp patches; pictures on the vendor's trade screen — #4075, #4076, branch fix/reports-2026-11-28 — ✅ done 2026-11-28 (shared + client; no protocol, save, data, world-generation or text change)
+
+- **"Another water surface under water"** (#4075, Marcel's laptop, Zoozre). Inside a dense kelp patch a stalk cell has the
+  next kelp cell above it and mostly kelp around it, so `WetCell.WaterSurrounds` (water above, or on two sides) called it
+  dry: the water around drew its faces toward it — flat see-through squares at several heights in the sea (the transparent
+  shader is `Cull Off`, so they show from above and below) — and a head in it breathed. Replayed on the report's snapshot:
+  4 of 87 plant cells dry, right in front of the camera, their faces at y 64/65 = the squares in the screenshot. **Stalk
+  rule:** a non-full cell is also wet when the non-full cell straight above it is wet (water runs down the stalk, at most
+  `WetCell.MaxStalkCells` = 16 cells up). The mesher passes its plant/prop test and keeps the answer per cell for the build
+  (`ChunkMesher` `WetProp`); the oxygen check and the client's `WaterProbe` get it through `WetCell.IsWet`. The robots'
+  water checks (`MachineCellWet`, `MachineWaterDepth`) already handled stalks on their own and stay as they were. A few
+  more cells in kelp forests drain oxygen now (accepted). Tests: `WetCellTests` (+4), `OxygenTests` (+1).
+- **Trade screen pictures** (#4076). `VendorTradeUI` showed every trade as one joined text line. Now each ingredient is a
+  line of its own with its picture in front (`IconResolver` — the item's icon, or the block's in-game texture for ores
+  and blocks; all 65 market items have one, `IconCoverageTests`); a short ingredient reads red on its own line; a row grows
+  only for three lines. The get side ends before the Trade button (it ran 80 px under it). The Tab menu's ingredient lines
+  (`IngredientRow` — recipe detail, the Market category, blueprint costs) show the same picture in front.
+
 ### 🕹️ DataQubes start card: text wraps, no grey box, VEGA above the Codex / DataQubes — #4069, #4070, #4071 — ✅ released in v2026.11.33, PR #4072 (`25c498b9`) (client only; no protocol, save, text or world-generation change)
 
 Marcel's screenshot (Orbit-Schleuder start card, German) showed the description running out of the card, a grey box behind

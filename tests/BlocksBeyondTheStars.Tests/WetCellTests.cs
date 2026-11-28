@@ -89,6 +89,65 @@ public sealed class WetCellTests
         Assert.False(g.IsWet(0, 1, 0));
     }
 
+    /// <summary>#4075 (report 2026-11-28, "another water surface under water"): a 3×3 block of kelp stalks two cells tall in
+    /// the pool, water over it. The middle stalk's foot has kelp above and kelp on all four sides — it used to count as
+    /// dry, and the mesher drew the water's faces toward it. The water runs down the stalk now.</summary>
+    [Fact]
+    public void TheInnerStalkOfADenseKelpPatch_IsWet_TheWaterRunsDownTheStalk()
+    {
+        var g = Grid.Pool();
+        for (int x = -1; x <= 1; x++)
+            for (int z = -1; z <= 1; z++)
+            {
+                g.Set(x, 0, z, Kelp).Set(x, 1, z, Kelp);
+            }
+
+        Assert.True(g.IsWet(0, 0, 0));  // kelp above, kelp on every side: wet only through the stalk rule
+        Assert.True(g.IsWet(0, 1, 0));  // water above
+        Assert.True(g.IsWet(-1, 0, -1)); // a corner foot: two water sides anyway
+        Assert.False(WetCell.WaterSurrounds(g.At, Water, 0, 0, 0)); // the old one-cell test alone still says dry
+    }
+
+    [Fact]
+    public void AStalkThatEndsInAir_DoesNotCarryWaterDown()
+    {
+        // A kelp column standing in a dry pit with a single water block beside its foot: nothing runs down from above.
+        var g = new Grid().Set(0, -1, 0, Stone).Set(1, 0, 0, Water);
+        for (int y = 0; y <= 3; y++)
+        {
+            g.Set(0, y, 0, Kelp);
+        }
+
+        Assert.False(g.IsWet(0, 0, 0));
+        Assert.False(g.IsWet(0, 3, 0));
+    }
+
+    [Fact]
+    public void AStalkUnderAFullBlock_DoesNotCarryWaterDown()
+    {
+        // Kelp walled in by stone on all sides with stone on top: the pool around does not reach it.
+        var g = Grid.Pool().Set(0, 0, 0, Kelp).Set(0, 1, 0, Stone);
+        g.Set(1, 0, 0, Stone).Set(-1, 0, 0, Stone).Set(0, 0, 1, Stone).Set(0, 0, -1, Stone);
+        Assert.False(g.IsWet(0, 0, 0));
+    }
+
+    [Fact]
+    public void TheStalkRule_StopsAfterMaxStalkCells()
+    {
+        // A tall shaft of kelp boxed in by stone, water only above its top: the foot further down than the cap stays dry.
+        var g = new Grid();
+        int top = WetCell.MaxStalkCells + 3;
+        for (int y = 0; y <= top; y++)
+        {
+            g.Set(0, y, 0, Kelp).Set(1, y, 0, Stone).Set(-1, y, 0, Stone).Set(0, y, 1, Stone).Set(0, y, -1, Stone);
+        }
+
+        g.Set(0, top + 1, 0, Water);
+        Assert.True(g.IsWet(0, top, 0));
+        Assert.True(g.IsWet(0, top - WetCell.MaxStalkCells, 0));
+        Assert.False(g.IsWet(0, top - WetCell.MaxStalkCells - 1, 0));
+    }
+
     [Fact]
     public void WithoutWater_NothingIsWet()
     {

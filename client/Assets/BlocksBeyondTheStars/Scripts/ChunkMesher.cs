@@ -71,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
         // time, and none of these ever escapes the call), so a Clear() at the point of use is all the isolation
         // needed. On WebGL everything runs on the single main thread — same invariant, one buffer set.
         [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), WaterSurfaceData> _waterCellsScratch;
+        [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), bool> _wetPropScratch; // #4075: wet plant/prop cells
         [System.ThreadStatic] private static bool[] _groveKnownScratch;     // #2856: n²: the column's grove drift is read
         [System.ThreadStatic] private static Vector2[] _groveDriftScratch;  // #2856: n²: (hue shift, brightness factor)
         // #1528: dense per-build scratch for the world-chunk path — the AO occluder probes, the skylight column
@@ -437,11 +438,29 @@ namespace BlocksBeyondTheStars.Client
             var wetWaterDef = content.GetBlock("water");
             BlockId wetWaterId = wetWaterDef != null ? wetWaterDef.NumericId : BlockId.Air;
             System.Func<int, int, int, ushort> blockValueFn = (bx, by, bz) => worldBlock(bx, by, bz).Value;
+            bool PropCell(int px, int py, int pz) => (traits.FlagsOf(worldBlock(px, py, pz)) & (TraitFloraPrefix | TraitSlimProp)) != 0;
+            System.Func<int, int, int, bool> propCellFn = PropCell;
+            // #4075: the stalk rule — the water runs down a kelp stalk, so the inner stalks of a dense kelp patch are wet
+            // too (they were dry, and the water around them drew flat "second surfaces" toward them). The rule walks up
+            // the stalk, and a cell is asked by up to six water neighbours plus its own volume, so the answer is kept per
+            // cell for this build.
+            var wetProps = _wetPropScratch ??= new Dictionary<(int X, int Y, int Z), bool>();
+            wetProps.Clear();
             bool WetProp(int px, int py, int pz)
             {
-                return !wetWaterId.IsAir
-                    && (traits.FlagsOf(worldBlock(px, py, pz)) & (TraitFloraPrefix | TraitSlimProp)) != 0
-                    && WetCell.WaterSurrounds(blockValueFn, wetWaterId.Value, px, py, pz);
+                if (wetWaterId.IsAir || !PropCell(px, py, pz))
+                {
+                    return false;
+                }
+
+                var key = (px, py, pz);
+                if (!wetProps.TryGetValue(key, out bool wet))
+                {
+                    wet = WetCell.WaterSurrounds(blockValueFn, wetWaterId.Value, propCellFn, px, py, pz);
+                    wetProps[key] = wet;
+                }
+
+                return wet;
             }
 
             // The water carries on into this cell, so a face toward it stays hidden: water, or a wet plant/prop.
